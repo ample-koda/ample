@@ -1,0 +1,90 @@
+{
+  "id": "lyrics",
+  "title": "Timed lyrics",
+  "category": "Lyrics",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Holds the timed words of a song in a lyrics file and gives them as text. The voice and music blocks read their words from it. It needs a lyrics file.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "words",
+      "type": "text"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "lang",
+      "type": "text",
+      "default": "nl",
+      "kind": "combo",
+      "options": [
+        "nl",
+        "en",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "pt",
+        "sv",
+        "da",
+        "no",
+        "fi",
+        "pl",
+        "ru",
+        "ja",
+        "ko",
+        "zh"
+      ],
+      "doc": "The language code of the words (a list of common ones; type another if you need it)."
+    },
+    {
+      "name": "timing",
+      "type": "text",
+      "default": "per-word",
+      "kind": "choice",
+      "options": [
+        "per-word",
+        "per-line"
+      ],
+      "doc": "Timing granularity used by the lyrics file."
+    },
+    {
+      "name": "first5s",
+      "type": "text",
+      "default": "check",
+      "kind": "choice",
+      "options": [
+        "check",
+        "ignore"
+      ],
+      "doc": "Whether to check the first five seconds for the required opening."
+    },
+    {
+      "name": "file",
+      "label": "Lyrics editor file",
+      "type": "text",
+      "default": "",
+      "doc": "The canonical timed words. Created for you in lyrics/<block name>.lyr when you first open the lyrics editor.",
+      "modalEditor": false,
+      "multiline": false,
+      "kind": "file",
+      "accept": [
+        ".lyr",
+        ".lrc",
+        ".amplelrc",
+        ".txt"
+      ],
+      "placeholder": "choose a lyrics file of the project"
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "# Timed lyric text is a data preview; this project deliberately has no singer or song generator.\ncomposition \"Timed lyrics data preview\" { ample 1  tempo 96  master-seed 17 }\n\nlyrics words {\n  lang en\n  timing per-line\n  file lyrics/preview.lyr\n}\n",
+  "needs": [
+    "A lyrics file of the project (parameter file)."
+  ]
+}

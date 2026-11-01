@@ -1,0 +1,110 @@
+{
+  "id": "pitch",
+  "title": "Pitch shift",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Moves the pitch up or down and keeps the length. The method matters: wsola is clean for instruments and sounds, voice keeps the character of a singing or speaking voice, granular is the simple first one.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "semitones",
+      "automatable": true,
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": -24,
+      "max": 24,
+      "doc": "Semitones to move, with decimals: 12 is an octave up, -12 an octave down, 1.5 a semitone and a half. Or a curve that changes over time: auto(1:0, 4:12) bends up an octave from bar 1 to bar 4 (points in bars, or seconds such as 2.5s); with range the values of the curve are percent of the range.",
+      "step": 0.1
+    },
+    {
+      "name": "range",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 0,
+      "max": 48,
+      "doc": "Only for a curve: when set, the values of auto(...) are percent of this many semitones (auto(1:0, 4:100) with range 12 is an octave up, -100 an octave down), like the pitch knob and range of a sampler. Empty: the values are semitones."
+    },
+    {
+      "name": "method",
+      "type": "text",
+      "default": "wsola",
+      "kind": "choice",
+      "options": [
+        "wsola",
+        "voice",
+        "granular"
+      ],
+      "doc": "wsola: grains that are lined up with each other, clean for instruments and sounds. voice: one pitch period at a time (PSOLA), keeps the colour of a voice; use it for one singer or speaker. granular: the simple overlap-add of before, a little grainy and metallic. A curve (auto(...)) is moved with a phase vocoder: voice keeps the colour of a voice, the others move the colour along like a tape."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Pitch preview\" { ample 1  tempo 96 master-seed 29 }\n\nmidi-clip phrase {\n  melody C4:1/2 E4:1/2 G4:1/2 C5:1/2\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\npitch shifted at 1 for 4 {\n  semitones 3.5\n  method wsola\n  from source.audio -> audio\n}\n\nmaster master {\n  from shifted.audio -> audio\n}\n"
+}

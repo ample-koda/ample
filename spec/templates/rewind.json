@@ -1,0 +1,169 @@
+{
+  "id": "rewind",
+  "title": "Rewind (DJ pull-up)",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Pulls the record back like a DJ: the music stops, only the scratch is heard (for example 2 s), and the music goes on from an earlier place of the same sound (for example 5 s back). Times are those of the block, as you hear it. Several events work in one pass. Connect a real scratch sample to fx for the most realistic sound.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "fx",
+      "type": "audio",
+      "required": false,
+      "title": "Scratch sound",
+      "description": "A real scratch sample (a CC0 one from ample_find_samples): it is heard during every scratch instead of the sound made from the music."
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Scratches",
+      "description": "Only the scratches (the rest is silence), as a region: connect it to the region_in input of an echo or a filter, and bring the result back with a region-merge block (its body input takes the rewind audio)."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "events",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "placeholder": "at 6s scratch 2s back 5s; at 14s scratch 1s back 2s",
+      "doc": "The rewinds, separated by ; Each one: at <time> scratch <length> back <length>. A time is seconds (6s), milliseconds (500ms) or decimal bars from the start of the block (4.5). back is how far the music jumps back after the scratch; a negative back (back -3s) jumps forward. Empty: the sound passes untouched."
+    },
+    {
+      "name": "sound",
+      "type": "text",
+      "default": "auto",
+      "kind": "choice",
+      "options": [
+        "auto",
+        "fx",
+        "spin",
+        "silence"
+      ],
+      "doc": "What is heard during a scratch. auto: the sample on fx when one is connected, otherwise spin. spin: made from the music itself (the record read backwards at a falling speed). silence: a gap."
+    },
+    {
+      "name": "fade",
+      "type": "text",
+      "default": "5 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 50,
+      "doc": "Fade at the cuts, so no cut clicks."
+    },
+    {
+      "name": "hardness",
+      "type": "text",
+      "default": "100%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How hard the cuts are: 100 is a hard cut, lower blends the scratch into the music (blend sets how long)."
+    },
+    {
+      "name": "blend",
+      "type": "text",
+      "default": "120 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 500,
+      "doc": "The length of the blend at 0% hardness; at 50% it is half as long."
+    },
+    {
+      "name": "smear",
+      "type": "text",
+      "default": "0 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 2000,
+      "doc": "The record kicks into gear: after a scratch the music starts at a speed near 0 and rises to full speed over this time (the pitch rises with it). 0 is a straight cut."
+    },
+    {
+      "name": "brake",
+      "type": "text",
+      "default": "0 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 2000,
+      "doc": "The music slows down to nothing over this time before a scratch, like a record that is braked. 0 is a straight cut."
+    },
+    {
+      "name": "curve",
+      "type": "text",
+      "default": "motor",
+      "kind": "choice",
+      "options": [
+        "motor",
+        "linear"
+      ],
+      "doc": "motor: start-up and brake follow a turntable motor; linear: straight lines."
+    },
+    {
+      "name": "end",
+      "type": "text",
+      "default": "stop",
+      "kind": "choice",
+      "options": [
+        "stop",
+        "loop"
+      ],
+      "doc": "When the music runs past the end of the sound: stop (silence) or loop (starts again)."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Rewind\" { ample 1  tempo 96  master-seed 80 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nrewind pull at 1 for 4 {\n  events \"at 3.5 scratch 500ms back 1.9s\"\n  sound spin\n  brake 200 ms\n  from source.audio -> audio\n}\n\nmaster output {\n  from pull.audio -> audio\n}\n"
+}

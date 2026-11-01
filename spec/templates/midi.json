@@ -1,0 +1,122 @@
+{
+  "id": "midi",
+  "title": "MIDI file",
+  "category": "Data",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Reads a Standard MIDI File of the project and gives its notes, so that an instrument block can play them. It needs a .mid file; it can also give the audio of a built-in rendering.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi"
+    },
+    {
+      "name": "sequence",
+      "type": "midi-sequence"
+    },
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "warnings",
+      "type": "text"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".mid",
+        ".midi"
+      ],
+      "doc": "Project-relative Standard MIDI File to read.",
+      "placeholder": "choose a MIDI file in this project"
+    },
+    {
+      "name": "source-file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".mid",
+        ".midi"
+      ],
+      "doc": "Original MIDI retained when an editable variant is created."
+    },
+    {
+      "name": "variant-file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".mid",
+        ".midi"
+      ],
+      "doc": "Latest MIDI exported from the editable variant."
+    },
+    {
+      "name": "variant-module",
+      "type": "text",
+      "default": "",
+      "doc": "Generated project module edited as this block's variant."
+    },
+    {
+      "name": "track",
+      "type": "text",
+      "default": "all",
+      "kind": "text",
+      "placeholder": "all or a zero-based track number",
+      "doc": "Select every track or one zero-based track number."
+    },
+    {
+      "name": "bars",
+      "type": "number",
+      "default": 8,
+      "min": 1,
+      "max": 100000,
+      "step": 1,
+      "unit": "bars",
+      "doc": "Length of the MIDI block in bars."
+    },
+    {
+      "name": "limiter",
+      "type": "text",
+      "default": "soft",
+      "options": [
+        "soft",
+        "off"
+      ],
+      "doc": "Integer soft limiter for MIDI audio; off keeps hard clipping."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "settled",
+  "since": "1.0",
+  "example": "composition \"MIDI file preview\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi performance {\n  file midi/input.mid\n  track all\n  bars 4\n}\n\nsynth local {\n  wave triangle\n  gain -12 dB\n  from performance.notes -> notes\n}\n\nmaster master {\n  from local.audio -> audio\n}\n",
+  "needs": [
+    "A Standard MIDI File (.mid) of the project (parameter file)."
+  ],
+  "soundSource": true
+}

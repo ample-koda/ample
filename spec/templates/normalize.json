@@ -1,0 +1,95 @@
+{
+  "id": "normalize",
+  "title": "Normalize",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Scales the sound to a target peak or a target integrated loudness (never past -0.1 dBFS): a very quiet recording needs no hand-found gain.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "mode",
+      "type": "text",
+      "default": "peak",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "loudness"
+      ],
+      "doc": "peak scales the loudest sample to the peak target; loudness scales to the loudness target (LUFS)."
+    },
+    {
+      "name": "peak",
+      "type": "text",
+      "default": "-1",
+      "kind": "number",
+      "min": -60,
+      "max": 0,
+      "doc": "The peak the loudest sample is brought to in peak mode.",
+      "unit": "dBFS"
+    },
+    {
+      "name": "loudness",
+      "type": "text",
+      "default": "-18",
+      "kind": "number",
+      "min": -60,
+      "max": 0,
+      "doc": "The integrated loudness the sound is brought to in loudness mode.",
+      "unit": "LUFS"
+    },
+    {
+      "name": "max_gain",
+      "type": "text",
+      "default": "48",
+      "kind": "number",
+      "min": 0,
+      "max": 60,
+      "doc": "The most that may be added, so that silence with a bit of noise is not lifted to full scale.",
+      "unit": "dB"
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Normalize preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -15 dB\n  from phrase.notes -> notes\n}\n\nnormalize peak {\n  mode peak\n  peak -3 dBFS\n  max_gain 24 dB\n  from source.audio -> audio\n}\n\nmaster master {\n  from peak.audio -> audio\n}\n"
+}

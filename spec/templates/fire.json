@@ -1,0 +1,97 @@
+{
+  "id": "fire",
+  "title": "Fire (notes from a control)",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays a note when a control passes a level, once for every time it does (a car passes, a hit plays), with a minimum time between two notes.",
+  "inputs": [
+    {
+      "name": "input",
+      "internalName": "in",
+      "type": "control",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "title": "Notes",
+      "description": "One note for each time the control passes the threshold."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off makes a control that stays at the low end of the range."
+    },
+    {
+      "name": "threshold",
+      "type": "text",
+      "default": "0.5",
+      "kind": "text",
+      "doc": "The level that fires a note (a general control runs from 0 to 1; a typed one uses its own unit)."
+    },
+    {
+      "name": "direction",
+      "type": "text",
+      "default": "rising",
+      "kind": "choice",
+      "options": [
+        "rising",
+        "falling"
+      ],
+      "doc": "rising fires when the control goes above the threshold, falling when it goes below."
+    },
+    {
+      "name": "note",
+      "type": "text",
+      "default": "60",
+      "kind": "number",
+      "min": 0,
+      "max": 127,
+      "doc": "The pitch (MIDI number, 60 is the middle C)."
+    },
+    {
+      "name": "velocity",
+      "type": "text",
+      "default": "100",
+      "kind": "text",
+      "doc": "How hard the note is played: a number from 1 to 127, or level to take it from the control at that moment."
+    },
+    {
+      "name": "length",
+      "type": "text",
+      "default": "250 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 10,
+      "max": 20000,
+      "doc": "How long each note lasts."
+    },
+    {
+      "name": "gap",
+      "type": "text",
+      "default": "600 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 60000,
+      "doc": "The least time between two notes (a car that wobbles around the threshold fires once)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Fire\" { ample 1  tempo 96  master-seed 17 }\n\ncurve wave {\n  value lfo(1, 0, 1000)\n}\n\nfire hit {\n  threshold 0.5\n  direction rising\n  note 48\n  length 300 ms\n  gap 600 ms\n  from wave.level -> input\n}\n\nsynth bass {\n  wave saw\n  gain -9 dB\n  from hit.notes -> notes\n}\n\nmaster output {\n  from bass.audio -> audio\n}\n"
+}

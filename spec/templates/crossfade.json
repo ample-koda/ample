@@ -1,0 +1,74 @@
+{
+  "id": "crossfade",
+  "title": "Crossfade",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Input a fades out while input b fades in over the same stretch, in bars or seconds. Equal power by default.",
+  "inputs": [
+    {
+      "name": "a",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "b",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "start",
+      "type": "text",
+      "default": "1",
+      "kind": "text",
+      "doc": "Where the crossfade starts: a bar position (1 is the first bar, 5.5 is half way through bar 5) or seconds from the beginning of the song (12s).",
+      "placeholder": "5 or 12s"
+    },
+    {
+      "name": "length",
+      "type": "text",
+      "default": "2",
+      "kind": "text",
+      "doc": "How long it takes: bars (2, 0.5) or seconds (1.5s).",
+      "placeholder": "2 or 1.5s"
+    },
+    {
+      "name": "shape",
+      "type": "text",
+      "default": "equal",
+      "kind": "choice",
+      "options": [
+        "lin",
+        "equal",
+        "exp"
+      ],
+      "doc": "equal: equal power, the loudness stays the same for two unrelated sounds. lin: a straight line in volume (right for the same sound twice). exp: starts slowly and ends fast."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Crossfade preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth first {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth second {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ncrossfade transition {\n  start 1\n  length 2\n  shape equal\n  from first.audio -> a\n  from second.audio -> b\n}\n\nmaster master {\n  from transition.audio -> audio\n}\n"
+}

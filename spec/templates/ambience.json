@@ -1,0 +1,120 @@
+{
+  "id": "ambience",
+  "title": "Ambience",
+  "category": "Data",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "A recording (rain, a room tone, a crowd) turned into a seamless ambience of any length: stretches of it are chained with crossfades, from random places, so no loop can be heard.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "out",
+      "type": "audio",
+      "alias": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".wav",
+        ".flac",
+        ".mp3",
+        ".ogg",
+        ".aif",
+        ".aiff"
+      ],
+      "doc": "Project-relative recording of the ambience.",
+      "placeholder": "choose a recording of the project"
+    },
+    {
+      "name": "start",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 0,
+      "doc": "Where in the recording the useful part starts, in seconds (empty: the beginning).",
+      "unit": "s"
+    },
+    {
+      "name": "end",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 0,
+      "doc": "Where the useful part ends, in seconds (empty: the end).",
+      "unit": "s"
+    },
+    {
+      "name": "segment",
+      "type": "text",
+      "default": "12",
+      "kind": "number",
+      "min": 2,
+      "max": 120,
+      "doc": "Average length of one stretch before the next one is faded in.",
+      "unit": "s",
+      "step": 1
+    },
+    {
+      "name": "crossfade",
+      "type": "text",
+      "default": "3",
+      "kind": "number",
+      "min": 0.1,
+      "max": 30,
+      "doc": "Length of the crossfade between stretches.",
+      "unit": "s",
+      "step": 0.1
+    },
+    {
+      "name": "variation",
+      "type": "text",
+      "default": "40",
+      "kind": "number",
+      "min": 0,
+      "max": 90,
+      "doc": "How much the stretch length varies.",
+      "unit": "%"
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Ambience preview\" { ample 1  tempo 92  master-seed 20261017 }\n\nambience room at 1 for 4 {\n  file recordings/room-tone.wav\n  segment 8 s\n  crossfade 2 s\n  variation 30%\n}\n\nmaster master {\n  from room.audio -> audio\n}\n",
+  "needs": [
+    "A recording (WAV) of the project to build the ambience from (parameter file)."
+  ],
+  "soundSource": true
+}

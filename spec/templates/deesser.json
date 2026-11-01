@@ -1,0 +1,106 @@
+{
+  "id": "deesser",
+  "title": "De-esser",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Tames harsh s and t sounds in a voice by turning down the loud high frequencies around the chosen frequency. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "frequency",
+      "type": "text",
+      "default": "6000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 2000,
+      "max": 12000,
+      "doc": "Sounds above this frequency are watched for sibilance; the renderer caps it just below Nyquist for the output sample rate."
+    },
+    {
+      "name": "threshold",
+      "type": "text",
+      "default": "-30 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 0,
+      "doc": "Level above which the high part is reduced."
+    },
+    {
+      "name": "ratio",
+      "type": "text",
+      "default": "4",
+      "kind": "number",
+      "min": 1,
+      "max": 20,
+      "doc": "Reduction of the high part over the threshold."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"De-esser preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C5:1/8 D5:1/8 E5:1/8 G5:1/8\n  bars 1\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ndeesser ess {\n  frequency 5000 Hz\n  threshold -30 dB\n  ratio 6\n  from source.audio -> audio\n}\n\nmaster master {\n  from ess.audio -> audio\n}\n"
+}

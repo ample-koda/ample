@@ -1,0 +1,119 @@
+{
+  "id": "guitar",
+  "title": "Guitar (samples)",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays recorded guitar notes from a sample set of the project as a strummed chord pattern. It needs a sample set and notes, and gives audio.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "set",
+      "type": "text",
+      "default": "",
+      "kind": "sampleset",
+      "doc": "A sample set (a folder of the project with note-named WAV files)."
+    },
+    {
+      "name": "strum",
+      "type": "text",
+      "default": "D...D...D.u.D.u.",
+      "kind": "pattern",
+      "doc": "Sixteen strum steps per bar: D/d downstroke, U/u upstroke, x mute and . let ring; bars can be separated by |."
+    },
+    {
+      "name": "voicing",
+      "type": "text",
+      "default": "open",
+      "kind": "choice",
+      "options": [
+        "open",
+        "triad",
+        "power"
+      ],
+      "doc": "Chord voicing: open, triad or power."
+    },
+    {
+      "name": "stagger",
+      "type": "number",
+      "default": 22,
+      "kind": "number",
+      "min": 0,
+      "max": 80,
+      "doc": "Delay between successive strings in milliseconds."
+    },
+    {
+      "name": "gain",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "min": -24,
+      "max": 48,
+      "unit": "dB",
+      "doc": "Output gain in decibels."
+    },
+    {
+      "name": "humanize",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "A little human feel for a sampled instrument: at 100 every note starts up to 6 ms early or late and up to 15 % louder or softer (deterministic from the seed). 0 plays exactly on the grid."
+    },
+    {
+      "name": "patterns",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "doc": "Named strums, separated by /: name=strum, for example verse=D...D.u.D.u. / fill=DdDdDdDdDdDdDdDd. A song (the next parameter) puts them in order.",
+      "placeholder": "verse=D...D.u. / fill=DdDd..."
+    },
+    {
+      "name": "song",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "doc": "The sections in order: a strum name with an optional number of bars, for example verse*4 fill chorus*8. The word pattern is the plain strum of the block. The sequence repeats when the block is longer. Empty: the plain strum plays.",
+      "placeholder": "verse*4 fill chorus*8"
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Sampled guitar preview\" { ample 1  tempo 112  master-seed 20261017 }\n\nmidi-clip harmony {\n  chords Em C G D\n  bars 4\n}\n\n# Add one or more mono note-named WAVs such as e2.wav to samples/guitar for local preview.\nguitar strum at 1 for 4 {\n  set samples/guitar\n  voicing power\n  strum D...D.u.D...D.u.\n  humanize 0\n  from harmony.notes -> notes\n}\n\nmaster output {\n  from strum.audio -> audio\n}\n",
+  "needs": [
+    "A sample set folder with recorded guitar notes (parameter set)."
+  ],
+  "soundSource": true
+}

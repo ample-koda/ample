@@ -1,0 +1,74 @@
+{
+  "id": "send",
+  "title": "Send bus",
+  "category": "Mix",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Sends a part of up to four sounds to a shared effect: through is the plain sum, send the sum with a send level per input.",
+  "inputs": [
+    {
+      "name": "audio1",
+      "internalName": "in1",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio2",
+      "internalName": "in2",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio3",
+      "internalName": "in3",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio4",
+      "internalName": "in4",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "through",
+      "type": "audio"
+    },
+    {
+      "name": "send",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "levels",
+      "type": "text",
+      "default": "-12 -12 -12 -12",
+      "kind": "channels",
+      "count": 4,
+      "unit": "dB",
+      "min": -60,
+      "max": 12,
+      "doc": "How much of each input goes to the shared effect, in decibels (-60 is nothing)."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Send preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth part_a {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth part_b {\n  wave saw\n  gain -15 dB\n  from phrase.notes -> notes\n}\n\nsend fx_send {\n  levels -6 -12\n  from part_a.audio -> audio1\n  from part_b.audio -> audio2\n}\n\nreverb room {\n  size 35%\n  decay 40%\n  mix 35%\n  from fx_send.send -> audio\n}\n\nmixer blend {\n  from fx_send.through -> audio1\n  from room.audio -> audio2\n}\n\nmaster master {\n  from blend.audio -> audio\n}\n"
+}

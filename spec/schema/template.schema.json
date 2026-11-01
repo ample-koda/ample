@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "required": ["id", "title", "category", "class", "version", "dynamic", "description", "example", "inputs", "outputs", "parameters", "status", "since"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "title": { "type": "string" },
+    "category": { "type": "string" },
+    "class": { "enum": ["stable", "pinned", "live"] },
+    "version": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)*$" },
+    "dynamic": { "type": "boolean" },
+    "livePreview": { "type": "boolean", "description": "The browser has a real-time chain for this effect (studio/preview/audio.js liveEffectGraph): an audio component made only of such blocks can be previewed live while a knob moves." },
+    "clientPreview": { "type": "boolean", "description": "The browser previews this effect itself (clientside-preview.js); an audio component made only of such blocks has a browser preview." },
+    "plugin": { "type": ["string", "null"] },
+    "description": { "type": "string" },
+    "inputs": { "type": "array", "items": { "type": "object", "required": ["name", "type", "required"], "additionalProperties": false, "properties": { "name": { "type": "string", "description": "The name of the stream the port carries: what a song writes after from and ->." }, "internalName": { "type": "string", "description": "The older internal name of the port (in, out, mix, in3, render_in), only when it differs from name; it is not valid in a v1 song (lint L010)." }, "alias": { "type": "boolean", "description": "A hidden compatibility copy of another port of the same stream (the build still uses it): it is not listed in the docs and a song does not write it." }, "type": { "enum": ["audio", "render", "region", "midi", "midi-sequence", "control", "text", "data", "any"] }, "required": { "type": "boolean" }, "title": { "type": "string" }, "description": { "type": "string" } } } },
+    "outputs": { "type": "array", "items": { "type": "object", "required": ["name", "type"], "additionalProperties": false, "properties": { "name": { "type": "string", "description": "The name of the stream the port carries: what a song writes after from and ->." }, "internalName": { "type": "string", "description": "The older internal name of the port (in, out, mix, in3, render_in), only when it differs from name; it is not valid in a v1 song (lint L010)." }, "alias": { "type": "boolean", "description": "A hidden compatibility copy of another port of the same stream (the build still uses it): it is not listed in the docs and a song does not write it." }, "type": { "enum": ["audio", "render", "region", "midi", "midi-sequence", "control", "text", "data", "any"] }, "title": { "type": "string" }, "description": { "type": "string" } } } },
+    "parameters": { "type": "array", "items": { "type": "object", "required": ["name", "type", "default"], "additionalProperties": false, "properties": { "name": { "type": "string" }, "label": { "type": "string" }, "type": { "enum": ["number", "text"] }, "default": { "type": ["string", "number"] }, "doc": { "type": "string" }, "modalEditor": { "type": "boolean" }, "multiline": { "type": "boolean" }, "kind": { "enum": ["text", "number", "choice", "combo", "seed", "sampleset", "file", "pattern", "channels", "voicemap", "engine"] }, "options": { "type": "array", "items": { "type": "string" } }, "min": { "type": "number" }, "max": { "type": "number" }, "step": { "type": "number" }, "unit": { "type": "string" }, "placeholder": { "type": "string" }, "accept": { "type": "array", "items": { "type": "string" } }, "count": { "type": "integer" }, "affectsOutput": { "type": "boolean" }, "automatable": { "type": "boolean" }, "aliases": { "type": "array", "items": { "type": "object", "required": ["name"], "additionalProperties": false, "properties": { "name": { "type": "string" }, "convert": { "enum": ["hz-to-period-ms"] } } } } } } },
+    "innerGraph": { "type": ["string", "null"] },
+    "status": { "enum": ["provisional", "settled", "deprecated", "retired"] },
+    "since": { "type": "string" },
+    "deprecated": { "type": "string" },
+    "example": { "type": "string", "description": "The text of a small .amplet song (v1 form) that uses a block of this type. A test parses it with the spec and requires no errors." },
+    "needs": { "type": "array", "items": { "type": "string" }, "description": "What the block needs to make its sound: files (a drum kit folder, a SoundFont, a recording) or a plugin. Derived from the parameters of kind sampleset, file and engine." },
+    "soundSource": { "type": "boolean", "description": "True when the block makes a sound by itself from notes, files or settings (it needs no audio input), so that its example can be rendered to hear it." }
+  }
+}

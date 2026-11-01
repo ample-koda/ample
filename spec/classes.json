@@ -1,0 +1,16 @@
+{
+  "classes": [
+    {
+      "id": "stable",
+      "doc": "Never changes within a version."
+    },
+    {
+      "id": "pinned",
+      "doc": "Locked by content hash."
+    },
+    {
+      "id": "live",
+      "doc": "May change between builds (dynamic)."
+    }
+  ]
+}

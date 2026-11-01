@@ -1,0 +1,105 @@
+{
+  "id": "duck",
+  "title": "Duck (pumping)",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Makes the sound dip at every hit of a pattern and come back, like sidechain compression keyed by the kick.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "depth",
+      "type": "text",
+      "default": "10 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": 0,
+      "max": 40,
+      "doc": "How far the sound dips at a hit."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "160 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 10,
+      "max": 2000,
+      "doc": "How long the sound takes to come back."
+    },
+    {
+      "name": "pattern",
+      "type": "text",
+      "default": "x...x...x...x...",
+      "kind": "pattern",
+      "placeholder": "x...x...x...x...",
+      "doc": "16 steps per bar: x is a hit (the sound dips), . is nothing. The default dips on every beat, like a four-on-the-floor kick."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Duck preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nduck pump {\n  depth 12 dB\n  release 160 ms\n  pattern x...x...x...x...\n  from source.audio -> audio\n}\n\nmaster master {\n  from pump.audio -> audio\n}\n"
+}

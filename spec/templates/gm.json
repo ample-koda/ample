@@ -1,0 +1,123 @@
+{
+  "id": "gm",
+  "title": "General MIDI",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays the notes it receives with a General MIDI program (bank and program number) from a SoundFont 2 file of the project. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack. It needs a SoundFont file and gives audio.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "warnings",
+      "type": "text"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file",
+      "type": "text",
+      "default": "samples/musescore-general/MuseScore_General.sf2",
+      "kind": "file",
+      "accept": [
+        ".sf2"
+      ],
+      "doc": "Project-relative SF2 SoundFont file."
+    },
+    {
+      "name": "bank",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "unit": "bank",
+      "min": 0,
+      "max": 16383,
+      "doc": "Zero-based SoundFont bank number."
+    },
+    {
+      "name": "program",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "unit": "GM program",
+      "min": 0,
+      "max": 127,
+      "doc": "Zero-based General MIDI program number."
+    },
+    {
+      "name": "channel",
+      "type": "number",
+      "default": -1,
+      "kind": "number",
+      "unit": "MIDI channel",
+      "min": -1,
+      "max": 15,
+      "doc": "MIDI channel from 0 to 15; -1 follows the input note channel."
+    },
+    {
+      "name": "gain",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 48,
+      "doc": "Output gain in decibels."
+    },
+    {
+      "name": "limiter",
+      "type": "text",
+      "default": "soft",
+      "options": [
+        "soft",
+        "off"
+      ],
+      "doc": "Integer soft limiter at the PCM output; off keeps hard clipping."
+    },
+    {
+      "name": "level",
+      "type": "text",
+      "default": "auto",
+      "kind": "choice",
+      "options": [
+        "auto",
+        "raw"
+      ],
+      "doc": "auto brings the loudest note of the block to -6 dBFS before the gain, because SoundFont presets differ by tens of decibels (an acoustic piano can be 40 dB below a bass); the gain then trims from there. raw keeps the preset level as it is."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "settled",
+  "since": "1.0",
+  "example": "composition \"General MIDI preview\" { ample 1  tempo 108  master-seed 20261017 }\n\nmidi-clip melody {\n  notes \"1:0:1:60:92 1:1:1:64:78 1:2:1:67:100 1:3:1:72:110\"\n  bars 2\n}\n\ngm piano at 1 for 2 {\n  file pack:musescore-general\n  program 0\n  from melody.notes -> notes\n}\n\nmaster output {\n  from piano.audio -> audio\n}\n",
+  "needs": [
+    "A SoundFont 2 (.sf2) file (parameter file; the default is the MuseScore General pack)."
+  ],
+  "soundSource": true
+}

@@ -1,0 +1,94 @@
+{
+  "id": "granular",
+  "title": "Granular",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Cuts the sound into short windowed grains and scatters them along its length (with a little pitch variation): a longer, never repeating texture from a short sound.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "grain",
+      "type": "text",
+      "default": "120",
+      "kind": "number",
+      "min": 10,
+      "max": 1000,
+      "doc": "Length of one grain.",
+      "unit": "ms"
+    },
+    {
+      "name": "density",
+      "type": "text",
+      "default": "40",
+      "kind": "number",
+      "min": 1,
+      "max": 400,
+      "doc": "Grains per second.",
+      "unit": "/s"
+    },
+    {
+      "name": "scatter",
+      "type": "text",
+      "default": "60",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "How far a grain may come from the place it would have in the original (0 follows the original).",
+      "unit": "%"
+    },
+    {
+      "name": "pitch",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 12,
+      "doc": "Random pitch variation of a grain, up or down, in semitones.",
+      "unit": "st",
+      "step": 0.5
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Granular preview\" { ample 1  tempo 96 master-seed 123456789 }\n\nmidi-clip phrase {\n  melody C4:1/4 E4:1/4 G4:1/4 C5:1/4\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ngranular texture {\n  grain 120 ms\n  density 40 /s\n  scatter 60 %\n  pitch 2 st\n  from source.audio -> audio\n}\n\nmaster master {\n  from texture.audio -> audio\n}\n"
+}

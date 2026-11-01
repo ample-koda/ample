@@ -1,0 +1,85 @@
+{
+  "id": "bass",
+  "title": "Bass",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays a bass line on the notes it receives, using the sounds of a sample set (the default is analog-808) and a bass pattern. It needs notes as input and gives audio.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "set",
+      "type": "text",
+      "default": "analog-808",
+      "kind": "sampleset",
+      "doc": "The built-in bass, or a sample folder of the project with note-named WAV files."
+    },
+    {
+      "name": "pattern",
+      "type": "text",
+      "default": "bass-A",
+      "kind": "choice",
+      "options": [
+        "bass-A"
+      ],
+      "doc": "The built-in bass has one pattern for now."
+    },
+    {
+      "name": "gain",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 48,
+      "doc": "Level of a sampled bass. It applies to the built-in sound too."
+    },
+    {
+      "name": "humanize",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "A little human feel: at 100 every note starts up to 6 ms early or late and up to 15 % louder or softer (deterministic from the seed). 0 plays exactly on the grid. Works for a sampled instrument and for the built-in sound."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Built-in bass preview\" { ample 1  tempo 100  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords Am F C G\n  bars 4\n}\n\nbass local_bass {\n  # the sample set is a folder of the project with one mono C4.wav-style file per note\n  set analog-808\n  pattern bass-A\n  humanize 0\n  from phrase.notes -> notes\n}\n\nmaster output {\n  from local_bass.audio -> audio\n}\n",
+  "needs": [
+    "A sample set folder for the bass sounds (parameter set, default analog-808)."
+  ],
+  "soundSource": true
+}

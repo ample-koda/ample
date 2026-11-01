@@ -1,0 +1,86 @@
+{
+  "id": "midi-clip",
+  "title": "MIDI clip / chords",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Textual MIDI: writes notes as text in the song: chords, a melody, or a list of notes with their timing, over a number of bars. It needs no file and gives notes that an instrument can play.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "ppq",
+      "type": "number",
+      "default": 1000000,
+      "kind": "number",
+      "min": 1,
+      "max": 1000000,
+      "doc": "Ticks per quarter note for exact imported MIDI timing; the default uses decimal beats."
+    },
+    {
+      "name": "chords",
+      "type": "text",
+      "default": "",
+      "placeholder": "for example: Am F C G",
+      "doc": "Chord names, one per bar, used to create a MIDI progression. A name is a root and a quality (Am, F, G7, Cmaj7, Dsus4, Bbm7); C/E puts E lowest (an inversion), and two chords joined by a dot (Am.F) share one bar."
+    },
+    {
+      "name": "melody",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "placeholder": "for example: c4:1 d4:1 e4:2 r:1",
+      "doc": "A melody instead of chords: note name, octave, length in beats and optionally the velocity from 1 to 127 (c4:1 is a quarter note, c4:1:60 the same, softer; r:2 a rest of two beats, # and b for sharps and flats). Without a velocity a note is struck at 96. Dynamics: a marker word pp, p, mp, mf, f or ff (32 to 112) sets the velocity of the notes after it, and < (crescendo) or > (decrescendo) ramps the notes after it to the next marker, for example: mp c4 d4 < e4 g4 ff c5:4. A note with its own velocity is not changed by a marker. Markers take no time. A note stops at the end of its bar."
+    },
+    {
+      "name": "notes",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "placeholder": "1:0.5:1:60:96",
+      "doc": "Optional structured polyphonic notes: space-separated bar:beat:length:pitch:velocity entries, or a persistent notes { note { ... } } body with named fields and retained # comments. Beat and length are quarter-note beats with up to six decimal places, or exact integer ticks when ppq is set; each entry must fit inside its 4/4 bar. Longer notes use one entry per bar, joined by a shared ;tie=0..2000000 identity without forcing MIDI channel/bank/program. Routed nine-field entries and expanded tie-id fields remain supported."
+    },
+    {
+      "name": "scale",
+      "type": "text",
+      "default": "none",
+      "kind": "text",
+      "doc": "Piano-roll scale guidance, as root:scale-id (for example c:major or f#:dorian), or none. It does not alter playback."
+    },
+    {
+      "name": "bars",
+      "type": "number",
+      "default": 8,
+      "kind": "number",
+      "min": 1,
+      "max": 128,
+      "doc": "Length of the MIDI clip in bars."
+    },
+    {
+      "name": "bend",
+      "type": "text",
+      "default": "",
+      "doc": "A pitch bend curve over the clip, like the pitch wheel: auto(1:0, 2:100, 3:0) in percent of bend_range (100 is all the way up, -100 all the way down). The block that plays the notes bends its sound with it (every instrument). One note bends on its own with ;bend=<cents> on that note (;bend=200 glides two semitones up over the note)."
+    },
+    {
+      "name": "bend_range",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 1,
+      "max": 48,
+      "doc": "How many semitones the bend curve reaches at 100 percent: 2 (the usual pitch wheel, the default when empty), 7, 12 (an octave) or 24."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"MIDI clip preview\" { ample 1  tempo 110  master-seed 20261017 }\n\nmidi-clip melody {\n  melody c4:1:96 d4:1:80 e4:2:100 g4:2 a4:2\n  bars 2\n}\n\nsynth audition {\n  wave sine\n  gain -12 dB\n  from melody.notes -> notes\n}\n\nmaster output {\n  from audition.audio -> audio\n}\n"
+}

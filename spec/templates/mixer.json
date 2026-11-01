@@ -1,0 +1,165 @@
+{
+  "id": "mixer",
+  "title": "Mixer",
+  "category": "Mix",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Sums several tracks into one, each with its own gain and pan. Drag the grip at the bottom right to add input lanes (4 to 16); lanes that are in use cannot be taken away.",
+  "inputs": [
+    {
+      "name": "audio1",
+      "internalName": "in1",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio2",
+      "internalName": "in2",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio3",
+      "internalName": "in3",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio4",
+      "internalName": "in4",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio5",
+      "internalName": "in5",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio6",
+      "internalName": "in6",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio7",
+      "internalName": "in7",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio8",
+      "internalName": "in8",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio9",
+      "internalName": "in9",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio10",
+      "internalName": "in10",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio11",
+      "internalName": "in11",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio12",
+      "internalName": "in12",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio13",
+      "internalName": "in13",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio14",
+      "internalName": "in14",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio15",
+      "internalName": "in15",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio16",
+      "internalName": "in16",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "mix",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "gains",
+      "type": "text",
+      "default": "0 0 0 0",
+      "kind": "channels",
+      "count": 4,
+      "unit": "dB",
+      "min": -60,
+      "max": 48,
+      "doc": "The level of each input in decibels."
+    },
+    {
+      "name": "pan",
+      "type": "text",
+      "default": "c c c c",
+      "kind": "channels",
+      "count": 4,
+      "options": [
+        "l",
+        "c",
+        "r"
+      ],
+      "doc": "The place of each input: l (left), c (centre), r (right) or a number from -32 to 32, one value per input (pan l r). Any place other than centre makes the mix stereo, even when every input is mono."
+    },
+    {
+      "name": "inputs",
+      "type": "text",
+      "default": "4",
+      "kind": "number",
+      "min": 4,
+      "max": 16,
+      "doc": "How many input lanes the block shows (4 to 16). Dragging the grip of the block changes it."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both). With stereo the mix is stereo even when every input is mono (both sides equal unless pan places the inputs); auto is stereo only when an input is."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Mixer preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth left_part {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth right_part {\n  wave saw\n  gain -15 dB\n  from phrase.notes -> notes\n}\n\nmixer blend {\n  gains 0 -3\n  pan l r\n  from left_part.audio -> audio1\n  from right_part.audio -> audio2\n}\n\nmaster master {\n  from blend.audio -> audio\n}\n"
+}

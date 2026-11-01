@@ -1,0 +1,129 @@
+{
+  "id": "distortion",
+  "title": "Distortion",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "plugin": null,
+  "description": "Warm saturation up to heavy distortion; also useful to make a voice rougher.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "drive",
+      "type": "text",
+      "default": "12 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": 0,
+      "max": 36,
+      "doc": "How hard the sound is pushed."
+    },
+    {
+      "name": "mode",
+      "type": "text",
+      "default": "soft",
+      "kind": "choice",
+      "options": [
+        "soft",
+        "hard"
+      ],
+      "doc": "Soft rounds the peaks, hard cuts them."
+    },
+    {
+      "name": "tone",
+      "type": "text",
+      "default": "8000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 500,
+      "max": 16000,
+      "doc": "Darkens the result: lower is duller."
+    },
+    {
+      "name": "level",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 12,
+      "doc": "Output level."
+    },
+    {
+      "name": "mix",
+      "type": "text",
+      "default": "100%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How much of the effect is heard against the original."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Distortion preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C3:1/4 G3:1/4 C4:1/4 G3:1/4\n  bars 1\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ndistortion drive {\n  drive 18\n  mode soft\n  tone 7000 Hz\n  level 0 dB\n  mix 60 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from drive.audio -> audio\n}\n"
+}

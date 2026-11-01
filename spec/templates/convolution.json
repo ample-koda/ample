@@ -1,0 +1,144 @@
+{
+  "id": "convolution",
+  "title": "Convolution reverb",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Puts the sound in a real space: it is convolved with an impulse response (a WAV file of the project), for example a room, a plate or a street.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "ir",
+      "type": "text",
+      "default": "file",
+      "kind": "choice",
+      "options": [
+        "file",
+        "room",
+        "hall",
+        "plate",
+        "church",
+        "street",
+        "real-stairwell",
+        "real-garage",
+        "real-car",
+        "real-basement",
+        "real-microverb"
+      ],
+      "doc": "Where the impulse response comes from: file is the file below (any WAV of the project, or pack:<pack>/<name>); the others are the ready-made ones of the impulse-responses pack (room, hall, plate, church, street; make it with tools/make-impulse-responses.mjs) and the real CC0 recordings real-stairwell, real-garage, real-car, real-basement, real-microverb (tools/fetch-impulse-responses-real.mjs)."
+    },
+    {
+      "name": "file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".wav",
+        ".flac",
+        ".mp3",
+        ".ogg",
+        ".aif",
+        ".aiff"
+      ],
+      "doc": "Project-relative impulse response (a recording of a clap, a sweep or a space), or pack:<pack>/<name>. Used when ir is file.",
+      "placeholder": "choose an impulse response of the project"
+    },
+    {
+      "name": "mix",
+      "type": "text",
+      "default": "30",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "How much of the convolved sound is mixed with the dry sound.",
+      "unit": "%"
+    },
+    {
+      "name": "predelay",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 500,
+      "doc": "Delay before the room answers.",
+      "unit": "ms"
+    },
+    {
+      "name": "length",
+      "type": "text",
+      "default": "3",
+      "kind": "number",
+      "min": 0.05,
+      "max": 20,
+      "doc": "How much of the impulse response is used.",
+      "unit": "s",
+      "step": 0.05
+    },
+    {
+      "name": "level",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": -24,
+      "max": 12,
+      "doc": "Level of the convolved sound before mixing.",
+      "unit": "dB"
+    },
+    {
+      "name": "normalize",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "On scales the response to a standard energy, so different responses sound about equally loud."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Convolution preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nconvolution room {\n  ir room\n  mix 30 %\n  predelay 20 ms\n  length 3 s\n  level 0 dB\n  normalize on\n  from source.audio -> audio\n}\n\nmaster master {\n  from room.audio -> audio\n}\n",
+  "needs": [
+    "An impulse response WAV file of the project (parameter file)."
+  ]
+}

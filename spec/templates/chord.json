@@ -1,0 +1,67 @@
+{
+  "id": "chord",
+  "title": "Chord",
+  "category": "MIDI effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Turns every incoming note into a chord of the chosen type (for example major) and inversion. It takes notes between a clip and an instrument and gives notes back.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the notes through untouched (bypass)."
+    },
+    {
+      "name": "type",
+      "type": "text",
+      "default": "major",
+      "kind": "choice",
+      "options": [
+        "major",
+        "minor",
+        "sus2",
+        "sus4",
+        "7",
+        "maj7",
+        "min7",
+        "dim",
+        "power"
+      ],
+      "doc": "The chord built on every note."
+    },
+    {
+      "name": "inversion",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 3,
+      "doc": "How many of the lowest notes move up an octave."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Chord preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nchord triads {\n  type major\n  inversion 1\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from triads.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+}

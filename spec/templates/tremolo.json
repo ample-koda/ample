@@ -1,0 +1,130 @@
+{
+  "id": "tremolo",
+  "title": "Tremolo / autopan",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Moves the level of the sound (tremolo) or its place between left and right (autopan), at a rate in Hz or locked to the tempo; with shape gate and a step pattern it is a trance gate that cuts a steady pad into rhythm.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "mode",
+      "type": "text",
+      "default": "tremolo",
+      "kind": "choice",
+      "options": [
+        "tremolo",
+        "autopan"
+      ],
+      "doc": "tremolo moves the level; autopan moves the sound between left and right (a mono input becomes stereo)."
+    },
+    {
+      "name": "rate",
+      "type": "text",
+      "default": "4",
+      "kind": "number",
+      "min": 0.05,
+      "max": 40,
+      "doc": "How fast it moves, in cycles per second. Ignored when sync is not off.",
+      "unit": "Hz",
+      "step": 0.05
+    },
+    {
+      "name": "sync",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16"
+      ],
+      "doc": "Locks the rate to the tempo: one cycle per note value (1/4 is one per quarter note)."
+    },
+    {
+      "name": "depth",
+      "type": "text",
+      "default": "50",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "How far it moves: 0 changes nothing, 100 goes to silence (tremolo) or fully to one side (autopan).",
+      "unit": "%"
+    },
+    {
+      "name": "shape",
+      "type": "text",
+      "default": "sine",
+      "kind": "choice",
+      "options": [
+        "sine",
+        "triangle",
+        "square",
+        "gate"
+      ],
+      "doc": "The shape of the movement. gate is a trance gate: the level follows the step pattern (see pattern) in time with the tempo, with a very short fade (2 ms) at every change so it does not click."
+    },
+    {
+      "name": "pattern",
+      "type": "text",
+      "default": "x.x.x.x.x.x.x.x.",
+      "doc": "Only for shape gate: one character per step, x is fully open, . is closed, and the letters a to i are in-between levels (a is 10 percent open, e 50, i 90; 1 also means fully open, kept from the first version); every step is as long as the sync note value (1/16 when sync is off), and the pattern repeats. depth sets how far a closed step goes down (100 is silence). On a steady pad this gives the rhythmic trance cut."
+    },
+    {
+      "name": "phase",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 360,
+      "doc": "Where in the cycle it starts.",
+      "unit": "deg"
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Trance gate preview\" { ample 1  tempo 128  master-seed 17 }\n\nmidi-clip phrase {\n  chords Am F C G\n  bars 4\n}\n\nsynth pad {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ntremolo trance {\n  shape gate\n  sync 1/16\n  pattern \"xdx.bxdx.xdx.x\"\n  depth 100\n  from pad.audio -> audio\n}\n\nmaster master {\n  from trance.audio -> audio\n}\n"
+}

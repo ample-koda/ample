@@ -1,0 +1,30 @@
+{
+  "id": "group",
+  "title": "Group (empty block)",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "A container that holds other blocks and shows them as one block with one input and one output. Use it to keep a chain of blocks together.",
+  "inputs": [
+    {
+      "name": "input",
+      "internalName": "in",
+      "type": "any",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "output",
+      "internalName": "out",
+      "type": "any"
+    }
+  ],
+  "parameters": [],
+  "innerGraph": "empty",
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Group pass-through preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  from phrase.notes -> notes\n}\n\ngroup wrapped {\n  from source.audio -> input\n}\n\nreverb space {\n  from wrapped.output -> audio\n  mix 25\n}\n\nmaster output {\n  from space.audio -> audio\n}\n"
+}

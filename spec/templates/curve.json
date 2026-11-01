@@ -1,0 +1,48 @@
+{
+  "id": "curve",
+  "title": "Curve",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "A control that you write as a curve over the song (auto, lfo or env, like a parameter) so that one curve can steer several parameters.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "level",
+      "type": "control",
+      "title": "Level",
+      "description": "The curve as a control."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "value",
+      "type": "text",
+      "default": "auto(1:0, 5:1000)",
+      "kind": "text",
+      "doc": "The curve: auto(bar:value, ...), lfo(period, low, high) or env(...). Values are in the unit of the control; without a unit the control is a level from 0 to 1000 (per mille)."
+    },
+    {
+      "name": "unit",
+      "type": "text",
+      "default": "none",
+      "kind": "choice",
+      "options": [
+        "none",
+        "Hz",
+        "dB",
+        "%",
+        "ms",
+        "st",
+        "cents"
+      ],
+      "doc": "The unit of the control this block makes. none: a general control (a level from 0 to 1) that is scaled to the range of the parameter it steers. Hz, dB, ...: a typed control that only steers a parameter in that unit; the range is then written in that unit."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Curve\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncurve swell {\n  value auto(1:0, 5:1000)\n}\n\nvolume fadeIn {\n  gain -30 dB + 30 dB * swell.level\n  from source.audio -> audio\n}\n\nmaster output {\n  from fadeIn.audio -> audio\n}\n"
+}

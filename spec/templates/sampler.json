@@ -1,0 +1,111 @@
+{
+  "id": "sampler",
+  "title": "Sampler",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays one sample (a WAV file of the project) on the notes it receives, moved in pitch from a root note. It needs a file and notes, and gives audio.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off makes silence."
+    },
+    {
+      "name": "file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".wav",
+        ".flac",
+        ".mp3",
+        ".ogg",
+        ".aif",
+        ".aiff"
+      ],
+      "placeholder": "choose a sample of the project",
+      "doc": "The WAV file that is played."
+    },
+    {
+      "name": "root",
+      "type": "text",
+      "default": "60",
+      "kind": "number",
+      "min": 0,
+      "max": 127,
+      "doc": "The note (60 is middle C) at which the file sounds as recorded; other notes move it up or down."
+    },
+    {
+      "name": "mode",
+      "type": "text",
+      "default": "oneshot",
+      "kind": "choice",
+      "options": [
+        "oneshot",
+        "hold"
+      ],
+      "doc": "oneshot plays the sample to its end; hold cuts it when the note ends."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "30 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 2000,
+      "doc": "Fade when a held note ends."
+    },
+    {
+      "name": "gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -36,
+      "max": 48,
+      "doc": "Level of the sampler."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Local sampler preview\" { ample 1  tempo 110  master-seed 20261017 }\n\nmidi-clip phrase {\n  melody c4:1:96 e4:1:80 g4:2:100\n  bars 2\n}\n\nsampler sample_source {\n  file recordings/sampler-preview.wav\n  root 60\n  mode oneshot\n  gain -6 dB\n  from phrase.notes -> notes\n}\n\nmaster output {\n  from sample_source.audio -> audio\n}\n",
+  "needs": [
+    "An audio (WAV) file of the project (parameter file)."
+  ],
+  "soundSource": true
+}

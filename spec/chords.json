@@ -1,0 +1,535 @@
+{
+  "chords": [
+    {
+      "id": "major",
+      "name": "Major",
+      "category": "triads",
+      "intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    {
+      "id": "minor",
+      "name": "Minor",
+      "category": "triads",
+      "intervals": [
+        0,
+        3,
+        7
+      ]
+    },
+    {
+      "id": "dim",
+      "name": "Diminished",
+      "category": "triads",
+      "intervals": [
+        0,
+        3,
+        6
+      ]
+    },
+    {
+      "id": "aug",
+      "name": "Augmented",
+      "category": "triads",
+      "intervals": [
+        0,
+        4,
+        8
+      ]
+    },
+    {
+      "id": "sus2",
+      "name": "Sus2",
+      "category": "suspended",
+      "intervals": [
+        0,
+        2,
+        7
+      ]
+    },
+    {
+      "id": "sus4",
+      "name": "Sus4",
+      "category": "suspended",
+      "intervals": [
+        0,
+        5,
+        7
+      ]
+    },
+    {
+      "id": "7sus4",
+      "name": "7sus4",
+      "category": "suspended",
+      "intervals": [
+        0,
+        5,
+        7,
+        10
+      ]
+    },
+    {
+      "id": "9sus4",
+      "name": "9sus4",
+      "category": "suspended",
+      "intervals": [
+        0,
+        5,
+        7,
+        10,
+        14
+      ]
+    },
+    {
+      "id": "maj7",
+      "name": "Major 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "id": "min7",
+      "name": "Minor 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        3,
+        7,
+        10
+      ]
+    },
+    {
+      "id": "dom7",
+      "name": "Dominant 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "id": "min7b5",
+      "name": "Half-diminished 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        3,
+        6,
+        10
+      ]
+    },
+    {
+      "id": "dim7",
+      "name": "Diminished 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        3,
+        6,
+        9
+      ]
+    },
+    {
+      "id": "minMaj7",
+      "name": "Minor-major 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        3,
+        7,
+        11
+      ]
+    },
+    {
+      "id": "augMaj7",
+      "name": "Augmented major 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        4,
+        8,
+        11
+      ]
+    },
+    {
+      "id": "aug7",
+      "name": "Augmented 7th",
+      "category": "sevenths",
+      "intervals": [
+        0,
+        4,
+        8,
+        10
+      ]
+    },
+    {
+      "id": "maj9",
+      "name": "Major 9th",
+      "category": "ninths",
+      "intervals": [
+        0,
+        4,
+        7,
+        11,
+        14
+      ]
+    },
+    {
+      "id": "min9",
+      "name": "Minor 9th",
+      "category": "ninths",
+      "intervals": [
+        0,
+        3,
+        7,
+        10,
+        14
+      ]
+    },
+    {
+      "id": "dom9",
+      "name": "Dominant 9th",
+      "category": "ninths",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        14
+      ]
+    },
+    {
+      "id": "dom7b9",
+      "name": "7b9",
+      "category": "altered",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        13
+      ]
+    },
+    {
+      "id": "dom7s9",
+      "name": "7#9",
+      "category": "altered",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        15
+      ]
+    },
+    {
+      "id": "add9",
+      "name": "Add9",
+      "category": "ninths",
+      "intervals": [
+        0,
+        4,
+        7,
+        14
+      ]
+    },
+    {
+      "id": "minAdd9",
+      "name": "Minor add9",
+      "category": "ninths",
+      "intervals": [
+        0,
+        3,
+        7,
+        14
+      ]
+    },
+    {
+      "id": "6by9",
+      "name": "6/9",
+      "category": "ninths",
+      "intervals": [
+        0,
+        4,
+        7,
+        9,
+        14
+      ]
+    },
+    {
+      "id": "maj11",
+      "name": "Major 11th",
+      "category": "elevenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        11,
+        14,
+        17
+      ]
+    },
+    {
+      "id": "min11",
+      "name": "Minor 11th",
+      "category": "elevenths",
+      "intervals": [
+        0,
+        3,
+        7,
+        10,
+        14,
+        17
+      ]
+    },
+    {
+      "id": "dom11",
+      "name": "Dominant 11th",
+      "category": "elevenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        14,
+        17
+      ]
+    },
+    {
+      "id": "dom7s11",
+      "name": "7#11",
+      "category": "altered",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        18
+      ]
+    },
+    {
+      "id": "add11",
+      "name": "Add11",
+      "category": "elevenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        17
+      ]
+    },
+    {
+      "id": "maj13",
+      "name": "Major 13th",
+      "category": "thirteenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        11,
+        14,
+        21
+      ]
+    },
+    {
+      "id": "min13",
+      "name": "Minor 13th",
+      "category": "thirteenths",
+      "intervals": [
+        0,
+        3,
+        7,
+        10,
+        14,
+        21
+      ]
+    },
+    {
+      "id": "dom13",
+      "name": "Dominant 13th",
+      "category": "thirteenths",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        14,
+        21
+      ]
+    },
+    {
+      "id": "dom7b13",
+      "name": "7b13",
+      "category": "altered",
+      "intervals": [
+        0,
+        4,
+        7,
+        10,
+        20
+      ]
+    },
+    {
+      "id": "maj6",
+      "name": "Major 6th",
+      "category": "sixths",
+      "intervals": [
+        0,
+        4,
+        7,
+        9
+      ]
+    },
+    {
+      "id": "min6",
+      "name": "Minor 6th",
+      "category": "sixths",
+      "intervals": [
+        0,
+        3,
+        7,
+        9
+      ]
+    },
+    {
+      "id": "dom7alt",
+      "name": "7alt (b9#9b13)",
+      "category": "jazz",
+      "intervals": [
+        0,
+        4,
+        10,
+        13,
+        15,
+        20
+      ]
+    },
+    {
+      "id": "maj7s11",
+      "name": "maj7#11",
+      "category": "jazz",
+      "intervals": [
+        0,
+        4,
+        7,
+        11,
+        18
+      ]
+    },
+    {
+      "id": "min7s5",
+      "name": "min7#5",
+      "category": "jazz",
+      "intervals": [
+        0,
+        3,
+        8,
+        10
+      ]
+    },
+    {
+      "id": "min6by9",
+      "name": "min6/9",
+      "category": "jazz",
+      "intervals": [
+        0,
+        3,
+        7,
+        9,
+        14
+      ]
+    },
+    {
+      "id": "dom7b5",
+      "name": "7b5",
+      "category": "altered",
+      "intervals": [
+        0,
+        4,
+        6,
+        10
+      ]
+    },
+    {
+      "id": "dom7s5",
+      "name": "7#5",
+      "category": "altered",
+      "intervals": [
+        0,
+        4,
+        8,
+        10
+      ]
+    },
+    {
+      "id": "power5",
+      "name": "Power chord (5)",
+      "category": "power",
+      "intervals": [
+        0,
+        7
+      ]
+    },
+    {
+      "id": "power5oct",
+      "name": "Power chord + octave",
+      "category": "power",
+      "intervals": [
+        0,
+        7,
+        12
+      ]
+    },
+    {
+      "id": "cluster3",
+      "name": "Cluster (minor 2nds)",
+      "category": "cluster",
+      "intervals": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "id": "cluster4",
+      "name": "Cluster (4 notes)",
+      "category": "cluster",
+      "intervals": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "quartal3",
+      "name": "Quartal (fourths)",
+      "category": "cluster",
+      "intervals": [
+        0,
+        5,
+        10
+      ]
+    },
+    {
+      "id": "quartal4",
+      "name": "Quartal (4 notes)",
+      "category": "cluster",
+      "intervals": [
+        0,
+        5,
+        10,
+        15
+      ]
+    }
+  ]
+}

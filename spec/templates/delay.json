@@ -1,0 +1,110 @@
+{
+  "id": "delay",
+  "title": "Delay (echo)",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Repeats the sound after a time you choose (for example 250 ms), with feedback for several echoes and mix for how loud the echoes are. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "time",
+      "type": "text",
+      "default": "250 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 2000,
+      "doc": "Time between echoes."
+    },
+    {
+      "name": "feedback",
+      "type": "text",
+      "default": "35%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 90,
+      "doc": "How many echoes follow."
+    },
+    {
+      "name": "mix",
+      "automatable": true,
+      "type": "text",
+      "default": "30%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "Level of the echoes."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Delay preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C4:1/4 D4:1/4 E4:1/4 G4:1/4\n  bars 1\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ndelay echo {\n  time 250 ms\n  feedback 45 %\n  mix 35 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from echo.audio -> audio\n}\n"
+}

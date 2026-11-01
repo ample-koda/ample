@@ -1,0 +1,195 @@
+{
+  "id": "bus",
+  "title": "Bus",
+  "category": "Mix",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "A group fader: sums the tracks that connect to it (like a mixer) and has one gain and one mute for the whole scene. Put the rain, the pub and the music on their own bus.",
+  "inputs": [
+    {
+      "name": "audio1",
+      "internalName": "in1",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio2",
+      "internalName": "in2",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio3",
+      "internalName": "in3",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio4",
+      "internalName": "in4",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio5",
+      "internalName": "in5",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio6",
+      "internalName": "in6",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio7",
+      "internalName": "in7",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio8",
+      "internalName": "in8",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio9",
+      "internalName": "in9",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio10",
+      "internalName": "in10",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio11",
+      "internalName": "in11",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio12",
+      "internalName": "in12",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio13",
+      "internalName": "in13",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio14",
+      "internalName": "in14",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio15",
+      "internalName": "in15",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio16",
+      "internalName": "in16",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "mix",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "gains",
+      "type": "text",
+      "default": "0 0 0 0",
+      "kind": "channels",
+      "count": 4,
+      "unit": "dB",
+      "min": -60,
+      "max": 48,
+      "doc": "The level of each input in decibels."
+    },
+    {
+      "name": "pan",
+      "type": "text",
+      "default": "c c c c",
+      "kind": "channels",
+      "count": 4,
+      "options": [
+        "l",
+        "c",
+        "r"
+      ],
+      "doc": "The place of each input: left, centre or right."
+    },
+    {
+      "name": "inputs",
+      "type": "text",
+      "default": "4",
+      "kind": "number",
+      "min": 4,
+      "max": 16,
+      "doc": "How many input lanes the block shows (4 to 16). Dragging the grip of the block changes it."
+    },
+    {
+      "name": "gain",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 48,
+      "doc": "The level of the whole bus in decibels, after the sum of the inputs."
+    },
+    {
+      "name": "mute",
+      "type": "text",
+      "default": "off",
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "on: the bus is silent (its output stays connected)."
+    },
+    {
+      "name": "solo",
+      "type": "text",
+      "default": "off",
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "on: only the buses with solo on are heard; every other bus of the song is muted."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Bus preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth part {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nbus group {\n  gain -3 dB\n  mute off\n  solo off\n  from part.audio -> audio1\n}\n\nmaster master {\n  from group.audio -> audio\n}\n"
+}

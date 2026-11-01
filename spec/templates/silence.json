@@ -1,0 +1,31 @@
+{
+  "id": "silence",
+  "title": "Silence",
+  "category": "Sources",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Blank audio: nothing to hear, as long as you say (silence(10s)) or, with auto, as long as the block that holds it. Use it where a branch of a component has no sound, so a mix or an effect still has something to take.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "length",
+      "type": "text",
+      "default": "auto",
+      "kind": "text",
+      "doc": "auto: as long as the block it is in. Or a time: 10 s, 500 ms."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Silence\" { ample 1  tempo 96  master-seed 81 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsilence gap {\n  length 2 s\n}\n\nmixer room {\n  inputs 4\n  from source.audio -> audio1\n  from gap.audio -> audio2\n}\n\nmaster output {\n  from room.audio -> audio\n}\n"
+}

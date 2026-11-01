@@ -1,0 +1,63 @@
+(* AMPLE source grammar, spec version 1.0 (provisional). One statement per line; blocks span lines.
+   Notation: ISO-style EBNF; "..." terminals; [ ] optional; { } repetition; ( | ) choice; (* *) comment.
+   The prose in docs/language/03-syntax.md contains the same grammar; validate-spec checks they are equal. *)
+
+file        = { line } ;
+line        = blank | comment | composition | features | settings | lint | layout | use | block ;
+blank       = eol ;
+comment     = "#" , { any-char } , eol ;
+ignore      = "#" , "ample-ignore" , rule-code , { [ "," ] , rule-code } , eol ;
+
+composition = ( "composition" | "project" ) , string , "{" , [ "ample" , integer ] , "tempo" , number , [ "meter" , integer , "/" , integer ] , "master-seed" , integer , "}" , eol ;   (* "project" is the old word: still read, with AMP1117 *)
+features    = "features" , "{" , { feature-pair } , "}" , eol ;
+feature-pair = module , ( "on" | "off" ) | "assist" , assist-level ;
+module      = "quality" | "credits" | "signing" | "secrets" | "lyrics" | "git-mirror" ;
+assist-level = "off" | "diff" | "button" | "auto" ;
+settings    = "settings" , "{" , { setting-pair } , "}" , eol ;
+setting-pair = identifier , "." , identifier , whitespace , ( string | setting-atom ) ;
+setting-atom = { any-char-except-space-or-brace } ;
+lint        = "lint" , "{" , { rule-code , level } , "}" , eol ;
+level       = "off" | "info" | "warning" | "error" ;
+rule-code   = "L" , digit , digit , digit ;
+layout      = "layout" , name , integer , integer , eol ;
+
+use         = "use" , module-ref , "as" , name , "{" , eol , { use-line } , "}" , eol ;
+module-ref  = ( identifier , { "/" , identifier } | string ) , [ "@" , version ] ;
+use-line    = blank | comment | parameter | from ;
+
+block       = block-header , "{" , eol , { block-line } , "}" , eol ;
+block-header = block-type , name , [ pinned-version ] , [ placement ] , { flag } , [ freeze ] ;
+block-type  = identifier ;
+pinned-version = "pinned" , "@" , version ;
+version     = digit-run , { "." , digit-run } ;
+placement   = "at" , part , { "," , part } ;
+part        = integer , "for" , ( integer | "auto" ) , [ "as" , name ] ;
+flag        = "bake" | "lock" | "refresh" | "disabled" ;
+freeze      = "freeze" , ( "seeds" | "plan" ) ;
+block-line  = blank | comment | parameter | from | expanded-midi-notes | notes-expression | random-stream | embedded-sequence ;
+expanded-midi-notes = "notes" , "{" , eol , { comment | midi-note } , "}" , eol ;
+notes-expression = "notes" , expression-text , eol , { { blank | comment } , "|>" , expression-text , eol } ;   (* a note pipeline: docs/language/12-note-pipelines.md; a pipe line continues the expression, so do braces and parentheses that are still open *)
+expression-text = { any-char-except-eol } ;
+random-stream = "random-stream" , whitespace , identifier , whitespace , expression-text , eol ;   (* a named random cursor of a clip: docs/language/13-randomness.md *)
+embedded-sequence = "sequence" , "{" , eol , { sequence-line } , "}" , eol ;
+sequence-line = { any-char-except-eol } , eol ;
+midi-note   = "note" , "{" , eol , { comment | midi-note-field } , "}" , eol ;
+midi-note-field = identifier , value-text , eol ;
+parameter   = identifier , value-text , eol ;
+from        = "from" , name , "." , name , "->" , name , eol ;
+
+name        = identifier | string ;
+identifier  = letter-or-digit-or-dash-or-underscore , { letter-or-digit-or-dash-or-underscore } ;
+string      = '"' , { string-char | escape } , '"' ;
+escape      = "\" , ( '"' | "\" | "n" | "t" ) ;
+number      = digit-run , [ "." , digit-run ] ;
+integer     = digit-run ;
+value-text  = { any-char-except-eol } ;
+
+(* A module file, modules/NAME.module: the declarations first, then ordinary blocks and nested use statements.
+   Inside the module, "from in.<input> -> port" reads a module input; "$name" in a value stands for a parameter. *)
+module-file = { blank | comment } , module-decl , { blank | comment | param-decl | input-decl | output-decl | block | use } ;
+module-decl = "module" , module-ref , "version" , version , eol ;
+param-decl  = "param" , identifier , value-text , eol ;
+input-decl  = "input" , identifier , eol ;
+output-decl = "output" , identifier , name , "." , name , eol ;

@@ -1,0 +1,118 @@
+{
+  "id": "join",
+  "title": "Join one after the other",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Puts the connected inputs one after the other (in1, then in2, then in3 ...) with a gap between them: spoken phrases with a pause between, hits in a row. The gap is seconds plus beats; the result is as long as all parts and the gaps together.",
+  "inputs": [
+    {
+      "name": "audio1",
+      "internalName": "in1",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio2",
+      "internalName": "in2",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio3",
+      "internalName": "in3",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio4",
+      "internalName": "in4",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio5",
+      "internalName": "in5",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio6",
+      "internalName": "in6",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio7",
+      "internalName": "in7",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "audio8",
+      "internalName": "in8",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "out",
+      "type": "audio",
+      "alias": true
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the first input on unchanged."
+    },
+    {
+      "name": "seconds",
+      "type": "text",
+      "default": "0.5",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "max": 30,
+      "doc": "Seconds of silence between two parts."
+    },
+    {
+      "name": "beats",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 64,
+      "doc": "Beats of silence between two parts (added to the seconds)."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Join preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth first {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth second {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\njoin sequence {\n  seconds 0.25s\n  beats 1\n  from first.audio -> audio1\n  from second.audio -> audio2\n}\n\nmaster master {\n  from sequence.audio -> audio\n}\n"
+}

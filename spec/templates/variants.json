@@ -1,0 +1,59 @@
+{
+  "id": "variants",
+  "title": "Variants set",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Makes several takes of a block (the count) by changing its seed, so that you can pick the one you like best. It takes the block as input and gives the chosen take.",
+  "inputs": [
+    {
+      "name": "block",
+      "type": "audio",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "pick",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "count",
+      "type": "number",
+      "default": 20,
+      "kind": "number",
+      "min": 1,
+      "max": 200,
+      "doc": "Number of variants to render."
+    },
+    {
+      "name": "vary",
+      "type": "text",
+      "default": "seed",
+      "kind": "choice",
+      "options": [
+        "seed"
+      ],
+      "doc": "Vary the seed between variants."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Existing variants preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nvariants candidates {\n  count 3\n  from source.audio -> block\n}\n\nmaster output {\n  from candidates.pick -> audio\n}\n"
+}

@@ -1,0 +1,1738 @@
+{
+  "$comment": "Operator catalog of the note pipelines (docs/language/12-note-pipelines.md). One entry per operator; the JS and C# evaluators, the LSP completion, the docs and the Koda prompt are all driven from it. Draft, provisional. Version 2 (2026-10-26): every parameter has a musical type from the types section (docs/language/15-musical-types.md); the checker, the web completion and the docs read this file.",
+  "specVersion": "1.0",
+  "units": {
+    "length": [
+      "bar",
+      "bars",
+      "beat",
+      "beats",
+      "s",
+      "ms",
+      "ticks"
+    ],
+    "coordinate": [
+      "bars",
+      "beats",
+      "time"
+    ]
+  },
+  "operators": [
+    {
+      "id": "reference",
+      "kind": "source",
+      "syntax": "block.port",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "The notes output of another block (same spelling as a from line).",
+      "status": "provisional"
+    },
+    {
+      "id": "editable",
+      "kind": "source",
+      "syntax": "editable { notes ... }",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "A literal piece that is edited by hand (Jam writes into it).",
+      "status": "provisional"
+    },
+    {
+      "id": "bars",
+      "kind": "select",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "Which bars to keep, as bar coordinates: 1..5 is four bars (the end is not included), 1..=4 includes the whole of bar 4."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "windowed",
+      "doc": "Keep the notes that start in the bar range (half-open; ..= includes the whole last bar), shorten those that run past its end, and move the start of the range to the origin.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "beats",
+      "kind": "select",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "Which beats to keep: 1 is the first beat, 1..5 is four beats."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "windowed",
+      "doc": "Like bars, on beat coordinates (1 is the first beat).",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "time",
+      "kind": "select",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "The window in seconds or milliseconds from the start, for example 2s..6s."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "windowed",
+      "doc": "Like bars, on seconds or milliseconds from the origin (converted with the song tempo).",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "mask",
+      "kind": "select",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "The bars to keep; the notes keep their place in time."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "windowed",
+      "doc": "Like bars but the notes keep their positions and the span stays.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "remove",
+      "kind": "delete",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "The window whose notes are deleted; the gap stays."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Delete the notes that start in the range and leave a gap.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "cut",
+      "kind": "delete",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "The window that is deleted and closed: later notes move earlier."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Delete the range and close the gap: later notes move earlier and the span shrinks.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "replace",
+      "kind": "insert",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "range",
+          "type": "Window",
+          "required": true,
+          "doc": "The window that is replaced."
+        },
+        {
+          "name": "with",
+          "type": "Notes",
+          "required": true,
+          "doc": "The notes that go there (their start is the start of the window)."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Remove the range and put the given notes there (rebased to the start of the range).",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "transpose",
+      "kind": "transform",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "semitones",
+          "type": "Interval",
+          "required": true,
+          "doc": "How many semitones to move: +12 is an octave up, -5 a fourth down."
+        }
+      ],
+      "graphBlock": "transpose",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Move every pitch; pitch is clamped to 0..127 and semitones to +-48, exactly like the transpose block.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "shift",
+      "kind": "transform",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "by",
+          "type": "Duration",
+          "required": true,
+          "doc": "How far to move the notes in time, for example 1beat, 2bars or 250ms; negative moves them earlier."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Move every note in time by a length (negative allowed).",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "concat",
+      "kind": "combine",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "then",
+          "type": "Notes",
+          "required": true,
+          "doc": "The notes that come after the span of the value."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Put the argument after the span of the value.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "merge",
+      "kind": "combine",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "with",
+          "type": "Notes",
+          "required": true,
+          "doc": "The notes that are layered with the value; the span is the longer of the two."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Layer both values; the span is the longer one.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "bake",
+      "kind": "freeze",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "name",
+          "type": "Identifier",
+          "required": true,
+          "doc": "The name of the stage that stores the notes."
+        }
+      ],
+      "body": [
+        "strict",
+        "input-hash",
+        "notes-hash",
+        "span",
+        "notes",
+        "file"
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Store the output of the pipeline so far as signed notes (inline or in a file).",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "reverse",
+      "kind": "transform",
+      "params": [],
+      "doc": "Mirror the notes in time inside the span.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "stretch",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "factor",
+          "type": "Number",
+          "required": true,
+          "doc": "2 makes everything twice as slow, 0.5 twice as fast."
+        }
+      ],
+      "doc": "Make everything slower (2) or faster (0.5): starts, lengths and the span are multiplied.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "legato",
+      "kind": "transform",
+      "params": [],
+      "doc": "Make every note last until the next start.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "quantize",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "grid",
+          "type": "Duration",
+          "required": true,
+          "doc": "The grid the starts snap to, for example 0.25beats for sixteenth notes."
+        }
+      ],
+      "doc": "Snap the starts to a grid (ties to even).",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "humanize",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "timing",
+          "type": "Duration",
+          "doc": "The largest random shift of a start, as a length."
+        },
+        {
+          "name": "velocity",
+          "type": "Int",
+          "min": 0,
+          "max": 127,
+          "doc": "The largest random change of the loudness."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        }
+      ],
+      "needsSeed": true,
+      "doc": "Small changes to the starts and the loudness, drawn per note from a seed (addressed by the note identity): the same result every time.",
+      "seeded": true,
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "multiplies",
+      "status": "provisional",
+      "id": "repeat",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "times",
+          "type": "Count",
+          "required": true,
+          "doc": "How many copies, one after the other."
+        }
+      ],
+      "doc": "Copies one after the other; refused before it runs when it would pass the limit.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "multiplies",
+      "status": "provisional",
+      "id": "arp",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "rate",
+          "type": "Duration",
+          "required": true,
+          "doc": "The length of each step of the arpeggio."
+        }
+      ],
+      "doc": "Spread each chord (notes that start together) over its length, lowest note first.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "where",
+      "kind": "select",
+      "params": [
+        {
+          "name": "pitch",
+          "type": "Range",
+          "of": "Pitch",
+          "doc": "Keep the notes whose pitch is in this range, for example 60..72."
+        },
+        {
+          "name": "velocity",
+          "type": "Range",
+          "of": "Velocity",
+          "doc": "Keep the notes whose velocity is in this range, for example 80..127."
+        }
+      ],
+      "doc": "Keep the notes whose pitch and/or velocity are in the range (half-open; ..= includes the end).",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "set",
+      "kind": "transform",
+      "input": "notes",
+      "output": "notes",
+      "params": [
+        {
+          "name": "pitch",
+          "type": "Values",
+          "doc": "A pitch (0 to 127) or a note name (C4, F#3), or a quoted list of them: the notes get them in turn, in the order of the notes (start, then pitch), and the list starts again when it is used up."
+        },
+        {
+          "name": "velocity",
+          "type": "Values",
+          "doc": "A velocity (1 to 127), or a quoted list of them that is cycled over the notes."
+        },
+        {
+          "name": "pan",
+          "type": "Values",
+          "doc": "The pan of each note, -100 to 100 (0 is the middle), or a cycled list."
+        },
+        {
+          "name": "fine",
+          "type": "Values",
+          "doc": "The fine tuning of each note in cents, -100 to 100, or a cycled list."
+        },
+        {
+          "name": "rel",
+          "type": "Values",
+          "doc": "The release of each note in milliseconds, 0 to 5000 (-1 takes it away), or a cycled list."
+        },
+        {
+          "name": "cut",
+          "type": "Values",
+          "doc": "How much of the note is played, 0 to 100 percent, or a cycled list."
+        },
+        {
+          "name": "slide",
+          "type": "Values",
+          "doc": "1 makes the note slide into the next one, 0 does not; a cycled list."
+        },
+        {
+          "name": "port",
+          "type": "Values",
+          "doc": "The portamento time of each note in milliseconds, 0 to 2000, or a cycled list."
+        },
+        {
+          "name": "bend",
+          "type": "Values",
+          "doc": "The pitch bend of each note in cents, -2400 to 2400, or a cycled list."
+        },
+        {
+          "name": "channel",
+          "type": "Values",
+          "doc": "The MIDI channel of each note, 0 to 15 (-1 takes the channel, bank and program away), or a cycled list."
+        },
+        {
+          "name": "bank",
+          "type": "Values",
+          "doc": "The SoundFont bank of each note, 0 to 16383, or a cycled list."
+        },
+        {
+          "name": "program",
+          "type": "Values",
+          "doc": "The General MIDI program of each note, 0 to 127, or a cycled list."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "doc": "Puts values on the notes without changing when they sound: set(pitch=\"38 50 45 50 45\", velocity=\"105 82 91\") gives the first note pitch 38 and velocity 105, the second 50 and 82, and so on, and starts the lists again after the last one. Every setting of a note is here (pitch, velocity, pan, fine, rel, cut, slide, port, bend and the channel, bank and program a SoundFont plays it with). A list is the way to write a long melody or an accent pattern as a rhythm that repeats plus the values that cycle over it.",
+      "status": "provisional",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "euclid",
+      "kind": "source",
+      "output": "notes",
+      "params": [
+        {
+          "name": "hits",
+          "type": "Int",
+          "required": true,
+          "min": 0,
+          "max": 256,
+          "doc": "How many notes are spread over the steps."
+        },
+        {
+          "name": "steps",
+          "type": "Count",
+          "required": true,
+          "max": 256,
+          "doc": "How many steps the rhythm has."
+        },
+        {
+          "name": "pitch",
+          "type": "Pitch",
+          "default": "36",
+          "doc": "The pitch of every note."
+        },
+        {
+          "name": "step",
+          "type": "Duration",
+          "default": "1beat",
+          "doc": "The length of one step."
+        },
+        {
+          "name": "velocity",
+          "type": "Velocity",
+          "default": "100",
+          "doc": "The velocity of every note."
+        },
+        {
+          "name": "rotate",
+          "type": "Int",
+          "default": "0",
+          "min": -256,
+          "max": 256,
+          "doc": "How many steps the pattern is turned."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "bounded",
+      "doc": "A Euclidean rhythm as notes: hits spread over steps (at most 256), one note per hit.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "randomize",
+      "kind": "transform",
+      "seeded": true,
+      "params": [
+        {
+          "name": "velocity",
+          "type": "Range",
+          "of": "Int",
+          "doc": "The range of the random change of the velocity."
+        },
+        {
+          "name": "pitch",
+          "type": "Range",
+          "of": "Int",
+          "doc": "The range of the random change of the pitch, in semitones."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        }
+      ],
+      "doc": "Random velocity and/or pitch offset inside ranges, drawn per note (addressed by the identity of the note).",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "thin",
+      "kind": "transform",
+      "seeded": true,
+      "params": [
+        {
+          "name": "p",
+          "type": "Probability",
+          "required": true,
+          "doc": "The chance that a note is dropped, from 0 to 1 (or in percent)."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        },
+        {
+          "name": "per",
+          "type": "Choice",
+          "options": [
+            "note",
+            "bar"
+          ],
+          "default": "note",
+          "doc": "note drops single notes, bar keeps or drops whole bars."
+        }
+      ],
+      "doc": "Drop notes by chance; per=bar keeps or drops whole bars.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "scramble",
+      "kind": "transform",
+      "seeded": true,
+      "params": [
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        }
+      ],
+      "doc": "Move the pitches around among the notes.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "clamp",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "range",
+          "type": "Range",
+          "of": "Pitch",
+          "required": true,
+          "doc": "The lowest and the highest pitch that is allowed."
+        }
+      ],
+      "doc": "Cap the pitches at a floor and a ceiling.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "fold",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "range",
+          "type": "Range",
+          "of": "Pitch",
+          "required": true,
+          "doc": "The pitch range (at least an octave) the notes are moved into by octaves."
+        }
+      ],
+      "doc": "Move notes by octaves into a range of at least an octave.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "snap",
+      "kind": "transform",
+      "params": [
+        {
+          "name": "root",
+          "type": "PitchClass",
+          "required": true,
+          "doc": "The key note, for example C or F#."
+        },
+        {
+          "name": "scale",
+          "type": "ScaleMode",
+          "required": true,
+          "doc": "The scale or mode, for example major, minor or dorian."
+        }
+      ],
+      "doc": "Move each note to the nearest tone of the scale.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "keep",
+      "kind": "select",
+      "params": [
+        {
+          "name": "root",
+          "type": "PitchClass",
+          "required": true,
+          "doc": "The key note, for example C or F#."
+        },
+        {
+          "name": "scale",
+          "type": "ScaleMode",
+          "required": true,
+          "doc": "The scale or mode, for example major, minor or dorian."
+        }
+      ],
+      "doc": "Keep only the notes in the scale.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "input": "notes",
+      "output": "notes",
+      "version": "1",
+      "deterministic": true,
+      "cost": "linear",
+      "status": "provisional",
+      "id": "avoid",
+      "kind": "select",
+      "params": [
+        {
+          "name": "root",
+          "type": "PitchClass",
+          "required": true,
+          "doc": "The key note, for example C or F#."
+        },
+        {
+          "name": "scale",
+          "type": "ScaleMode",
+          "required": true,
+          "doc": "The scale or mode, for example major, minor or dorian."
+        }
+      ],
+      "doc": "Drop the notes in the scale.",
+      "receiver": "Notes",
+      "returns": "Notes"
+    },
+    {
+      "id": "walk",
+      "kind": "source",
+      "output": "notes",
+      "seeded": true,
+      "params": [
+        {
+          "name": "root",
+          "type": "PitchClass",
+          "required": true,
+          "doc": "The key note, for example C or F#."
+        },
+        {
+          "name": "scale",
+          "type": "ScaleMode",
+          "required": true,
+          "doc": "The scale or mode, for example major, minor or dorian."
+        },
+        {
+          "name": "steps",
+          "type": "Count",
+          "default": "16",
+          "max": 256,
+          "doc": "How many notes the melody has."
+        },
+        {
+          "name": "step",
+          "type": "Duration",
+          "default": "0.5beat",
+          "doc": "The length of each note."
+        },
+        {
+          "name": "octave",
+          "type": "Octave",
+          "default": "4",
+          "doc": "The octave the melody starts in."
+        },
+        {
+          "name": "range",
+          "type": "Count",
+          "default": "2",
+          "max": 7,
+          "doc": "How many scale degrees the melody may stray from its start."
+        },
+        {
+          "name": "velocity",
+          "type": "Velocity",
+          "default": "100",
+          "doc": "How loud the notes are (1 to 127)."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "bounded",
+      "doc": "A random melody on a scale: a walk over the degrees, one draw per step.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Notes"
+    },
+    {
+      "id": "chords",
+      "kind": "source",
+      "output": "notes",
+      "params": [
+        {
+          "name": "symbols",
+          "type": "Chords",
+          "required": true,
+          "doc": "The chord symbols, for example Am F C G7."
+        },
+        {
+          "name": "length",
+          "type": "Duration",
+          "default": "1bar",
+          "doc": "How long each chord lasts."
+        },
+        {
+          "name": "octave",
+          "type": "Octave",
+          "default": "4",
+          "doc": "The octave of the notes."
+        },
+        {
+          "name": "velocity",
+          "type": "Velocity",
+          "default": "90",
+          "doc": "How loud the notes are (1 to 127)."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "bounded",
+      "doc": "Chord symbols (Am F C G7 ...) as notes, one chord per length.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Notes"
+    },
+    {
+      "id": "scale",
+      "kind": "source",
+      "output": "notes",
+      "params": [
+        {
+          "name": "root",
+          "type": "PitchClass",
+          "required": true,
+          "doc": "The key note, for example C or F#."
+        },
+        {
+          "name": "scale",
+          "type": "ScaleMode",
+          "required": true,
+          "doc": "The scale or mode, for example major, minor or dorian."
+        },
+        {
+          "name": "steps",
+          "type": "Count",
+          "default": "8",
+          "max": 256,
+          "doc": "How many notes the run has."
+        },
+        {
+          "name": "step",
+          "type": "Duration",
+          "default": "0.5beat",
+          "doc": "The length of each note."
+        },
+        {
+          "name": "octave",
+          "type": "Octave",
+          "default": "4",
+          "doc": "The octave of the notes."
+        },
+        {
+          "name": "velocity",
+          "type": "Velocity",
+          "default": "100",
+          "doc": "How loud the notes are (1 to 127)."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "cost": "bounded",
+      "doc": "A run up a scale.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Notes"
+    },
+    {
+      "id": "random",
+      "kind": "value",
+      "params": [
+        {
+          "name": "range",
+          "type": "Range",
+          "required": true,
+          "doc": "The range the value is drawn from, for example 1..8 or 0.1..0.5."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        },
+        {
+          "name": "round",
+          "type": "Int",
+          "default": "0",
+          "min": 0,
+          "doc": "Which draw this is (0, 1, 2 ...): the same seed and round always give the same value, another round gives another one."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "doc": "A value from a range: a whole number, a decimal or a length; the same seed and round give the same value.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Number"
+    },
+    {
+      "id": "choose",
+      "kind": "value",
+      "params": [
+        {
+          "name": "options",
+          "type": "Values",
+          "required": true,
+          "doc": "The values to choose from."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        },
+        {
+          "name": "round",
+          "type": "Int",
+          "default": "0",
+          "min": 0,
+          "doc": "Which draw this is (0, 1, 2 ...): the same seed and round always give the same value, another round gives another one."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "doc": "One of the listed values.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Number"
+    },
+    {
+      "id": "chance",
+      "kind": "value",
+      "params": [
+        {
+          "name": "p",
+          "type": "Probability",
+          "required": true,
+          "doc": "The chance of 1, from 0 to 1."
+        },
+        {
+          "name": "seed",
+          "type": "RandomSource",
+          "required": true,
+          "doc": "Where the random numbers come from: a seed such as stable(\"name\"), so that the result repeats."
+        },
+        {
+          "name": "round",
+          "type": "Int",
+          "default": "0",
+          "min": 0,
+          "doc": "Which draw this is (0, 1, 2 ...): the same seed and round always give the same value, another round gives another one."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "doc": "1 with that probability, else 0.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "Number"
+    },
+    {
+      "id": "stable",
+      "kind": "seed",
+      "params": [
+        {
+          "name": "name",
+          "type": "Text",
+          "required": true,
+          "doc": "The name of the stream; the same name gives the same numbers while the master-seed stays."
+        }
+      ],
+      "version": "1",
+      "deterministic": true,
+      "doc": "A song-global namespace that follows the master-seed; .fork(\"label\") makes a child.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "RandomSource"
+    },
+    {
+      "id": "random-seed",
+      "kind": "seed",
+      "params": [],
+      "version": "1",
+      "deterministic": false,
+      "doc": "The old spelling of randomSeed(): still understood, with a warning.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "RandomSource",
+      "deprecated": "randomSeed"
+    },
+    {
+      "id": "randomSeed",
+      "kind": "seed",
+      "params": [],
+      "version": "1",
+      "deterministic": false,
+      "doc": "Pick a seed from OS randomness once; it must be written into the song as a number before the pipeline builds.",
+      "status": "provisional",
+      "receiver": null,
+      "returns": "RandomSource"
+    }
+  ],
+  "types": {
+    "PitchClass": {
+      "kind": "vocabulary",
+      "values": [
+        "C",
+        "C#",
+        "Db",
+        "D",
+        "D#",
+        "Eb",
+        "E",
+        "F",
+        "F#",
+        "Gb",
+        "G",
+        "G#",
+        "Ab",
+        "A",
+        "A#",
+        "Bb",
+        "B"
+      ],
+      "doc": "One of the twelve pitch classes; a flat or a sharp spells the same class."
+    },
+    "ScaleMode": {
+      "kind": "vocabulary",
+      "values": [
+        "major",
+        "minor",
+        "harmonic-minor",
+        "melodic-minor",
+        "dorian",
+        "phrygian",
+        "lydian",
+        "mixolydian",
+        "locrian",
+        "pentatonic-major",
+        "pentatonic-minor",
+        "blues",
+        "whole-tone",
+        "diminished-wh",
+        "diminished-hw",
+        "chromatic"
+      ],
+      "doc": "A scale: a bare word (minor), never a string."
+    },
+    "Int": {
+      "kind": "number",
+      "integer": true,
+      "doc": "A whole number."
+    },
+    "Number": {
+      "kind": "number",
+      "doc": "A whole or decimal number without a unit."
+    },
+    "Count": {
+      "kind": "refined",
+      "base": "Int",
+      "min": 1,
+      "doc": "A whole number of at least 1 (steps, times, voices)."
+    },
+    "Octave": {
+      "kind": "refined",
+      "base": "Int",
+      "min": 0,
+      "max": 8,
+      "suggest": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "doc": "A whole number from 0 to 8; octave=4 is the octave of middle C (C4 is 60)."
+    },
+    "Velocity": {
+      "kind": "refined",
+      "base": "Int",
+      "min": 1,
+      "max": 127,
+      "suggest": [
+        60,
+        80,
+        100,
+        127
+      ],
+      "doc": "Loudness of a note, 1 to 127."
+    },
+    "Pitch": {
+      "kind": "refined",
+      "base": "Int",
+      "min": 0,
+      "max": 127,
+      "noteNames": true,
+      "doc": "A MIDI pitch 0 to 127, or a note name such as C2 or F#3 (C4 is 60)."
+    },
+    "Probability": {
+      "kind": "refined",
+      "base": "Number",
+      "min": 0,
+      "max": 1,
+      "percent": true,
+      "suggest": [
+        0.1,
+        0.25,
+        0.5
+      ],
+      "doc": "A chance from 0 to 1; 25% is 0.25."
+    },
+    "Interval": {
+      "kind": "quantity",
+      "dimension": "pitch",
+      "units": [
+        "st",
+        "oct",
+        "cents"
+      ],
+      "bare": "st",
+      "doc": "A pitch distance: exact semitones (+7st), octaves (-1oct) or cents (50cents). A bare number means semitones."
+    },
+    "Length": {
+      "kind": "quantity",
+      "dimension": "length",
+      "units": [
+        "bar",
+        "bars",
+        "beat",
+        "beats",
+        "tick",
+        "ticks"
+      ],
+      "doc": "A musical length that does not depend on the tempo."
+    },
+    "Time": {
+      "kind": "quantity",
+      "dimension": "time",
+      "units": [
+        "s",
+        "ms"
+      ],
+      "doc": "A length in seconds; it depends on the tempo, so the tempo becomes part of the recipe."
+    },
+    "Duration": {
+      "kind": "union",
+      "of": [
+        "Length",
+        "Time"
+      ],
+      "doc": "A Length or a Time."
+    },
+    "Chords": {
+      "kind": "vocabulary-list",
+      "doc": "Chord symbols (Am F C G7 F#m7b5 Bbmaj7), as a quoted list."
+    },
+    "RandomSource": {
+      "kind": "seed",
+      "doc": "Where randomness comes from: a whole number, stable(\"name\") (optionally .fork(...)), or randomSeed() once picked."
+    },
+    "Window": {
+      "kind": "window",
+      "doc": "A part of the value: bar positions 1..5, or bars(1..5), beats(1..9), time(0s..2s)."
+    },
+    "Range": {
+      "kind": "range",
+      "doc": "A range a..b (excluding b) or a..=b (including b) of the element type."
+    },
+    "Notes": {
+      "kind": "notes",
+      "doc": "Notes: block.notes, a literal, editable { }, a generator or a pipeline."
+    },
+    "Choice": {
+      "kind": "choice",
+      "doc": "One of a fixed list of words."
+    },
+    "Values": {
+      "kind": "list",
+      "doc": "A list of values."
+    },
+    "Text": {
+      "kind": "string",
+      "doc": "A quoted name."
+    },
+    "Identifier": {
+      "kind": "identifier",
+      "doc": "A name."
+    },
+    "Program": {
+      "kind": "refined",
+      "base": "Int",
+      "min": 0,
+      "max": 127,
+      "doc": "A General MIDI program number, 0 to 127 (0 is the grand piano). It is a whole number, but not an Octave or a Velocity: values made as another musical type are refused."
+    }
+  },
+  "builtins": [
+    {
+      "id": "Int",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "value",
+          "type": "Number",
+          "required": true,
+          "doc": "A whole number, a decimal that is a whole number (4.0), or a string like \"12\"."
+        }
+      ],
+      "doc": "A whole number. A decimal that is not whole is refused: use Round, Floor, Ceil or Truncate to say how to get there."
+    },
+    {
+      "id": "Float",
+      "kind": "function",
+      "returns": "Float",
+      "params": [
+        {
+          "name": "value",
+          "type": "Number",
+          "required": true,
+          "doc": "An Int, a Float or a string like \"0.5\"."
+        }
+      ],
+      "doc": "A decimal number."
+    },
+    {
+      "id": "Round",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "number",
+          "type": "Number",
+          "required": true,
+          "doc": "The number to round."
+        }
+      ],
+      "doc": "Rounds to the nearest whole number; a half goes to the even neighbour (2.5 gives 2, 3.5 gives 4)."
+    },
+    {
+      "id": "Floor",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "number",
+          "type": "Number",
+          "required": true,
+          "doc": "The number to round down."
+        }
+      ],
+      "doc": "Rounds down, towards minus infinity (-1.5 gives -2)."
+    },
+    {
+      "id": "Ceil",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "number",
+          "type": "Number",
+          "required": true,
+          "doc": "The number to round up."
+        }
+      ],
+      "doc": "Rounds up, towards plus infinity (1.2 gives 2)."
+    },
+    {
+      "id": "Truncate",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "number",
+          "type": "Number",
+          "required": true,
+          "doc": "The number to cut."
+        }
+      ],
+      "doc": "Drops the decimals, towards zero (-1.5 gives -1)."
+    },
+    {
+      "id": "count",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "value",
+          "type": "Notes",
+          "required": true,
+          "doc": "Notes, a list or a string."
+        }
+      ],
+      "doc": "How many notes, items or characters there are."
+    },
+    {
+      "id": "len",
+      "kind": "function",
+      "returns": "Int",
+      "params": [
+        {
+          "name": "value",
+          "type": "Values",
+          "required": true,
+          "doc": "A list, a string or notes."
+        }
+      ],
+      "doc": "The length of a list or a string (for notes: how many notes)."
+    },
+    {
+      "id": "span",
+      "kind": "function",
+      "returns": "Length",
+      "params": [
+        {
+          "name": "notes",
+          "type": "Notes",
+          "required": true,
+          "doc": "The notes to measure."
+        }
+      ],
+      "doc": "The span of notes as a length: how long they last, including a silent tail when the span is set."
+    },
+    {
+      "id": "abs",
+      "kind": "function",
+      "returns": "Number",
+      "params": [
+        {
+          "name": "number",
+          "type": "Number",
+          "required": true,
+          "doc": "A number or a quantity (1bar, -3st)."
+        }
+      ],
+      "doc": "The absolute value; a quantity keeps its unit."
+    },
+    {
+      "id": "min",
+      "kind": "function",
+      "returns": "Number",
+      "params": [
+        {
+          "name": "a",
+          "type": "Number",
+          "required": true,
+          "doc": "The first value."
+        },
+        {
+          "name": "b",
+          "type": "Number",
+          "required": true,
+          "doc": "The second value; the same kind of value as the first."
+        }
+      ],
+      "doc": "The smaller of two numbers, or of two quantities of the same kind (1bar and 2beats)."
+    },
+    {
+      "id": "max",
+      "kind": "function",
+      "returns": "Number",
+      "params": [
+        {
+          "name": "a",
+          "type": "Number",
+          "required": true,
+          "doc": "The first value."
+        },
+        {
+          "name": "b",
+          "type": "Number",
+          "required": true,
+          "doc": "The second value; the same kind of value as the first."
+        }
+      ],
+      "doc": "The larger of two numbers, or of two quantities of the same kind."
+    },
+    {
+      "id": "at",
+      "kind": "function",
+      "returns": "Value",
+      "params": [
+        {
+          "name": "list",
+          "type": "Values",
+          "required": true,
+          "doc": "The list."
+        },
+        {
+          "name": "index",
+          "type": "Int",
+          "required": true,
+          "doc": "The place in the list, counting from 0."
+        }
+      ],
+      "doc": "The item of a list at an index; an index outside the list is an error."
+    },
+    {
+      "id": "Note",
+      "kind": "function",
+      "returns": "Notes",
+      "params": [
+        {
+          "name": "at",
+          "type": "Length",
+          "required": false,
+          "doc": "Where the note starts, from the start of the clip.",
+          "default": "0"
+        },
+        {
+          "name": "len",
+          "type": "Length",
+          "required": false,
+          "doc": "How long it lasts.",
+          "default": "1beat"
+        },
+        {
+          "name": "pitch",
+          "type": "Pitch",
+          "required": false,
+          "doc": "A MIDI number or a name like C4.",
+          "default": "60"
+        },
+        {
+          "name": "vel",
+          "type": "Velocity",
+          "required": false,
+          "doc": "How hard, from 1 to 127.",
+          "default": "100"
+        }
+      ],
+      "doc": "One note as notes. Give the arguments by name: Note(at=1beat, pitch=C4)."
+    },
+    {
+      "id": "emptyNotes",
+      "kind": "function",
+      "returns": "Notes",
+      "params": [],
+      "doc": "Notes without a single note (a bar long). The stand-in for an input that is not connected; adding or merging it changes nothing."
+    },
+    {
+      "id": "currentTime",
+      "kind": "function",
+      "returns": "Now",
+      "params": [],
+      "doc": "A date and time: year, month, day, hour, minute, second and weekday. Volatile: needs the capability clock, and a helper that uses it is a dynamic helper.",
+      "volatile": "clock"
+    },
+    {
+      "id": "currentDate",
+      "kind": "function",
+      "returns": "Now",
+      "params": [],
+      "doc": "The date (year, month, day, weekday). Volatile: needs the capability clock, and a helper that uses it is a dynamic helper.",
+      "volatile": "clock"
+    },
+    {
+      "id": "osRandom",
+      "kind": "function",
+      "returns": "Int",
+      "params": [],
+      "doc": "A number from the randomness of the operating system. Volatile: needs the capability os-random; bake it to keep the value.",
+      "volatile": "os-random"
+    },
+    {
+      "id": "environment",
+      "kind": "function",
+      "returns": "String",
+      "params": [
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "doc": "The name of the variable, in quotes."
+        }
+      ],
+      "doc": "The value of an environment variable of the machine. Volatile: needs the capability environment, and only the names that the project allows.",
+      "volatile": "environment"
+    },
+    {
+      "id": "fork",
+      "kind": "method",
+      "receiver": "Seed",
+      "returns": "Seed",
+      "params": [
+        {
+          "name": "label",
+          "type": "Text",
+          "required": true,
+          "doc": "A name for the branch."
+        }
+      ],
+      "doc": "A new seed made from this one and the label: the same label always gives the same seed, a different label an independent one."
+    },
+    {
+      "id": "next",
+      "kind": "method",
+      "receiver": "RandomStream",
+      "returns": "Number",
+      "params": [],
+      "doc": "The next number of the random stream; every call moves it on, and the same seed gives the same numbers."
+    },
+    {
+      "id": "bar",
+      "kind": "unit",
+      "doc": "Length in bars (4 beats each): 1bar."
+    },
+    {
+      "id": "bars",
+      "kind": "unit",
+      "doc": "Length in bars (4 beats each): 2bars."
+    },
+    {
+      "id": "beat",
+      "kind": "unit",
+      "doc": "Length in beats: 1beat."
+    },
+    {
+      "id": "beats",
+      "kind": "unit",
+      "doc": "Length in beats: 0.5beats."
+    },
+    {
+      "id": "tick",
+      "kind": "unit",
+      "doc": "A tick is one millionth of a beat (the unit of the exact notes)."
+    },
+    {
+      "id": "ticks",
+      "kind": "unit",
+      "doc": "Ticks are millionths of a beat (the unit of the exact notes)."
+    },
+    {
+      "id": "s",
+      "kind": "unit",
+      "doc": "Time in seconds: 2s. It follows the tempo of the song when it is turned into beats."
+    },
+    {
+      "id": "ms",
+      "kind": "unit",
+      "doc": "Time in milliseconds: 250ms."
+    },
+    {
+      "id": "st",
+      "kind": "unit",
+      "doc": "Semitones, the unit of an Interval: +7st."
+    },
+    {
+      "id": "oct",
+      "kind": "unit",
+      "doc": "Octaves, 12 semitones each: +1oct."
+    },
+    {
+      "id": "cents",
+      "kind": "unit",
+      "doc": "Hundredths of a semitone: +25cents."
+    },
+    {
+      "id": "dB",
+      "kind": "unit",
+      "doc": "Decibels, the unit of a Gain: -6dB."
+    },
+    {
+      "id": "helper",
+      "kind": "keyword",
+      "doc": "Declares a helper: helper name(Type param, ...) -> Type { ... }. A helper is pure unless it is declared dynamic."
+    },
+    {
+      "id": "dynamic",
+      "kind": "keyword",
+      "doc": "dynamic helper name(...): permission for a helper that reads something volatile (the clock, OS randomness, the environment); its result can differ between builds until it is baked."
+    },
+    {
+      "id": "let",
+      "kind": "keyword",
+      "doc": "Declares a constant of the file (at the start of a line) or a value inside a helper body: let name = value."
+    },
+    {
+      "id": "var",
+      "kind": "keyword",
+      "doc": "A value inside a helper that can be changed: var name = value."
+    },
+    {
+      "id": "type",
+      "kind": "keyword",
+      "doc": "Declares a type alias: type Name = A | B (a union of types or words)."
+    },
+    {
+      "id": "return",
+      "kind": "keyword",
+      "doc": "Ends the helper and gives its value. A bare return in a helper that emits ends it with what was emitted."
+    },
+    {
+      "id": "emit",
+      "kind": "keyword",
+      "doc": "In a helper that returns Notes: adds notes to the result (like merge). A helper can emit as often as it likes."
+    },
+    {
+      "id": "for",
+      "kind": "keyword",
+      "doc": "for name in 0..=7 { ... }: a loop over a range or a list; the number of rounds is limited by the limits of the song."
+    },
+    {
+      "id": "while",
+      "kind": "keyword",
+      "doc": "while condition max N { ... }: a loop with a guard; reaching max is an error unless it says stop."
+    },
+    {
+      "id": "if",
+      "kind": "keyword",
+      "doc": "if condition { ... } else { ... }."
+    },
+    {
+      "id": "else",
+      "kind": "keyword",
+      "doc": "The other branch of an if."
+    }
+  ]
+}

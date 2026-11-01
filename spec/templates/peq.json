@@ -1,0 +1,421 @@
+{
+  "id": "peq",
+  "title": "Parametric EQ",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "A parametric equaliser with up to six free bands: each band is a peak, a low or high shelf, a notch, or a low cut or high cut (12 dB per octave) with its own frequency, gain and Q, and can be switched off. Takes audio and gives audio. The eq block stays the simple three-band tone control.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "band1_type",
+      "type": "text",
+      "default": "lowshelf",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "lowshelf",
+        "highshelf",
+        "notch",
+        "lowcut",
+        "highcut"
+      ],
+      "doc": "Band 1: peak lifts or cuts around its frequency, lowshelf and highshelf lift or cut everything below or above it, notch removes a narrow band (gain is ignored), lowcut and highcut remove everything below or above the frequency with a 12 dB per octave slope (gain is ignored; Q 0.7 is flat, a higher Q adds a bump at the corner).",
+      "label": "Band 1 type"
+    },
+    {
+      "name": "band1_hz",
+      "type": "text",
+      "default": "80 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Band 1: the centre (peak, notch) or corner (shelf) frequency.",
+      "label": "Band 1 frequency"
+    },
+    {
+      "name": "band1_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 24,
+      "doc": "Band 1: how much it lifts (plus) or cuts (minus). 0 dB leaves the band out, so a new block changes nothing until you set a gain.",
+      "label": "Band 1 gain"
+    },
+    {
+      "name": "band1_q",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 0.1,
+      "max": 18,
+      "step": 0.1,
+      "doc": "Band 1: how narrow it is. A high Q is a narrow peak or notch; for a shelf it sets the steepness of the corner.",
+      "label": "Band 1 Q"
+    },
+    {
+      "name": "band1_enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Band 1: off leaves this band out without losing its settings.",
+      "label": "Band 1 enabled"
+    },
+    {
+      "name": "band2_type",
+      "type": "text",
+      "default": "peak",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "lowshelf",
+        "highshelf",
+        "notch",
+        "lowcut",
+        "highcut"
+      ],
+      "doc": "Band 2: peak lifts or cuts around its frequency, lowshelf and highshelf lift or cut everything below or above it, notch removes a narrow band (gain is ignored), lowcut and highcut remove everything below or above the frequency with a 12 dB per octave slope (gain is ignored; Q 0.7 is flat, a higher Q adds a bump at the corner).",
+      "label": "Band 2 type"
+    },
+    {
+      "name": "band2_hz",
+      "type": "text",
+      "default": "250 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Band 2: the centre (peak, notch) or corner (shelf) frequency.",
+      "label": "Band 2 frequency"
+    },
+    {
+      "name": "band2_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 24,
+      "doc": "Band 2: how much it lifts (plus) or cuts (minus). 0 dB leaves the band out, so a new block changes nothing until you set a gain.",
+      "label": "Band 2 gain"
+    },
+    {
+      "name": "band2_q",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 0.1,
+      "max": 18,
+      "step": 0.1,
+      "doc": "Band 2: how narrow it is. A high Q is a narrow peak or notch; for a shelf it sets the steepness of the corner.",
+      "label": "Band 2 Q"
+    },
+    {
+      "name": "band2_enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Band 2: off leaves this band out without losing its settings.",
+      "label": "Band 2 enabled"
+    },
+    {
+      "name": "band3_type",
+      "type": "text",
+      "default": "peak",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "lowshelf",
+        "highshelf",
+        "notch",
+        "lowcut",
+        "highcut"
+      ],
+      "doc": "Band 3: peak lifts or cuts around its frequency, lowshelf and highshelf lift or cut everything below or above it, notch removes a narrow band (gain is ignored), lowcut and highcut remove everything below or above the frequency with a 12 dB per octave slope (gain is ignored; Q 0.7 is flat, a higher Q adds a bump at the corner).",
+      "label": "Band 3 type"
+    },
+    {
+      "name": "band3_hz",
+      "type": "text",
+      "default": "800 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Band 3: the centre (peak, notch) or corner (shelf) frequency.",
+      "label": "Band 3 frequency"
+    },
+    {
+      "name": "band3_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 24,
+      "doc": "Band 3: how much it lifts (plus) or cuts (minus). 0 dB leaves the band out, so a new block changes nothing until you set a gain.",
+      "label": "Band 3 gain"
+    },
+    {
+      "name": "band3_q",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 0.1,
+      "max": 18,
+      "step": 0.1,
+      "doc": "Band 3: how narrow it is. A high Q is a narrow peak or notch; for a shelf it sets the steepness of the corner.",
+      "label": "Band 3 Q"
+    },
+    {
+      "name": "band3_enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Band 3: off leaves this band out without losing its settings.",
+      "label": "Band 3 enabled"
+    },
+    {
+      "name": "band4_type",
+      "type": "text",
+      "default": "peak",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "lowshelf",
+        "highshelf",
+        "notch",
+        "lowcut",
+        "highcut"
+      ],
+      "doc": "Band 4: peak lifts or cuts around its frequency, lowshelf and highshelf lift or cut everything below or above it, notch removes a narrow band (gain is ignored), lowcut and highcut remove everything below or above the frequency with a 12 dB per octave slope (gain is ignored; Q 0.7 is flat, a higher Q adds a bump at the corner).",
+      "label": "Band 4 type"
+    },
+    {
+      "name": "band4_hz",
+      "type": "text",
+      "default": "2500 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Band 4: the centre (peak, notch) or corner (shelf) frequency.",
+      "label": "Band 4 frequency"
+    },
+    {
+      "name": "band4_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 24,
+      "doc": "Band 4: how much it lifts (plus) or cuts (minus). 0 dB leaves the band out, so a new block changes nothing until you set a gain.",
+      "label": "Band 4 gain"
+    },
+    {
+      "name": "band4_q",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 0.1,
+      "max": 18,
+      "step": 0.1,
+      "doc": "Band 4: how narrow it is. A high Q is a narrow peak or notch; for a shelf it sets the steepness of the corner.",
+      "label": "Band 4 Q"
+    },
+    {
+      "name": "band4_enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Band 4: off leaves this band out without losing its settings.",
+      "label": "Band 4 enabled"
+    },
+    {
+      "name": "band5_type",
+      "type": "text",
+      "default": "peak",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "lowshelf",
+        "highshelf",
+        "notch",
+        "lowcut",
+        "highcut"
+      ],
+      "doc": "Band 5: peak lifts or cuts around its frequency, lowshelf and highshelf lift or cut everything below or above it, notch removes a narrow band (gain is ignored), lowcut and highcut remove everything below or above the frequency with a 12 dB per octave slope (gain is ignored; Q 0.7 is flat, a higher Q adds a bump at the corner).",
+      "label": "Band 5 type"
+    },
+    {
+      "name": "band5_hz",
+      "type": "text",
+      "default": "6000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Band 5: the centre (peak, notch) or corner (shelf) frequency.",
+      "label": "Band 5 frequency"
+    },
+    {
+      "name": "band5_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 24,
+      "doc": "Band 5: how much it lifts (plus) or cuts (minus). 0 dB leaves the band out, so a new block changes nothing until you set a gain.",
+      "label": "Band 5 gain"
+    },
+    {
+      "name": "band5_q",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 0.1,
+      "max": 18,
+      "step": 0.1,
+      "doc": "Band 5: how narrow it is. A high Q is a narrow peak or notch; for a shelf it sets the steepness of the corner.",
+      "label": "Band 5 Q"
+    },
+    {
+      "name": "band5_enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Band 5: off leaves this band out without losing its settings.",
+      "label": "Band 5 enabled"
+    },
+    {
+      "name": "band6_type",
+      "type": "text",
+      "default": "highshelf",
+      "kind": "choice",
+      "options": [
+        "peak",
+        "lowshelf",
+        "highshelf",
+        "notch",
+        "lowcut",
+        "highcut"
+      ],
+      "doc": "Band 6: peak lifts or cuts around its frequency, lowshelf and highshelf lift or cut everything below or above it, notch removes a narrow band (gain is ignored), lowcut and highcut remove everything below or above the frequency with a 12 dB per octave slope (gain is ignored; Q 0.7 is flat, a higher Q adds a bump at the corner).",
+      "label": "Band 6 type"
+    },
+    {
+      "name": "band6_hz",
+      "type": "text",
+      "default": "12000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Band 6: the centre (peak, notch) or corner (shelf) frequency.",
+      "label": "Band 6 frequency"
+    },
+    {
+      "name": "band6_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 24,
+      "doc": "Band 6: how much it lifts (plus) or cuts (minus). 0 dB leaves the band out, so a new block changes nothing until you set a gain.",
+      "label": "Band 6 gain"
+    },
+    {
+      "name": "band6_q",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 0.1,
+      "max": 18,
+      "step": 0.1,
+      "doc": "Band 6: how narrow it is. A high Q is a narrow peak or notch; for a shelf it sets the steepness of the corner.",
+      "label": "Band 6 Q"
+    },
+    {
+      "name": "band6_enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Band 6: off leaves this band out without losing its settings.",
+      "label": "Band 6 enabled"
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Parametric EQ preview\" { ample 1  tempo 100  master-seed 17 }\n\nmidi-clip phrase {\n  chords Am F C G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\npeq shape {\n  band1_type lowshelf\n  band1_hz 90 Hz\n  band1_gain -4 dB\n  band2_hz 400 Hz\n  band2_gain -6 dB\n  band2_q 2\n  band3_hz 2200 Hz\n  band3_gain 5 dB\n  band3_q 0.8\n  band4_type notch\n  band4_hz 5000 Hz\n  band4_q 6\n  from source.audio -> audio\n}\n\nmaster master {\n  from shape.audio -> audio\n}\n"
+}

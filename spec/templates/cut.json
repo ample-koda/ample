@@ -1,0 +1,124 @@
+{
+  "id": "cut",
+  "title": "Cut / trim",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Keep a stretch of the input: from a start to an end, or only the first or the last seconds, once or repeated.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "out",
+      "type": "audio",
+      "alias": true
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the input on unchanged."
+    },
+    {
+      "name": "start",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "Where the kept stretch starts, in seconds from the start of the input (empty: the start)."
+    },
+    {
+      "name": "end",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "Where the kept stretch ends, in seconds (empty: the end of the input)."
+    },
+    {
+      "name": "first",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "Keep only the first seconds of the input. Wins over start and end."
+    },
+    {
+      "name": "last",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "Keep only the last seconds of the input. Wins over start and end, after first."
+    },
+    {
+      "name": "loop",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "On repeats the kept stretch until the block ends."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Cut preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncut opening {\n  first 2s\n  loop on\n  from source.audio -> audio\n}\n\nmaster master {\n  from opening.audio -> audio\n}\n"
+}

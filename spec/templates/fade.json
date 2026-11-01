@@ -1,0 +1,93 @@
+{
+  "id": "fade",
+  "title": "Fade",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Fades a sound in or out, in bars or seconds, and ends in exact silence. The same as a volume gain with fadein(...) or fadeout(...).",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through unchanged."
+    },
+    {
+      "name": "direction",
+      "type": "text",
+      "default": "out",
+      "kind": "choice",
+      "options": [
+        "out",
+        "in"
+      ],
+      "doc": "out: the sound goes from full to silence. in: it goes from silence to full."
+    },
+    {
+      "name": "start",
+      "type": "text",
+      "default": "1",
+      "kind": "text",
+      "doc": "Where the fade starts: a bar position (1 is the first bar, 5.5 is half way through bar 5) or seconds from the beginning of the song (12s).",
+      "placeholder": "5 or 12s"
+    },
+    {
+      "name": "length",
+      "type": "text",
+      "default": "2",
+      "kind": "text",
+      "doc": "How long the fade takes: bars (2, 0.5) or seconds (1.5s).",
+      "placeholder": "2 or 1.5s"
+    },
+    {
+      "name": "shape",
+      "type": "text",
+      "default": "lin",
+      "kind": "choice",
+      "options": [
+        "lin",
+        "equal",
+        "exp"
+      ],
+      "doc": "lin: a straight line in volume. equal: equal power (use it for a crossfade). exp: starts slowly and ends fast."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Fade preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nfade fade_in {\n  direction in\n  start 1\n  length 1\n  shape equal\n  from source.audio -> audio\n}\n\nmaster master {\n  from fade_in.audio -> audio\n}\n"
+}

@@ -1,0 +1,96 @@
+{
+  "id": "shift",
+  "title": "Shift in time",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Start the input a little later (or earlier): put it after one block to move only that block by some seconds or beats, without moving it on the timeline.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "out",
+      "type": "audio",
+      "alias": true
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the input on unchanged."
+    },
+    {
+      "name": "seconds",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "unit": "s",
+      "min": -30,
+      "max": 30,
+      "doc": "Seconds to move the sound later; a minus moves it earlier."
+    },
+    {
+      "name": "beats",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": -64,
+      "max": 64,
+      "doc": "Beats to move the sound later (added to the seconds); a minus moves it earlier."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Shift preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nshift delay {\n  seconds 0.15s\n  beats 0\n  from source.audio -> audio\n}\n\nmaster master {\n  from delay.audio -> audio\n}\n"
+}

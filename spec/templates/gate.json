@@ -1,0 +1,117 @@
+{
+  "id": "gate",
+  "title": "Gate",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Silences the sound whenever it falls below a threshold, for example the noise between phrases. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "threshold",
+      "type": "text",
+      "default": "-50 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -80,
+      "max": 0,
+      "doc": "Below this level the gate closes."
+    },
+    {
+      "name": "attack",
+      "type": "text",
+      "default": "5 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 200,
+      "doc": "How fast it opens."
+    },
+    {
+      "name": "hold",
+      "type": "text",
+      "default": "80 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 1000,
+      "doc": "How long it stays open after the sound drops below the threshold."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "150 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 5,
+      "max": 2000,
+      "doc": "How fast it closes."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Gate preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ngate quiet {\n  threshold -30 dB\n  attack 5 ms\n  hold 80 ms\n  release 150 ms\n  from source.audio -> audio\n}\n\nmaster master {\n  from quiet.audio -> audio\n}\n"
+}

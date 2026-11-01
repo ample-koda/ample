@@ -1,0 +1,108 @@
+{
+  "id": "limiter",
+  "title": "Limiter",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Keeps the sound under a ceiling (for example -1 dB) so that it can never clip. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "ceiling",
+      "type": "text",
+      "default": "-1 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -24,
+      "max": 0,
+      "doc": "The loudest level that is let through."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "100 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 10,
+      "max": 1000,
+      "doc": "How fast the gain comes back after a peak."
+    },
+    {
+      "name": "lookahead",
+      "type": "text",
+      "default": "5 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 20,
+      "doc": "How far ahead peaks are seen; the sound is delayed by this much internally and realigned."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Limiter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -3 dB\n  from phrase.notes -> notes\n}\n\nlimiter safe {\n  ceiling -6 dB\n  lookahead 5 ms\n  release 100 ms\n  from source.audio -> audio\n}\n\nmaster master {\n  from safe.audio -> audio\n}\n"
+}

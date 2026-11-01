@@ -1,0 +1,108 @@
+{
+  "id": "sequencer",
+  "title": "Sequencer",
+  "category": "Advanced",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "An advanced block: channels, patterns and a playlist from a .ampleseq file or kept in the song, mixed into one output and into up to eight lanes that name the channels they carry. It can read a sequence file and gives audio.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "mix",
+      "type": "audio"
+    },
+    {
+      "name": "lane1",
+      "type": "audio"
+    },
+    {
+      "name": "lane2",
+      "type": "audio"
+    },
+    {
+      "name": "lane3",
+      "type": "audio"
+    },
+    {
+      "name": "lane4",
+      "type": "audio"
+    },
+    {
+      "name": "lane5",
+      "type": "audio"
+    },
+    {
+      "name": "lane6",
+      "type": "audio"
+    },
+    {
+      "name": "lane7",
+      "type": "audio"
+    },
+    {
+      "name": "lane8",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".ampleseq",
+        ".seq"
+      ],
+      "placeholder": "choose a sequence file of the project",
+      "doc": "The sequence file (sequences/<name>.ampleseq; a .seq file of before works too): the channels, the patterns and the playlist. The Sequencer editor writes it. The sequence can also be kept in the song itself (the sequence part of the block), which is used instead of the file."
+    },
+    {
+      "name": "lanes",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "placeholder": "lane1=kick lane2=hat+snare",
+      "doc": "Which channels each lane carries: lane1=kick lane2=hat+snare lane3=all (lanes 1 to 8, channels joined by +, all for every channel). Every channel is in mix; a lane that is connected must name channels."
+    },
+    {
+      "name": "gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 12,
+      "doc": "Output gain of the mix and of every lane."
+    },
+    {
+      "name": "sequence",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "doc": "The sequence kept in the song itself, as a sequence { ... } part of the block (the text of a .ampleseq file). It is used instead of file. Use Embed in the song and Extract to a file in the sequencer."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Local sequencer preview\" { ample 1  tempo 104  master-seed 5 }\n\nsequencer sq at 1 for 8 {\n  lanes lane1=bass lane2=lead\n  sequence {\n    sequencer 1\n    channel bass bass vol=-6\n    channel lead notes wave=triangle vol=-10\n    pattern verse bars=2\n      bass 1:0:1:45:100 1:2:1:45:90 2:0:1:43:100 2:2:1:43:90\n      lead 1:0:1:69:96 1:1:1:72:96 1:2:2:76:96 2:0:2:74:96\n    pattern chorus bars=2\n      bass 1:0:2:41:100 2:0:2:48:100\n      lead 1:0:1:77:100 1:1:1:76:96 1:2:2:72:96 2:0:2:69:96\n    playlist\n      clip verse track=1 at=1 for=4\n      clip chorus track=1 at=5 for=4\n  }\n}\n\nreverb space {\n  from sq.lane2 -> audio\n  mix 25\n}\n\nmixer mix {\n  from sq.lane1 -> audio1\n  from space.audio -> audio2\n}\n\nmaster master bake {\n  from mix.audio -> audio\n}\n",
+  "needs": [
+    "Optionally a .ampleseq file (parameter file); the sequence can also be kept in the song."
+  ],
+  "soundSource": true
+}

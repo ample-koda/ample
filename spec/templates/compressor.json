@@ -1,0 +1,144 @@
+{
+  "id": "compressor",
+  "title": "Compressor",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Evens out loud and soft parts. Connect a sound to key to make it a sidechain compressor (the key drives the reduction).",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "key",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "threshold",
+      "automatable": true,
+      "type": "text",
+      "default": "-18 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 0,
+      "doc": "Level where the compressor starts."
+    },
+    {
+      "name": "ratio",
+      "type": "text",
+      "default": "4",
+      "kind": "number",
+      "min": 1,
+      "max": 20,
+      "doc": "Reduction: 4 means 4 dB over the threshold becomes 1 dB."
+    },
+    {
+      "name": "attack",
+      "type": "text",
+      "default": "10 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 500,
+      "doc": "How fast it reacts."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "120 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 5,
+      "max": 2000,
+      "doc": "How fast it lets go."
+    },
+    {
+      "name": "makeup",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": 0,
+      "max": 12,
+      "doc": "Level added after compressing."
+    },
+    {
+      "name": "keyFilter",
+      "type": "text",
+      "default": "0 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 0,
+      "max": 8000,
+      "doc": "With a key input: only sound above this frequency drives the reduction (0 is off)."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Compressor preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth key-source {\n  wave sine\n  gain -6 dB\n  from phrase.notes -> notes\n}\n\ncompressor duck {\n  threshold -24 dB\n  ratio 5\n  attack 5 ms\n  release 100 ms\n  from source.audio -> audio\n  from key-source.audio -> key\n}\n\nmaster master {\n  from duck.audio -> audio\n}\n"
+}

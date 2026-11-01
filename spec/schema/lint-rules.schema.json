@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "required": ["rules"],
+  "additionalProperties": false,
+  "properties": {
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "defaultLevel", "description", "autofix", "since"],
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string", "pattern": "^L[0-9]{3}$" },
+          "name": { "type": "string", "pattern": "^[a-z][a-z-]*$" },
+          "defaultLevel": { "enum": ["off", "info", "warning", "error"] },
+          "description": { "type": "string" },
+          "autofix": { "type": ["string", "null"] },
+          "since": { "type": "string" }
+        }
+      }
+    }
+  }
+}

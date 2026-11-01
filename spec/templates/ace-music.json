@@ -1,0 +1,227 @@
+{
+  "id": "ace-music",
+  "title": "ACE music (ACE-Step)",
+  "category": "Voices",
+  "class": "live",
+  "version": "1.0",
+  "dynamic": true,
+  "plugin": "acestep",
+  "description": "Creates intended backing music or a full song. Lyrics are optional: without them it makes instrumental music.",
+  "inputs": [
+    {
+      "name": "lyrics",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "melody",
+      "type": "midi",
+      "required": false
+    },
+    {
+      "name": "style",
+      "type": "data",
+      "required": false
+    },
+    {
+      "name": "reference",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "music_direction",
+      "label": "Music direction",
+      "type": "text",
+      "default": "",
+      "doc": "Describe the intended backing music, arrangement and vocal treatment. Unlike AI voice, this block is allowed to make accompaniment.",
+      "modalEditor": true,
+      "multiline": true,
+      "placeholder": "for example: dreamy synth pop, 90 BPM, female vocal"
+    },
+    {
+      "name": "steps",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 1,
+      "max": 100,
+      "placeholder": "the model default",
+      "doc": "Number of diffusion steps. Empty takes what the chosen model wants (turbo 8, sft and base 50)."
+    },
+    {
+      "name": "adapter",
+      "label": "Adapter (LoRA)",
+      "type": "text",
+      "default": "",
+      "placeholder": "none",
+      "doc": "The name of an adapter (LoRA) the local ACE server lists (it must be started with --adapters). Empty: no adapter. It changes the sound of the result."
+    },
+    {
+      "name": "adapter_scale",
+      "label": "Adapter strength",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 0,
+      "max": 2,
+      "step": 0.1,
+      "doc": "How strongly the adapter works; empty is 1."
+    },
+    {
+      "name": "voice_strength",
+      "label": "Reference cover strength",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "doc": "With audio linked to the reference input: besides taking its voice, make the result a cover of it at this strength (0 hardly, 1 as close as possible; it follows the melody of the reference too). Empty: only the voice."
+    },
+    {
+      "name": "guidance",
+      "label": "CFG (guidance scale)",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 1,
+      "max": 15,
+      "step": 0.1,
+      "doc": "Classifier-free guidance scale sent to ACE-Step and recorded with the take. The Studio shows the resolved default: 7 for Base/SFT, 1 for Turbo. Changing CFG can change the generated music."
+    },
+    {
+      "name": "shift",
+      "label": "Schedule shift",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 1,
+      "max": 5,
+      "step": 0.1,
+      "doc": "Diffusion timestep schedule: SFT defaults to 1, Base/Turbo to 3. Stored in the render recipe; keep fixed when comparing seeds."
+    },
+    {
+      "name": "solver",
+      "label": "Diffusion solver",
+      "type": "text",
+      "default": "euler",
+      "kind": "choice",
+      "options": [
+        "euler",
+        "sde"
+      ],
+      "doc": "Explicit diffusion solver, sent to ACE and stored with the take. Euler is the default."
+    },
+    {
+      "name": "lm_temperature",
+      "label": "LM temperature",
+      "type": "text",
+      "default": "0.85",
+      "kind": "number",
+      "min": 0,
+      "max": 2,
+      "step": 0.01,
+      "doc": "Explicit language-model sampling input. Stored with the generated audio-code plan; keep fixed when comparing seeds."
+    },
+    {
+      "name": "lm_cfg_scale",
+      "label": "LM CFG",
+      "type": "text",
+      "default": "2",
+      "kind": "number",
+      "min": 1,
+      "max": 15,
+      "step": 0.1,
+      "doc": "Explicit language-model sampling input. Stored with the generated audio-code plan; keep fixed when comparing seeds."
+    },
+    {
+      "name": "lm_top_p",
+      "label": "LM top-p",
+      "type": "text",
+      "default": "0.9",
+      "kind": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "doc": "Explicit language-model sampling input. Stored with the generated audio-code plan; keep fixed when comparing seeds."
+    },
+    {
+      "name": "lm_top_k",
+      "label": "LM top-k",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 1000,
+      "step": 1,
+      "doc": "Explicit language-model sampling input. Stored with the generated audio-code plan; keep fixed when comparing seeds."
+    },
+    {
+      "name": "lm_negative_prompt",
+      "label": "LM negative prompt",
+      "type": "text",
+      "default": "",
+      "modalEditor": true,
+      "multiline": true,
+      "doc": "Explicit negative caption for language-model CFG; empty means the caption-less unconditional prompt."
+    },
+    {
+      "name": "lm_seed",
+      "type": "text",
+      "default": "derived",
+      "kind": "seed",
+      "doc": "The seed for the language model; derived from the song seed when not set explicitly."
+    },
+    {
+      "name": "seed",
+      "type": "text",
+      "default": "derived",
+      "kind": "seed",
+      "doc": "The diffusion seed; derived from the song seed when not set explicitly."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    },
+    {
+      "name": "engine",
+      "label": "Engine",
+      "type": "text",
+      "default": "",
+      "kind": "engine",
+      "placeholder": "project default",
+      "doc": "Where and with which model this block is rendered, overriding the project: a place (local, faer or faer-else-local), optionally a colon and a model family (default, turbo, sft, base, xl-turbo, xl-sft, xl-base) or a .gguf file name, for example faer:xl-sft. Empty: the project routes and the settings of the song decide. Asking for faer without a Faer connection stops the build with an error; it never falls back to local.",
+      "options": [
+        "local",
+        "faer",
+        "faer-else-local"
+      ]
+    }
+  ],
+  "innerGraph": "music",
+  "status": "provisional",
+  "since": "1.0",
+  "example": "# ACE-Step generation stays on the configured server; effects after the existing take can preview locally.\ncomposition \"ACE music hybrid preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nsettings { acestep.backend server }\n\nlyrics words {\n  lang en\n  timing per-line\n  file lyrics/preview.lyr\n}\n\nmood-scene scene {\n  direction Warm, restrained singer-songwriter pop; felt piano, muted bass, soft strings, intimate vocal, steady 96 BPM.\n}\n\nace-music song at 1 for 8 {\n  music_direction A complete warm pop ballad with gentle piano, muted bass, brushed percussion and soft strings; keep the lead intimate, maintain a steady pulse, and avoid abrupt arrangement changes.\n  steps 50\n  guidance 7\n  shift 1\n  solver euler\n  lm_temperature 0.85\n  lm_cfg_scale 2\n  lm_top_p 0.9\n  lm_top_k 0\n  lm_seed 2026101701\n  seed 2026101702\n  from words.words -> lyrics\n  from scene.style -> style\n}\n\nchorus local_width {\n  depth 5 ms\n  period 1500 ms\n  mix 25 %\n  from song.audio -> audio\n}\n\nmaster output {\n  from local_width.audio -> audio\n}\n",
+  "needs": [
+    "The ACE-Step plugin."
+  ]
+}

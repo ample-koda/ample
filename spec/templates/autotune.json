@@ -1,0 +1,148 @@
+{
+  "id": "autotune",
+  "title": "Autotune",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Pulls a voice (one singer, or one monophonic instrument) to the right notes. Every moment gets the note it should be: a note of the key, the note the melody on target plays at that time, or a fix from the window. Speed 0 ms is the hard robot sound, 20 to 200 ms a natural correction. The vowels keep their colour (PSOLA).",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "target",
+      "type": "midi",
+      "required": false,
+      "title": "Melody",
+      "description": "Notes to sing (a midi-clip, a hum turned into MIDI): while a note plays the voice goes to that note, in the octave closest to what is sung. Between the notes the key decides."
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Region out",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "key",
+      "type": "text",
+      "default": "auto",
+      "doc": "The notes that are allowed: auto (found from what is sung), chromatic (every semitone), or a root and a scale: A minor, F# major, D dorian, C pentatonic, E minor-pentatonic, G blues, mixolydian, harmonic-minor."
+    },
+    {
+      "name": "speed",
+      "type": "text",
+      "default": "20 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 1000,
+      "doc": "How fast the voice is pulled to a new note: 0 ms is the hard robot sound, 20 to 50 ms a clear correction, 100 to 200 ms a soft natural one."
+    },
+    {
+      "name": "amount",
+      "type": "text",
+      "default": "100%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How much of the correction is used: 50% moves the voice half way to the note."
+    },
+    {
+      "name": "humanize",
+      "type": "text",
+      "default": "30%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How much slides between notes and the start of a note keep what was sung (0%: everything is corrected)."
+    },
+    {
+      "name": "vibrato",
+      "type": "text",
+      "default": "keep",
+      "kind": "choice",
+      "options": [
+        "keep",
+        "flatten"
+      ],
+      "doc": "keep: the wobble of the voice stays around the right note; flatten: the voice is held straight on the note. A percentage (50%) keeps that much."
+    },
+    {
+      "name": "method",
+      "type": "text",
+      "default": "spectral",
+      "kind": "choice",
+      "options": [
+        "spectral",
+        "psola"
+      ],
+      "doc": "Required. spectral (the default): a phase vocoder that keeps the formants (the colour of the vowels) apart from the pitch; usually the most natural, also for big moves. psola: one pitch period at a time, tighter and drier. A block without it gets AMP2016 with a quick fix that writes method spectral."
+    },
+    {
+      "name": "fixes",
+      "type": "text",
+      "default": "",
+      "doc": "Fixes by hand (the autotune window writes them): 4.2s-4.7s E4 sings an E4 there, 7.9s-8.4s G4 vibrato 0% also holds it straight, 12s-13s off leaves that part alone. Times are those of the block: seconds, ms or bars."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Autotune\" { ample 1  tempo 84  master-seed 42 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nautotune tuned {\n  key \"A minor\"\n  method spectral\n  speed 20 ms\n  amount 100%\n  from llama.audio -> audio\n}\n\nmaster output {\n  from tuned.audio -> audio\n}\n"
+}

@@ -1,0 +1,119 @@
+{
+  "id": "denoise",
+  "title": "Denoise",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Takes steady noise (hiss, room tone, rain on a recording) away: the noise level of every frequency band is estimated and subtracted.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "reduction",
+      "type": "text",
+      "default": "12",
+      "kind": "number",
+      "min": 0,
+      "max": 40,
+      "doc": "How far the noise may be brought down. More takes more noise away and sounds more processed.",
+      "unit": "dB"
+    },
+    {
+      "name": "sensitivity",
+      "type": "text",
+      "default": "50",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "How much of the estimated noise is taken away. High values are more thorough but can make the sound thin.",
+      "unit": "%"
+    },
+    {
+      "name": "noise",
+      "type": "text",
+      "default": "auto",
+      "kind": "choice",
+      "options": [
+        "auto",
+        "start"
+      ],
+      "doc": "auto takes the quiet moments of the sound as the noise; start takes the first seconds, which must hold only noise."
+    },
+    {
+      "name": "learn",
+      "type": "text",
+      "default": "0.5",
+      "kind": "number",
+      "min": 0.1,
+      "max": 10,
+      "doc": "How many seconds hold only noise (noise start).",
+      "unit": "s",
+      "step": 0.1
+    },
+    {
+      "name": "learn_from",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 600,
+      "unit": "s",
+      "step": 0.1,
+      "doc": "Where the stretch that holds only noise starts, in seconds (noise start). Mark a pause between phrases."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    },
+    {
+      "name": "optimize",
+      "type": "text",
+      "default": "auto",
+      "kind": "choice",
+      "options": [
+        "auto",
+        "speed",
+        "memory"
+      ],
+      "affectsOutput": false,
+      "doc": "An execution policy, not a sound setting: it never changes the rendered audio, only how the renderer gets there. Only matters for noise auto on a long sound, where finding the noise floor already scans the whole sound once. memory re-scans it a second time while cleaning (less memory, more time); speed keeps what the first scan found instead (more memory, less time); auto (default) picks speed when that would stay under a bounded memory budget, memory otherwise."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Denoise preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  melody C4:1/4 D4:1/4 E4:1/4 G4:1/4\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ndenoise cleanup {\n  reduction 12 dB\n  sensitivity 50 %\n  noise auto\n  from source.audio -> audio\n}\n\nmaster master {\n  from cleanup.audio -> audio\n}\n"
+}

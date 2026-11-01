@@ -1,0 +1,58 @@
+{
+  "id": "midi-humanize",
+  "title": "MIDI humanize",
+  "category": "MIDI effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Adds a little random variation to the velocity and the start time of every note so that the music sounds played by hand. It takes notes and gives notes back.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the notes through untouched (bypass)."
+    },
+    {
+      "name": "velocity",
+      "type": "text",
+      "default": "10",
+      "kind": "number",
+      "min": 0,
+      "max": 60,
+      "doc": "How far the velocity may move up or down (1 to 127 scale)."
+    },
+    {
+      "name": "timing",
+      "type": "text",
+      "default": "20",
+      "kind": "number",
+      "min": 0,
+      "max": 200,
+      "doc": "How far the start of a note may move, in thousandths of a beat."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Seeded humanize preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  bars 2\n  notes 1:0:0.5:60:96 1:0.5:0.5:64:96 1:1:0.5:67:96 1:1.5:0.5:72:96\n}\n\nmidi-humanize loose {\n  velocity 12\n  timing 35\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from loose.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "mood-scene",
+  "title": "Mood / scene",
+  "category": "Direction",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Describes in words the scene and the emotion that the music should have, and gives that as style data to blocks that accept it (such as ace-music). It makes no sound itself.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "style",
+      "type": "data"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "direction",
+      "label": "Mood / scene direction",
+      "type": "text",
+      "default": "",
+      "doc": "Describe the setting, energy, instrumentation and emotional arc. Link style to an ACE block to include it in that block's direction.",
+      "modalEditor": true,
+      "multiline": true,
+      "placeholder": "describe the mood or the scene"
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "# Data-only direction: this block gives downstream song-generation blocks style context; it does not generate audio.\ncomposition \"Mood scene data preview\" { ample 1  tempo 96  master-seed 17 }\n\nmood-scene scene {\n  direction A warm and intimate acoustic atmosphere that gradually grows hopeful; piano, gentle strings and soft hand percussion, with a clear lift into the chorus.\n}\n"
+}

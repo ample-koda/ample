@@ -1,0 +1,42 @@
+{
+  "id": "scorer",
+  "title": "Scorer: timing error",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": "timing",
+  "description": "Checks the timing of a recording with its own model (an opt-in plugin) and gives a score as data. It needs the timing plugin and takes audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "type": "audio",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "score",
+      "type": "data"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "limit",
+      "type": "text",
+      "default": "120 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 10,
+      "max": 1000,
+      "doc": "Timing tolerance in milliseconds for the score."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Local playback with server score\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nscorer timing {\n  limit 120 ms\n  from source.audio -> audio\n}\n\nmaster output {\n  from source.audio -> audio\n}\n",
+  "needs": [
+    "The timing plugin."
+  ]
+}
