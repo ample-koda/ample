@@ -1,0 +1,107 @@
+{
+  "id": "midi-render",
+  "title": "MIDI to audio",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays MIDI notes (or a MIDI sequence) through a SoundFont and gives audio, using only integer calculations so that the result is the same on every machine. It needs a SoundFont file.",
+  "inputs": [
+    {
+      "name": "sequence",
+      "type": "midi-sequence",
+      "required": false
+    },
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "warnings",
+      "type": "text"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file",
+      "type": "text",
+      "default": "pack:musescore-general",
+      "kind": "file",
+      "accept": [
+        ".sf2"
+      ],
+      "doc": "SoundFont 2 file or installed GM pack."
+    },
+    {
+      "name": "bank",
+      "type": "text",
+      "default": "source",
+      "kind": "text",
+      "doc": "source or a zero-based SoundFont bank number (0-16383)."
+    },
+    {
+      "name": "program",
+      "type": "text",
+      "default": "source",
+      "kind": "text",
+      "doc": "source or a zero-based GM program number (0-127)."
+    },
+    {
+      "name": "gain",
+      "type": "number",
+      "default": 0,
+      "min": -24,
+      "max": 48,
+      "unit": "dB",
+      "doc": "Output gain in decibels."
+    },
+    {
+      "name": "limiter",
+      "type": "text",
+      "default": "soft",
+      "options": [
+        "soft",
+        "off"
+      ],
+      "doc": "Integer soft limiter at the PCM output; off keeps hard clipping."
+    },
+    {
+      "name": "track",
+      "type": "text",
+      "default": "all",
+      "kind": "text",
+      "doc": "all or a zero-based sequence track number."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "settled",
+  "since": "1.0",
+  "example": "composition \"MIDI sequence render preview\" { ample 1  tempo 120  master-seed 20261017 }\n\n# Provide a Standard MIDI File at midi/input.mid before building.\nmidi performance {\n  file midi/input.mid\n  track all\n  bars 4\n}\n\nmidi-render soundfont {\n  file pack:musescore-general\n  track all\n  from performance.sequence -> sequence\n}\n\nmaster output {\n  from soundfont.audio -> audio\n}\n",
+  "needs": [
+    "A SoundFont 2 (.sf2) file (parameter file; the default is the MuseScore General pack)."
+  ],
+  "soundSource": true
+}

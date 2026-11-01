@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "analysis-loudness",
+  "title": "Loudness analysis (EBU R128)",
+  "type": "object",
+  "required": [
+    "integratedLufs",
+    "momentaryMaxLufs",
+    "shortTermMaxLufs",
+    "loudnessRange",
+    "truePeakDb",
+    "seconds"
+  ],
+  "properties": {
+    "integratedLufs": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "momentaryMaxLufs": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "shortTermMaxLufs": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "loudnessRange": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "truePeakDb": {
+      "type": "number"
+    },
+    "seconds": {
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}

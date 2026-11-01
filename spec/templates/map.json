@@ -1,0 +1,119 @@
+{
+  "id": "map",
+  "title": "Map (scale a control)",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Rescales a control: from one range to another, turned around, limited, smoothed and given a unit (so a general control can steer a parameter in Hz or dB).",
+  "inputs": [
+    {
+      "name": "input",
+      "internalName": "in",
+      "type": "control",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "level",
+      "type": "control",
+      "title": "Level",
+      "description": "The mapped control."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off makes a control that stays at the low end of the range."
+    },
+    {
+      "name": "in_low",
+      "type": "text",
+      "default": "0",
+      "kind": "text",
+      "doc": "The value of the incoming control that becomes out_low (in its own unit; a general control runs from 0 to 1)."
+    },
+    {
+      "name": "in_high",
+      "type": "text",
+      "default": "1",
+      "kind": "text",
+      "doc": "The value of the incoming control that becomes out_high."
+    },
+    {
+      "name": "out_low",
+      "type": "text",
+      "default": "0",
+      "kind": "text",
+      "doc": "The low end of the result, in the unit chosen below."
+    },
+    {
+      "name": "out_high",
+      "type": "text",
+      "default": "1",
+      "kind": "text",
+      "doc": "The high end of the result."
+    },
+    {
+      "name": "unit",
+      "type": "text",
+      "default": "none",
+      "kind": "choice",
+      "options": [
+        "none",
+        "Hz",
+        "dB",
+        "%",
+        "ms",
+        "st",
+        "cents"
+      ],
+      "doc": "The unit of the control this block makes. none: a general control (a level from 0 to 1) that is scaled to the range of the parameter it steers. Hz, dB, ...: a typed control that only steers a parameter in that unit; the range is then written in that unit."
+    },
+    {
+      "name": "invert",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "On turns the result around (a car passing closes a filter instead of opening it)."
+    },
+    {
+      "name": "limit",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "On keeps the result between out_low and out_high."
+    },
+    {
+      "name": "smooth",
+      "type": "text",
+      "default": "0 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 20000,
+      "doc": "Smooths the result: a longer time makes slower, softer moves."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Map\" { ample 1  tempo 100  master-seed 78 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncurve slow {\n  value auto(1:0, 5:1000)\n}\n\nmap open {\n  unit Hz\n  out_low 300\n  out_high 4500\n  smooth 400 ms\n  from slow.level -> input\n}\n\nfilter sweep {\n  type lowpass\n  from source.audio -> audio\n  from open.level -> cutoff\n}\n\nmaster output {\n  from sweep.audio -> audio\n}\n"
+}

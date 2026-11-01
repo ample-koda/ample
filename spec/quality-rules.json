@@ -1,0 +1,12 @@
+{
+  "comment": "Quality rules for takes (chunk 94). Results are advisory unless the project policy (.ample/quality.json) requires a rule for tag or promote. Thresholds can be changed in the policy.",
+  "rules": [
+    { "id": "Q001", "name": "clipping", "title": "Clipping", "metric": "clippedRuns", "op": "gt", "threshold": 0, "severity": "warning", "appliesTo": "audio", "explanation": "Runs of three or more samples at full scale were found: the sound is distorted. Lower the level of the block or the mix." },
+    { "id": "Q002", "name": "true-peak", "title": "True peak", "metric": "truePeakDb", "op": "gt", "threshold": -1.0, "severity": "warning", "appliesTo": "audio", "explanation": "The reconstructed peak is above -1 dBTP: converting to a lossy format may clip. Leave some headroom." },
+    { "id": "Q003", "name": "loudness", "title": "Loudness target", "metric": "lufsDistance", "op": "gt", "threshold": 1.5, "severity": "warning", "appliesTo": "master", "explanation": "The integrated loudness is further than the tolerance from the target (default -14 LUFS, within 1.5 LU)." },
+    { "id": "Q004", "name": "silence", "title": "Silence gaps", "metric": "longestSilenceSeconds", "op": "gt", "threshold": 2.0, "severity": "info", "appliesTo": "master", "explanation": "A stretch of silence longer than two seconds inside the song (not the lead-in or the tail)." },
+    { "id": "Q005", "name": "dc-offset", "title": "DC offset", "metric": "dcOffset", "op": "gt", "threshold": 0.01, "severity": "warning", "appliesTo": "audio", "explanation": "The signal is shifted away from zero, which wastes headroom and can click at cuts." },
+    { "id": "Q006", "name": "format", "title": "Sample rate", "metric": "sampleRateMismatch", "op": "gt", "threshold": 0, "severity": "info", "appliesTo": "final", "explanation": "A final take is not at the project's 44100 Hz (previews at 11025 Hz are expected and are not checked)." },
+    { "id": "Q007", "name": "tempo-key", "title": "Tempo and key fit", "metric": "analysis", "op": "requires", "threshold": 0, "severity": "info", "appliesTo": "audio", "explanation": "Needs an analysis plugin (chunk 96). Until one is installed this rule is reported as not run." }
+  ]
+}

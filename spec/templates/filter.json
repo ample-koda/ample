@@ -1,0 +1,175 @@
+{
+  "id": "filter",
+  "title": "Filter",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Removes the highs (lowpass), the lows (highpass), everything but a band (bandpass) or a narrow band (notch) of a sound around a cutoff frequency, with a gentle or steep slope, with optional resonance, and can move the cutoff with an LFO (free or tempo-synced) for a wobble. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "type",
+      "type": "text",
+      "default": "lowpass",
+      "kind": "choice",
+      "options": [
+        "lowpass",
+        "highpass",
+        "bandpass",
+        "notch"
+      ],
+      "doc": "lowpass removes the highs, highpass the lows, bandpass keeps only a band around the cutoff, notch removes a narrow band around the cutoff. Resonance narrows the band of bandpass and notch (a notch at 0 is wide)."
+    },
+    {
+      "name": "slope",
+      "type": "text",
+      "default": "12",
+      "kind": "choice",
+      "options": [
+        "12",
+        "24",
+        "36",
+        "48"
+      ],
+      "doc": "How steeply the filter cuts, in dB per octave: 12 is gentle, 24 is two filters in a row, 36 three and 48 four (steeper, no more than that). 12 keeps older songs unchanged."
+    },
+    {
+      "name": "cutoff",
+      "automatable": true,
+      "type": "text",
+      "default": "1000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 20,
+      "max": 20000,
+      "doc": "Where the filter works. With an oscillator it is the lowest point of the swing."
+    },
+    {
+      "name": "resonance",
+      "automatable": true,
+      "type": "text",
+      "default": "0 %",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "A peak at the cutoff that makes the filter ring and sing (0 is none, 100 is about +18 dB; high values on a sweep give the classic acid sound). Above 0 the filter has two poles; at 0 it is the plain two-stage filter of older songs. Can be automated like the cutoff: auto(1:0, 9:90) or a control."
+    },
+    {
+      "name": "lfo_rate",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/4t",
+        "1/8t",
+        "1/16t"
+      ],
+      "doc": "Locks an oscillator to the tempo and moves the cutoff with it (the wobble): a note value, 1/8 is eight swings a bar, a t is a triplet. Off keeps the cutoff still. Also written lfo_sync, like \"sync\" on the tremolo.",
+      "label": "LFO sync",
+      "aliases": [
+        {
+          "name": "lfo_sync"
+        }
+      ]
+    },
+    {
+      "name": "lfo_depth",
+      "type": "text",
+      "default": "0 oct",
+      "kind": "number",
+      "unit": "oct",
+      "min": 0,
+      "max": 8,
+      "doc": "How far the oscillator lifts the cutoff above its lowest point, in octaves (0 is no swing)."
+    },
+    {
+      "name": "lfo_shape",
+      "type": "text",
+      "default": "sine",
+      "kind": "choice",
+      "options": [
+        "sine",
+        "triangle",
+        "saw",
+        "square"
+      ],
+      "doc": "The shape of the swing: sine and triangle are smooth, saw rises and drops, square jumps between the two."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Filter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nfilter wobble {\n  type lowpass\n  cutoff 800 Hz\n  lfo_rate 1/8\n  lfo_depth 3 oct\n  lfo_shape triangle\n  from source.audio -> audio\n}\n\nmaster master {\n  from wobble.audio -> audio\n}\n"
+}

@@ -1,0 +1,138 @@
+{
+  "id": "vocoder",
+  "title": "Vocoder",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Makes one sound speak with another: the voice on the modulator input is split into frequency bands and the loudness of every band sets the loudness of the same band of the carrier (a chord, a pad, a saw), so the carrier says the words. Consonants such as s and t come from noise that follows the highest band of the voice. For robot voices and the classic Daft Punk sound.",
+  "inputs": [
+    {
+      "name": "modulator",
+      "type": "audio",
+      "required": true,
+      "title": "Voice",
+      "description": "The voice (or a rhythm) that does the talking: it only sets the loudness per band."
+    },
+    {
+      "name": "carrier",
+      "type": "audio",
+      "required": true,
+      "title": "Carrier",
+      "description": "The sound that speaks: a chord or a pad with many harmonics (a sawtooth, a string, a Delay Llama) works best."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "bands",
+      "type": "text",
+      "default": "20",
+      "kind": "number",
+      "min": 4,
+      "max": 40,
+      "doc": "How many frequency bands: more is clearer speech, fewer is a rougher robot."
+    },
+    {
+      "name": "low",
+      "type": "text",
+      "default": "120 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 40,
+      "max": 2000,
+      "doc": "The lowest band."
+    },
+    {
+      "name": "high",
+      "type": "text",
+      "default": "7500 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 1000,
+      "max": 16000,
+      "doc": "The highest band."
+    },
+    {
+      "name": "attack",
+      "type": "text",
+      "default": "4 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0.1,
+      "max": 100,
+      "doc": "How fast a band follows the voice getting louder."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "70 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 1000,
+      "doc": "How fast a band lets go when the voice gets quieter: short is crisp, long is smooth."
+    },
+    {
+      "name": "width",
+      "type": "text",
+      "default": "140 %",
+      "kind": "number",
+      "unit": "%",
+      "min": 50,
+      "max": 300,
+      "doc": "The width of a band: 100% just touches the next, 200% overlaps a lot (smoother, less clear)."
+    },
+    {
+      "name": "sibilance",
+      "type": "text",
+      "default": "35 %",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How much noise follows the highest band of the voice, so s, f and t stay clear."
+    },
+    {
+      "name": "shift",
+      "type": "text",
+      "default": "0 st",
+      "kind": "number",
+      "unit": "st",
+      "min": -24,
+      "max": 24,
+      "doc": "Moves the bands of the carrier against those of the voice in semitones: up is a smaller robot, down a bigger one."
+    },
+    {
+      "name": "mix",
+      "type": "text",
+      "default": "100 %",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "0% is the carrier as it is, 100% is the vocoded sound."
+    },
+    {
+      "name": "gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -36,
+      "max": 12,
+      "doc": "The level relative to the carrier (the result is matched to its level)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Vocoder\" { ample 1  tempo 84  master-seed 41 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nmidi-clip pad-notes at 1 for 4 {\n  bars 4\n  chords \"Am F C G\"\n}\n\nsynth carrier at 1 for 4 {\n  wave saw\n  cutoff 6000 Hz\n  from pad-notes.notes -> notes\n}\n\nvocoder robot {\n  bands 24\n  sibilance 35 %\n  from llama.audio -> modulator\n  from carrier.audio -> carrier\n}\n\nmaster output {\n  from robot.audio -> audio\n}\n"
+}

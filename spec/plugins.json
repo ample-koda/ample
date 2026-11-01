@@ -1,0 +1,34 @@
+{
+  "plugins": [
+    {
+      "id": "acestep",
+      "title": "ACE-Step voice renderer",
+      "optIn": false
+    },
+    {
+      "id": "voice-clone",
+      "title": "Local reference voice synthesis",
+      "optIn": false
+    },
+    {
+      "id": "timing",
+      "title": "Word timing (aligner model)",
+      "optIn": true
+    },
+    {
+      "id": "pitch",
+      "title": "Pitch / key fit",
+      "optIn": true
+    },
+    {
+      "id": "separate",
+      "title": "Voice separation",
+      "optIn": true
+    },
+    {
+      "id": "fprint",
+      "title": "Fingerprinter (content)",
+      "optIn": false
+    }
+  ]
+}

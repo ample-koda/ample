@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "analysis-transcription",
+  "title": "Local audio transcription job",
+  "type": "object",
+  "required": ["tool", "toolVersion", "model", "sampleRate", "sourceSamples", "warnings"],
+  "properties": {
+    "tool": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "toolVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "modelHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "modelLicense": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "drumMode": { "type": "string", "enum": ["skip", "pitched"] },
+    "sampleRate": { "type": "integer", "minimum": 8000, "maximum": 384000 },
+    "sourceSamples": { "type": "integer", "minimum": 1, "maximum": 864000000 },
+    "warnings": { "type": "array", "items": { "type": "string", "maxLength": 512 } },
+    "midiArtifacts": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["role", "label"],
+        "properties": {
+          "role": { "type": "string", "minLength": 1, "maxLength": 48 },
+          "label": { "type": "string", "enum": ["backing", "combined", "drums", "bass", "guitar", "keys", "strings", "synth", "stem-01", "stem-02", "stem-03", "stem-04", "stem-05", "stem-06", "stem-07", "stem-08"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "vocalPitch": {
+      "type": "object",
+      "required": ["hopSeconds", "voicedFrames", "frames"],
+      "properties": {
+        "hopSeconds": { "type": "number", "minimum": 0 },
+        "voicedFrames": { "type": "integer", "minimum": 0 },
+        "frames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "hz", "midi", "confidence"],
+            "properties": {
+              "t": { "type": "number", "minimum": 0 },
+              "hz": { "type": "number", "minimum": 0, "maximum": 4000 },
+              "midi": { "type": "number", "minimum": 0, "maximum": 127 },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

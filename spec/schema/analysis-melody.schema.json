@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "analysis-melody",
+  "title": "Melody plan",
+  "type": "object",
+  "required": [
+    "schema",
+    "tempo",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "ample-melody/1"
+      ]
+    },
+    "tempo": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 300
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "pitch",
+          "start",
+          "length",
+          "bar"
+        ],
+        "properties": {
+          "pitch": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "start": {
+            "type": "number",
+            "minimum": 0
+          },
+          "length": {
+            "type": "number",
+            "minimum": 0.25
+          },
+          "bar": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "startSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "lengthSeconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "types": [
+    {
+      "id": "audio",
+      "title": "Audio",
+      "doc": "Rendered sound."
+    },
+    {
+      "id": "render",
+      "title": "Render",
+      "doc": "An immutable source render recipe with ordered effects, materialized only when its audio output is consumed or explicitly built."
+    },
+    {
+      "id": "region",
+      "title": "Region",
+      "doc": "A stretch of audio marked inside a loop or a take (the part between two points), carried on until a region-merge block turns it back into audio. It only connects to another region port."
+    },
+    {
+      "id": "midi",
+      "title": "MIDI",
+      "doc": "Notes and timing (textual MIDI)."
+    },
+    {
+      "id": "midi-sequence",
+      "title": "MIDI sequence",
+      "doc": "A bounded Standard MIDI File event stream with original ticks and event order."
+    },
+    {
+      "id": "text",
+      "title": "Text",
+      "doc": "Words, such as lyrics."
+    },
+    {
+      "id": "data",
+      "title": "Data",
+      "doc": "Structured data such as style or external values."
+    },
+    {
+      "id": "control",
+      "title": "Control",
+      "doc": "A number over time that comes out of a sound or a curve and steers a parameter: a level from 0 to 1 (control), or a value in a unit (control<Hz>, control<dB>, ...). A control only connects to a parameter that can be automated, never to audio or MIDI; a control with a unit only to a parameter in that unit."
+    },
+    {
+      "id": "any",
+      "title": "Any",
+      "doc": "Matches every type except render. Used by groups."
+    }
+  ],
+  "compatibility": "A source port connects to an input port when the types are equal or either side is \"any\", except render only connects to render."
+}

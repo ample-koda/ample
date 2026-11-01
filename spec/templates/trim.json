@@ -1,0 +1,103 @@
+{
+  "id": "trim",
+  "title": "Trim (cut the silence)",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Finds where the sound of a recording really is and cuts the silence before and after it, so a car that passes in a long recording starts at its first sound. When the recording holds several stretches of sound it says so and uses the first, the last, or everything from the start of the first to the end of the last.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "report",
+      "type": "text"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched."
+    },
+    {
+      "name": "threshold",
+      "type": "text",
+      "default": "-45 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -90,
+      "max": -6,
+      "doc": "The level above which something is sound. Lower finds quieter sounds, higher ignores noise."
+    },
+    {
+      "name": "gap",
+      "type": "text",
+      "default": "400 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 10,
+      "max": 20000,
+      "doc": "A silence this long (or longer) ends a stretch of sound: two cars with a quiet road between them are two sections."
+    },
+    {
+      "name": "sections",
+      "type": "text",
+      "default": "warn",
+      "kind": "choice",
+      "options": [
+        "warn",
+        "all",
+        "first",
+        "last"
+      ],
+      "doc": "What to do when there are several stretches of sound. warn: cut from the start of the first to the end of the last and say so in the report. all: the same, without the warning. first: only the first stretch. last: only the last one."
+    },
+    {
+      "name": "padding",
+      "type": "text",
+      "default": "50 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 5000,
+      "doc": "How much silence is kept before and after the sound."
+    },
+    {
+      "name": "fadein",
+      "type": "text",
+      "default": "0 ms",
+      "kind": "text",
+      "doc": "A fade at the start of what is kept: a time (150 ms) or a share of what is kept (33%). With a car: fadein 33% and fadeout 20% build the volume up over the first third and bring it down over the last fifth."
+    },
+    {
+      "name": "fadeout",
+      "type": "text",
+      "default": "0 ms",
+      "kind": "text",
+      "doc": "A fade at the end of what is kept: a time (400 ms) or a share of what is kept (20%)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Trim\" { ample 1  tempo 96  master-seed 82 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ntrim tight {\n  threshold -45 dB\n  padding 50 ms\n  from source.audio -> audio\n}\n\nmaster output {\n  from tight.audio -> audio\n}\n"
+}

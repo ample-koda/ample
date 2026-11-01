@@ -1,0 +1,164 @@
+{
+  "id": "follow",
+  "title": "Follow (envelope)",
+  "category": "Control",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Listens to a sound and makes a control that follows how loud it is: a car passing, a kick, a voice. Choose the band (so the cars count, not the rain), subtract the steady background, and say how fast it rises and falls. The control steers any parameter that can be automated, and the gate is on while the sound is above a level.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "level",
+      "type": "control",
+      "title": "Level",
+      "description": "How loud the sound is, as a control."
+    },
+    {
+      "name": "gate",
+      "type": "control",
+      "title": "Gate",
+      "description": "1 while the sound is above the threshold (and for the hold time after), else 0."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off makes a control that stays at the low end of the range."
+    },
+    {
+      "name": "band",
+      "type": "text",
+      "default": "full",
+      "kind": "text",
+      "placeholder": "full, low, mid, high or 80 Hz .. 400 Hz",
+      "doc": "Which part of the sound is followed: full, low (below 200 Hz), mid (200 to 2000 Hz), high (above 2000 Hz), or your own range such as 80 Hz .. 400 Hz. auto chooses the band where the loud moments stand out most from the background of the recording."
+    },
+    {
+      "name": "baseline",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "On subtracts the slow average of the level, so a steady background (rain) does not count and only what stands out of it (a passing car) does."
+    },
+    {
+      "name": "baseline_window",
+      "type": "text",
+      "default": "10 s",
+      "kind": "number",
+      "unit": "s",
+      "min": 1,
+      "max": 120,
+      "doc": "How slowly the background is followed: longer ignores longer stretches of rain. auto sets it from how long a loud moment lasts."
+    },
+    {
+      "name": "attack",
+      "type": "text",
+      "default": "80 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 5000,
+      "doc": "How fast the control rises when the sound gets louder. auto sets it from the recording."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "600 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 20000,
+      "doc": "How fast the control falls when the sound gets softer. auto sets it from the recording."
+    },
+    {
+      "name": "normalize",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "On: the loudest moment of the sound is 1. Off: the control is the level against full scale."
+    },
+    {
+      "name": "curve",
+      "type": "text",
+      "default": "linear",
+      "kind": "choice",
+      "options": [
+        "linear",
+        "soft"
+      ],
+      "doc": "soft lifts the quiet parts (a square root), so a distant car still moves the control."
+    },
+    {
+      "name": "range",
+      "type": "text",
+      "default": "0 .. 1",
+      "kind": "text",
+      "placeholder": "0 .. 1",
+      "doc": "What 0 and 1 of the level become: two numbers with .. between them, in the unit of the control (600 Hz .. 3600 Hz with unit Hz)."
+    },
+    {
+      "name": "unit",
+      "type": "text",
+      "default": "none",
+      "kind": "choice",
+      "options": [
+        "none",
+        "Hz",
+        "dB",
+        "%",
+        "ms",
+        "st",
+        "cents"
+      ],
+      "doc": "The unit of the control this block makes. none: a general control (a level from 0 to 1) that is scaled to the range of the parameter it steers. Hz, dB, ...: a typed control that only steers a parameter in that unit; the range is then written in that unit."
+    },
+    {
+      "name": "threshold",
+      "type": "text",
+      "default": "30 %",
+      "kind": "number",
+      "unit": "%",
+      "min": 1,
+      "max": 100,
+      "doc": "Where the gate switches on (a part of the loudest moment)."
+    },
+    {
+      "name": "hold",
+      "type": "text",
+      "default": "500 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 20000,
+      "doc": "How long the gate stays on after the sound has dropped below the threshold."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Follow\" { ample 1  tempo 100  master-seed 77 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nfollow listen {\n  band mid\n  baseline off\n  attack 60 ms\n  release 700 ms\n  from source.audio -> audio\n}\n\nsynth pad {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nvolume padDuck {\n  gain -11 dB * listen.level\n  from pad.audio -> audio\n}\n\nmixer room {\n  inputs 4\n  from source.audio -> audio1\n  from padDuck.audio -> audio2\n}\n\nmaster output {\n  from room.audio -> audio\n}\n"
+}

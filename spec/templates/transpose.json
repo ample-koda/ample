@@ -1,0 +1,49 @@
+{
+  "id": "transpose",
+  "title": "Transpose",
+  "category": "MIDI effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Moves every note up or down by a number of semitones. It takes notes between a clip and an instrument and gives notes back.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the notes through untouched (bypass)."
+    },
+    {
+      "name": "semitones",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": -48,
+      "max": 48,
+      "doc": "Semitones to move the notes: 12 is one octave up, -12 one octave down."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Transpose preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\ntranspose octave {\n  semitones 12\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from octave.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+}

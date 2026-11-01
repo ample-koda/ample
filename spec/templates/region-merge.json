@@ -1,0 +1,42 @@
+{
+  "id": "region-merge",
+  "title": "Region merge (a loop seam back to audio)",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "The one block that turns a region back into audio. Connect the body of a loop (optional) and the region (after its effects): the output is body plus region. With only the region connected it gives the processed region alone.",
+  "inputs": [
+    {
+      "name": "body",
+      "type": "audio",
+      "required": false,
+      "title": "Body",
+      "description": "The loop without its joins (the body output of import-audio). Optional."
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "required": true,
+      "title": "Loop seam",
+      "description": "The region to bring back, usually the loop seam after some effects."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "out",
+      "type": "audio",
+      "alias": true
+    }
+  ],
+  "parameters": [],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Region merge\" { ample 1  tempo 96  master-seed 79 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncut opening {\n  first 2s\n  from source.audio -> audio\n}\n\nregion-merge merged {\n  from opening.region -> region\n}\n\nmaster output {\n  from merged.audio -> audio\n}\n"
+}

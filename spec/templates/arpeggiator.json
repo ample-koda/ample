@@ -1,0 +1,89 @@
+{
+  "id": "arpeggiator",
+  "title": "Arpeggiator",
+  "category": "MIDI effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Turns chords into runs of single notes, one after the other, at a rate you choose (for example 1/16). It takes notes between a clip and an instrument and gives notes back.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "notes",
+      "type": "midi"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the notes through untouched (bypass)."
+    },
+    {
+      "name": "rate",
+      "type": "text",
+      "default": "1/16",
+      "kind": "choice",
+      "options": [
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32"
+      ],
+      "doc": "The length of one step of the run. Also written \"sync\", like the tempo lock of the tremolo.",
+      "aliases": [
+        {
+          "name": "sync"
+        }
+      ]
+    },
+    {
+      "name": "pattern",
+      "type": "text",
+      "default": "up",
+      "kind": "choice",
+      "options": [
+        "up",
+        "down",
+        "updown",
+        "random"
+      ],
+      "doc": "The order of the notes; random is a stable order from the seed."
+    },
+    {
+      "name": "octaves",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 1,
+      "max": 4,
+      "doc": "How many octaves the run climbs."
+    },
+    {
+      "name": "gate",
+      "type": "text",
+      "default": "80",
+      "kind": "number",
+      "min": 10,
+      "max": 100,
+      "doc": "How much of each step the note sounds, in percent."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Arpeggiator preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\narpeggiator run {\n  rate 1/16\n  pattern updown\n  octaves 2\n  gate 75\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from run.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+}

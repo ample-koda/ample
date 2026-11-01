@@ -1,0 +1,67 @@
+{
+  "id": "choir",
+  "title": "Choir layer (overlap)",
+  "category": "Voices",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": true,
+  "plugin": "acestep",
+  "description": "Layers several AI voices that sing the linked lyrics together, slightly spread apart in time. It needs lyrics as input, the ACE-Step plugin, and gives audio.",
+  "inputs": [
+    {
+      "name": "lyrics",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "voices",
+      "type": "number",
+      "default": 3,
+      "kind": "number",
+      "min": 1,
+      "max": 16,
+      "doc": "Number of overlapping voice layers."
+    },
+    {
+      "name": "spread",
+      "type": "text",
+      "default": "12%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "Amount of timing spread between the voice layers."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "# Schema/routing example only: the bundled ACE-Step plugin does not currently declare a choir renderer.\ncomposition \"Choir preview boundary\" { ample 1  tempo 96  master-seed 20261017 }\n\nsettings { acestep.backend server }\n\nlyrics words {\n  lang en\n  timing per-line\n  file lyrics/preview.lyr\n}\n\nchoir layer at 1 for 8 {\n  voices 4\n  spread 18 %\n  channels stereo\n  from words.words -> lyrics\n}\n\nchorus local_width {\n  depth 6 ms\n  period 1400 ms\n  mix 25 %\n  from layer.audio -> audio\n}\n\nmaster output {\n  from local_width.audio -> audio\n}\n",
+  "needs": [
+    "Timed lyrics linked to the lyrics input.",
+    "The ACE-Step plugin."
+  ]
+}

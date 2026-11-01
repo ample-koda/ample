@@ -1,0 +1,116 @@
+{
+  "id": "chorus",
+  "title": "Chorus",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Thickens the sound by mixing in a slightly delayed copy whose pitch moves slowly, so one voice sounds like several. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "depth",
+      "type": "text",
+      "default": "5 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 15,
+      "doc": "How far the delay of the copy moves."
+    },
+    {
+      "name": "period",
+      "type": "text",
+      "default": "1500 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 100,
+      "max": 10000,
+      "doc": "Time of one movement, in milliseconds. You can also write it as a speed: \"rate 0.5\" (Hz, cycles per second) is the same as \"period 2000 ms\".",
+      "label": "Period",
+      "aliases": [
+        {
+          "name": "rate",
+          "convert": "hz-to-period-ms"
+        }
+      ]
+    },
+    {
+      "name": "mix",
+      "automatable": true,
+      "type": "text",
+      "default": "50",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "Percent of the moving copy in the sound."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Chorus preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nchorus widen {\n  depth 5 ms\n  period 1500 ms\n  mix 50 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from widen.audio -> audio\n}\n"
+}

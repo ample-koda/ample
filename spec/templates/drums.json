@@ -1,0 +1,134 @@
+{
+  "id": "drums",
+  "title": "Drums",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays a drum pattern with the samples of a drum kit folder of the project, triggered by the pattern you write (and optionally by notes). It needs a kit (a sample set) and gives audio.",
+  "inputs": [
+    {
+      "name": "trigger",
+      "type": "midi",
+      "required": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "warnings",
+      "type": "text"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "kit",
+      "type": "text",
+      "default": "kit/tape",
+      "kind": "sampleset",
+      "doc": "A sample kit (a folder of the project with WAV files) or the built-in sound."
+    },
+    {
+      "name": "pattern",
+      "type": "text",
+      "default": "beat-A",
+      "doc": "Pattern or kit definition. Use the expanded editor for longer definitions.",
+      "modalEditor": true,
+      "multiline": true,
+      "kind": "pattern"
+    },
+    {
+      "name": "bars",
+      "type": "number",
+      "default": 16,
+      "kind": "number",
+      "min": 1,
+      "max": 128,
+      "doc": "Length of the drum block in bars."
+    },
+    {
+      "name": "swing",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "min": 0,
+      "max": 60,
+      "doc": "Swing amount in percent; 0 keeps the grid straight."
+    },
+    {
+      "name": "choke",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "placeholder": "open:hat,pedal",
+      "doc": "Choke rules, separated by ;. The voice before the colon is cut (short fade) by a hit of any voice after it, for example open:hat,pedal cuts an open hat when a closed or pedal hat is struck."
+    },
+    {
+      "name": "map",
+      "type": "text",
+      "default": "",
+      "kind": "voicemap",
+      "placeholder": "kick:other-kit/kick2;snare:other-kit/clap",
+      "doc": "Replace a voice of the kit by a sample of another kit folder: the voice, a colon, the folder, a slash and the sample name, entries separated by ;."
+    },
+    {
+      "name": "fallback",
+      "type": "text",
+      "default": "",
+      "kind": "sampleset",
+      "doc": "A kit folder used for voices the kit does not have (a warning, AMP5256, says so). Without it a missing voice is an error."
+    },
+    {
+      "name": "humanize",
+      "type": "number",
+      "default": 0,
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "Deterministic timing and velocity variation in percent."
+    },
+    {
+      "name": "patterns",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "doc": "Named patterns, separated by /: name=pattern, for example verse=D...D.u. / fill=DdDdDdDd. A song (the next parameter) puts them in order.",
+      "placeholder": "verse=... / fill=..."
+    },
+    {
+      "name": "song",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "doc": "The sections in order: a pattern name with an optional number of bars, for example verse*4 fill chorus*8. The word pattern is the plain pattern of the block. The sequence repeats when the block is longer. Empty: the plain pattern plays on every bar.",
+      "placeholder": "verse*4 fill chorus*8"
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Built-in drum preview\" { ample 1  tempo 104  master-seed 20261017 }\n\n# Built-in kick/snare/hat patterns need no sample pack and render locally from the exact block seed.\ndrums groove at 1 for 8 {\n  kit builtin\n  pattern beat-B\n  humanize 0\n}\n\nmaster output {\n  from groove.audio -> audio\n}\n",
+  "needs": [
+    "Nothing for the built-in kit (kit builtin). For your own sounds: a drum kit, a sample set folder of the project (parameter kit); an optional second set as fallback."
+  ],
+  "soundSource": true
+}

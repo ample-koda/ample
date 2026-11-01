@@ -1,0 +1,123 @@
+{
+  "id": "voice-clone",
+  "title": "Spoken voice (voice clone)",
+  "category": "Voices",
+  "class": "live",
+  "version": "1.0",
+  "dynamic": true,
+  "plugin": "voice-clone",
+  "description": "Speaks the text in a selected voice using a reference recording. The chosen voice sample is not connected to the song's audible mix.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file",
+      "label": "Voice sample",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".wav",
+        ".mp3",
+        ".opus",
+        ".flac",
+        ".ogg",
+        ".m4a",
+        ".aiff",
+        ".aif"
+      ],
+      "doc": "A recording of the voice to clone. Keep it in the project. Non-WAV files are converted internally when needed."
+    },
+    {
+      "name": "text",
+      "label": "Text to speak",
+      "type": "text",
+      "default": "",
+      "multiline": true,
+      "modalEditor": true,
+      "doc": "The new words this block speaks. Write [pause 800 ms] or [pause 1.2 s] between words to leave a silence there (at most 10 s each, 60 s together): the voice is made per piece and the silence is put between them."
+    },
+    {
+      "name": "model",
+      "label": "Model",
+      "type": "text",
+      "default": "xtts",
+      "kind": "choice",
+      "options": [
+        "xtts",
+        "qwen3",
+        "chatterbox"
+      ],
+      "doc": "Qwen3 requires the reference transcript; XTTS and Chatterbox do not."
+    },
+    {
+      "name": "language",
+      "label": "Language",
+      "type": "text",
+      "default": "nl",
+      "doc": "Language code supported by the selected model. Qwen3 does not support Dutch or Flemish."
+    },
+    {
+      "name": "reference_text",
+      "label": "Sample transcript",
+      "type": "text",
+      "default": "",
+      "multiline": true,
+      "modalEditor": true,
+      "doc": "What the voice sample says. Qwen3 needs this, unless auto detect is enabled."
+    },
+    {
+      "name": "auto_detect",
+      "label": "Auto detect sample transcript",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "When enabled, Whisper transcribes the sample if Qwen3 needs a transcript and none was entered."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    },
+    {
+      "name": "engine",
+      "label": "Engine",
+      "type": "text",
+      "default": "",
+      "kind": "engine",
+      "placeholder": "project default",
+      "doc": "Where this block is rendered, overriding the project: local, faer or faer-else-local. Empty: the project route decides. Asking for faer without a Faer connection stops the build with an error; it never falls back to local. The voice model is chosen with the model parameter.",
+      "options": [
+        "local",
+        "faer",
+        "faer-else-local"
+      ]
+    }
+  ],
+  "status": "provisional",
+  "since": "1.0",
+  "example": "# Voice clone uses the configured Python/model runtime; the reference recording is intentionally not included.\ncomposition \"Voice clone hybrid preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nvoice-clone spoken {\n  file recordings/reference.wav\n  text \"We can find our way together.\"\n  model xtts\n  language en\n  auto_detect off\n  channels stereo\n}\n\nreverb local_space {\n  size 30 %\n  mix 20 %\n  from spoken.audio -> audio\n}\n\nmaster output {\n  from local_space.audio -> audio\n}\n",
+  "needs": [
+    "A reference recording of the voice (parameter file).",
+    "The voice-clone plugin and its model."
+  ]
+}

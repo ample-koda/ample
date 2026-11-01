@@ -1,0 +1,113 @@
+{
+  "id": "scratch",
+  "title": "Scratch (DJ)",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Moves the sound like a record under the hand of a DJ: per step the record is pushed forward and pulled back, pulled back only, spun back or cut, so the sound squeals up and down in pitch.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "pattern",
+      "type": "text",
+      "default": "x.x.b...x.x.r...",
+      "kind": "pattern",
+      "placeholder": "x.x.b...x.x.r...",
+      "doc": "Steps of a bar, bars separated by |: 16 a bar, or 12, 24 or 32 for triplet and finer grids. x is a baby scratch (forward and back), b pulls the record back only, f pushes it forward only, c is a chirp (forward and back with the fader closed at the turn), r spins it back like a rewind, - cuts the sound and . leaves it as it is. Bar n of the song uses bar ((n - 1) mod count) of the pattern."
+    },
+    {
+      "name": "depth",
+      "type": "text",
+      "default": "120 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 10,
+      "max": 600,
+      "doc": "How far the record is moved in one scratch, in milliseconds of sound: more is a bigger, higher squeal."
+    },
+    {
+      "name": "bars",
+      "type": "text",
+      "default": "",
+      "kind": "text",
+      "placeholder": "9, 14, 26",
+      "doc": "The song bars where the pattern plays, separated by commas (empty: every bar); the other bars pass untouched."
+    },
+    {
+      "name": "mix",
+      "type": "text",
+      "default": "100%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How much of the scratched sound replaces the plain sound in the scratched steps."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Scratch preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nscratch scratch_phrase {\n  pattern x...b...f...r...\n  depth 120 ms\n  mix 65%\n  from source.audio -> audio\n}\n\nmaster master {\n  from scratch_phrase.audio -> audio\n}\n"
+}

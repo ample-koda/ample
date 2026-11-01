@@ -1,0 +1,45 @@
+{
+  "id": "splitter",
+  "title": "Stereo splitter",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Split stereo audio into independent left and right mono outputs. Mono input appears on both outputs.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "left",
+      "type": "audio"
+    },
+    {
+      "name": "right",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Splitter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsplitter split {\n  from source.audio -> audio\n}\n\nmixer branches {\n  gains -3 -9\n  from split.left -> audio1\n  from split.right -> audio2\n}\n\nmaster master {\n  from branches.audio -> audio\n}\n"
+}

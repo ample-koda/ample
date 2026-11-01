@@ -1,0 +1,129 @@
+{
+  "id": "eq",
+  "title": "Equalizer",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Boosts or cuts the low, middle and high parts of a sound, with the two crossover frequencies you choose. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "low",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "doc": "Bass level; the low band is everything below low_hz."
+    },
+    {
+      "name": "mid",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "doc": "Middle level."
+    },
+    {
+      "name": "high",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "doc": "Treble level; the high band is everything above high_hz."
+    },
+    {
+      "name": "low_hz",
+      "type": "text",
+      "default": "250 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 40,
+      "max": 2000,
+      "doc": "Where the bass ends."
+    },
+    {
+      "name": "high_hz",
+      "type": "text",
+      "default": "3000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 1000,
+      "max": 12000,
+      "doc": "Where the treble starts."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"EQ preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\neq tone {\n  low 4 dB\n  mid -2 dB\n  high 3 dB\n  low_hz 250 Hz\n  high_hz 3000 Hz\n  from source.audio -> audio\n}\n\nmaster master {\n  from tone.audio -> audio\n}\n"
+}

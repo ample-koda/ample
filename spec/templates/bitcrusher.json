@@ -1,0 +1,105 @@
+{
+  "id": "bitcrusher",
+  "title": "Bitcrusher",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Gives the sound a lo-fi, crunchy character by using fewer bits and a lower sample rate. Takes audio and gives audio; mix sets how much of the effect you hear.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "bits",
+      "type": "text",
+      "default": "8",
+      "kind": "number",
+      "min": 2,
+      "max": 16,
+      "doc": "Bits kept per sample."
+    },
+    {
+      "name": "downsample",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 1,
+      "max": 64,
+      "doc": "Hold each sample for this many samples."
+    },
+    {
+      "name": "mix",
+      "automatable": true,
+      "type": "text",
+      "default": "100",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "Percent of the crushed sound."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Bitcrusher preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C4:1/8 G4:1/8 E4:1/8 G4:1/8\n  bars 2\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nbitcrusher crush {\n  bits 6\n  downsample 4\n  mix 75 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from crush.audio -> audio\n}\n"
+}

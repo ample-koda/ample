@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ample.invalid/schemas/instance-registry.schema.json",
+  "title": "AMPLE instance registry record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "projectId", "name", "folder", "pid", "processStart", "port", "started", "updated", "version", "host", "startedBy"],
+  "properties": {
+    "schema": { "const": 1 },
+    "projectId": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1 },
+    "folder": { "type": "string", "minLength": 1 },
+    "pid": { "type": "integer", "minimum": 1 },
+    "processStart": { "type": "string", "format": "date-time" },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "started": { "type": "string", "format": "date-time" },
+    "updated": { "type": "string", "format": "date-time" },
+    "version": { "type": "string", "minLength": 1 },
+    "host": { "type": "string", "minLength": 1 },
+    "startedBy": { "enum": ["hub", "cli", "agent", "other"] },
+    "agent": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "reason"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "reason": { "type": "string", "minLength": 1 },
+            "session": { "type": ["string", "null"] }
+          }
+        }
+      ]
+    },
+    "ace": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "ok", "checked"],
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "ok": { "type": "boolean" },
+            "checked": { "type": "string", "format": "date-time" }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "startedBy": { "const": "agent" } }, "required": ["startedBy"] },
+      "then": { "required": ["agent"], "properties": { "agent": { "type": "object" } } },
+      "else": { "not": { "required": ["agent"] } }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["code", "severity", "line", "col", "endCol"],
+    "additionalProperties": false,
+    "properties": {
+      "code": { "type": "string", "pattern": "^(AMP[0-9]{4}|AMPL[0-9]{3}|L[0-9]{3})$" },
+      "severity": { "enum": ["error", "warning", "info"] },
+      "line": { "type": "integer" },
+      "col": { "type": "integer" },
+      "endCol": { "type": "integer" },
+      "message": { "type": "string" }
+    }
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "id": "delay-llama",
+  "title": "Delay Llama",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "A singing voice made of formants (FOF synthesis), in the spirit of the classic Delay Lama: notes in, a chanting, humming, oohing and aahing voice out. Vowel, voice (the size of the singer) and mouth can be curves over the song; glide slides between notes that touch, vibrato wobbles, unison stacks detuned voices, echo adds the classic stereo echo. The pitch bend of the notes is sung by the voice itself.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off makes silence."
+    },
+    {
+      "name": "vowel",
+      "automatable": true,
+      "min": 0,
+      "max": 100,
+      "type": "text",
+      "default": "50",
+      "doc": "The vowel, 0 to 100: a (0), e (25), i (50), o (75), u (100), and everything between; a letter (a, e, i, o, u) or a curve auto(1:0, 4:100) that moves the mouth over the song."
+    },
+    {
+      "name": "voice",
+      "automatable": true,
+      "min": 0,
+      "max": 100,
+      "type": "text",
+      "default": "50",
+      "doc": "The size of the singer, 0 to 100: low is a deep, big voice (formants down), high a small, bright one; a number or a curve."
+    },
+    {
+      "name": "mouth",
+      "automatable": true,
+      "min": 0,
+      "max": 100,
+      "type": "text",
+      "default": "60",
+      "doc": "How open the mouth is, 0 to 100: closed is a hum (softer, more breath), open a full \"aah\"; a number or a curve (the llama opens its mouth with it)."
+    },
+    {
+      "name": "glide",
+      "type": "text",
+      "default": "60 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 2000,
+      "doc": "How long the voice slides from one note to the next when they touch or overlap (legato); 0 jumps."
+    },
+    {
+      "name": "vibrato",
+      "type": "text",
+      "default": "30%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How deep the vibrato is; it comes in over the first 300 ms of a note, and a small wobble is always there."
+    },
+    {
+      "name": "vibrato_rate",
+      "type": "text",
+      "default": "5.5 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 0.5,
+      "max": 12,
+      "doc": "How fast the vibrato is (it wanders a little around this, like a real voice)."
+    },
+    {
+      "name": "breath",
+      "type": "text",
+      "default": "50%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How much breath (air) is in the voice."
+    },
+    {
+      "name": "unison",
+      "type": "text",
+      "default": "1",
+      "kind": "number",
+      "min": 1,
+      "max": 7,
+      "doc": "How many voices sing the same note (a choir of llamas), spread over detune and the stereo field."
+    },
+    {
+      "name": "detune",
+      "type": "text",
+      "default": "12",
+      "kind": "number",
+      "unit": "cents",
+      "min": 0,
+      "max": 100,
+      "doc": "How far the unison voices are apart, in cents."
+    },
+    {
+      "name": "spread",
+      "type": "text",
+      "default": "60%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "How wide the unison voices are spread over left and right."
+    },
+    {
+      "name": "attack",
+      "type": "text",
+      "default": "20 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 5000,
+      "doc": "Time to reach full level."
+    },
+    {
+      "name": "decay",
+      "type": "text",
+      "default": "200 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 5000,
+      "doc": "Time from full level to the sustain level."
+    },
+    {
+      "name": "sustain",
+      "type": "text",
+      "default": "85%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "The level while a note is held."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "180 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 8000,
+      "doc": "Time to fade out after a note ends."
+    },
+    {
+      "name": "echo",
+      "type": "text",
+      "default": "0%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "The classic stereo echo of the Delay Lama (two taps, about 310 and 398 ms, with feedback): how much of the voice goes into it. 0 is dry."
+    },
+    {
+      "name": "leveler",
+      "type": "text",
+      "default": "50%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "Keeps the voice from jumping out: what gets louder than about -10 dBFS (a low note, an open mouth, three llamas in unison) is turned down, slowly, and never turned up. 0% is off, 100% holds everything to that level. Use gain for the overall level."
+    },
+    {
+      "name": "gain",
+      "type": "text",
+      "default": "-6 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -48,
+      "max": 12,
+      "doc": "The level of the voice."
+    },
+    {
+      "name": "character",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Show the llama in the window of the block (it sings along: neck with the pitch, mouth with the vowel and the mouth). Only the picture: the sound is the same."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Delay Llama\" { ample 1  tempo 84  master-seed 20261025 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nmaster output {\n  from llama.audio -> audio\n}\n",
+  "soundSource": true
+}

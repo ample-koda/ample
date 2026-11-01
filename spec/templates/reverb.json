@@ -1,0 +1,110 @@
+{
+  "id": "reverb",
+  "title": "Reverb",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Puts the sound in a room: size and decay set the space, mix sets how much of the room you hear. Takes audio and gives audio.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off passes the sound through untouched (bypass)."
+    },
+    {
+      "name": "size",
+      "type": "text",
+      "default": "50%",
+      "kind": "number",
+      "unit": "%",
+      "min": 1,
+      "max": 100,
+      "doc": "Size of the room."
+    },
+    {
+      "name": "decay",
+      "type": "text",
+      "default": "60%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 95,
+      "doc": "How long the room rings."
+    },
+    {
+      "name": "mix",
+      "automatable": true,
+      "type": "text",
+      "default": "25%",
+      "kind": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "doc": "Level of the room."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Reverb preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nreverb room {\n  size 50%\n  decay 60%\n  mix 25%\n  from source.audio -> audio\n}\n\nmaster master {\n  from room.audio -> audio\n}\n"
+}

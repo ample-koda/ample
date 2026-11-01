@@ -1,0 +1,168 @@
+{
+  "id": "volume",
+  "title": "Volume / channels",
+  "category": "Effects",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "livePreview": true,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "Adjust gain, mute either channel or fold audio to mono.",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "in",
+      "type": "audio",
+      "required": false
+    },
+    {
+      "name": "render",
+      "internalName": "render_in",
+      "type": "render",
+      "required": false
+    },
+    {
+      "name": "region",
+      "internalName": "region_in",
+      "type": "region",
+      "required": false,
+      "title": "Region in",
+      "description": "A region (the joins of a loop) to process instead of audio. The result stays a region: it never reaches an audio input, only a region-merge block turns it back into audio."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "mixed",
+      "type": "audio"
+    },
+    {
+      "name": "left",
+      "type": "audio"
+    },
+    {
+      "name": "right",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "audio",
+      "internalName": "out",
+      "alias": true,
+      "type": "audio"
+    },
+    {
+      "name": "region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "The processed region. Connect it to another effect or to a region-merge block."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off bypasses the block."
+    },
+    {
+      "name": "gain",
+      "automatable": true,
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 48,
+      "doc": "Output gain, from -60 to +48 dB (a very quiet recording may need more than +12). Positive gain can clip."
+    },
+    {
+      "name": "left_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 48,
+      "doc": "Left output gain, applied after mono and common gain."
+    },
+    {
+      "name": "right_gain",
+      "type": "text",
+      "default": "0 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -60,
+      "max": 48,
+      "doc": "Right output gain, applied after mono and common gain."
+    },
+    {
+      "name": "linked",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Move channel faders together while preserving their gain difference. Does not change audio by itself."
+    },
+    {
+      "name": "left",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off silences the left output channel."
+    },
+    {
+      "name": "right",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off silences the right output channel."
+    },
+    {
+      "name": "mono",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "Average left and right before applying channel mutes."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Volume preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nvolume channels {\n  gain 3 dB\n  left_gain 0 dB\n  right_gain -3 dB\n  mono off\n  left on\n  right on\n  from source.audio -> audio\n}\n\nmaster master {\n  from channels.audio -> audio\n}\n"
+}

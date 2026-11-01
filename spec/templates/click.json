@@ -1,0 +1,49 @@
+{
+  "id": "click",
+  "title": "Click",
+  "category": "Sources",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "clientPreview": true,
+  "plugin": null,
+  "description": "A metronome: one short click on every beat for as long as the block lasts, louder and higher on the first beat of each bar. Use it as a count-in or to check that other blocks sit on the grid. It makes no use of any file and gives audio.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "out",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "accent",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "On: the first beat of every bar is louder and higher."
+    },
+    {
+      "name": "per_beat",
+      "type": "text",
+      "default": "1",
+      "kind": "choice",
+      "options": [
+        "1",
+        "2",
+        "4"
+      ],
+      "doc": "Clicks per beat: 1 (quarter notes), 2 (eighths) or 4 (sixteenths)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Click\" { ample 1  tempo 100  master-seed 7 }\n\nclick metronome at 1 for 4 {\n  accent on\n  per_beat 1\n}\n\nmaster output {\n  from metronome.audio -> audio\n}\n",
+  "soundSource": true
+}

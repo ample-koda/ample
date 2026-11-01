@@ -1,0 +1,92 @@
+{
+  "rules": [
+    {
+      "code": "L001",
+      "name": "unused-output",
+      "defaultLevel": "info",
+      "description": "A block has outputs that nothing reads.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L002",
+      "name": "missing-input",
+      "defaultLevel": "warning",
+      "description": "A required input has no source.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L003",
+      "name": "lock-and-refresh",
+      "defaultLevel": "warning",
+      "description": "A block is locked and also marked always-refetch.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L004",
+      "name": "overlapping-parts",
+      "defaultLevel": "warning",
+      "description": "Two parts of the same block overlap in time.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L005",
+      "name": "dynamic-not-fixed",
+      "defaultLevel": "off",
+      "description": "A dynamic block is neither baked nor locked, so results can change between builds.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L006",
+      "name": "pinned-outdated",
+      "defaultLevel": "warning",
+      "description": "A pinned block uses an older version than its template.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L007",
+      "name": "no-path-to-master",
+      "defaultLevel": "warning",
+      "description": "A block that makes audio never reaches the master.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L008",
+      "name": "name-case-clash",
+      "defaultLevel": "warning",
+      "description": "Two block names differ only by upper or lower case.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L009",
+      "name": "custom-seed",
+      "defaultLevel": "info",
+      "description": "A block uses custom seeds instead of derived ones.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L010",
+      "name": "older-port-name",
+      "defaultLevel": "error",
+      "description": "A connection uses an older internal port name (in, out, mix, in3, render_in) instead of the name of the stream it carries (audio, notes, render, audio1); v1 only reads the stream names. ample migrate renames them.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L011",
+      "name": "pre-release-header",
+      "defaultLevel": "error",
+      "description": "A block header uses the pre-release form class@version (stable@1.1, live@0.4); v1 leaves the class and the number out and only a pinned block states pinned@<version>. ample migrate converts the song.",
+      "autofix": null,
+      "since": "1.0"
+    }
+  ]
+}

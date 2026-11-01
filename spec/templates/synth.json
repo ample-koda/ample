@@ -1,0 +1,134 @@
+{
+  "id": "synth",
+  "title": "Synth",
+  "category": "Instruments",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "A small subtractive synth: oscillator, ADSR envelope, optional detune and a low-pass filter. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack.",
+  "inputs": [
+    {
+      "name": "notes",
+      "type": "midi",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "text",
+      "default": "on",
+      "kind": "choice",
+      "options": [
+        "on",
+        "off"
+      ],
+      "doc": "Off makes silence."
+    },
+    {
+      "name": "wave",
+      "type": "text",
+      "default": "saw",
+      "kind": "choice",
+      "options": [
+        "sine",
+        "triangle",
+        "saw",
+        "square",
+        "noise"
+      ],
+      "doc": "The shape of the oscillator. noise is a chip-style noise channel: a shift register clocked by the pitch of the note, so a high note is a bright hiss (hats) and a low note a dull rumble (kicks, explosions)."
+    },
+    {
+      "name": "attack",
+      "type": "text",
+      "default": "10 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 5000,
+      "doc": "Time to reach full level."
+    },
+    {
+      "name": "decay",
+      "type": "text",
+      "default": "200 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 5000,
+      "doc": "Time to fall to the sustain level."
+    },
+    {
+      "name": "sustain",
+      "type": "text",
+      "default": "70",
+      "kind": "number",
+      "min": 0,
+      "max": 100,
+      "doc": "Level held while the note lasts, in percent."
+    },
+    {
+      "name": "release",
+      "type": "text",
+      "default": "250 ms",
+      "kind": "number",
+      "unit": "ms",
+      "min": 1,
+      "max": 8000,
+      "doc": "Time to fade out after the note ends."
+    },
+    {
+      "name": "detune",
+      "type": "text",
+      "default": "0",
+      "kind": "number",
+      "min": 0,
+      "max": 50,
+      "doc": "A second oscillator detuned by this many cents (0 is off)."
+    },
+    {
+      "name": "cutoff",
+      "type": "text",
+      "default": "8000 Hz",
+      "kind": "number",
+      "unit": "Hz",
+      "min": 40,
+      "max": 20000,
+      "doc": "Low-pass filter: sound above this frequency is cut."
+    },
+    {
+      "name": "gain",
+      "type": "text",
+      "default": "-6 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -36,
+      "max": 48,
+      "doc": "Level of the synth."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Client synth preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth local_synth {\n  wave triangle\n  attack 20 ms\n  decay 180 ms\n  sustain 55\n  release 300 ms\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nmaster output {\n  limiter -1 dB\n  from local_synth.audio -> audio\n}\n",
+  "soundSource": true
+}

@@ -1,0 +1,80 @@
+{
+  "id": "master",
+  "title": "Master chain",
+  "category": "Mix",
+  "class": "live",
+  "version": "1.0",
+  "dynamic": true,
+  "plugin": null,
+  "description": "The end of the song: takes the final mix, applies a limiter and a loudness target, and gives the audio that is rendered. A slice can cut one part of the arrangement out (slice_from and slice_to, in bars; set it by dragging on the ruler of the Arrangement).",
+  "inputs": [
+    {
+      "name": "audio",
+      "internalName": "mix",
+      "type": "audio",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio",
+      "internalName": "master",
+      "type": "audio"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "limiter",
+      "type": "text",
+      "default": "-1 dB",
+      "kind": "number",
+      "unit": "dB",
+      "min": -12,
+      "max": 0,
+      "doc": "Limiter ceiling in decibels below full scale."
+    },
+    {
+      "name": "target",
+      "type": "text",
+      "default": "-14 LUFS",
+      "kind": "combo",
+      "options": [
+        "-14 LUFS",
+        "-16 LUFS",
+        "-23 LUFS"
+      ],
+      "doc": "Loudness target: -14 for streaming, -16 for podcasts, -23 for EBU broadcast; type another if you need it."
+    },
+    {
+      "name": "slice_from",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 1,
+      "doc": "The first bar of the part of the song that comes out of the master (empty: from the start). Together with slice_to this cuts that part out of the arrangement: the sound of the master starts at the beginning of the part."
+    },
+    {
+      "name": "slice_to",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "min": 1,
+      "doc": "The last bar of the part that comes out of the master, that bar included (empty: to the end of the song)."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "The default of the song for blocks that say auto: auto leaves every block as it is (stereo when its input or source is stereo), mono or stereo forces that for all blocks without their own channels value."
+    }
+  ],
+  "innerGraph": "master",
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Master preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G C Am F G\n  bars 8\n}\n\nsynth part {\n  wave triangle\n  gain -6 dB\n  from phrase.notes -> notes\n}\n\nmaster master {\n  limiter -3 dB\n  # Loudness reference for comparison; does not automatically change gain.\n  target -14 LUFS\n  from part.audio -> audio\n}\n"
+}

@@ -1,0 +1,160 @@
+{
+  "id": "import-audio",
+  "title": "Import audio",
+  "category": "Data",
+  "class": "stable",
+  "version": "1.0",
+  "dynamic": false,
+  "plugin": null,
+  "description": "Plays an audio (WAV) file of the project as a sound source, optionally only a part of it, offset in time or looped. The file is identified by its content, so the song keeps working if the file is renamed. It needs a file and gives audio.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "render",
+      "type": "render"
+    },
+    {
+      "name": "body",
+      "type": "audio",
+      "title": "Loop body",
+      "description": "The loop with its joins silent. Together with the loop seam it gives the whole loop again."
+    },
+    {
+      "name": "loop-region",
+      "type": "region",
+      "title": "Loop seam",
+      "description": "Only the joins of the loop, where the end of a pass blends into the start of the next, silent elsewhere. Chain effects on it to change just the joins; bring it back with a region-merge block. It can never connect to an audio input."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "file",
+      "type": "text",
+      "default": "",
+      "kind": "file",
+      "accept": [
+        ".wav",
+        ".flac",
+        ".mp3",
+        ".ogg",
+        ".aif",
+        ".aiff"
+      ],
+      "doc": "Project-relative audio file to import. WAV is read directly; mp3, flac, ogg and aiff are decoded with ffmpeg (it must be on the PATH).",
+      "placeholder": "choose an audio file of the project"
+    },
+    {
+      "name": "start",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "Where in the file the sound starts, in seconds (empty: the beginning)."
+    },
+    {
+      "name": "end",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "Where in the file the sound ends, in seconds (empty: the end of the file)."
+    },
+    {
+      "name": "offset",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "doc": "Where in the block the sound starts: seconds (\"1.5\", \"1.5s\") or beats (\"2 beats\"). Negative cuts the start off. Empty: at the start of the block."
+    },
+    {
+      "name": "loop",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "On repeats the chosen stretch until the block ends."
+    },
+    {
+      "name": "loop_start",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "With loop on: where in the file the repeating part starts, in seconds. What lies before it plays once (an intro). Empty: the start of the stretch."
+    },
+    {
+      "name": "loop_end",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "doc": "With loop on: where in the file the repeating part ends, in seconds. What lies after it plays once at the end of the block (an outro). Empty: the end of the stretch."
+    },
+    {
+      "name": "crossfade",
+      "type": "text",
+      "default": "",
+      "kind": "number",
+      "unit": "s",
+      "min": 0,
+      "max": 10,
+      "doc": "With loop on: how long the end of a pass is blended into the start of the next one at every repeat, so a short recording repeats without a click (empty or 0: a plain repeat). Seconds (\"3\", \"3s\"), beats (\"2 beats\") or bars (\"1 bar\"). The looped stretch must be at least twice as long. The first pass plays plain; the blend starts at the second pass."
+    },
+    {
+      "name": "crossfade_curve",
+      "type": "text",
+      "default": "equal-power",
+      "kind": "choice",
+      "options": [
+        "equal-power",
+        "linear",
+        "cosine",
+        "log"
+      ],
+      "doc": "The shape of the blend: equal-power keeps the level for unrelated material such as rain (default); linear for related material; cosine is an S-curve; log keeps both sides loud through most of the overlap."
+    },
+    {
+      "name": "fingerprint",
+      "type": "text",
+      "default": "content",
+      "kind": "choice",
+      "options": [
+        "content",
+        "strict",
+        "loose"
+      ],
+      "doc": "How the imported file is identified when checking whether its source changed."
+    },
+    {
+      "name": "channels",
+      "type": "text",
+      "default": "auto",
+      "options": [
+        "auto",
+        "mono",
+        "stereo"
+      ],
+      "doc": "auto: stereo when an input or the source is stereo, otherwise mono; mono: sum to mono; stereo: always two channels (a mono sound is copied to both)."
+    }
+  ],
+  "innerGraph": null,
+  "status": "provisional",
+  "since": "1.0",
+  "example": "composition \"Imported audio preview\" { ample 1  tempo 92  master-seed 20261017 }\n\nimport-audio recording at 1 for 8 {\n  file recordings/preview.wav\n  start 0 s\n  end 30 s\n  loop on\n  crossfade 2 s\n}\n\nmaster master {\n  from recording.audio -> audio\n}\n",
+  "needs": [
+    "An audio (WAV) file of the project (parameter file)."
+  ],
+  "soundSource": true
+}
