@@ -1,0 +1,7 @@
+# what the build writes (docs-site/build.mjs) and what is only scratch
+site/
+STATUS.md
+manifest.json
+render/
+test/node_modules/
+test/*.png

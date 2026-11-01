@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AMPLE docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <button class="ic" id="menu" aria-label="Menu" aria-expanded="false" aria-controls="side"><svg class="ico" style="width:18px;height:18px" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  <a class="logo" href="#/" aria-label="AMPLE docs"><b><svg class="ico" style="width:17px;height:17px" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg></b><span class="wmw"><svg class="wm" viewBox="262 12 540 150" role="img" aria-label="AMPLE" focusable="false"><defs><linearGradient id="wm-neon" gradientUnits="userSpaceOnUse" x1="270" y1="0" x2="750" y2="0" spreadMethod="reflect"><stop offset="0" stop-color="#2de2ff"/><stop offset="1" stop-color="#ff4fd8"/><animateTransform attributeName="gradientTransform" type="translate" values="0 0;960 0" dur="9s" repeatCount="indefinite"/></linearGradient>
+    <filter id="wm-glow" x="-20%" y="-40%" width="140%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="wide"/>
+      <feColorMatrix in="wide" type="matrix" values="1 0 0 0 .6  0 .3 0 0 0  0 0 1 0 .5  0 0 0 .7 0" result="pink"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="tight"/>
+      <feMerge><feMergeNode in="pink"/><feMergeNode in="tight"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+<filter id="wm-glowWhite" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+<filter id="wm-glowNote" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter></defs><g transform="translate(0 14)">
+    <g fill="none" stroke="url(#wm-neon)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" filter="url(#wm-glow)">
+      <path d="M276 138 L314 36 L352 138"/><path d="M386 138 V36 L428 102 L470 36 V138"/><path d="M504 138 V36 H536 a26 26 0 0 1 0 52 H504"/><path d="M592 36 V138 H648"/><path d="M728 36 H686 V138 H728 M686 87 H718"/>
+    </g>
+    <path d="M290 104 q6 -17 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#wm-glowWhite)"/>
+    <g class="wm-note" filter="url(#wm-glowNote)">
+      <ellipse cx="762" cy="44" rx="8" ry="6" fill="#19e3c8" transform="rotate(-20 762 44)"/>
+      <path d="M769 42 V12 q10 3 15 15" fill="none" stroke="#19e3c8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g></svg></span><small>docs</small></a>
+  <nav class="top"><a href="#/guide/first-song" data-s="guide">Learn</a><a href="#/blocks" data-s="blocks">Blocks</a></nav>
+  <div class="sp"></div>
+  <div class="search" id="open-search"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg> <span>Search the docs</span> <kbd>Ctrl K</kbd></div>
+  <div class="tg" id="t-alive" title="Vibe mode: every page moves to a beat"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z"/></svg></i> <span>Vibe</span></div><div class="tg" id="t-sound" title="Sound: every page has its own music"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg></i> <span>Sound</span></div><button class="ic" id="theme" title="Light / dark"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button>
+</header>
+<canvas id="bg"></canvas><div id="pulse"></div><div id="koda"><div class="b" id="kb">…</div><div class="n">♪</div></div>
+<div id="mus"><div class="row"><canvas id="vu" width="180" height="52"></canvas><span>♪ <b id="mt">Music of this page</b> <span id="mm" style="color:var(--dim)"></span></span><span class="sp"></span><a href="#" id="msrc">Source ▾</a><a href="#" id="mpg">Open in playground ↗</a></div><pre><code id="mcode"></code></pre></div>
+<div id="pal"><div class="box"><input id="q" placeholder="Search blocks, words, pages…"><div id="res"></div></div></div>
+<div class="wrap">
+  <aside class="side" id="side" aria-label="Section pages"></aside>
+  <main id="main" aria-label="Page"></main>
+  <aside class="toc" id="toc"></aside>
+</div>
+<script src="blocks-data.js"></script>
+<script src="learn-data.js"></script>
+<script src="music-data.js"></script>
+<script src="amplet.js"></script>
+<script src="previews.js"></script>
+<script src="app.js"></script>
+<script src="site.js"></script>
+</body>
+</html>

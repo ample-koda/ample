@@ -1,0 +1,5 @@
+// Serve site/ over http (so the rendered mp3s play; file:// can only use the browser stand-in).   node tools/serve.mjs [port]
+import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
+const site = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '../site'), port = Number(process.argv[2]) || 8765;
+const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.mp3': 'audio/mpeg', '.json': 'application/json', '.svg': 'image/svg+xml' };
+http.createServer((q, r) => { const p = path.join(site, decodeURIComponent(q.url.split('?')[0]).replace(/\/$/, '/index.html')); if (!p.startsWith(site)) { r.writeHead(403).end(); return; } fs.readFile(p, (e, d) => { if (e) { r.writeHead(404).end('not found'); return; } r.writeHead(200, { 'Content-Type': mime[path.extname(p)] || 'application/octet-stream' }).end(d); }); }).listen(port, '127.0.0.1', () => console.log('AMPLE docs on http://127.0.0.1:' + port + '/  (close this window to stop)'));

@@ -1,0 +1,3067 @@
+[
+ {
+  "id": "3348182e",
+  "src": "tone",
+  "fx": "dry",
+  "title": "A sine tone",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0b7cf89f909b"
+  },
+  "song": "0b7cf89f909b",
+  "code": "composition \"A sine tone\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:8\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave sine\n  sustain 100\n  gain -12 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "b5325b76",
+  "src": "pad",
+  "fx": "volume",
+  "title": "Quieter by 12 dB",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "000433612585"
+  },
+  "song": "000433612585",
+  "code": "composition \"Quieter by 12 dB\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nvolume volume {\n  gain -12 dB\n  from pad.audio -> audio\n}\n\nmaster out {\n  from volume.audio -> audio\n}\n"
+ },
+ {
+  "id": "e5250325-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "Quieter by 12 dB",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "8747b84d1080"
+  },
+  "song": "8747b84d1080",
+  "code": "composition \"Quieter by 12 dB\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "6f16c0b9",
+  "src": "drums",
+  "title": "Before: unmastered",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "8148db71ba2a"
+  },
+  "song": "8148db71ba2a",
+  "code": "composition \"Before unmastered\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "49fe0875",
+  "src": "pad",
+  "title": "Pad: slow attack, long release",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "39b30da44a59"
+  },
+  "song": "39b30da44a59",
+  "code": "composition \"Pad slow attack, long release\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "d78b00c9",
+  "src": "arp",
+  "fx": "dry",
+  "title": "The same chords as an arpeggio",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "d95697c41422"
+  },
+  "song": "d95697c41422",
+  "code": "composition \"The same chords as an arpeggio\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a3:0.5 c4:0.5 e4:0.5 a4:0.5 e4:0.5 c4:0.5 a3:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 f4:0.5 c4:0.5 a3:0.5 f3:0.5 a3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave square\n  attack 3 ms\n  decay 120 ms\n  sustain 0\n  release 60 ms\n  gain -16 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "9268219e",
+  "src": "pad",
+  "fx": "vocoder",
+  "title": "A chord that talks (a rough stand-in)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "de7b9aa1eb8a"
+  },
+  "song": "de7b9aa1eb8a",
+  "code": "composition \"A chord that talks (a rough stand-in)\" { ample 1  tempo 120  master-seed 20261017 }\n\n# the voice (llama) speaks through the chord (pad)\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmidi-clip speech at 1 for 2 {\n  melody \"c3:1 c3:1 d#3:1 f3:1 d#3:1 c3:1 d3:1 c3:1\"\n  bars 2\n}\n\ndelay-llama llama at 1 for 2 {\n  vowel auto(1:0, 2:50, 3:100)\n  gain -6 dB\n  from speech.notes -> notes\n}\n\nvocoder vocoder {\n  bands 20\n  mix 100 %\n  from llama.audio -> modulator\n  from pad.audio -> carrier\n}\n\nmaster out {\n  from vocoder.audio -> audio\n}\n"
+ },
+ {
+  "id": "49fe0875-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "Pad with pumping",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "fe4d7a3541b5"
+  },
+  "song": "fe4d7a3541b5",
+  "code": "composition \"Pad with pumping\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "34b6eaa7",
+  "src": "seq",
+  "title": "A low tone, a middle tone, a high tone",
+  "bpm": 60,
+  "bars": 2,
+  "seconds": 8,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f137a0db8dd9"
+  },
+  "song": "f137a0db8dd9",
+  "code": "composition \"A low tone, a middle tone, a high tone\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c2:1 c3:1 c4:1 c5:1 c6:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave sine\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "ab4da80d",
+  "src": "seq",
+  "title": "The same note, an octave apart",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "630f639ba613"
+  },
+  "song": "630f639ba613",
+  "code": "composition \"The same note, an octave apart\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"a3:1 a4:1 a3:1 a4:1\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave sine\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "7171fefd",
+  "src": "seq",
+  "title": "Same note, four colours: sine, triangle, square, saw",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3f171ee61f8e"
+  },
+  "song": "3f171ee61f8e",
+  "code": "composition \"Same note, four colours sine, triangle, square, saw\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"a3:1 a3:1 a3:1 a3:1\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave sine\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "c7f4225d",
+  "src": "seq",
+  "title": "A saw wave: bright and buzzy",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "4ea85e5c8252"
+  },
+  "song": "4ea85e5c8252",
+  "code": "composition \"A saw wave bright and buzzy\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"a3:1 a3:1 a3:1 a3:1\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave saw\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "a1d9686f",
+  "src": "seq",
+  "title": "Getting louder (a crescendo)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "bc1d811e9868"
+  },
+  "song": "bc1d811e9868",
+  "code": "composition \"Getting louder (a crescendo)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  notes 1:0:1:60:15 1:1:1:62:25 1:2:1:64:35 1:3:1:65:50 2:0:1:67:65 2:1:1:69:80 2:2:1:71:95 2:3:1:72:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "63e421eb",
+  "src": "seq",
+  "title": "Getting softer (a diminuendo)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "a0464191148f"
+  },
+  "song": "a0464191148f",
+  "code": "composition \"Getting softer (a diminuendo)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  notes 1:0:1:72:100 1:1:1:71:95 1:2:1:69:80 1:3:1:67:65 2:0:1:65:50 2:1:1:64:35 2:2:1:62:25 2:3:1:60:15\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "138bdf30",
+  "src": "meter",
+  "title": "A steady pulse at 100 beats per minute",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ae5c0f491de4"
+  },
+  "song": "ae5c0f491de4",
+  "code": "composition \"A steady pulse at 100 beats per minute\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip ticks at 1 for 2 {\n  notes 1:0:1:96:120 1:1:1:91:80 1:2:1:91:80 1:3:1:91:80 2:0:1:96:120 2:1:1:91:80 2:2:1:91:80\n  bars 2\n}\n\nsynth click at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 30 ms\n  sustain 0\n  release 20 ms\n  gain -10 dB\n  from ticks.notes -> notes\n}\n\nmaster out {\n  from click.audio -> audio\n}\n"
+ },
+ {
+  "id": "a1ea09a3",
+  "src": "meter",
+  "title": "60 bpm (slow)",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c7383135da2b"
+  },
+  "song": "c7383135da2b",
+  "code": "composition \"60 bpm (slow)\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip ticks at 1 for 1 {\n  notes 1:0:1:96:120 1:1:1:91:80 1:2:1:91:80 1:3:1:91:80\n  bars 1\n}\n\nsynth click at 1 for 1 {\n  wave sine\n  attack 1 ms\n  decay 30 ms\n  sustain 0\n  release 20 ms\n  gain -10 dB\n  from ticks.notes -> notes\n}\n\nmaster out {\n  from click.audio -> audio\n}\n"
+ },
+ {
+  "id": "608ff914",
+  "src": "meter",
+  "title": "140 bpm (fast)",
+  "bpm": 180,
+  "bars": 3,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "1dda7af0870d"
+  },
+  "song": "1dda7af0870d",
+  "code": "composition \"140 bpm (fast)\" { ample 1  tempo 180  master-seed 20261017 }\n\nmidi-clip ticks at 1 for 3 {\n  notes 1:0:1:96:120 1:1:1:91:80 1:2:1:91:80 1:3:1:91:80 2:0:1:96:120 2:1:1:91:80 2:2:1:91:80 2:3:1:91:80 3:0:1:96:120 3:1:1:91:80\n  bars 3\n}\n\nsynth click at 1 for 3 {\n  wave sine\n  attack 1 ms\n  decay 30 ms\n  sustain 0\n  release 20 ms\n  gain -10 dB\n  from ticks.notes -> notes\n}\n\nmaster out {\n  from click.audio -> audio\n}\n"
+ },
+ {
+  "id": "d8fbdeb7",
+  "src": "rhythm",
+  "title": "4/4: strong tick, then three soft",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "07f62d5b2f54"
+  },
+  "song": "07f62d5b2f54",
+  "code": "composition \"4/4 strong tick, then three soft\" { ample 1  tempo 120  meter 4/4  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:96:100 1:1:0.25:84:60 1:2:0.25:84:60 1:3:0.25:84:60 2:0:0.25:96:100 2:1:0.25:84:60 2:2:0.25:84:60 2:3:0.25:84:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "64f96447",
+  "src": "rhythm",
+  "title": "3/4: strong tick, then two soft (a waltz)",
+  "bpm": 90,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "1a4044e420b8"
+  },
+  "song": "1a4044e420b8",
+  "code": "composition \"3/4 strong tick, then two soft (a waltz)\" { ample 1  tempo 90  meter 3/4  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:96:100 1:1:0.25:84:60 1:2:0.25:84:60 2:0:0.25:96:100 2:1:0.25:84:60 2:2:0.25:84:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "35c1d4ab",
+  "src": "rhythm",
+  "title": "6/8: six ticks with the strong ones on 1 and 4",
+  "bpm": 90,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "bdb7d48e3e48"
+  },
+  "song": "bdb7d48e3e48",
+  "code": "composition \"6/8 six ticks with the strong ones on 1 and 4\" { ample 1  tempo 90  meter 6/8  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:96:100 1:0.5:0.25:84:60 1:1:0.25:84:60 1:1.5:0.25:91:100 1:2:0.25:84:60 1:2.5:0.25:84:60 2:0:0.25:96:100 2:0.5:0.25:84:60 2:1:0.25:84:60 2:1.5:0.25:91:100 2:2:0.25:84:60 2:2.5:0.25:84:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "49f37706",
+  "src": "rhythm",
+  "title": "5/4: strong on 1 and 4 (3+2)",
+  "bpm": 150,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "980852bf8bd4"
+  },
+  "song": "980852bf8bd4",
+  "code": "composition \"5/4 strong on 1 and 4 (3+2)\" { ample 1  tempo 150  meter 5/4  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:96:100 1:1:0.25:84:60 1:2:0.25:84:60 1:3:0.25:91:100 1:4:0.25:84:60 2:0:0.25:96:100 2:1:0.25:84:60 2:2:0.25:84:60 2:3:0.25:91:100 2:4:0.25:84:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "7b6efb9a",
+  "src": "rhythm",
+  "title": "7/8: strong on the groups 2+2+3",
+  "bpm": 105,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "6386bf3f6d26"
+  },
+  "song": "6386bf3f6d26",
+  "code": "composition \"7/8 strong on the groups 2+2+3\" { ample 1  tempo 105  meter 7/8  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:96:100 1:0.5:0.25:84:60 1:1:0.25:91:100 1:1.5:0.25:84:60 1:2:0.25:91:100 1:2.5:0.25:84:60 1:3:0.25:84:60 2:0:0.25:96:100 2:0.5:0.25:84:60 2:1:0.25:91:100 2:1.5:0.25:84:60 2:2:0.25:91:100 2:2.5:0.25:84:60 2:3:0.25:84:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "950bb5b5",
+  "src": "seq",
+  "title": "Quarter notes: one per beat",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3aefbd85904a"
+  },
+  "song": "3aefbd85904a",
+  "code": "composition \"Quarter notes one per beat\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:0.8 r:0.2 c4:0.8 r:0.2 c4:0.8 r:0.2 c4:0.8 r:0.2 c4:0.8 r:0.2 c4:0.8 r:0.2 c4:0.8 r:0.2 c4:0.8\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "00a0bfdb",
+  "src": "seq",
+  "title": "Eighth notes: two per beat (twice as many)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "88f6afc9025e"
+  },
+  "song": "88f6afc9025e",
+  "code": "composition \"Eighth notes two per beat (twice as many)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4 r:0.1 c4:0.4\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "b891dcbe",
+  "src": "seq",
+  "title": "Notes and rests: sound, sound, rest, sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "8ea2d2ad9daa"
+  },
+  "song": "8ea2d2ad9daa",
+  "code": "composition \"Notes and rests sound, sound, rest, sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:0.9 r:0.1 e4:0.9 r:1.1 g4:0.9 r:0.1 c4:0.9 r:0.1 e4:0.9 r:1.1 g4:0.9\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "f2e5c434",
+  "src": "meter",
+  "title": "Eighth notes, then triplets",
+  "bpm": 240,
+  "bars": 4,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ef225f810109"
+  },
+  "song": "ef225f810109",
+  "code": "composition \"Eighth notes, then triplets\" { ample 1  tempo 240  master-seed 20261017 }\n\nmidi-clip ticks at 1 for 4 {\n  notes 1:0:1:96:120 1:1:1:91:45 1:2:1:91:45 1:3:1:91:80 2:0:1:91:45 2:1:1:91:45 2:2:1:91:80 2:3:1:91:45 3:0:1:91:45 3:1:1:91:80 3:2:1:91:45 3:3:1:91:45 4:0:1:96:120 4:1:1:91:45 4:2:1:91:45 4:3:1:91:80\n  bars 4\n}\n\nsynth click at 1 for 4 {\n  wave sine\n  attack 1 ms\n  decay 30 ms\n  sustain 0\n  release 20 ms\n  gain -10 dB\n  from ticks.notes -> notes\n}\n\nmaster out {\n  from click.audio -> audio\n}\n"
+ },
+ {
+  "id": "f2e6b13a",
+  "src": "grid",
+  "title": "Two layers: chords and a beat",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f61ca3a2d9f3"
+  },
+  "song": "f61ca3a2d9f3",
+  "code": "composition \"Two layers chords and a beat\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "18fb2dcc",
+  "src": "grid",
+  "title": "Four on the floor",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "9d60c3fb9da6"
+  },
+  "song": "9d60c3fb9da6",
+  "code": "composition \"Four on the floor\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x...x...x...x... snare:....x.......x... hat:..x...x...x...x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "7a345610",
+  "src": "grid",
+  "title": "Syncopated: hits between the beats",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ff51ef7a7da9"
+  },
+  "song": "ff51ef7a7da9",
+  "code": "composition \"Syncopated hits between the beats\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.....x.....x... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "da45168d",
+  "src": "seq",
+  "title": "Minor third up (sad), then major third up (happy)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "9b4258798b89"
+  },
+  "song": "9b4258798b89",
+  "code": "composition \"Minor third up (sad), then major third up (happy)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d#4:1 r:1 c4:1 e4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "149d8b2c",
+  "src": "seq",
+  "title": "Perfect fifth",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "d6f7432d70cb"
+  },
+  "song": "d6f7432d70cb",
+  "code": "composition \"Perfect fifth\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 g4:1 r:1 c4:1 g4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "227ff2da",
+  "src": "chords",
+  "title": "Fifth, third, second played together",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "a337dbd99306"
+  },
+  "song": "a337dbd99306",
+  "code": "composition \"Fifth, third, second played together\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:67:100 1:2:2:60:100 1:2:2:64:100 2:0:2:60:100 2:0:2:62:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "1cf118c7",
+  "src": "seq",
+  "title": "C major scale",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "2f7066ae4ab0"
+  },
+  "song": "2f7066ae4ab0",
+  "code": "composition \"C major scale\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 e4:1 f4:1 g4:1 a4:1 b4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "26fe25cc",
+  "src": "seq",
+  "title": "C natural minor scale",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "2b9786213673"
+  },
+  "song": "2b9786213673",
+  "code": "composition \"C natural minor scale\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 d#4:1 f4:1 g4:1 g#4:1 a#4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "6c8d3a41",
+  "src": "seq",
+  "title": "C minor pentatonic",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "30f516feeb1a"
+  },
+  "song": "30f516feeb1a",
+  "code": "composition \"C minor pentatonic\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d#4:1 f4:1 g4:1 a#4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "049294f8",
+  "src": "seq",
+  "title": "C blues scale",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c86906cd6d87"
+  },
+  "song": "c86906cd6d87",
+  "code": "composition \"C blues scale\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d#4:1 f4:1 f#4:1 g4:1 a#4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "9e068e30",
+  "src": "seq",
+  "title": "A question that goes up",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "19ff83850cff"
+  },
+  "song": "19ff83850cff",
+  "code": "composition \"A question that goes up\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 e4:1 g4:1 a4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "3dd1af58",
+  "src": "seq",
+  "title": "An answer that comes down",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c429dbfb165f"
+  },
+  "song": "c429dbfb165f",
+  "code": "composition \"An answer that comes down\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 g4:1 e4:1 d4:1 c4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2acd09b3",
+  "src": "seq",
+  "title": "One motif, then the same motif a step up",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "22519a30212e"
+  },
+  "song": "22519a30212e",
+  "code": "composition \"One motif, then the same motif a step up\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 e4:1 c4:1 d4:1 e4:1 f#4:1 d4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "f86d9adc",
+  "src": "chords",
+  "title": "Chord 2",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "33a5aad196d3"
+  },
+  "song": "33a5aad196d3",
+  "code": "composition \"Chord 2\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 1 {\n  chords C\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "ab258d15",
+  "src": "chords",
+  "title": "Chord 1",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "27d5b2038a39"
+  },
+  "song": "27d5b2038a39",
+  "code": "composition \"Chord 1\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 1 {\n  chords Cm\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "7882c8eb",
+  "src": "chords",
+  "title": "Diminished, then augmented",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "df8a07ae3a26"
+  },
+  "song": "df8a07ae3a26",
+  "code": "composition \"Diminished, then augmented\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Cdim Caug\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "dd34a0bb",
+  "src": "chords",
+  "title": "A minor, F, C, G: as chords",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "49551535cb5e"
+  },
+  "song": "49551535cb5e",
+  "code": "composition \"A minor, F, C, G as chords\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:57:100 1:0:2:60:100 1:0:2:64:100 1:2:2:53:100 1:2:2:57:100 1:2:2:60:100 2:0:2:60:100 2:0:2:64:100 2:0:2:67:100 2:2:2:55:100 2:2:2:59:100 2:2:2:62:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2a6610a2",
+  "src": "seq",
+  "title": "The same four chords as an arpeggio",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "811a2510577f"
+  },
+  "song": "811a2510577f",
+  "code": "composition \"The same four chords as an arpeggio\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a3:0.5 c4:0.5 e4:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 a3:0.5 c4:0.5 e4:0.5 g4:0.5 e4:0.5 g3:0.5 b3:0.5 d4:0.5 b3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "41f0857e",
+  "src": "chords",
+  "title": "Cmaj7",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f1ad0fca771f"
+  },
+  "song": "f1ad0fca771f",
+  "code": "composition \"Cmaj7\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 1 {\n  chords Cmaj7\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "efc11058",
+  "src": "chords",
+  "title": "Am7",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ed700cb3726a"
+  },
+  "song": "ed700cb3726a",
+  "code": "composition \"Am7\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 1 {\n  chords Am7\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "dc1712d9",
+  "src": "chords",
+  "title": "G7, then back home to C",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7f077e7a08f1"
+  },
+  "song": "7f077e7a08f1",
+  "code": "composition \"G7, then back home to C\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords G7 C\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "de7a9aee",
+  "src": "chords",
+  "title": "Csus4 resolving to C",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "4aec2d9299cc"
+  },
+  "song": "4aec2d9299cc",
+  "code": "composition \"Csus4 resolving to C\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Csus4 C\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "e584d992",
+  "src": "seq",
+  "title": "A melody in C",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "8a31cda864d9"
+  },
+  "song": "8a31cda864d9",
+  "code": "composition \"A melody in C\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 e4:1 c4:1 e4:1 g4:1 e4:1 c4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "674cf27e",
+  "src": "seq",
+  "title": "The same melody in D (2 semitones up)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "83a9971355d8"
+  },
+  "song": "83a9971355d8",
+  "code": "composition \"The same melody in D (2 semitones up)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"d4:1 e4:1 f#4:1 d4:1 f#4:1 a4:1 f#4:1 d4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "8d3acdfb",
+  "src": "chords",
+  "title": "C - G - Am - F",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "d7f010b097ac"
+  },
+  "song": "d7f010b097ac",
+  "code": "composition \"C - G - Am - F\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:55:100 1:2:2:59:100 1:2:2:62:100 2:0:2:57:100 2:0:2:60:100 2:0:2:64:100 2:2:2:53:100 2:2:2:57:100 2:2:2:60:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "42c3d2a2",
+  "src": "seq",
+  "title": "The same progression, played as an arpeggio",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "afeb92494863"
+  },
+  "song": "afeb92494863",
+  "code": "composition \"The same progression, played as an arpeggio\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:0.5 e4:0.5 g4:0.5 e4:0.5 g3:0.5 b3:0.5 d4:0.5 b3:0.5 a3:0.5 c4:0.5 e4:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 a3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "10d45522",
+  "src": "chords",
+  "title": "Dm7 - G7 - Cmaj7",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "688d146af06c"
+  },
+  "song": "688d146af06c",
+  "code": "composition \"Dm7 - G7 - Cmaj7\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:62:100 1:0:2:65:100 1:0:2:69:100 1:0:2:72:100 1:2:2:55:100 1:2:2:59:100 1:2:2:62:100 1:2:2:65:100 2:0:2:60:100 2:0:2:64:100 2:0:2:67:100 2:0:2:71:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "0311c3e2",
+  "src": "chords",
+  "title": "Authentic: G then C",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "d41732e840da"
+  },
+  "song": "d41732e840da",
+  "code": "composition \"Authentic G then C\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords G C\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "685b541f",
+  "src": "chords",
+  "title": "Deceptive: G then Am",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "6571f521d2b5"
+  },
+  "song": "6571f521d2b5",
+  "code": "composition \"Deceptive G then Am\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords G Am\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "a26bc58b",
+  "src": "chords",
+  "title": "C major: root position, first inversion, second inversion",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7bf0b0edd3c3"
+  },
+  "song": "7bf0b0edd3c3",
+  "code": "composition \"C major root position, first inversion, second inversion\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:64:100 1:2:2:67:100 1:2:2:72:100 2:0:2:67:100 2:0:2:72:100 2:0:2:76:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "b3bb62fc",
+  "src": "chords",
+  "title": "Jumpy: all notes move",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "b3775fa56e54"
+  },
+  "song": "b3775fa56e54",
+  "code": "composition \"Jumpy all notes move\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:67:100 1:2:2:71:100 1:2:2:74:100 2:0:2:57:100 2:0:2:60:100 2:0:2:64:100 2:2:2:65:100 2:2:2:69:100 2:2:2:72:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "9dbb62bb",
+  "src": "chords",
+  "title": "Smooth: nearest notes",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "b24cd3f19ce4"
+  },
+  "song": "b24cd3f19ce4",
+  "code": "composition \"Smooth nearest notes\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:59:100 1:2:2:62:100 1:2:2:67:100 2:0:2:60:100 2:0:2:64:100 2:0:2:69:100 2:2:2:60:100 2:2:2:65:100 2:2:2:69:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2b0e2c7e",
+  "src": "seq",
+  "title": "A bass line",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "feea827d920e"
+  },
+  "song": "feea827d920e",
+  "code": "composition \"A bass line\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a2:0.9 r:0.1 a2:0.9 r:1.1 a2:0.9 r:0.1 c3:0.9 r:1.1 a2:0.9 r:0.1 g2:0.9\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave saw\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "a69d76fa",
+  "src": "grid",
+  "title": "Kick and bass together",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ca87c1eec3d5"
+  },
+  "song": "ca87c1eec3d5",
+  "code": "composition \"Kick and bass together\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.....x.....x... snare:........x....... hat:x...x...x...x...\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "1271aebf",
+  "src": "seq",
+  "title": "Octave bass (disco)",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f549ba3f85bd"
+  },
+  "song": "f549ba3f85bd",
+  "code": "composition \"Octave bass (disco)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"a2:0.45 r:0.05 a3:0.45 r:0.05 a2:0.45 r:0.05 a3:0.45 r:0.05 a2:0.45 r:0.05 a3:0.45 r:0.05 a2:0.45 r:0.05 a3:0.45\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave saw\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "16f92550",
+  "src": "seq",
+  "title": "Walking bass",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f5a2fa7e13c2"
+  },
+  "song": "f5a2fa7e13c2",
+  "code": "composition \"Walking bass\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a2:0.9 r:0.1 c3:0.9 r:0.1 d3:0.9 r:0.1 e3:0.9 r:0.1 f3:0.9 r:0.1 e3:0.9 r:0.1 d3:0.9 r:0.1 c3:0.9\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave saw\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2bfd5a7a",
+  "src": "grid",
+  "title": "Plain: hits on every beat",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "e5bd574ea37d"
+  },
+  "song": "e5bd574ea37d",
+  "code": "composition \"Plain hits on every beat\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:x.......x....... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "e3315cc9",
+  "src": "seq",
+  "title": "Straight eighths",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "da6511c471d0"
+  },
+  "song": "da6511c471d0",
+  "code": "composition \"Straight eighths\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"c4:0.5 e4:0.5 c4:0.5 e4:0.5 c4:0.5 e4:0.5 c4:0.5 e4:0.5\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "f97237fd",
+  "src": "seq",
+  "title": "Swung eighths (long, short)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0d32203444e4"
+  },
+  "song": "0d32203444e4",
+  "code": "composition \"Swung eighths (long, short)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:0.5 r:0.5 e4:0.5 c4:0.5 r:0.5 e4:0.5 c4:0.5 r:0.5 e4:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "822dd3bf",
+  "src": "seq",
+  "title": "Chord: C. Melody uses only chord tones.",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "131fe248d5f4"
+  },
+  "song": "131fe248d5f4",
+  "code": "composition \"Chord C. Melody uses only chord tones.\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"e4:1 g4:1 c5:1 g4:1 e4:1 c4:1 e4:1 g4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "61d8cfd1",
+  "src": "seq",
+  "title": "Melody with passing notes in between",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f9cf4a1032d8"
+  },
+  "song": "f9cf4a1032d8",
+  "code": "composition \"Melody with passing notes in between\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"e4:1 f4:1 g4:1 a4:1 g4:1 f4:1 e4:1 d4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "d5f0e99b",
+  "src": "seq",
+  "title": "Tense F resolving to E",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "b917938d8729"
+  },
+  "song": "b917938d8729",
+  "code": "composition \"Tense F resolving to E\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"f4:1 e4:1 r:1 f4:1 e4:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "6af7a9c6",
+  "src": "seq",
+  "title": "Approach notes: a semitone below each target",
+  "bpm": 240,
+  "bars": 2,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "146e3ddc1ca9"
+  },
+  "song": "146e3ddc1ca9",
+  "code": "composition \"Approach notes a semitone below each target\" { ample 1  tempo 240  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"d#4:1 e4:1 f#4:1 g4:1 a4:1 b4:1 b4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "d64d755d",
+  "src": "chords",
+  "title": "One layer: chords",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "162a37feb67a"
+  },
+  "song": "162a37feb67a",
+  "code": "composition \"One layer chords\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2b871e2b",
+  "src": "grid",
+  "title": "Chorus-sized: the same chords, bigger",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ae09f8d30bd1"
+  },
+  "song": "ae09f8d30bd1",
+  "code": "composition \"Chorus-sized the same chords, bigger\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "7e863c29",
+  "src": "drums",
+  "fx": "eq",
+  "title": "Bright: a boost around 4 kHz",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "8b7f963b8936"
+  },
+  "song": "8b7f963b8936",
+  "code": "composition \"Bright a boost around 4 kHz\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\neq eq {\n  high 12 dB\n  high_hz 4000 Hz\n  from beat.audio -> audio\n}\n\nmaster out {\n  from eq.audio -> audio\n}\n"
+ },
+ {
+  "id": "03981eb4-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "Bright: a boost around 4 kHz",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f69b5b64e54e"
+  },
+  "song": "f69b5b64e54e",
+  "code": "composition \"Bright a boost around 4 kHz\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "3d0fb2e2",
+  "src": "pad",
+  "fx": "filter",
+  "title": "Muffled: low-pass filter closing",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "a6eddfd4bd24"
+  },
+  "song": "a6eddfd4bd24",
+  "code": "composition \"Muffled low-pass filter closing\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nfilter filter {\n  type lowpass\n  cutoff auto(1:6000, 3:300)\n  from pad.audio -> audio\n}\n\nmaster out {\n  from filter.audio -> audio\n}\n"
+ },
+ {
+  "id": "3dab15b9-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "Muffled: low-pass filter closing",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "a46e2a8f86ec"
+  },
+  "song": "a46e2a8f86ec",
+  "code": "composition \"Muffled low-pass filter closing\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "cae04ff2",
+  "src": "pluck",
+  "fx": "pan",
+  "title": "Panned hard left",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "48bc63ad5529"
+  },
+  "song": "48bc63ad5529",
+  "code": "composition \"Panned hard left\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\npan pan {\n  pan -29\n  from voice.audio -> audio\n}\n\nmaster out {\n  from pan.audio -> audio\n}\n"
+ },
+ {
+  "id": "ece918c4-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "Panned hard left",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ecb0152aea57"
+  },
+  "song": "ecb0152aea57",
+  "code": "composition \"Panned hard left\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "edc48add",
+  "src": "pluck",
+  "fx": "pan",
+  "title": "Panned right, then a sweep",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ea34c7a2261c"
+  },
+  "song": "ea34c7a2261c",
+  "code": "composition \"Panned right, then a sweep\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\ntremolo sweep {\n  mode autopan\n  rate 0.5 Hz\n  depth 90 %\n  from voice.audio -> audio\n}\n\nmaster out {\n  from sweep.audio -> audio\n}\n"
+ },
+ {
+  "id": "b8ebd91b-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "Panned right, then a sweep",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "d16388004319"
+  },
+  "song": "d16388004319",
+  "code": "composition \"Panned right, then a sweep\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "508dce6e",
+  "src": "pad",
+  "fx": "width",
+  "title": "A pad made wider",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "1ef7b628d090"
+  },
+  "song": "1ef7b628d090",
+  "code": "composition \"A pad made wider\" { ample 1  tempo 120  master-seed 20261017 }\n\n# two slightly detuned pads, one a little left and one a little right: a stereo sound that the width block can widen\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad_a at 1 for 2 {\n  wave saw\n  detune 0\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -15 dB\n  from chords.notes -> notes\n}\n\nsynth pad_b at 1 for 2 {\n  wave saw\n  detune 25\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -15 dB\n  from chords.notes -> notes\n}\n\npan left_side {\n  pan -10\n  from pad_a.audio -> audio\n}\n\npan right_side {\n  pan 10\n  from pad_b.audio -> audio\n}\n\nmixer blend {\n  gains 0 0\n  from left_side.audio -> audio1\n  from right_side.audio -> audio2\n}\n\nwidth width {\n  width 200\n  from blend.audio -> audio\n}\n\nmaster out {\n  from width.audio -> audio\n}\n"
+ },
+ {
+  "id": "d9be5e0a-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "A pad made wider",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "16224df0ceb0"
+  },
+  "song": "16224df0ceb0",
+  "code": "composition \"A pad made wider\" { ample 1  tempo 120  master-seed 20261017 }\n\n# two slightly detuned pads, one a little left and one a little right: a stereo sound that the width block can widen\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad_a at 1 for 2 {\n  wave saw\n  detune 0\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -15 dB\n  from chords.notes -> notes\n}\n\nsynth pad_b at 1 for 2 {\n  wave saw\n  detune 25\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -15 dB\n  from chords.notes -> notes\n}\n\npan left_side {\n  pan -10\n  from pad_a.audio -> audio\n}\n\npan right_side {\n  pan 10\n  from pad_b.audio -> audio\n}\n\nmixer blend {\n  gains 0 0\n  from left_side.audio -> audio1\n  from right_side.audio -> audio2\n}\n\nmaster out {\n  from blend.audio -> audio\n}\n"
+ },
+ {
+  "id": "c51eaf2d",
+  "src": "pluck",
+  "fx": "reverb",
+  "title": "Small room",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ec7d2c583f7a"
+  },
+  "song": "ec7d2c583f7a",
+  "code": "composition \"Small room\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nreverb reverb {\n  size 50%\n  decay 25%\n  mix 40%\n  from voice.audio -> audio\n}\n\nmaster out {\n  from reverb.audio -> audio\n}\n"
+ },
+ {
+  "id": "f802a9fc-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "Small room",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "e48c4d6efea9"
+  },
+  "song": "e48c4d6efea9",
+  "code": "composition \"Small room\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "23f4f72a",
+  "src": "pluck",
+  "fx": "reverb",
+  "title": "Big hall",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "23befda70a04"
+  },
+  "song": "23befda70a04",
+  "code": "composition \"Big hall\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nreverb reverb {\n  size 50%\n  decay 90%\n  mix 70%\n  from voice.audio -> audio\n}\n\nmaster out {\n  from reverb.audio -> audio\n}\n"
+ },
+ {
+  "id": "74dc2e01-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "Big hall",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "043132960405"
+  },
+  "song": "043132960405",
+  "code": "composition \"Big hall\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2537c3a1",
+  "src": "pluck",
+  "fx": "delay",
+  "title": "A dotted echo",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "25e532630c8f"
+  },
+  "song": "25e532630c8f",
+  "code": "composition \"A dotted echo\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\ndelay delay {\n  time 375 ms\n  feedback 50%\n  mix 60%\n  from voice.audio -> audio\n}\n\nmaster out {\n  from delay.audio -> audio\n}\n"
+ },
+ {
+  "id": "b52e3de7-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "A dotted echo",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7d29e7c476da"
+  },
+  "song": "7d29e7c476da",
+  "code": "composition \"A dotted echo\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "2237a259",
+  "src": "drums",
+  "fx": "compressor",
+  "title": "Compressed hard",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "06754084e437"
+  },
+  "song": "06754084e437",
+  "code": "composition \"Compressed hard\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\ncompressor compressor {\n  threshold -40 dB\n  ratio 12\n  makeup 6 dB\n  from beat.audio -> audio\n}\n\nmaster out {\n  from compressor.audio -> audio\n}\n"
+ },
+ {
+  "id": "5b0c15db-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "Compressed hard",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "2ccf52830d9e"
+  },
+  "song": "2ccf52830d9e",
+  "code": "composition \"Compressed hard\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "87ccc2e5",
+  "src": "pad",
+  "fx": "gate",
+  "title": "A gate chopping a pad",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c187edfbd25d"
+  },
+  "song": "c187edfbd25d",
+  "code": "composition \"A gate chopping a pad\" { ample 1  tempo 120  master-seed 20261017 }\n\n# a square tremolo stands in for a gated pad\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\ntremolo chop {\n  mode tremolo\n  rate 4 Hz\n  depth 100 %\n  shape square\n  from pad.audio -> audio\n}\n\nmaster out {\n  from chop.audio -> audio\n}\n"
+ },
+ {
+  "id": "5fe95f6b",
+  "src": "pad",
+  "fx": "duck",
+  "title": "Pad with pumping",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "278ff984429e"
+  },
+  "song": "278ff984429e",
+  "code": "composition \"Pad with pumping\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nduck duck {\n  depth 20 dB\n  release 400 ms\n  pattern x...x...x...x...\n  from pad.audio -> audio\n}\n\nmaster out {\n  from duck.audio -> audio\n}\n"
+ },
+ {
+  "id": "b56ee075",
+  "src": "seq",
+  "title": "C Dorian",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "dc21e79f934f"
+  },
+  "song": "dc21e79f934f",
+  "code": "composition \"C Dorian\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 d#4:1 f4:1 g4:1 a4:1 a#4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "b3b60e77",
+  "src": "seq",
+  "title": "C Phrygian",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "96362da37937"
+  },
+  "song": "96362da37937",
+  "code": "composition \"C Phrygian\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 c#4:1 d#4:1 f4:1 g4:1 g#4:1 a#4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "cfbfa4e4",
+  "src": "seq",
+  "title": "C Lydian",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "134c80e02031"
+  },
+  "song": "134c80e02031",
+  "code": "composition \"C Lydian\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 e4:1 f#4:1 g4:1 a4:1 b4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "614a8acc",
+  "src": "seq",
+  "title": "C Mixolydian",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0248c97d6a26"
+  },
+  "song": "0248c97d6a26",
+  "code": "composition \"C Mixolydian\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c4:1 d4:1 e4:1 f4:1 g4:1 a4:1 a#4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "45fcb772",
+  "src": "chords",
+  "title": "Mixolydian: C, then Bb (bVII)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c5889bcdc0e5"
+  },
+  "song": "c5889bcdc0e5",
+  "code": "composition \"Mixolydian C, then Bb (bVII)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:58:100 1:2:2:62:100 1:2:2:65:100 2:0:2:60:100 2:0:2:64:100 2:0:2:67:100 2:2:2:58:100 2:2:2:62:100 2:2:2:65:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "8c7e31a6",
+  "src": "chords",
+  "title": "Phrygian: E minor, then F (bII)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "24b587ea0047"
+  },
+  "song": "24b587ea0047",
+  "code": "composition \"Phrygian E minor, then F (bII)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:52:100 1:0:2:55:100 1:0:2:59:100 1:2:2:53:100 1:2:2:57:100 1:2:2:60:100 2:0:2:52:100 2:0:2:55:100 2:0:2:59:100 2:2:2:53:100 2:2:2:57:100 2:2:2:60:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "20dfc8a1",
+  "src": "chords",
+  "title": "C, F, then F minor, then C",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "40c10e17bd7b"
+  },
+  "song": "40c10e17bd7b",
+  "code": "composition \"C, F, then F minor, then C\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:53:100 1:2:2:57:100 1:2:2:60:100 2:0:2:53:100 2:0:2:56:100 2:0:2:60:100 2:2:2:60:100 2:2:2:64:100 2:2:2:67:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "5b47f9c8",
+  "src": "chords",
+  "title": "C, D7, G, C",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "514d29d6d14c"
+  },
+  "song": "514d29d6d14c",
+  "code": "composition \"C, D7, G, C\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:62:100 1:2:2:66:100 1:2:2:69:100 1:2:2:72:100 2:0:2:55:100 2:0:2:59:100 2:0:2:62:100 2:2:2:60:100 2:2:2:64:100 2:2:2:67:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "c3d90bf3",
+  "src": "chords",
+  "title": "A phrase in C, then in D",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "4a441eb438e2"
+  },
+  "song": "4a441eb438e2",
+  "code": "composition \"A phrase in C, then in D\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:2:60:100 1:0:2:64:100 1:0:2:67:100 1:2:2:55:100 1:2:2:59:100 1:2:2:62:100 2:0:2:62:100 2:0:2:66:100 2:0:2:69:100 2:2:2:57:100 2:2:2:61:100 2:2:2:64:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "763945a2",
+  "src": "chords",
+  "title": "Contrary motion: one line rises while the other falls",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3178783649ee"
+  },
+  "song": "3178783649ee",
+  "code": "composition \"Contrary motion one line rises while the other falls\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:1:60:100 1:0:1:72:100 1:1:1:62:100 1:1:1:71:100 1:2:1:64:100 1:2:1:69:100 1:3:1:65:100 1:3:1:67:100 2:0:1:67:100 2:0:1:65:100 2:1:1:69:100 2:1:1:64:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "bb0e3d05",
+  "src": "chords",
+  "title": "Parallel motion: both rise together",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ca39aab8bdcc"
+  },
+  "song": "ca39aab8bdcc",
+  "code": "composition \"Parallel motion both rise together\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  notes 1:0:1:60:100 1:0:1:67:100 1:1:1:62:100 1:1:1:69:100 1:2:1:64:100 1:2:1:71:100 1:3:1:65:100 1:3:1:72:100 2:0:1:67:100 2:0:1:74:100 2:1:1:69:100 2:1:1:76:100\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "33553822",
+  "src": "pad",
+  "fx": "filter",
+  "title": "A saw wave through a filter that opens",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "76ef2260a78a"
+  },
+  "song": "76ef2260a78a",
+  "code": "composition \"A saw wave through a filter that opens\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nfilter filter {\n  type lowpass\n  cutoff auto(1:200, 3:7000)\n  from pad.audio -> audio\n}\n\nmaster out {\n  from filter.audio -> audio\n}\n"
+ },
+ {
+  "id": "6238656d-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "A saw wave through a filter that opens",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c4a70034d4cb"
+  },
+  "song": "c4a70034d4cb",
+  "code": "composition \"A saw wave through a filter that opens\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "b20a34e1",
+  "src": "pluck",
+  "title": "Pluck: fast attack, quick decay",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0ab8301d3fa1"
+  },
+  "song": "0ab8301d3fa1",
+  "code": "composition \"Pluck fast attack, quick decay\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "b372a266",
+  "src": "seq",
+  "title": "Short pluck envelope",
+  "bpm": 120,
+  "bars": 1,
+  "seconds": 2,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "fe6404b79334"
+  },
+  "song": "fe6404b79334",
+  "code": "composition \"Short pluck envelope\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"a3:0.3 r:0.7 c4:0.3 r:0.7 e4:0.3 r:0.7 a4:0.3\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "62b5897d",
+  "src": "chords",
+  "title": "Long pad envelope",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0ae90d18ace5"
+  },
+  "song": "0ae90d18ace5",
+  "code": "composition \"Long pad envelope\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip chords at 1 for 1 {\n  chords Am\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave saw\n  attack 80 ms\n  release 300 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "8a923b72",
+  "src": "pad",
+  "fx": "chorus",
+  "title": "Chorus",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "47c51e448647"
+  },
+  "song": "47c51e448647",
+  "code": "composition \"Chorus\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nchorus chorus {\n  depth 5 ms\n  period 1875 ms\n  mix 55\n  from pad.audio -> audio\n}\n\nmaster out {\n  from chorus.audio -> audio\n}\n"
+ },
+ {
+  "id": "c6e6f465",
+  "src": "pad",
+  "fx": "flanger",
+  "title": "Flanger",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3d93755c0333"
+  },
+  "song": "3d93755c0333",
+  "code": "composition \"Flanger\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nflanger flanger {\n  depth 2 ms\n  period 3333 ms\n  feedback 60\n  mix 60\n  from pad.audio -> audio\n}\n\nmaster out {\n  from flanger.audio -> audio\n}\n"
+ },
+ {
+  "id": "551aa725",
+  "src": "pad",
+  "fx": "phaser",
+  "title": "Phaser",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "871c145ebc6e"
+  },
+  "song": "871c145ebc6e",
+  "code": "composition \"Phaser\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nphaser phaser {\n  stages 4\n  period 2500 ms\n  mix 60\n  from pad.audio -> audio\n}\n\nmaster out {\n  from phaser.audio -> audio\n}\n"
+ },
+ {
+  "id": "57940865",
+  "src": "pad",
+  "fx": "tremolo",
+  "title": "Tremolo",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "a9d2b06c18d7"
+  },
+  "song": "a9d2b06c18d7",
+  "code": "composition \"Tremolo\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\ntremolo tremolo {\n  mode tremolo\n  rate 6 Hz\n  depth 60 %\n  from pad.audio -> audio\n}\n\nmaster out {\n  from tremolo.audio -> audio\n}\n"
+ },
+ {
+  "id": "ddd132ba-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "Tremolo",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "8b6f8a9eb526"
+  },
+  "song": "8b6f8a9eb526",
+  "code": "composition \"Tremolo\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "b7488d33",
+  "src": "bass",
+  "title": "A bass line, clean",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0f67ad6ea4ca"
+  },
+  "song": "0f67ad6ea4ca",
+  "code": "composition \"A bass line, clean\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip line at 1 for 2 {\n  melody \"a2:1 a2:1 c3:1 a2:1 f2:1 f2:1 g2:1 a2:1\"\n  bars 2\n}\n\nbass low at 1 for 2 {\n  from line.notes -> notes\n}\n\nmaster out {\n  from low.audio -> audio\n}\n"
+ },
+ {
+  "id": "6272d555",
+  "src": "bass",
+  "fx": "distortion",
+  "title": "The same bass, distorted",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "fb6c465a2ec4"
+  },
+  "song": "fb6c465a2ec4",
+  "code": "composition \"The same bass, distorted\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip line at 1 for 2 {\n  melody \"a2:1 a2:1 c3:1 a2:1 f2:1 f2:1 g2:1 a2:1\"\n  bars 2\n}\n\nbass low at 1 for 2 {\n  from line.notes -> notes\n}\n\ndistortion distortion {\n  drive 24 dB\n  mode soft\n  level -6 dB\n  from low.audio -> audio\n}\n\nmaster out {\n  from distortion.audio -> audio\n}\n"
+ },
+ {
+  "id": "9bdbec81-dry",
+  "src": "bass",
+  "fx": "dry",
+  "title": "The same bass, distorted",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7bdc8358d9c3"
+  },
+  "song": "7bdc8358d9c3",
+  "code": "composition \"The same bass, distorted\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip line at 1 for 2 {\n  melody \"a2:1 a2:1 c3:1 a2:1 f2:1 f2:1 g2:1 a2:1\"\n  bars 2\n}\n\nbass low at 1 for 2 {\n  from line.notes -> notes\n}\n\nmaster out {\n  from low.audio -> audio\n}\n"
+ },
+ {
+  "id": "b54f9254",
+  "src": "arp",
+  "fx": "bitcrusher",
+  "title": "An arpeggio, crushed to 3 bits",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f0a74c84ddfd"
+  },
+  "song": "f0a74c84ddfd",
+  "code": "composition \"An arpeggio, crushed to 3 bits\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a3:0.5 c4:0.5 e4:0.5 a4:0.5 e4:0.5 c4:0.5 a3:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 f4:0.5 c4:0.5 a3:0.5 f3:0.5 a3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave square\n  attack 3 ms\n  decay 120 ms\n  sustain 0\n  release 60 ms\n  gain -16 dB\n  from tune.notes -> notes\n}\n\nbitcrusher bitcrusher {\n  bits 3\n  mix 100\n  from voice.audio -> audio\n}\n\nmaster out {\n  from bitcrusher.audio -> audio\n}\n"
+ },
+ {
+  "id": "1d9502fe-dry",
+  "src": "arp",
+  "fx": "dry",
+  "title": "An arpeggio, crushed to 3 bits",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "b118f8eb6431"
+  },
+  "song": "b118f8eb6431",
+  "code": "composition \"An arpeggio, crushed to 3 bits\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a3:0.5 c4:0.5 e4:0.5 a4:0.5 e4:0.5 c4:0.5 a3:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 f4:0.5 c4:0.5 a3:0.5 f3:0.5 a3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave square\n  attack 3 ms\n  decay 120 ms\n  sustain 0\n  release 60 ms\n  gain -16 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "6a037b9e",
+  "src": "pluck",
+  "fx": "pitch",
+  "title": "A melody, then a fifth higher",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "74f8e773fa06"
+  },
+  "song": "74f8e773fa06",
+  "code": "composition \"A melody, then a fifth higher\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\npitch pitch {\n  semitones 7\n  from voice.audio -> audio\n}\n\nmaster out {\n  from pitch.audio -> audio\n}\n"
+ },
+ {
+  "id": "e28ecf95-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "A melody, then a fifth higher",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7631236dad93"
+  },
+  "song": "7631236dad93",
+  "code": "composition \"A melody, then a fifth higher\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "878a1b58",
+  "src": "pluck",
+  "fx": "reverse",
+  "title": "A plucked melody, reversed",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0582b5d4ee98"
+  },
+  "song": "0582b5d4ee98",
+  "code": "composition \"A plucked melody, reversed\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nreverse reverse {\n  from voice.audio -> audio\n}\n\nmaster out {\n  from reverse.audio -> audio\n}\n"
+ },
+ {
+  "id": "b20a34e1-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "A plucked melody, reversed",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3de2e94823c8"
+  },
+  "song": "3de2e94823c8",
+  "code": "composition \"A plucked melody, reversed\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "909ad1f8",
+  "src": "voice",
+  "title": "A scripted singer moving through vowels (rough stand-in)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c05de6e76656"
+  },
+  "song": "c05de6e76656",
+  "code": "composition \"A scripted singer moving through vowels (rough stand-in)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"c3:1 c3:1 d#3:1 f3:1 d#3:1 c3:1 d3:1 c3:1\"\n  bars 2\n}\n\ndelay-llama llama at 1 for 2 {\n  vowel auto(1:0, 2:50, 3:100)\n  mouth 70\n  gain -6 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from llama.audio -> audio\n}\n"
+ },
+ {
+  "id": "6fa5d90f",
+  "src": "pad",
+  "fx": "filter",
+  "title": "A pad with a slow filter",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "84d7c44e1ae5"
+  },
+  "song": "84d7c44e1ae5",
+  "code": "composition \"A pad with a slow filter\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nfilter filter {\n  type lowpass\n  cutoff auto(1:300, 3:2500)\n  from pad.audio -> audio\n}\n\nmaster out {\n  from filter.audio -> audio\n}\n"
+ },
+ {
+  "id": "5bd2af00-dry",
+  "src": "pad",
+  "fx": "dry",
+  "title": "A pad with a slow filter",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3ee62e70f70a"
+  },
+  "song": "3ee62e70f70a",
+  "code": "composition \"A pad with a slow filter\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nmaster out {\n  from pad.audio -> audio\n}\n"
+ },
+ {
+  "id": "f39873e3",
+  "src": "pluck",
+  "fx": "delay",
+  "title": "Plucks with a dotted echo",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "145c0dd7a966"
+  },
+  "song": "145c0dd7a966",
+  "code": "composition \"Plucks with a dotted echo\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\ndelay delay {\n  time 375 ms\n  feedback 40%\n  mix 50%\n  from voice.audio -> audio\n}\n\nmaster out {\n  from delay.audio -> audio\n}\n"
+ },
+ {
+  "id": "a0cfbd75-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "Plucks with a dotted echo",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "19f594e9106e"
+  },
+  "song": "19f594e9106e",
+  "code": "composition \"Plucks with a dotted echo\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "77738159",
+  "src": "pluck",
+  "fx": "pan",
+  "title": "A part panned to the left",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "a1900cc13ae5"
+  },
+  "song": "a1900cc13ae5",
+  "code": "composition \"A part panned to the left\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\npan pan {\n  pan -26\n  from voice.audio -> audio\n}\n\nmaster out {\n  from pan.audio -> audio\n}\n"
+ },
+ {
+  "id": "59685db3-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "A part panned to the left",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "1151f3664441"
+  },
+  "song": "1151f3664441",
+  "code": "composition \"A part panned to the left\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "fe72979c",
+  "src": "pluck",
+  "fx": "eq",
+  "title": "A brighter, clearer version",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "2595a7fc86b5"
+  },
+  "song": "2595a7fc86b5",
+  "code": "composition \"A brighter, clearer version\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\neq eq {\n  high 10 dB\n  high_hz 3000 Hz\n  from voice.audio -> audio\n}\n\nmaster out {\n  from eq.audio -> audio\n}\n"
+ },
+ {
+  "id": "72944bd5-dry",
+  "src": "pluck",
+  "fx": "dry",
+  "title": "A brighter, clearer version",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3f3069ff7928"
+  },
+  "song": "3f3069ff7928",
+  "code": "composition \"A brighter, clearer version\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "357784bd",
+  "src": "drums",
+  "fx": "compressor",
+  "title": "Pushed into a limiter-like squash",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "6f8aa69ce200"
+  },
+  "song": "6f8aa69ce200",
+  "code": "composition \"Pushed into a limiter-like squash\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\ncompressor compressor {\n  threshold -30 dB\n  ratio 20\n  makeup 6 dB\n  from beat.audio -> audio\n}\n\nmaster out {\n  from compressor.audio -> audio\n}\n"
+ },
+ {
+  "id": "0d66a4e3-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "Pushed into a limiter-like squash",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "f6d750a5839c"
+  },
+  "song": "f6d750a5839c",
+  "code": "composition \"Pushed into a limiter-like squash\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "dc790391",
+  "src": "drums",
+  "fx": "compressor",
+  "title": "After: compressed and brighter",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3b57e337b2ff"
+  },
+  "song": "3b57e337b2ff",
+  "code": "composition \"After compressed and brighter\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\ncompressor compressor {\n  threshold -30 dB\n  ratio 4\n  makeup 6 dB\n  from beat.audio -> audio\n}\n\nmaster out {\n  from compressor.audio -> audio\n}\n"
+ },
+ {
+  "id": "876743af-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "After: compressed and brighter",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "561b7574a433"
+  },
+  "song": "561b7574a433",
+  "code": "composition \"After compressed and brighter\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "cb6deaf1",
+  "src": "seq",
+  "title": "Example A",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "def3bf5d5e20"
+  },
+  "song": "def3bf5d5e20",
+  "code": "composition \"Example A\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"c4:1 e4:1\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "895c8ff9",
+  "src": "seq",
+  "title": "Example B",
+  "bpm": 60,
+  "bars": 1,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "319d1d2e78ec"
+  },
+  "song": "319d1d2e78ec",
+  "code": "composition \"Example B\" { ample 1  tempo 60  master-seed 20261017 }\n\nmidi-clip tune at 1 for 1 {\n  melody \"e4:1 c4:1\"\n  bars 1\n}\n\nsynth voice at 1 for 1 {\n  wave triangle\n  attack 8 ms\n  decay 300 ms\n  sustain 40\n  release 200 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "7ec61656",
+  "src": "drums",
+  "fx": "eq",
+  "title": "A boost at 250 Hz (boxy)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "426e723b5f40"
+  },
+  "song": "426e723b5f40",
+  "code": "composition \"A boost at 250 Hz (boxy)\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\neq eq {\n  low 12 dB\n  low_hz 250 Hz\n  from beat.audio -> audio\n}\n\nmaster out {\n  from eq.audio -> audio\n}\n"
+ },
+ {
+  "id": "78381449-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "A boost at 250 Hz (boxy)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "651165ee292d"
+  },
+  "song": "651165ee292d",
+  "code": "composition \"A boost at 250 Hz (boxy)\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "8b3eb88e",
+  "src": "drums",
+  "fx": "eq",
+  "title": "A boost at 3 kHz (harsh)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "78a24e696c5f"
+  },
+  "song": "78a24e696c5f",
+  "code": "composition \"A boost at 3 kHz (harsh)\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\neq eq {\n  high 12 dB\n  high_hz 3000 Hz\n  from beat.audio -> audio\n}\n\nmaster out {\n  from eq.audio -> audio\n}\n"
+ },
+ {
+  "id": "8ad903fb-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "A boost at 3 kHz (harsh)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "b2f48cdb12a1"
+  },
+  "song": "b2f48cdb12a1",
+  "code": "composition \"A boost at 3 kHz (harsh)\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "9b33dc85",
+  "src": "drums",
+  "fx": "eq",
+  "title": "A boost at 8 kHz (sizzle)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "4123060eae0c"
+  },
+  "song": "4123060eae0c",
+  "code": "composition \"A boost at 8 kHz (sizzle)\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\neq eq {\n  high 12 dB\n  high_hz 8000 Hz\n  from beat.audio -> audio\n}\n\nmaster out {\n  from eq.audio -> audio\n}\n"
+ },
+ {
+  "id": "ac34ef50-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "A boost at 8 kHz (sizzle)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "c7df2a1105f9"
+  },
+  "song": "c7df2a1105f9",
+  "code": "composition \"A boost at 8 kHz (sizzle)\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "299f6c7b",
+  "src": "rhythm",
+  "title": "The steady beat only",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "eac309872fd4"
+  },
+  "song": "eac309872fd4",
+  "code": "composition \"The steady beat only\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:90 1:1:0.25:67:90 1:2:0.25:67:90 1:3:0.25:67:90 2:0:0.25:67:90 2:1:0.25:67:90 2:2:0.25:67:90 2:3:0.25:67:90\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "692369fa",
+  "src": "rhythm",
+  "title": "Son clave 3-2",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "709ef181835b"
+  },
+  "song": "709ef181835b",
+  "code": "composition \"Son clave 3-2\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.75:0.25:91:100 1:1:0.25:67:50 1:1.5:0.25:91:100 1:2:0.25:67:50 1:2.5:0.25:91:100 1:3:0.25:67:50 1:3:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.75:0.25:91:100 2:1:0.25:67:50 2:1.5:0.25:91:100 2:2:0.25:67:50 2:2.5:0.25:91:100 2:3:0.25:67:50 2:3:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "dae0626d",
+  "src": "rhythm",
+  "title": "Rumba clave 3-2",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7d1bf5ac2ed0"
+  },
+  "song": "7d1bf5ac2ed0",
+  "code": "composition \"Rumba clave 3-2\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.75:0.25:91:100 1:1:0.25:67:50 1:1.75:0.25:91:100 1:2:0.25:67:50 1:2.5:0.25:91:100 1:3:0.25:67:50 1:3:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.75:0.25:91:100 2:1:0.25:67:50 2:1.75:0.25:91:100 2:2:0.25:67:50 2:2.5:0.25:91:100 2:3:0.25:67:50 2:3:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "1cb91af9",
+  "src": "rhythm",
+  "title": "Tresillo (3+3+2)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "031658bcb991"
+  },
+  "song": "031658bcb991",
+  "code": "composition \"Tresillo (3+3+2)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:1:0.25:67:50 1:1.5:0.25:91:100 1:2:0.25:67:50 1:3:0.25:67:50 1:3:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:1:0.25:67:50 2:1.5:0.25:91:100 2:2:0.25:67:50 2:3:0.25:67:50 2:3:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "7108ef05",
+  "src": "rhythm",
+  "title": "Bo Diddley beat (clave plus shaker)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3d55c8c5de82"
+  },
+  "song": "3d55c8c5de82",
+  "code": "composition \"Bo Diddley beat (clave plus shaker)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:84:35 1:0:0.25:91:100 1:0.5:0.25:84:35 1:0.75:0.25:91:100 1:1:0.25:67:50 1:1:0.25:84:35 1:1.5:0.25:84:35 1:1.5:0.25:91:100 1:2:0.25:67:50 1:2:0.25:84:35 1:2.5:0.25:84:35 1:2.5:0.25:91:100 1:3:0.25:67:50 1:3:0.25:84:35 1:3:0.25:91:100 1:3.5:0.25:84:35 2:0:0.25:67:50 2:0:0.25:84:35 2:0:0.25:91:100 2:0.5:0.25:84:35 2:0.75:0.25:91:100 2:1:0.25:67:50 2:1:0.25:84:35 2:1.5:0.25:84:35 2:1.5:0.25:91:100 2:2:0.25:67:50 2:2:0.25:84:35 2:2.5:0.25:84:35 2:2.5:0.25:91:100 2:3:0.25:67:50 2:3:0.25:84:35 2:3:0.25:91:100 2:3.5:0.25:84:35\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "f304a532",
+  "src": "rhythm",
+  "title": "Five beats felt as 3 + 2 (5/4)",
+  "bpm": 150,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ce489370c3d9"
+  },
+  "song": "ce489370c3d9",
+  "code": "composition \"Five beats felt as 3 + 2 (5/4)\" { ample 1  tempo 150  meter 5/4  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:91:100 1:1:0.25:79:60 1:2:0.25:79:60 1:3:0.25:91:100 1:4:0.25:79:60 2:0:0.25:91:100 2:1:0.25:79:60 2:2:0.25:79:60 2:3:0.25:91:100 2:4:0.25:79:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "a5e8184e",
+  "src": "rhythm",
+  "title": "Shave and a haircut, two bits",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "7df4cb938a2b"
+  },
+  "song": "7df4cb938a2b",
+  "code": "composition \"Shave and a haircut, two bits\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:40 1:0:0.25:91:100 1:1:0.25:67:40 1:1:0.25:91:100 1:1.5:0.25:91:100 1:2:0.25:67:40 1:2:0.25:91:100 1:3:0.25:67:40 1:3:0.25:91:100 2:0:0.25:67:40 2:1:0.25:67:40 2:1:0.25:96:100 2:2:0.25:67:40 2:2:0.25:96:100 2:3:0.25:67:40\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "c58cfacb",
+  "src": "rhythm",
+  "title": "Standard African Bell pattern",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "515290b79cff"
+  },
+  "song": "515290b79cff",
+  "code": "composition \"Standard African Bell pattern\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.667:0.25:91:100 1:1:0.25:67:50 1:1.333:0.25:91:100 1:1.667:0.25:91:100 1:2:0.25:67:50 1:2.333:0.25:91:100 1:3:0.25:67:50 1:3:0.25:91:100 1:3.667:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.667:0.25:91:100 2:1:0.25:67:50 2:1.333:0.25:91:100 2:1.667:0.25:91:100 2:2:0.25:67:50 2:2.333:0.25:91:100 2:3:0.25:67:50 2:3:0.25:91:100 2:3.667:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "b6aff474",
+  "src": "rhythm",
+  "title": "Straight eighths (for comparison)",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "5d25c226aa58"
+  },
+  "song": "5d25c226aa58",
+  "code": "composition \"Straight eighths (for comparison)\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.5:0.25:91:100 1:1:0.25:67:50 1:1:0.25:91:100 1:1.5:0.25:91:100 1:2:0.25:67:50 1:2:0.25:91:100 1:2.5:0.25:91:100 1:3:0.25:67:50 1:3:0.25:91:100 1:3.5:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.5:0.25:91:100 2:1:0.25:67:50 2:1:0.25:91:100 2:1.5:0.25:91:100 2:2:0.25:67:50 2:2:0.25:91:100 2:2.5:0.25:91:100 2:3:0.25:67:50 2:3:0.25:91:100 2:3.5:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "3b4550cc",
+  "src": "rhythm",
+  "title": "Shuffle",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "27d1ec5a0c2f"
+  },
+  "song": "27d1ec5a0c2f",
+  "code": "composition \"Shuffle\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.667:0.25:91:100 1:1:0.25:67:50 1:1:0.25:91:100 1:1.667:0.25:91:100 1:2:0.25:67:50 1:2:0.25:91:100 1:2.667:0.25:91:100 1:3:0.25:67:50 1:3:0.25:91:100 1:3.667:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.667:0.25:91:100 2:1:0.25:67:50 2:1:0.25:91:100 2:1.667:0.25:91:100 2:2:0.25:67:50 2:2:0.25:91:100 2:2.667:0.25:91:100 2:3:0.25:67:50 2:3:0.25:91:100 2:3.667:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "c1afd7f9",
+  "src": "rhythm",
+  "title": "Swing ride pattern",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "0f45a45b2c5e"
+  },
+  "song": "0f45a45b2c5e",
+  "code": "composition \"Swing ride pattern\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:91:100 1:1:0.25:67:60 1:1:0.25:91:100 1:1.667:0.25:91:100 1:2:0.25:91:100 1:3:0.25:67:60 1:3:0.25:91:100 1:3.667:0.25:91:100 2:0:0.25:91:100 2:1:0.25:67:60 2:1:0.25:91:100 2:1.667:0.25:91:100 2:2:0.25:91:100 2:3:0.25:67:60 2:3:0.25:91:100 2:3.667:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "e3c277c9",
+  "src": "rhythm",
+  "title": "Dotted rhythm: long then short",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "27e7419b8672"
+  },
+  "song": "27e7419b8672",
+  "code": "composition \"Dotted rhythm long then short\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:91:110 1:0.75:0.25:84:70 1:1:0.25:91:110 1:1.75:0.25:84:70 1:2:0.25:91:110 1:2.75:0.25:84:70 1:3:0.25:91:110 1:3.75:0.25:84:70 2:0:0.25:91:110 2:0.75:0.25:84:70 2:1:0.25:91:110 2:1.75:0.25:84:70 2:2:0.25:91:110 2:2.75:0.25:84:70 2:3:0.25:91:110 2:3.75:0.25:84:70\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "5455c685",
+  "src": "rhythm",
+  "title": "Scotch snap: short then long",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "df4a63a8afc7"
+  },
+  "song": "df4a63a8afc7",
+  "code": "composition \"Scotch snap short then long\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:91:110 1:0.25:0.25:84:70 1:1:0.25:91:110 1:1.25:0.25:84:70 1:2:0.25:91:110 1:2.25:0.25:84:70 1:3:0.25:91:110 1:3.25:0.25:84:70 2:0:0.25:91:110 2:0.25:0.25:84:70 2:1:0.25:91:110 2:1.25:0.25:84:70 2:2:0.25:91:110 2:2.25:0.25:84:70 2:3:0.25:91:110 2:3.25:0.25:84:70\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "c03609d4",
+  "src": "rhythm",
+  "title": "Charleston rhythm",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "298b3874ba8d"
+  },
+  "song": "298b3874ba8d",
+  "code": "composition \"Charleston rhythm\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:1:0.25:67:50 1:1.5:0.25:91:100 1:2:0.25:67:50 1:2:0.25:91:100 1:3:0.25:67:50 1:3.5:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:1:0.25:67:50 2:1.5:0.25:91:100 2:2:0.25:67:50 2:2:0.25:91:100 2:3:0.25:67:50 2:3.5:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "3f307c2d",
+  "src": "rhythm",
+  "title": "Waltz: oom pah pah in 3/4",
+  "bpm": 90,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "feec87bedbc2"
+  },
+  "song": "feec87bedbc2",
+  "code": "composition \"Waltz oom pah pah in 3/4\" { ample 1  tempo 90  meter 3/4  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:110 1:1:0.25:79:60 1:2:0.25:79:60 2:0:0.25:67:110 2:1:0.25:79:60 2:2:0.25:79:60\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "6072074f",
+  "src": "rhythm",
+  "title": "Bossa nova pattern",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "4e703f55300c"
+  },
+  "song": "4e703f55300c",
+  "code": "composition \"Bossa nova pattern\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.75:0.25:91:100 1:1:0.25:67:50 1:1.5:0.25:91:100 1:2:0.25:67:50 1:2.5:0.25:91:100 1:3:0.25:67:50 1:3.25:0.25:91:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.75:0.25:91:100 2:1:0.25:67:50 2:1.5:0.25:91:100 2:2:0.25:67:50 2:2.5:0.25:91:100 2:3:0.25:67:50 2:3.25:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "cd35341a",
+  "src": "rhythm",
+  "title": "Two notes per beat, then three",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "3aceb85d1ce5"
+  },
+  "song": "3aceb85d1ce5",
+  "code": "composition \"Two notes per beat, then three\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.5:0.25:91:100 1:1:0.25:67:50 1:1:0.25:84:100 1:1.333:0.25:84:100 1:1.667:0.25:84:100 1:2:0.25:67:50 1:2:0.25:91:100 1:2.5:0.25:91:100 1:3:0.25:67:50 1:3:0.25:84:100 1:3.333:0.25:84:100 1:3.667:0.25:84:100 2:0:0.25:67:50 2:0:0.25:91:100 2:0.5:0.25:91:100 2:1:0.25:67:50 2:1:0.25:84:100 2:1.333:0.25:84:100 2:1.667:0.25:84:100 2:2:0.25:67:50 2:2:0.25:91:100 2:2.5:0.25:91:100 2:3:0.25:67:50 2:3:0.25:84:100 2:3.333:0.25:84:100 2:3.667:0.25:84:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "9c66705f",
+  "src": "rhythm",
+  "title": "Five notes in one beat",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "ce91b90b408c"
+  },
+  "song": "ce91b90b408c",
+  "code": "composition \"Five notes in one beat\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:67:50 1:0:0.25:91:100 1:0.2:0.25:91:100 1:0.4:0.25:91:100 1:0.6:0.25:91:100 1:0.8:0.25:91:100 1:1:0.25:67:50 1:2:0.25:67:50 1:2:0.25:91:100 1:2.2:0.25:91:100 1:2.4:0.25:91:100 1:2.6:0.25:91:100 1:2.8:0.25:91:100 1:3:0.25:67:50 2:0:0.25:67:50 2:0:0.25:91:100 2:0.2:0.25:91:100 2:0.4:0.25:91:100 2:0.6:0.25:91:100 2:0.8:0.25:91:100 2:1:0.25:67:50 2:2:0.25:67:50 2:2:0.25:91:100 2:2.2:0.25:91:100 2:2.4:0.25:91:100 2:2.6:0.25:91:100 2:2.8:0.25:91:100 2:3:0.25:67:50\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "0759dfc7",
+  "src": "rhythm",
+  "title": "Three against two",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "fe12d30373a4"
+  },
+  "song": "fe12d30373a4",
+  "code": "composition \"Three against two\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:79:100 1:0:0.25:91:100 1:1.333:0.25:79:100 1:2:0.25:91:100 1:2.667:0.25:79:100 2:0:0.25:79:100 2:0:0.25:91:100 2:1.333:0.25:79:100 2:2:0.25:91:100 2:2.667:0.25:79:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "853ba8dd",
+  "src": "rhythm",
+  "title": "Four against three",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "c69e5d63",
+   "at": "2026-11-01",
+   "song": "649a781ec86f"
+  },
+  "song": "649a781ec86f",
+  "code": "composition \"Four against three\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip rhythm at 1 for 2 {\n  notes 1:0:0.25:79:100 1:0:0.25:91:100 1:1:0.25:91:100 1:1.333:0.25:79:100 1:2:0.25:91:100 1:2.667:0.25:79:100 1:3:0.25:91:100 2:0:0.25:79:100 2:0:0.25:91:100 2:1:0.25:91:100 2:1.333:0.25:79:100 2:2:0.25:91:100 2:2.667:0.25:79:100 2:3:0.25:91:100\n  bars 2\n}\n\nsynth blip at 1 for 2 {\n  wave sine\n  attack 1 ms\n  decay 70 ms\n  sustain 0\n  release 40 ms\n  gain -8 dB\n  from rhythm.notes -> notes\n}\n\nmaster out {\n  from blip.audio -> audio\n}\n"
+ },
+ {
+  "id": "41b37e6c",
+  "src": "pluck",
+  "fx": "reverb",
+  "title": "reverb on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "a696dbb139e1"
+  },
+  "song": "a696dbb139e1",
+  "code": "composition \"reverb on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\nreverb reverb {\n  size 50%\n  decay 60%\n  mix 50%\n  from voice.audio -> audio\n}\n\nmaster out {\n  from reverb.audio -> audio\n}\n"
+ },
+ {
+  "id": "94db0ec3",
+  "src": "pluck",
+  "fx": "delay",
+  "title": "delay on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "098be9195ee2"
+  },
+  "song": "098be9195ee2",
+  "code": "composition \"delay on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\ndelay delay {\n  time 375 ms\n  feedback 45%\n  mix 50%\n  from voice.audio -> audio\n}\n\nmaster out {\n  from delay.audio -> audio\n}\n"
+ },
+ {
+  "id": "b1b7e612",
+  "src": "pad",
+  "fx": "tremolo",
+  "title": "tremolo on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "d2346481ac78"
+  },
+  "song": "d2346481ac78",
+  "code": "composition \"tremolo on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\ntremolo tremolo {\n  mode tremolo\n  rate 6 Hz\n  depth 50 %\n  from pad.audio -> audio\n}\n\nmaster out {\n  from tremolo.audio -> audio\n}\n"
+ },
+ {
+  "id": "56f9642f",
+  "src": "bass",
+  "fx": "distortion",
+  "title": "distortion on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "a95f34d9c679"
+  },
+  "song": "a95f34d9c679",
+  "code": "composition \"distortion on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip line at 1 for 2 {\n  melody \"a2:1 a2:1 c3:1 a2:1 f2:1 f2:1 g2:1 a2:1\"\n  bars 2\n}\n\nbass low at 1 for 2 {\n  from line.notes -> notes\n}\n\ndistortion distortion {\n  drive 21 dB\n  mode soft\n  level -6 dB\n  from low.audio -> audio\n}\n\nmaster out {\n  from distortion.audio -> audio\n}\n"
+ },
+ {
+  "id": "b7488d33-dry",
+  "src": "bass",
+  "fx": "dry",
+  "title": "distortion on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "dda89efc27c7"
+  },
+  "song": "dda89efc27c7",
+  "code": "composition \"distortion on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip line at 1 for 2 {\n  melody \"a2:1 a2:1 c3:1 a2:1 f2:1 f2:1 g2:1 a2:1\"\n  bars 2\n}\n\nbass low at 1 for 2 {\n  from line.notes -> notes\n}\n\nmaster out {\n  from low.audio -> audio\n}\n"
+ },
+ {
+  "id": "403cb95f",
+  "src": "arp",
+  "fx": "bitcrusher",
+  "title": "bitcrusher on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "6137a79d3bd4"
+  },
+  "song": "6137a79d3bd4",
+  "code": "composition \"bitcrusher on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a3:0.5 c4:0.5 e4:0.5 a4:0.5 e4:0.5 c4:0.5 a3:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 f4:0.5 c4:0.5 a3:0.5 f3:0.5 a3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave square\n  attack 3 ms\n  decay 120 ms\n  sustain 0\n  release 60 ms\n  gain -16 dB\n  from tune.notes -> notes\n}\n\nbitcrusher bitcrusher {\n  bits 3\n  mix 100\n  from voice.audio -> audio\n}\n\nmaster out {\n  from bitcrusher.audio -> audio\n}\n"
+ },
+ {
+  "id": "d78b00c9-dry",
+  "src": "arp",
+  "fx": "dry",
+  "title": "bitcrusher on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "bdbe56ab9924"
+  },
+  "song": "bdbe56ab9924",
+  "code": "composition \"bitcrusher on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a3:0.5 c4:0.5 e4:0.5 a4:0.5 e4:0.5 c4:0.5 a3:0.5 c4:0.5 f3:0.5 a3:0.5 c4:0.5 f4:0.5 c4:0.5 a3:0.5 f3:0.5 a3:0.5\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave square\n  attack 3 ms\n  decay 120 ms\n  sustain 0\n  release 60 ms\n  gain -16 dB\n  from tune.notes -> notes\n}\n\nmaster out {\n  from voice.audio -> audio\n}\n"
+ },
+ {
+  "id": "e62120e7",
+  "src": "drums",
+  "fx": "compressor",
+  "title": "compressor on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "707cd250a726"
+  },
+  "song": "707cd250a726",
+  "code": "composition \"compressor on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\ncompressor compressor {\n  threshold -40 dB\n  ratio 12\n  makeup 6 dB\n  from beat.audio -> audio\n}\n\nmaster out {\n  from compressor.audio -> audio\n}\n"
+ },
+ {
+  "id": "6f16c0b9-dry",
+  "src": "drums",
+  "fx": "dry",
+  "title": "compressor on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "700bd2038993"
+  },
+  "song": "700bd2038993",
+  "code": "composition \"compressor on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\ndrums beat at 1 for 2 {\n  kit builtin\n  pattern kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x.\n}\n\nmaster out {\n  from beat.audio -> audio\n}\n"
+ },
+ {
+  "id": "b43d0436",
+  "src": "pad",
+  "fx": "filter",
+  "title": "filter on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "a012e7f5016b"
+  },
+  "song": "a012e7f5016b",
+  "code": "composition \"filter on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nfilter filter {\n  type lowpass\n  cutoff auto(1:300, 3:6000)\n  from pad.audio -> audio\n}\n\nmaster out {\n  from filter.audio -> audio\n}\n"
+ },
+ {
+  "id": "fefcf486",
+  "src": "pluck",
+  "fx": "eq",
+  "title": "eq on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "d3e545bee2e9"
+  },
+  "song": "d3e545bee2e9",
+  "code": "composition \"eq on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\neq eq {\n  high 12 dB\n  high_hz 2500 Hz\n  from voice.audio -> audio\n}\n\nmaster out {\n  from eq.audio -> audio\n}\n"
+ },
+ {
+  "id": "177afeb3",
+  "src": "pluck",
+  "fx": "pan",
+  "title": "pan on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "5b70417cb659"
+  },
+  "song": "5b70417cb659",
+  "code": "composition \"pan on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\npan pan {\n  pan -26\n  from voice.audio -> audio\n}\n\nmaster out {\n  from pan.audio -> audio\n}\n"
+ },
+ {
+  "id": "0b7808e6",
+  "src": "pad",
+  "fx": "volume",
+  "title": "volume on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "b3fc8fbb3a07"
+  },
+  "song": "b3fc8fbb3a07",
+  "code": "composition \"volume on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip chords at 1 for 2 {\n  chords Am F\n  bars 2\n}\n\nsynth pad at 1 for 2 {\n  wave saw\n  attack 250 ms\n  release 600 ms\n  cutoff 6000 Hz\n  gain -12 dB\n  from chords.notes -> notes\n}\n\nvolume volume {\n  gain -6 dB\n  from pad.audio -> audio\n}\n\nmaster out {\n  from volume.audio -> audio\n}\n"
+ },
+ {
+  "id": "a3cedd78",
+  "src": "pluck",
+  "fx": "pitch",
+  "title": "pitch on a sound",
+  "bpm": 120,
+  "bars": 2,
+  "seconds": 4,
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.0 (commit unknown)",
+   "commit": "7301fd58",
+   "at": "2026-11-01",
+   "song": "f811692bfa1a"
+  },
+  "song": "f811692bfa1a",
+  "code": "composition \"pitch on a sound\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi-clip tune at 1 for 2 {\n  melody \"a4:1 c5:1 e5:1 c5:1 a4:1 e4:1 g4:1 c5:1\"\n  bars 2\n}\n\nsynth voice at 1 for 2 {\n  wave triangle\n  attack 4 ms\n  decay 250 ms\n  sustain 0\n  release 150 ms\n  gain -8 dB\n  from tune.notes -> notes\n}\n\npitch pitch {\n  semitones 7\n  from voice.audio -> audio\n}\n\nmaster out {\n  from pitch.audio -> audio\n}\n"
+ }
+]
