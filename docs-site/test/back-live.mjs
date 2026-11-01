@@ -1,0 +1,21 @@
+import { chromium } from 'playwright-core'; import path from 'node:path'; import fs from 'node:fs'; import { pathToFileURL } from 'node:url';
+const cache = path.join(process.env.LOCALAPPDATA, 'ms-playwright'), dir = fs.readdirSync(cache).filter((d) => d.startsWith('chromium_headless_shell')).sort().pop();
+const exe = path.join(cache, dir, fs.readdirSync(path.join(cache, dir))[0], 'chrome-headless-shell.exe'), site = path.resolve('..', 'site');
+const b = await chromium.launch({ executablePath: exe, args: ['--autoplay-policy=no-user-gesture-required'] }); let fail = 0; const errs = [];
+const ok = (n, v) => { console.log(v ? 'PASS' : 'FAIL', n); if (!v) fail++; };
+try { const pg = await b.newPage({ viewport: { width: 1200, height: 900 } }); pg.on('pageerror', (e) => errs.push(e.message));
+  const go = async (r) => { await pg.evaluate((r) => { location.hash = '#' + r; }, r); await pg.waitForTimeout(900); };
+  await pg.goto('https://ample-koda.dev/index.html' + '#/learn/music/basic/chords'); await pg.waitForTimeout(1200);
+  const info = () => pg.evaluate(() => [...document.querySelectorAll('.pv')].map((e) => ({ playing: e.classList.contains('playing'), btn: e.querySelector('.pv-play').textContent, px: e.querySelector('canvas').toDataURL().length })));
+  const btn = pg.locator('.pv-play'); await btn.nth(0).click(); await pg.waitForTimeout(500); await btn.nth(1).click(); await pg.waitForTimeout(900);
+  await go('/learn/music/basic/scales'); let s = await pg.evaluate(() => AmpleAudio.set.size); ok('sounds keep playing on the other page (' + s + ')', s === 2);
+  await go('/learn/music/basic/chords'); let i = await info();
+  ok('back on the page: both previews show as playing with a stop button', i[0].playing && i[1].playing && i[0].btn === '❚❚' && i[1].btn === '❚❚' && !i[2].playing);
+  const a1 = (await info())[0].px; await pg.waitForTimeout(700); const a2 = (await info())[0].px; ok('the progress moves again', a1 !== a2);
+  s = await pg.evaluate(() => AmpleAudio.set.size); ok('still exactly 2 sounds (no duplicate)', s === 2);
+  await btn.nth(0).click(); await pg.waitForTimeout(300); i = await info(); s = await pg.evaluate(() => AmpleAudio.set.size); ok('stop on the re-shown preview stops that sound only', !i[0].playing && i[1].playing && s === 1 && i[0].btn === '▶');
+  await pg.locator('#t-sound').click(); await pg.waitForTimeout(300); i = await info(); s = await pg.evaluate(() => AmpleAudio.set.size); ok('Stop button stops the rest and the preview resets', s === 0 && !i[1].playing && i[1].btn === '▶');
+  await btn.nth(2).click(); await pg.waitForTimeout(500); await go('/learn/music/basic/scales'); await go('/learn/music/basic/chords'); await go('/learn/music/basic/scales'); await go('/learn/music/basic/chords'); i = await info(); s = await pg.evaluate(() => AmpleAudio.set.size);
+  ok('two round trips: still one sound, shown as playing', s === 1 && i[2].playing);
+} finally { console.log(errs.length ? 'ERRORS ' + errs[0] : 'no page errors'); await b.close(); }
+process.exit(fail ? 1 : 0);

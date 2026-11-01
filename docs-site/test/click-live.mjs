@@ -1,0 +1,21 @@
+import { chromium } from 'playwright-core'; import path from 'node:path'; import fs from 'node:fs'; import { pathToFileURL } from 'node:url';
+const cache = path.join(process.env.LOCALAPPDATA, 'ms-playwright'), dir = fs.readdirSync(cache).filter((d) => d.startsWith('chromium_headless_shell')).sort().pop();
+const exe = path.join(cache, dir, fs.readdirSync(path.join(cache, dir))[0], 'chrome-headless-shell.exe'), site = path.resolve('..', 'site');
+const b = await chromium.launch({ executablePath: exe, args: ['--autoplay-policy=no-user-gesture-required'] }); let fail = 0; const errs = [];
+const ok = (n, v) => { console.log(v ? 'PASS' : 'FAIL', n); if (!v) fail++; };
+try { const pg = await b.newPage({ viewport: { width: 1200, height: 900 } }); pg.on('pageerror', (e) => errs.push(e.message));
+  await pg.goto('https://ample-koda.dev/index.html' + '#/learn/music/basic/chords'); await pg.waitForTimeout(1200);
+  const st = () => pg.evaluate(() => ({ n: document.querySelectorAll('.pv.playing').length, set: AmpleAudio.set.size, sticky: !!AmpleAudio.sticky, label: document.querySelector('#t-sound span')?.textContent }));
+  const btn = pg.locator('.pv-play');
+  await btn.nth(0).click(); await pg.waitForTimeout(500); ok('one plain click starts one', (await st()).n === 1);
+  await btn.nth(1).click(); await pg.waitForTimeout(900); await btn.nth(2).click(); await pg.waitForTimeout(900);
+  let s = await st(); ok('plain clicks layer (3 playing)', s.n === 3); ok('Sound button is Stop while sounds play', s.label === 'Stop');
+  await btn.nth(0).click(); await pg.waitForTimeout(300); s = await st(); ok('click on a playing sound stops only that one', s.n === 2);
+  await btn.nth(3).click(); await pg.waitForTimeout(700); await btn.nth(4).click(); await pg.waitForTimeout(700); await btn.nth(0).click(); await pg.waitForTimeout(700); s = await st(); ok('never more than 4 layers (' + s.n + ')', s.n <= 4 && s.n >= 3);
+  await pg.evaluate(() => { location.hash = '#/learn/music/basic/scales'; }); await pg.waitForTimeout(700); s = await st(); ok('sounds keep playing over a page change', s.set >= 3);
+  await pg.locator('#t-sound').click(); await pg.waitForTimeout(300); s = await st(); ok('Stop button stops all', s.set === 0 && s.label !== 'Stop');
+  await pg.evaluate(() => { location.hash = '#/learn/music/basic/chords'; }); await pg.waitForTimeout(900);
+  await pg.locator('.pv canvas').first().click(); await pg.waitForTimeout(400); s = await st(); ok('waveform click starts it', s.n === 1); await pg.locator('.pv canvas').first().click(); await pg.waitForTimeout(300); s = await st(); ok('waveform click again stops it', s.n === 0);
+  ok('no Ctrl+click or long press mentioned anywhere', !(await pg.evaluate(() => /ctrl\s?\+\s?click|long press|long-press/i.test(document.documentElement.outerHTML + [...document.scripts].map((x) => x.textContent).join('')))));
+} finally { console.log(errs.length ? 'ERRORS ' + errs[0] : 'no page errors'); await b.close(); }
+process.exit(fail ? 1 : 0);

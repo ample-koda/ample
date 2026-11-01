@@ -1,0 +1,6 @@
+{
+  "name": "ample-docs-site",
+  "private": true,
+  "type": "commonjs",
+  "description": "The AMPLE documentation site (sources). The .js files in lib/ and src/ are plain scripts, not ES modules."
+}
