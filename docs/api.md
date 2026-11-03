@@ -1,0 +1,75 @@
+> Status (2026-10-03): built in chunk 70. The web UI (chunks 75 to 77) is the first client; the reference of every route is generated from `docs/api/openapi.json` and appears under "Local API" in this help.
+
+# Local server and API
+
+`ample serve` starts one local web server for one project. It serves the web UI, the help and the API, and it is the only way the UI touches the engine: everything the CLI can do is a route here, and every state change goes through the command bus, so AMPLE Redux keeps its recovery record.
+
+## Starting it
+```
+ample serve --project <folder> [--port N] [--no-browser] [--allow-lan] [--root <ample folder>]
+ample serve --openapi docs/api/openapi.json     # writes the OpenAPI document and exits
+```
+The classic command prints the address and a launch address with the session token in the fragment (`#token=...`), which browsers never send to a server, and opens the browser by default. `ample serve` remains a foreground command. `ample open` attaches to or starts a server for a project; the former lock-and-summary operation is available as `ample project open`. `GET /api/ping` is an unauthenticated minimal liveness check used by the [instance registry](instance-registry.md); `POST /api/server/shutdown` requires the session token.
+
+## Safety
+| Rule | Code |
+| --- | --- |
+| Listens on 127.0.0.1 only, on a free port unless `--port` is given. | |
+| The Host header must be localhost or 127.0.0.1 (protects against DNS rebinding); `--allow-lan` lifts this and is for a trusted network only. | AMP5282 |
+| A request with a foreign Origin is refused (no other site can drive the project). | AMP5283 |
+| Every `/api` call except `GET /api/ping` needs the session token in `X-Ample-Token` (a cookie works for GET only, for audio elements). | AMP5284 |
+| Optional sign-in (`ample serve --login`, off by default): set the user with `ample auth set-password --user NAME` (only a PBKDF2 hash is stored in the AMPLE user data folder, `auth.json`); `GET /login` is the page, `POST /api/login` `{user,password}` returns a 12-hour session token that works in `X-Ample-Token` next to the launch token. 5 wrong attempts lock the caller out for a minute (429). `--allow-all` (any Host, listens on every address, for a tunnel) is refused without `--login`. Over plain http the password travels in the clear: use an encrypted tunnel. | AMP5297, AMP5298, AMP5299 |
+| Build parallelism (`ample serve --parallelism N`, or `AMPLE_PARALLELISM`): how many blocks a build renders at the same time. The default is the number of cores of the machine (one block per core), and the limit can be lowered but never raised above the cores. A project can ask for fewer (`settings.build.parallelism` in project.json; `GET`/`POST /api/project/settings` give `buildParallelism`, `parallelismLimit` and `cores`; `null` follows the server), never for more (AMP5941). It changes how fast a build is, never what it makes; each block still renders on one thread, so a song with one long chain gains little. Lite asks for 2 per build. | |
+| JSON request bodies default to 8 MiB; MIDI upload is capped at 64 MiB and audio transcription at 128 MiB plus multipart overhead. Responses are `no-store` and `nosniff`. | |
+| Every error is RFC 9457 problem details with the AMP code in `code`. | |
+
+## Documents
+A song is edited as a working copy in the server. `PUT /api/doc` and `POST /api/doc/edit` carry the version the client saw (`baseVersion`); a stale version gets 409 (AMP5280) instead of overwriting. `setParameter` updates or adds a source parameter; `removeParameter` removes a simple parameter line when a file field is cleared. Before a save the server compares the working copy with the file on disk: an untouched copy takes the new file, changes in different places merge, and a change in the same place refuses the save with 409 AMP5307; `GET /api/doc/disk` then lists the differences (state, regions with `base`, `mine`, `theirs`, `diskSha`) and `POST /api/doc/resolve` takes the composed text. Nothing reaches the file until `POST /api/doc/save`, which writes through the command bus (AMPLE Redux keeps the old text).
+
+## AMPLE Redux
+`GET /api/redux/records` is a read-only, paged journal search for project scope. Filter with `ar`, `task`, `session`, project-relative `path`, `block`, `field`, inclusive UTC `from`/`to`, or `q`. Pages default to 50 and cap at 200; keep the filters unchanged and pass `nextCursor` back as `cursor` to continue the same high-water snapshot. Payload and pre-image content are omitted by default; set `includePayload=true` with one `ar` reference when the recorded change itself is needed (maximum 2 MB). The search scans newest journal segments first and retains only one segment plus the bounded page in memory. Codex uses the task-authorized `GET /api/ai/context/redux-search`, which defaults to the current task; `scope=session` searches the current session and `scope=project` expands to project history.
+
+## Project files
+`GET /api/project/tree?path=&depth=` lists the immediate children of a project folder and can include bounded child folders. `GET /api/project/audio?path=...` streams supported project audio with byte-range support for the shared player; it refuses non-audio files, private paths and linked files. `GET /api/project/hash?path=...` streams one project file through SHA-256 and returns its lowercase digest without entering `.ample` or following links. `GET /api/project/peaks?path=...` returns a cached, bounded 16-bit WAV waveform summary; `GET /api/project/preview?path=...` returns capped MIDI-note, song, lyric or file metadata for thumbnails. Both refuse private and linked paths and cap decoded file reads. `GET /api/project/usage?path=...` parses project songs and modules and reports blocks whose file parameters point at the selected file or a file under the selected folder. `POST /api/project/upload?dir=...&name=...&onConflict=...` accepts raw bytes or one multipart file, up to the server limit (512 MiB by default; configure `ample serve --max-upload-mb <1..512>`); multipart forms can provide `dir`, `name` and `onConflict` fields. Imports use the command bus; conflicts can be refused, renamed, overwritten with a recoverable pre-image, or checkpointed before overwrite. `POST /api/project/folder` creates a folder under an existing parent; `POST /api/project/rename` and `/api/project/move` move one file or folder to an unused path under an existing parent. `DELETE /api/project/folder?path=...` removes an empty folder through the journal; `DELETE /api/project/file?path=...` removes one project file through the journal. Each mutation publishes `files.changed`. Private `.ample` paths are not exposed by the tree, usage or mutation routes.
+
+## MIDI
+  `POST /api/midi/upload?extension=.mid&track=all` stores bounded SMF bytes under a content-addressed project path and returns its rendered bar count. `POST /api/midi/module` converts the file (and optional selected track) into an editable generated module. `GET /api/midi/info?file=...` returns aggregate track, PPQ, tempo and length data. `GET /api/midi/download?file=...` returns a new `.mid` by parsing and re-encoding the source event stream; `POST /api/midi/module-download` exports edited notes from the module's current working copy. Neither download writes to the project.
+
+## Audio transcription
+`GET /api/plugins` lists analysis capabilities and declared resource needs. `POST /api/audio/transcriptions` accepts a WAV, local transcription plugin id, JSON options and an optional job id; network-dependent plugins are refused, GPU plugins require explicit consent, uploads are limited to 128 MiB/10 minutes, and aligned vocal/backing stems plus MIDI artifacts are bounded and validated before the result is marked complete. Pitch metadata is capped at 8 MiB. `analysis.progress` events carry the job id. `GET /api/audio/transcriptions/{id}` returns provenance and artifact URLs; `GET /api/audio/transcriptions/{id}/{role}` streams the source, a stem or MIDI artifact with range support; `GET /api/audio/transcriptions/{id}/peaks?role=source&points=N` returns the bounded 16-bit WAV waveform summary. Results are private project analysis data under `.ample/transcriptions/`, not takes.
+
+## Dangerous acts are two steps
+Dropping a line, the history cleanup, retagging and replacing a take first return a dry run with a one-use token (ten minutes) and the text the user must type. Only `POST /api/acts/confirm` with the token, the typed text and a reason does it. A confirmation without an open dry run is refused (AMP5281).
+
+## Audio and waveforms
+`GET /api/data/{id}` serves stored data with range support; WAV data is `audio/wav`, so an audio element can stream it. `GET /api/takes/{id}` carries `audioDataId`, the data of the take that is WAV audio (the role is the name of the output port, so it is found by content). `GET /api/takes/{id}/peaks?points=N` (16 to 4000, default 800) returns `{ rate, channels, seconds, points, rms, peak, peaks }` where `peaks` is `points` min and max pairs (`[min0, max0, min1, max1, ...]`, values from -1 to 1) over the whole take; it is computed in one streaming pass (a ten-minute take is never held in memory) and cached. Only 16-bit WAV can be summarised.
+
+`POST /api/project/upload?dir=...&name=...&onConflict=...` imports supported files through the command bus (512 MiB default maximum, adjustable with `ample serve --max-upload-mb <1..512>`); conflict choices are `refuse` (default), `rename`, `overwrite` and `overwrite-record`. `GET /api/project/tree?path=...&depth=...` lists a project folder and immediate children without following links or entering `.ample`. `POST /api/effects/preview` accepts a song path, effect block, its selected upstream take, parameters and a range of at most 30 seconds; it returns WAV from the built-in integer renderer without recording a take or journal entry. Preview output is kept only in a bounded process-local cache.
+
+## History and control views
+`GET /api/history/graph` (every revision of every line with its parent, the lines, tags and current line; each node's `reduxRef` is the compact AR reference of its exact durable history command, or `null`), `GET /api/history/diff?from&to`, `GET /api/history/peek?ref` (the files of a state as text; changes nothing), `POST /api/doc/parse` (parses text that is not open, for a state that is only looked at) and `GET /api/control/block?path&block` (freeze level, seeds with their history, selected take, variants, supported and unsupported variant fields, the explainer, open regeneration decisions). `POST /api/control/variants/preview` returns deterministic per-take field changes without rendering; `POST /api/control/variants` accepts selected field names and renders temporary values into immutable take plans. `count` may be 1–20, optional `startIndex` selects a deterministic segment of the same proposal sequence, and optional `baseVersion` prevents a multi-request batch from continuing after its song changes. The Studio requests one take at a time and aborts the active request on cancellation. Seeds are 64-bit numbers and travel as strings.
+
+`GET /api/redux/records` provides bounded, read-only journal search with cursor paging; `GET /api/redux/status` returns aggregate storage and budget status; `GET /api/redux/compact-preview` previews exact compaction impact; `POST /api/redux/compact` performs the separately confirmed compaction.
+
+## Library
+`GET /api/library` (linked folders with their live state, assets, duplicates), `POST /api/library/mounts` (link and scan), `/scan`, `/relocate`, `/access` (read-only or read-write), `/import` (copy into the project), `GET /api/library/uses?path` (where the song uses assets), `GET /api/lock` and `POST /api/lock/update`, and the two-step act `/api/acts/unlink-mount`. The home folder of the library is `ServerOptions.LibraryHome` (default: `AMPLE_HOME`, else the local application data of the user).
+
+## Storage and build estimates
+`GET /api/storage` returns takebank usage, protection/reclaimable totals, storage options and cleanup state. `POST /api/storage/plan` creates a dry-run plan; `POST /api/storage/clean` starts it only if its fingerprint still matches. `GET /api/storage/status` and `POST /api/storage/cancel` inspect or cancel cleanup. `POST /api/storage/compress`, `/api/storage/move` and `/api/storage/settings` manage lossless compression, takebank relocation and project storage options. Cleanup and compression progress use `storage.progress` and `storage.done` events.
+
+`GET /api/build/estimate?path=...` performs a plan-only estimate for the song and reports rendered block count, estimated bytes/time and whether the takebank drive has room. It does not render or store data. Builds under 50 MiB skip the space refusal; other estimates require 120% of estimated bytes free. Build statistics are learned per project in `.ample/analysis/build-stats.json`.
+
+## Finals
+`GET /api/finals?song=...` lists defined finals and the implicit `full` final when none are defined. `POST /api/finals` adds or updates a definition; `POST /api/finals/delete` removes one; `POST /api/finals/render` deliberately builds, cuts and exports one final after estimate and disk preflight. Finals are project metadata, stored in `.ample/finals.json`, and are not song-language syntax.
+
+## Assistant context
+The `/api/ai/context/*` routes provide scoped read-only context (project, song, block, files, history, docs and analysis), structured proposal edits, score import, task memory and project-log access. `GET /api/ai/context/access` requests permission to write outside the project; `POST /api/ai/context/write-outside` and `/api/ai/context/findings` are the mediated write paths. These routes are task-context scoped and do not replace the proposal/accept flow under `/api/ai/tasks`.
+
+## Backup
+`GET /api/backup` (what the project remembers and the backups in that target), `POST /api/backup/create`, `/verify`, `/policy` (target and backup before every dangerous act), `POST /api/export` (archive file), and the two-step acts `/api/acts/prune-backups` and `/api/acts/restore-in-place`. `GET /api/health` carries the last backup.
+
+## Events
+`GET /api/events` is a server-sent event stream: `build.progress`, `build.done`, `doc.changed`, `history.changed`.
+
+## Not yet
+The library routes are a placeholder until chunk 85. The API is version 0.1 and may still change until the UI has used it.
