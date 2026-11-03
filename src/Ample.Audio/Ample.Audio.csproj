@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="NVorbis" />
+    <ProjectReference Include="../Ample.Core.Abstractions/Ample.Core.Abstractions.csproj" />
+    <ProjectReference Include="../Ample.Language/Ample.Language.csproj" />
+    <InternalsVisibleTo Include="Ample.Core.Tests" />
+    <InternalsVisibleTo Include="Ample.Audio.Tests" />
+    <InternalsVisibleTo Include="Ample.Storage.Tests" />
+    <InternalsVisibleTo Include="Ample.Engine.Tests" />
+    <InternalsVisibleTo Include="Ample.Audio" />
+    <InternalsVisibleTo Include="Ample.Storage" />
+    <InternalsVisibleTo Include="Ample.Engine" />
+    <EmbeddedResource Include="..\..\content\beats\beats.json" LogicalName="beats.json" />
+    <EmbeddedResource Include="..\..\content\beats\mix.json" LogicalName="mix.json" />
+  </ItemGroup>
+</Project>
