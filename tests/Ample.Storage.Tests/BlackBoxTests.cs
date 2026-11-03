@@ -391,14 +391,15 @@ public sealed class BlackBoxTests
     public void Only_the_infrastructure_folders_write_files_directly()
     {
         string src = AppContext.BaseDirectory;
-        while (!Directory.Exists(Path.Combine(src, "src", "Ample.Engine")))
+        while (!Directory.Exists(Path.Combine(src, "src", "Ample.Storage")))
         {
             src = Path.GetDirectoryName(src)!;
         }
 
         string[] allowed = ["IO", "Projects", "Takes", "BlackBox", "Backup", "Security", "Quality", "Credits"];
         string[] assemblies = ["Ample.Audio", "Ample.Storage", "Ample.Engine"];
-        foreach ((string assembly, string file) in assemblies.SelectMany(a => Directory.GetFiles(Path.Combine(src, "src", a), "*.cs", SearchOption.AllDirectories).Select(f => (a, f))))
+        // the layers above Storage are not always present (the public repository grows layer by layer): scan the ones that are
+        foreach ((string assembly, string file) in assemblies.Where(a => Directory.Exists(Path.Combine(src, "src", a))).SelectMany(a => Directory.GetFiles(Path.Combine(src, "src", a), "*.cs", SearchOption.AllDirectories).Select(f => (a, f))))
         {
             string folder = Path.GetRelativePath(Path.Combine(src, "src", assembly), file).Split(Path.DirectorySeparatorChar)[0];
             // BuildStats and Finals keep a derived cache next to the takes: a temp file and a move, not project data. HistoryArchive writes a whole archive into a partial folder and
