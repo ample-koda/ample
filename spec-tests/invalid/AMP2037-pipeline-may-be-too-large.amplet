@@ -1,0 +1,9 @@
+composition "x" { ample 1  tempo 120  master-seed 1 }
+
+midi-clip a at 1 for 1 {
+  notes "1:0:1:60:100 1:1:1:62:100 1:2:1:64:100"
+}
+
+midi-clip b at 2 for 1 {
+  notes a.notes |> repeat(1024) |> repeat(1024)
+}

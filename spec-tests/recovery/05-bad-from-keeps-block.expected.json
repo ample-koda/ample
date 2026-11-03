@@ -1,0 +1,18 @@
+{
+  "blocks": [
+    {
+      "type": "midi-clip",
+      "name": "chords"
+    },
+    {
+      "type": "piano",
+      "name": "p"
+    }
+  ],
+  "diagnosticCodes": [
+    "L001",
+    "L001",
+    "L002",
+    "AMP1107"
+  ]
+}

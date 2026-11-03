@@ -1,0 +1,7 @@
+composition "demo" { ample 1  tempo 92  master-seed 1 }
+lint { L010 warning L001 off }
+drums beats at 1 for 2 {
+}
+denoise clean {
+  from beats.out -> in
+}

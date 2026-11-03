@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1110",
+    "severity": "error",
+    "line": 2,
+    "col": 1,
+    "endCol": 13,
+    "message": "Expected: use <module>[@version] as <name> {"
+  }
+]

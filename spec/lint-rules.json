@@ -87,6 +87,22 @@
       "description": "A block header uses the pre-release form class@version (stable@1.1, live@0.4); v1 leaves the class and the number out and only a pinned block states pinned@<version>. ample migrate converts the song.",
       "autofix": null,
       "since": "1.0"
+    },
+    {
+      "code": "L012",
+      "name": "clip-controller-ignored",
+      "defaultLevel": "warning",
+      "description": "A midi-clip sets controllers that only the gm block (and midi-render) plays (modwheel, sustain, reverb_send, chorus_send, cc), and its notes reach another instrument, which plays only volume, expression and pan.",
+      "autofix": null,
+      "since": "1.0"
+    },
+    {
+      "code": "L013",
+      "name": "clip-controller-value",
+      "defaultLevel": "error",
+      "description": "A controller of a midi-clip is not a value it can play (a number outside its range, a word, or a cc that is not controller=value entries); the build would stop with AMP5506.",
+      "autofix": null,
+      "since": "1.0"
     }
   ]
 }

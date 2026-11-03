@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2009",
+    "severity": "error",
+    "line": 3,
+    "col": 8,
+    "endCol": 12,
+    "message": "A block cannot read from itself."
+  }
+]

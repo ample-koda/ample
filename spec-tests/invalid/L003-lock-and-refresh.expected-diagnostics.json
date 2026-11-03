@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 12,
+    "endCol": 13,
+    "message": "The output of \"w\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L003",
+    "severity": "warning",
+    "line": 2,
+    "col": 19,
+    "endCol": 26,
+    "message": "\"w\" is locked and also always-refetch.  [lock-and-refresh]"
+  }
+]

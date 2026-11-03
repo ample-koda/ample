@@ -1,0 +1,5 @@
+composition "x" { ample 1  tempo 120  master-seed 1 }
+
+synth lead at 1 for 1 {
+  tint mauve
+}

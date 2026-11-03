@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2010",
+    "severity": "error",
+    "line": 2,
+    "col": 1,
+    "endCol": 10,
+    "message": "Cycle: a → b → a"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 3,
+    "col": 7,
+    "endCol": 11,
+    "message": "The output of \"lead\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 3,
+    "col": 7,
+    "endCol": 11,
+    "message": "Required input \"notes\" of \"lead\" has no source.  [missing-input]"
+  },
+  {
+    "code": "AMP2022",
+    "severity": "error",
+    "line": 4,
+    "col": 3,
+    "endCol": 7,
+    "message": "Unknown tint \"mauve\" on lead."
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "plan0",
+    "canonical": "{\"schema\":\"ample-plan/1\",\"rngVersion\":1,\"projectId\":\"01234567-89ab-7cde-8f01-23456789abcd\",\"blockUuid\":\"block-1\",\"blockPath\":\"voice lead\",\"sourceHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"inputs\":[{\"kind\":\"data\",\"id\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"toolprint\":null}],\"seeds\":[{\"name\":\"lm_seed\",\"value\":\"43\"},{\"name\":\"seed\",\"value\":\"42\"}],\"plugin\":{\"id\":\"acestep\",\"version\":\"0.9\"},\"toolprint\":{\"driver\":\"555\",\"gpu\":\"RTX-4090\"},\"settings\":{\"steps\":8,\"style\":\"airy\"},\"intent\":\"bake\",\"parentPlanId\":null}",
+    "planId": "sha256:3c92f1e9212e8c0ed42ba134dd86b55e50da9f81f773a5bd43c8383764698536"
+  },
+  {
+    "name": "plan1",
+    "canonical": "{\"schema\":\"ample-plan/1\",\"rngVersion\":1,\"projectId\":\"01234567-89ab-7cde-8f01-23456789abcd\",\"blockUuid\":\"block-2\",\"blockPath\":\"voice lead\",\"sourceHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"inputs\":[{\"kind\":\"data\",\"id\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"toolprint\":null}],\"seeds\":[{\"name\":\"lm_seed\",\"value\":\"8\"},{\"name\":\"seed\",\"value\":\"7\"}],\"plugin\":{\"id\":\"acestep\",\"version\":\"0.9\"},\"toolprint\":{\"driver\":\"555\",\"gpu\":\"RTX-4090\"},\"settings\":{\"a\":{\"x\":null,\"y\":true},\"b\":[1,2]},\"intent\":\"variant\",\"parentPlanId\":null}",
+    "planId": "sha256:2ce8bb8a125a6c1940a9d320428c15a31aa5e07a37603e718aa47554f860e081"
+  },
+  {
+    "name": "plan2",
+    "canonical": "{\"schema\":\"ample-plan/1\",\"rngVersion\":1,\"projectId\":\"01234567-89ab-7cde-8f01-23456789abcd\",\"blockUuid\":\"\\u00E9\\uD83D\\uDE00\",\"blockPath\":\"voice lead\",\"sourceHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"inputs\":[{\"kind\":\"data\",\"id\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"toolprint\":null}],\"seeds\":[{\"name\":\"lm_seed\",\"value\":\"0\"},{\"name\":\"seed\",\"value\":\"18446744073709551615\"}],\"plugin\":{\"id\":\"acestep\",\"version\":\"0.9\"},\"toolprint\":{\"driver\":\"555\",\"gpu\":\"RTX-4090\"},\"settings\":{},\"intent\":\"freeze\",\"parentPlanId\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"}",
+    "planId": "sha256:50840e88906ca33158d0fedc146ab01deeb8ae15321f36c8ae77b4fea0ddfc1a"
+  }
+]

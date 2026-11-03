@@ -1,0 +1,32 @@
+{
+  "description": "Quoted block names with spaces in a from line.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "midi-clip",
+      "name": "main chords",
+      "class": "stable",
+      "version": "1.1"
+    },
+    {
+      "type": "piano",
+      "name": "felt piano",
+      "class": "pinned",
+      "version": "2.1"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 5,
+      "col": 7,
+      "endCol": 19,
+      "message": "The output of \"felt piano\" is not used by any block.  [unused-output]"
+    }
+  ]
+}

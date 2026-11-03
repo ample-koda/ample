@@ -1,0 +1,6 @@
+composition "x" { ample 1  tempo 999  master-seed 1 }
+drumz a stable@1.2 {
+  patern x
+}
+bass b fixed@1 {
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1115",
+    "severity": "error",
+    "line": 5,
+    "col": 3,
+    "endCol": 12,
+    "message": "The scratch block of this rewind cannot be read."
+  }
+]

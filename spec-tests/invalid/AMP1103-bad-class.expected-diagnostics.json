@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1103",
+    "severity": "error",
+    "line": 2,
+    "col": 9,
+    "endCol": 16,
+    "message": "Expected pinned@<version>, for example pinned@1.2."
+  }
+]

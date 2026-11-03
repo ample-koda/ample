@@ -1,0 +1,34 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 3,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"a\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2036",
+    "severity": "warning",
+    "line": 7,
+    "col": 22,
+    "endCol": 26,
+    "message": "For auto needs the notes of this clip to be valid: the length is taken as 1 bar until they are."
+  },
+  {
+    "code": "AMP2050",
+    "severity": "error",
+    "line": 8,
+    "col": 31,
+    "endCol": 34,
+    "message": "4.5 is not a whole number: an Octave (0 to 8) is a whole number."
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1120",
+    "severity": "error",
+    "line": 1,
+    "col": 45,
+    "endCol": 48,
+    "message": "The meter 3/5 is not allowed: the top number is 1 to 16 and the bottom number is 2, 4, 8 or 16."
+  }
+]

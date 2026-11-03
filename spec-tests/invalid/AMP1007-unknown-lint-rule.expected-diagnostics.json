@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1007",
+    "severity": "error",
+    "line": 2,
+    "col": 8,
+    "endCol": 12,
+    "message": "Unknown lint rule \"L099\"."
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1004",
+    "severity": "error",
+    "line": 2,
+    "col": 12,
+    "endCol": 18,
+    "message": "Unknown module \"qualty\"."
+  }
+]

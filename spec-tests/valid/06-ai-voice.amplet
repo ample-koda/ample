@@ -1,0 +1,11 @@
+# AI voice with lyrics and a custom seed.
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+lyrics words {
+  lang nl
+}
+ai-voice lead at 9 for 8 as "chorus voice" lock {
+  voice anna
+  lm_seed 3297468772
+  guidance 1
+  from words.words -> lyrics
+}

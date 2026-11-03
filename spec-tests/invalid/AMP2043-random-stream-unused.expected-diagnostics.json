@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \u0022b\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2043",
+    "severity": "info",
+    "line": 9,
+    "col": 9,
+    "endCol": 10,
+    "message": "The random-stream \u0022drift\u0022 is declared but never used."
+  }
+]

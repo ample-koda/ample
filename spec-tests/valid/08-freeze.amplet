@@ -1,0 +1,10 @@
+# freeze seeds and freeze plan.
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+lyrics words {
+}
+ai-voice a freeze seeds {
+  from words.words -> lyrics
+}
+ai-voice b freeze plan {
+  from words.words -> lyrics
+}

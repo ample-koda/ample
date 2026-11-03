@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 13,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2036",
+    "severity": "warning",
+    "line": 13,
+    "col": 22,
+    "endCol": 26,
+    "message": "For auto needs the notes of this clip to be valid: the length is taken as 1 bar until they are."
+  },
+  {
+    "code": "AMP2067",
+    "severity": "error",
+    "line": 14,
+    "col": 34,
+    "endCol": 35,
+    "message": "\"x\" was made with let: use var to change it."
+  }
+]

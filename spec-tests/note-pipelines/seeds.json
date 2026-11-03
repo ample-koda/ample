@@ -1,0 +1,2497 @@
+{
+ "$comment": "Golden vectors of the seed model (docs/language/13-randomness.md): the key of every path of a master-seed, and 64-bit draws. Path steps: stable:NAME, explicit:NUMBER, fork:LABEL (a whole-number label is fork:#N). Run by web/lib/test/note-random.test.mjs and tests/Ample.Language.Tests/NoteRandomTests.cs.",
+ "keys": [
+  {
+   "master": "424242",
+   "root": "02f06c7999865cb3"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "key": "e0b027a42f24bdc4"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "key": "cba0fe3d12f41e74"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "key": "5f593c4ae870430a"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "key": "2378b7919fc62f08"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "key": "310d6a63bb5b28a4"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "key": "1808fa6fccade8c5"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "key": "0ace3630c0f0b70c"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "key": "d94fc5f70029b44d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "key": "58a6836ef8458e32"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "key": "1bae8f89b2111f28"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "key": "91339923d9389801"
+  },
+  {
+   "master": "1",
+   "root": "3e66fa8c2f865f69"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "key": "c866dc2736e7300d"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "key": "065f48a22f71e57f"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "key": "4556ae933c94354d"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "key": "ec821ebb91dfbdbe"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "key": "6839c0cb6106533f"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "key": "233156c2aa7969f4"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "key": "8b3291694c56c402"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "key": "d94fc5f70029b44d"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "key": "58a6836ef8458e32"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "key": "1bae8f89b2111f28"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "key": "4830784cf315f07f"
+  },
+  {
+   "master": "18446744073709551615",
+   "root": "3f4dec2af838f74b"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "key": "f44b4b479c6c5b45"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "key": "fad85a80b2edbcc2"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "key": "efe86d784db354ca"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "key": "b2015f7c09f2c598"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "key": "2e43adcf06587e40"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "key": "673b433a4da6bd22"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "key": "ec04608d52906df0"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "key": "d94fc5f70029b44d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "key": "58a6836ef8458e32"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "key": "1bae8f89b2111f28"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "key": "01d94de4c4b1f4e9"
+  }
+ ],
+ "draws": [
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "b6c77222ee1fcd8d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "9771e5823f5030d5"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "804270a3c396abfb"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "756498a2464650b4"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "e31e0223cff2c140"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "f2bdd5c09b5056c3"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "368040245e6a6a7e"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "70ea73cc6f908d4e"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "3e1b3dafdb0904d0"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "f770dc38c2c6f1e4"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "5ab50e627662e686"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "bf5aeed4d2471ca5"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "3ae1ec45702717c2"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "c4613b40b66b3906"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "7dcf9b2d5413aaf2"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "43f5c90a57f16727"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "14a861690e40562f"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "376c09a563fbe0ac"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "6414bfb0bd505689"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "4960ad1143ca89e2"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "7f3a545215fbf61c"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "89d7178040780a78"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "d9dd3802ba8c44ad"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "6dceb177cc947f8d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "0c2615c1a8812c82"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "359797aeaf733916"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "0a1abc10f2f260bf"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "d8ea3267ba483b09"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "228cfc84597c5648"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "98edfd9b9c7d1f68"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "65862c70804b555f"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "5b059b92d00ccf7d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "a969d9afd740dfb5"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "13a26ed635dac485"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "b958660f79598b08"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "ec97f99583b90c26"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "df50b62fe2f69956"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "5a501ff414cdb721"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "1e471ed7db20b0f2"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "559cb8382d70d93c"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "a5ff1a49c981082f"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "8fb20be76b2bca8a"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "eea97ead6be66b2d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "82e16a10943f1a1c"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "8e1704a6a4e63b65"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "8ea4845b23e1e083"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "96ff10b0b6344901"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "6a44eac1f83c6d5a"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "7e94edf00577c324"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "2d2c1dcc2aa0cb11"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "d2a74aab57d54600"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "8eb7428951aad01d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "a9c6d4f520471f9e"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "a68877ae561ddc55"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "1d03aca89e6daf80"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "69d3902862725704"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "0704fe1dc0f1236c"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "52702187c9ba2ba5"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "a1034932832369a5"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "4f20cff0c14fda71"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "35bff1302e705b89"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "b021eae07ad84dbd"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "725c22edda82c291"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "07f90fffdd7c716d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "ffbd717607020b06"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "85f308a8e0dc5ec4"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "30d114491e66b0c8"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "05dd0882cdf3881f"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "2cc8e2bbc6ae24c0"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "2711621d23c18885"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "c0cb6ca225e3cdaa"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "c324840ccb5c718d"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "577c12aaf687b8c3"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "84adc7d664435077"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "3040d2f466a85769"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "9f04909ee067b8bb"
+  },
+  {
+   "master": "424242",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "a88c6f613cd6d53e"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "d2f37bc7aa353f54"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "fbe99f7530a07dc0"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "280fe109b9e80800"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "c0a6a5ee2d6a4aec"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "196206f14dd55eff"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "fc4a06fae2eb3731"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "4c58a2f4bad58493"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "0d05dd6f5063a74c"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "4bc5606b7dceecaf"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "32c35856a494fbfb"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "bddc87c4ce81e0e8"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "b65c6346088fdb5f"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "1f7f5e4706444468"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "be37842b2e92962b"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "8cc317d45535afc2"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "18cfa345651ab03e"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "2a046fbf652c48ee"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "6c88f4e785e881b2"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "5add8d20eb67f149"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "d94ae30646facfa0"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "6bd2ad3fbbc66ac4"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "76429410e325fc90"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "28ef45760d3911c3"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "5a29b924a5007fad"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "67e37a0318d0e0a0"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "a912f2fffa160856"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "af838b278792da07"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "e16399c719f291a6"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "01abc9d4b507b2f6"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "59894513be0518d7"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "24ff64c1ec63284c"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "4af1d08b93d4bcf0"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "fcdd5e152f85d2b9"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "a4232f66ad54710a"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "b8824a18ff331aeb"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "acdd5d883bc578d8"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "911ab2e8d9490046"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "835b9050336971b2"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "d33349559143ecda"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "ad70f1e61415ada0"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "eca163d17db7e30a"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "b7956adb273a6f64"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "2acc59ea094ca381"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "52efa3153403c0a6"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "f7c24b64e23bd634"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "a4da7e577d90f710"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "c0f437049846d842"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "9aea01f63d57d8e6"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "0962adf4ac1835b1"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "2d2c1dcc2aa0cb11"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "d2a74aab57d54600"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "8eb7428951aad01d"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "a9c6d4f520471f9e"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "a68877ae561ddc55"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "1d03aca89e6daf80"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "69d3902862725704"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "0704fe1dc0f1236c"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "52702187c9ba2ba5"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "a1034932832369a5"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "4f20cff0c14fda71"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "35bff1302e705b89"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "b021eae07ad84dbd"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "725c22edda82c291"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "07f90fffdd7c716d"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "ffbd717607020b06"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "85f308a8e0dc5ec4"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "30d114491e66b0c8"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "05dd0882cdf3881f"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "2cc8e2bbc6ae24c0"
+  },
+  {
+   "master": "1",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "2711621d23c18885"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "eaa15a12b3970648"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "d9e664101fdd76a6"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "3cd91c7947eda829"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "1b8ba514435812e3"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "28995265d592edff"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "4ba8420fbc636d11"
+  },
+  {
+   "master": "1",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "98e14e5a1f6aa013"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "2e4db3d6a3cb3756"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "b3be21c59737747d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "bdfe9095f57c4653"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "f11e3ca70f4a9e92"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "4b8a36e3423fe7cf"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "8652471857ed9fac"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "4e4a0fa28ab9c877"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "a68c78917ce2c461"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "25523529b8a88821"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "ddfedc9fa845a91d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "1e5d5a065814d142"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "a193405212d15843"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "c6081d690e6654fa"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "69f00695ddbbfee6"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "fb90e7a4b924fc9a"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "cf41c36a4b7cb534"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "6e90d92f5b9f872b"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "947e8ee031d8ece6"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "5106d64bf2ed14e6"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "61e5c5482f95c355"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:chords",
+    "fork:inner"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "2c689fbf47f547be"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "972e29905f9c6925"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "5046372dc45c4ae2"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "d0cf2801d19e9dee"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "5bb9d440d940fe7d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "cf8ffc913ad2a51a"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "f9556136269b10c6"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:#3"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "929a5a0db5f65c99"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "c3305d04a8c9df4a"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "5a4b3f5c902464be"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "594fecef5d816d55"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "4189d6d14a4805a1"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "c9a04d1aeff49446"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "b843604d8cf1c946"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:verse",
+    "fork:3"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "78bacb4c751166c5"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "d3697bf40b951db6"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "cfe4c581646157ac"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "15115937b4a8a027"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "1a6c0d4f2de2b6f7"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "e6e18fc18508eb5d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "9f72366129d894bc"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:chorus"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "d0322a07da4345a7"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "5e3063793a683a49"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "d0727be57bd35652"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "89a2421342ffcf3f"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "3098ef68015578ec"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "c4083b5679082579"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "e23998203b8494d5"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:groove",
+    "fork:ghost-notes"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "9c2d9b9d788c04b6"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "2d2c1dcc2aa0cb11"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "d2a74aab57d54600"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "8eb7428951aad01d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "a9c6d4f520471f9e"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "a68877ae561ddc55"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "1d03aca89e6daf80"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "69d3902862725704"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "0704fe1dc0f1236c"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "52702187c9ba2ba5"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "a1034932832369a5"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "4f20cff0c14fda71"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "35bff1302e705b89"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "b021eae07ad84dbd"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:123456"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "725c22edda82c291"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "07f90fffdd7c716d"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "ffbd717607020b06"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "85f308a8e0dc5ec4"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "30d114491e66b0c8"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "05dd0882cdf3881f"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "2cc8e2bbc6ae24c0"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "explicit:7",
+    "fork:a"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "2711621d23c18885"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "0",
+   "bits": "af8ccb6bf136f248"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "1",
+   "bits": "15a369c500b97290"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "random",
+   "address": "2",
+   "bits": "367ef95c647f59eb"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "choose",
+   "address": "0",
+   "bits": "f2096110695335e2"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "chance",
+   "address": "0",
+   "bits": "30b3a57fbeffaf25"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "humanize.timing",
+   "address": "n:0:60:0",
+   "bits": "a77fb5cd2e0208a4"
+  },
+  {
+   "master": "18446744073709551615",
+   "path": [
+    "stable:Ünï cøde 日本"
+   ],
+   "purpose": "thin",
+   "address": "bar:3",
+   "bits": "e4c6303f601d5ea0"
+  }
+ ]
+}

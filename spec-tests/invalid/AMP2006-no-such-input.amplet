@@ -1,0 +1,6 @@
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+midi-clip chords {
+}
+piano p pinned@2.1 {
+  from chords.notes -> note
+}

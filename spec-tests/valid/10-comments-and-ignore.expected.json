@@ -1,0 +1,17 @@
+{
+  "description": "Comments and an ample-ignore directive.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "beats",
+      "class": "stable",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": []
+}

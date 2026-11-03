@@ -1,0 +1,34 @@
+{
+  "description": "One block with two parts.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "piano",
+      "name": "piano",
+      "class": "pinned",
+      "version": "2.1"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 3,
+      "col": 1,
+      "endCol": 6,
+      "message": "The output of \"piano\" is not used by any block.  [unused-output]"
+    },
+    {
+      "code": "L002",
+      "severity": "warning",
+      "line": 3,
+      "col": 1,
+      "endCol": 6,
+      "message": "Required input \"notes\" of \"piano\" has no source.  [missing-input]"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \u0022b\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 12,
+    "col": 6,
+    "endCol": 7,
+    "message": "The output of \u0022c\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 17,
+    "col": 3,
+    "endCol": 4,
+    "message": "The output of \u0022d\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2041",
+    "severity": "warning",
+    "line": 19,
+    "col": 35,
+    "endCol": 50,
+    "message": "The stable name \u0022verce\u0022 is used only once, and \u0022verse\u0022 is used elsewhere: a new name starts a new random family and changes the music."
+  }
+]

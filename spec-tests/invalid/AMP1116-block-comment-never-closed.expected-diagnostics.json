@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1116",
+    "severity": "error",
+    "line": 3,
+    "col": 1,
+    "endCol": 26,
+    "message": "This block comment is never closed: it runs to the end of the file."
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2036",
+    "severity": "warning",
+    "line": 7,
+    "col": 22,
+    "endCol": 26,
+    "message": "For auto needs the notes of this clip to be valid: the length is taken as 1 bar until they are."
+  },
+  {
+    "code": "AMP2039",
+    "severity": "error",
+    "line": 9,
+    "col": 35,
+    "endCol": 47,
+    "message": "randomSeed() is not a number yet: pick one (the fix writes it into the song) so that the result can be reproduced."
+  }
+]

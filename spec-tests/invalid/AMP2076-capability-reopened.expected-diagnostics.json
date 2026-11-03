@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2076",
+    "severity": "error",
+    "line": 3,
+    "col": 30,
+    "endCol": 32,
+    "message": "capabilities.environment was turned off by song (line 2): a capability cannot be turned on again (fatal configuration error)."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 10,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

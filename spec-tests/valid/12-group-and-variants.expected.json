@@ -1,0 +1,40 @@
+{
+  "description": "Group and variants blocks.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "group",
+      "name": "sub",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "variants",
+      "name": "pick20",
+      "class": "stable",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 3,
+      "col": 7,
+      "endCol": 10,
+      "message": "The output of \"sub\" is not used by any block.  [unused-output]"
+    },
+    {
+      "code": "L002",
+      "severity": "warning",
+      "line": 5,
+      "col": 10,
+      "endCol": 16,
+      "message": "Required input \"block\" of \"pick20\" has no source.  [missing-input]"
+    }
+  ]
+}

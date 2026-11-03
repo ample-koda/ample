@@ -1,0 +1,10 @@
+[
+  {
+    "code": "L010",
+    "severity": "warning",
+    "line": 5,
+    "col": 1,
+    "endCol": 16,
+    "message": "\"clean\" connects beats.out -> in; the stream names are beats.audio -> audio.  [older-port-name]"
+  }
+]

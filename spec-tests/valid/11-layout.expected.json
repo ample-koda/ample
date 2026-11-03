@@ -1,0 +1,26 @@
+{
+  "description": "Layout lines.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "beats",
+      "class": "stable",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 3,
+      "col": 7,
+      "endCol": 12,
+      "message": "The output of \"beats\" is not used by any block.  [unused-output]"
+    }
+  ]
+}

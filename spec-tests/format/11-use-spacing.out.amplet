@@ -1,0 +1,6 @@
+composition "demo" { ample 1  tempo 92  master-seed 1 }
+
+use groove@1.0 as intro {
+  kit kit/808
+  from chords.notes -> chords
+}

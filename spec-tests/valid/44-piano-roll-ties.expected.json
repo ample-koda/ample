@@ -1,0 +1,29 @@
+{
+  "description": "Bar-split piano-roll sustains retain implicit instrument routing through tie metadata.",
+  "project": {
+    "name": "tied-roll",
+    "tempo": 120,
+    "masterSeed": 7
+  },
+  "blocks": [
+    {
+      "type": "midi-clip",
+      "name": "clip",
+      "class": "stable",
+      "version": "1.1"
+    },
+    {
+      "type": "synth",
+      "name": "voice",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "master",
+      "name": "output",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": []
+}

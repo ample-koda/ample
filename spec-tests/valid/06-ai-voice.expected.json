@@ -1,0 +1,40 @@
+{
+  "description": "AI voice with lyrics and a custom seed.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "lyrics",
+      "name": "words",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "ai-voice",
+      "name": "lead",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 6,
+      "col": 10,
+      "endCol": 14,
+      "message": "The output of \"lead\" is not used by any block.  [unused-output]"
+    },
+    {
+      "code": "L009",
+      "severity": "info",
+      "line": 6,
+      "col": 10,
+      "endCol": 14,
+      "message": "\"lead\" uses custom seeds.  [custom-seed]"
+    }
+  ]
+}

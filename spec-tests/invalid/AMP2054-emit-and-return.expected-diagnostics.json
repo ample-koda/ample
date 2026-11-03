@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2054",
+    "severity": "error",
+    "line": 5,
+    "col": 3,
+    "endCol": 11,
+    "message": "A helper uses emit or return with a value, not both."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 12,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

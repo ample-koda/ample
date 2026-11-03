@@ -1,0 +1,13 @@
+composition "x" { ample 1  tempo 120  master-seed 1 }
+
+helper caller(Notes n) -> Notes {
+  n |> trnspose(1)
+}
+
+midi-clip a at 1 for 1 {
+  notes "1:0:1:60:100 1:1:1:62:100"
+}
+
+midi-clip b at 2 for auto {
+  notes caller(a.notes)
+}

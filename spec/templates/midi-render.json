@@ -40,7 +40,8 @@
       "default": "pack:musescore-general",
       "kind": "file",
       "accept": [
-        ".sf2"
+        ".sf2",
+        ".sf3"
       ],
       "doc": "SoundFont 2 file or installed GM pack."
     },
@@ -76,6 +77,16 @@
         "off"
       ],
       "doc": "Integer soft limiter at the PCM output; off keeps hard clipping."
+    },
+    {
+      "name": "engine",
+      "type": "text",
+      "default": "integer",
+      "options": [
+        "integer",
+        "float"
+      ],
+      "doc": "integer (the default): every machine renders the same bytes. float: needed for an SF3 SoundFont (its Ogg Vorbis samples are decoded with floating point); the render is then machine-exact: the same machine gives the same bytes, another may differ slightly, and AMPLE keeps the take per machine."
     },
     {
       "name": "track",

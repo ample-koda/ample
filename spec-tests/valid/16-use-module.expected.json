@@ -1,0 +1,23 @@
+{
+  "description": "A module instance (use) with a parameter and a bound input; the master reads the instance output. Modules are resolved when the song is built, not by the parser.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "midi-clip",
+      "name": "chords",
+      "class": "stable",
+      "version": "1.1"
+    },
+    {
+      "type": "master",
+      "name": "master",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": []
+}

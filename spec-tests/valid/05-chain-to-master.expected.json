@@ -1,0 +1,35 @@
+{
+  "description": "Chords to piano to mixer to master.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "midi-clip",
+      "name": "chords",
+      "class": "stable",
+      "version": "1.1"
+    },
+    {
+      "type": "piano",
+      "name": "piano",
+      "class": "pinned",
+      "version": "2.1"
+    },
+    {
+      "type": "mixer",
+      "name": "mix",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "master",
+      "name": "master",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": []
+}

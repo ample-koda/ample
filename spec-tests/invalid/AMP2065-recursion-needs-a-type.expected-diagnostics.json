@@ -1,0 +1,26 @@
+[
+  {
+    "code": "AMP2065",
+    "severity": "error",
+    "line": 3,
+    "col": 8,
+    "endCol": 12,
+    "message": "\"down\" calls itself: write its return type (-> Type)."
+  },
+  {
+    "code": "AMP2086",
+    "severity": "info",
+    "line": 3,
+    "col": 8,
+    "endCol": 12,
+    "message": "\"down\" is never called in this song."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 11,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

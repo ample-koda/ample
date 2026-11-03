@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "The output of \"v\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "Required input \"lyrics\" of \"v\" has no source.  [missing-input]"
+  },
+  {
+    "code": "AMP1105",
+    "severity": "error",
+    "line": 2,
+    "col": 12,
+    "endCol": 18,
+    "message": "freeze must be followed by seeds or plan."
+  }
+]

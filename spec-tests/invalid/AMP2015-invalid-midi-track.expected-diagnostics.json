@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2015",
+    "severity": "error",
+    "line": 5,
+    "col": 9,
+    "endCol": 14,
+    "message": "A MIDI track selector must be 'all' or a nonnegative zero-based index."
+  }
+]

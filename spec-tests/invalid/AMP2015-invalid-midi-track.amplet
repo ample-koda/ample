@@ -1,0 +1,6 @@
+composition "demo" { ample 1  tempo 92 master-seed 1 }
+lint { L001 off }
+midi source {
+  file "fixture.mid"
+  track first
+}

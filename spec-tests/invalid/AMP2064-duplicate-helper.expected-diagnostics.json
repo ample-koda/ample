@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2064",
+    "severity": "error",
+    "line": 4,
+    "col": 8,
+    "endCol": 13,
+    "message": "\"Twice\" is declared twice (names are compared ignoring case)."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 10,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

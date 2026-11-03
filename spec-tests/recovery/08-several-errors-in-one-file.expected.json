@@ -1,0 +1,17 @@
+{
+  "blocks": [
+    {
+      "type": "drumz",
+      "name": "a"
+    },
+    {
+      "type": "bass",
+      "name": "b"
+    }
+  ],
+  "diagnosticCodes": [
+    "AMP1002",
+    "AMP2001",
+    "AMP1103"
+  ]
+}

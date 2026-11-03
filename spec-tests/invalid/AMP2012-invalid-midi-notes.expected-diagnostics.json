@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2012",
+    "severity": "error",
+    "line": 4,
+    "col": 9,
+    "endCol": 20,
+    "message": "Structured MIDI notes must be space-separated bar:beat:length:pitch:velocity entries (optionally followed by ;pan=..;fine=..;rel=..;cut=..;slide=..;port=.. within their own ranges) and each note must fit within one bar (4 beats, or the beats of the meter of the song)."
+  }
+]

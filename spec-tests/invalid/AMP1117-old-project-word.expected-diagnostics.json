@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1117",
+    "severity": "error",
+    "line": 1,
+    "col": 1,
+    "endCol": 8,
+    "message": "\"project\" is the old word for the first line of a song: write \"composition\"."
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2020",
+    "severity": "error",
+    "line": 4,
+    "col": 1,
+    "endCol": 10,
+    "message": "An effect cannot use audio and a render recipe at the same time."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 4,
+    "col": 4,
+    "endCol": 8,
+    "message": "The output of \"tone\" is not used by any block.  [unused-output]"
+  }
+]

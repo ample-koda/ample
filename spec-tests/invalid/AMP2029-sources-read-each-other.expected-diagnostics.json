@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2028",
+    "severity": "error",
+    "line": 4,
+    "col": 9,
+    "endCol": 16,
+    "message": "The notes of \u0022b\u0022 have problems."
+  },
+  {
+    "code": "AMP2029",
+    "severity": "error",
+    "line": 8,
+    "col": 9,
+    "endCol": 16,
+    "message": "\u0022a\u0022 reads itself through its notes."
+  }
+]

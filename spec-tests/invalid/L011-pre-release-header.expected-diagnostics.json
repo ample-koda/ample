@@ -1,0 +1,10 @@
+[
+  {
+    "code": "L011",
+    "severity": "warning",
+    "line": 3,
+    "col": 13,
+    "endCol": 23,
+    "message": "\"stable@1.2\" is the pre-release form of a block header: v1 leaves the class and the number out.  [pre-release-header]"
+  }
+]

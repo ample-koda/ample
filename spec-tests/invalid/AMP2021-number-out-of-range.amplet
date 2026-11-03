@@ -1,0 +1,5 @@
+composition "demo" { ample 1  tempo 92  master-seed 1 }
+lint { L001 off L002 off }
+volume boost {
+  gain 54 dB
+}

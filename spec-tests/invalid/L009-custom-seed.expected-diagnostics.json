@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "The output of \"v\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "Required input \"lyrics\" of \"v\" has no source.  [missing-input]"
+  },
+  {
+    "code": "L009",
+    "severity": "info",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "\"v\" uses custom seeds.  [custom-seed]"
+  }
+]

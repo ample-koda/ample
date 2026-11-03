@@ -3,7 +3,7 @@
   "title": "MIDI clip / chords",
   "category": "Instruments",
   "class": "stable",
-  "version": "1.0",
+  "version": "1.1",
   "dynamic": false,
   "plugin": null,
   "description": "Textual MIDI: writes notes as text in the song: chords, a melody, or a list of notes with their timing, over a number of bars. It needs no file and gives notes that an instrument can play.",
@@ -77,6 +77,54 @@
       "min": 1,
       "max": 48,
       "doc": "How many semitones the bend curve reaches at 100 percent: 2 (the usual pitch wheel, the default when empty), 7, 12 (an octave) or 24."
+    },
+    {
+      "name": "modwheel",
+      "type": "text",
+      "default": "",
+      "doc": "The modulation wheel (controller 1), 0 to 100 percent: a number, or a curve over the clip such as auto(1:0, 3:100). A General MIDI instrument (gm) deepens its vibrato with it; other instruments ignore it (they say so in their warnings)."
+    },
+    {
+      "name": "volume",
+      "type": "text",
+      "default": "",
+      "doc": "The volume of the part in dB, 0 down to -96: a number (-6) or a curve such as auto(1:0, 2:-12). Every instrument follows it; the gm block plays it as controller 7, so -6 dB is -6 dB there too."
+    },
+    {
+      "name": "expression",
+      "type": "text",
+      "default": "",
+      "doc": "The expression in dB, 0 down to -96, added to volume: for swells inside a part. Every instrument follows it (controller 11 in the gm block)."
+    },
+    {
+      "name": "pan",
+      "type": "text",
+      "default": "",
+      "doc": "The pan, -100 (left) to 100 (right): a number, or a curve over the clip such as auto(1:0, 3:100). Every instrument follows it (a mono sound becomes stereo); controller 10 in the gm block."
+    },
+    {
+      "name": "sustain",
+      "type": "text",
+      "default": "",
+      "doc": "The sustain pedal (controller 64): on or off, or a curve in percent (50 and up is down). Notes let go while it is down ring on until it comes up. Played by the gm block."
+    },
+    {
+      "name": "reverb_send",
+      "type": "text",
+      "default": "",
+      "doc": "The reverb send (controller 91), 0 to 100 percent: a number, or a curve over the clip such as auto(1:0, 3:100). It adds no reverb itself: the gm block gives the sent part on its send output (100 sends 20 percent, the SoundFont default); connect that to a reverb."
+    },
+    {
+      "name": "chorus_send",
+      "type": "text",
+      "default": "",
+      "doc": "The chorus send (controller 93), 0 to 100 percent: a number, or a curve over the clip such as auto(1:0, 3:100). The gm block gives the sent part on its chorus output."
+    },
+    {
+      "name": "cc",
+      "type": "text",
+      "default": "",
+      "doc": "Any MIDI controller by number, raw values 0 to 127: \"74=auto(1:20, 4:100) 67=127\" (controller=value or controller=curve, separated by spaces). Played by the gm block; other instruments ignore it and say so. A malformed entry stops the build (AMP5506)."
     }
   ],
   "innerGraph": null,

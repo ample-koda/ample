@@ -1,0 +1,14 @@
+composition "render-demo" { ample 1  tempo 92 master-seed 424242 }
+drums kit {
+  pattern "x...x...x...x..."
+}
+eq tone {
+  from kit.render -> render
+}
+reverb room {
+  from tone.render -> render
+}
+mixer output {
+  from room.audio -> audio1
+  from kit.audio -> audio2
+}

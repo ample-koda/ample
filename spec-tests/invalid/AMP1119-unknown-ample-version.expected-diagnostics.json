@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1119",
+    "severity": "error",
+    "line": 1,
+    "col": 25,
+    "endCol": 28,
+    "message": "This song asks for AMPLE 999, but this AMPLE only knows versions up to 1: open it with a newer AMPLE."
+  }
+]

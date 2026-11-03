@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 4,
+    "col": 4,
+    "endCol": 5,
+    "message": "The output of \"v\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2007",
+    "severity": "error",
+    "line": 5,
+    "col": 3,
+    "endCol": 29,
+    "message": "Type mismatch: drums.audio is audio but v.lyrics wants text."
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2058",
+    "severity": "info",
+    "line": 5,
+    "col": 3,
+    "endCol": 17,
+    "message": "This is never run: the block returned before it."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 12,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

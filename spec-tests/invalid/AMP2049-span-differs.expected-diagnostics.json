@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 4,
+    "endCol": 15,
+    "message": "The output of \"melody-play\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2049",
+    "severity": "info",
+    "line": 7,
+    "col": 25,
+    "endCol": 26,
+    "message": "The notes that feed this block are 2 bar(s) long, this part says 4."
+  }
+]

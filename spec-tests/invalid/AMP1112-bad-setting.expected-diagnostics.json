@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1112",
+    "severity": "error",
+    "line": 2,
+    "col": 12,
+    "endCol": 22,
+    "message": "Expected pairs like: settings { acestep.synthModel sft }"
+  }
+]

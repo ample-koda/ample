@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1100",
+    "severity": "error",
+    "line": 2,
+    "col": 1,
+    "endCol": 17,
+    "message": "Unexpected text."
+  }
+]

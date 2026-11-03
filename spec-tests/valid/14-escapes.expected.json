@@ -1,0 +1,26 @@
+{
+  "description": "Escapes inside a quoted name.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "beat \"A\"",
+      "class": "stable",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 3,
+      "col": 7,
+      "endCol": 19,
+      "message": "The output of \"beat \"A\"\" is not used by any block.  [unused-output]"
+    }
+  ]
+}

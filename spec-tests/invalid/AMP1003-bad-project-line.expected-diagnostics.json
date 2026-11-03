@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP1003",
+    "severity": "error",
+    "line": 1,
+    "col": 1,
+    "endCol": 25,
+    "message": "Expected: composition \"name\" { tempo N  master-seed N }"
+  },
+  {
+    "code": "AMP1001",
+    "severity": "error",
+    "line": 1,
+    "col": 1,
+    "endCol": 2,
+    "message": "Missing the composition line."
+  }
+]

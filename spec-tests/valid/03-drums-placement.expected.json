@@ -1,0 +1,26 @@
+{
+  "description": "A block with one placement.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "drums",
+      "class": "stable",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 3,
+      "col": 1,
+      "endCol": 6,
+      "message": "The output of \"drums\" is not used by any block.  [unused-output]"
+    }
+  ]
+}
