@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>The AMPLE language server (LSP 3.17): no language logic of its own, everything comes from Ample.Language.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ample.Lsp.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ample.Language/Ample.Language.csproj" />
+  </ItemGroup>
+</Project>
