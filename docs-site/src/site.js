@@ -38,7 +38,7 @@ ${same.length ? `<div class="note"><b>See also</b> ${same.map((x) => `<a href="#
   P['/blocks'] = () => `<div class="crumbs">Blocks</div><h1>All blocks</h1><p class="lead">${BLOCKS.length} blocks, each with ports, parameters with units and (for many) a sound you can play.</p>${cats.map((c) => `<h2 id="c-${c.replace(/\W/g, '')}">${c}</h2><table><tr><th>Block</th><th>What it does</th><th>Since</th></tr>${BLOCKS.filter((b) => b.category === c).map((b) => `<tr><td><a href="#/blocks/${b.id}"><code>${b.id}</code></a></td><td>${esc(b.description).slice(0, 140)}</td><td>${AMPLE_VERSION}</td></tr>`).join('')}</table>`).join('')}`;
   const blocksNav = [['', 'All blocks']]; cats.forEach((c) => { blocksNav.push(['--', c]); BLOCKS.filter((b) => b.category === c).forEach((b) => blocksNav.push([b.id, b.id, ''])); });
   nav[nav.findIndex((n) => n[1] === 'blocks')] = ['Blocks', 'blocks', blocksNav];
-  P['/404'] = () => `<h1>Page not found</h1><p class="lead">There is no such page (yet). ${WIP_HIDDEN ? '' : ' Try the search with <code>Ctrl K</code>.'}</p><a class="btn p" href="#/">Home</a>`;
+  P['/404'] = () => `<h1>Page not found</h1><p class="lead">There is no such page (yet).  Try the search with <code>Ctrl K</code>.</p><a class="btn p" href="#/">Home</a>`;
 
   /* ---------- render: sidebar groups, aria, prev/next, scroll-spy toc, previews ---------- */
   let spy = null;
@@ -90,7 +90,7 @@ ${same.length ? `<div class="note"><b>See also</b> ${same.map((x) => `<a href="#
   };
   pal.setAttribute('role', 'dialog'); pal.setAttribute('aria-modal', 'true'); pal.setAttribute('aria-label', 'Search');
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pal.classList.contains('on')) { pal.classList.remove('on'); document.getElementById('open-search').focus(); } });
-  const os = document.getElementById('open-search'); if (WIP_HIDDEN) { const mpg = document.getElementById('mpg'); if (mpg) mpg.style.display = 'none'; os.style.display = 'none'; document.getElementById('pal').style.display = 'none'; } /* search is hidden for now (see WIP_HIDDEN in app.js) */ os.tabIndex = 0; os.setAttribute('role', 'button'); os.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); os.click(); } };
+  const os = document.getElementById('open-search'); /* the search shows only published pages (see WIP_HIDDEN and allPages in app.js) */ os.tabIndex = 0; os.setAttribute('role', 'button'); os.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); os.click(); } };
 
   /* ---------- toggles as real controls, mobile menu ---------- */
   ['t-alive', 't-sound'].forEach((id) => { const t = document.getElementById(id); t.tabIndex = 0; t.setAttribute('role', 'button'); t.setAttribute('aria-pressed', 'false');
@@ -133,13 +133,20 @@ ${same.length ? `<div class="note"><b>See also</b> ${same.map((x) => `<a href="#
 /* the wordmark gradient rolls (SMIL); stopped for people who prefer reduced motion */
 if (matchMedia('(prefers-reduced-motion:reduce)').matches) document.querySelectorAll('#wm-neon animateTransform').forEach((a) => a.remove());
 
-/* A started preview keeps playing over page changes (a plain click layers it). While any plays, the Sound button is a Stop button: it stops them and leaves Sound mode as it was. */
+/* A started preview keeps playing over page changes (a plain click layers it). The Music button always switches the music on and off; while sounds
+   play, a Stop button appears next to it (and the Music button shows only its notes, to make room). Stop stops the sounds first (the music plays on); when only the music plays it stops the music; it goes away when nothing plays. */
 (function () {
-  const t = document.getElementById('t-sound'), i = t.querySelector('i'), lab = t.querySelector('span'), orig = [i.innerHTML, lab.textContent, t.title];
-  const stopIco = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
-  const upd = () => { const s = AmpleAudio.set.size > 0 && AmpleAudio.sticky; t.classList.toggle('stopmode', s); i.innerHTML = s ? stopIco : orig[0]; lab.textContent = s ? 'Stop' : orig[1]; t.title = s ? 'Stop the playing sounds (sound mode stays as it is)' : orig[2]; };
+  const t = document.getElementById('t-sound'), lab = t.querySelector('span');
+  const stop = document.createElement('div'); stop.className = 'tg stopbtn'; stop.id = 't-stop'; stop.hidden = true; stop.tabIndex = 0; stop.setAttribute('role', 'button'); stop.title = 'Stop the playing sounds (the music plays on)';
+  stop.innerHTML = '<i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></i>'; stop.setAttribute('aria-label', 'Stop the playing sounds');
+  t.after(stop);
+  const sounds = () => [...AmpleAudio.set.keys()].filter((x) => !x.isMusic);
+  const upd = () => { const snd = sounds().length > 0 && AmpleAudio.sticky, mus = !!window.AmplePreviews?.music?.playing(), s = snd || mus; stop.hidden = !s; stop.title = snd ? 'Stop the playing sounds (the music plays on)' : 'Stop the music'; t.classList.toggle('compact', s); lab.hidden = s; t.setAttribute('aria-label', 'Music'); };
   document.addEventListener('ample-preview', upd);
-  t.addEventListener('click', (e) => { if (AmpleAudio.set.size > 0 && AmpleAudio.sticky) { e.stopImmediatePropagation(); [...AmpleAudio.set.keys()].forEach((s) => s()); upd(); } }, true);
+  document.addEventListener('ample-music', upd);
+  const act = () => { const list = sounds(); if (list.length) { list.forEach((s) => s()); upd(); window.AmplePreviews?.offerRemix?.(); return; } if (window.AmplePreviews?.music?.playing()) { window.AmplePreviews.music.stop(); upd(); } }; // sounds first (then the mix panel); only the music left: stop it, no panel
+  stop.addEventListener('click', act);
+  stop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
 })();
 
 

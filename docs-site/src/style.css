@@ -54,7 +54,8 @@ th{font-size:12px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim)}
 .card i{font-style:normal;font-size:22px}
 .hero{padding:30px 0 6px}
 .hero h1{font-size:46px;max-width:760px}
-.hero h1 em{font-style:normal;background:linear-gradient(90deg,#19e3c8,#ff4fd8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero h1 em{font-style:normal;padding:0 .12em .06em;margin:0 -.12em;background:linear-gradient(90deg,#19e3c8 0%,#5fb8f0 30%,#a98bf5 55%,#e46fe0 80%,#ff4fd8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 14px rgba(255,79,216,.28)) drop-shadow(0 0 22px rgba(25,227,200,.18))}
+:root[data-theme=light] .hero h1 em{filter:none}
 .cta{display:flex;gap:10px;margin:18px 0}
 .btn{padding:9px 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:14px;cursor:pointer}
 .btn.p{background:var(--acc);color:var(--on-acc);border-color:var(--acc);font-weight:600}
@@ -352,8 +353,94 @@ table.paramtable{max-width:980px}
 .pv-code:hover,.pv-code[aria-expanded=true]{color:var(--acc);border-color:var(--acc)}
 .pv-src{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:var(--code);overflow:hidden;--panel:var(--code);--text:#e3e7ff;--data:#c08cff;--audio:var(--cyan);--midi:var(--acc);--studio:var(--gold);--warn:var(--gold);--bad:#ff5d6c}
 .pv-srcbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)}
+.remix-btn{display:inline-block;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:7px;padding:2px 10px;font-size:12px;cursor:pointer;text-decoration:none;margin:4px 0}
+.remix-btn:hover{border-color:var(--text)}
 .pv-copy{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:7px;padding:2px 10px;font-size:12px;cursor:pointer}
 .pv-cm{width:100%}.pv-cm .cm-editor{height:100%}
 .cm-ample-word{background:linear-gradient(100deg,#ff3dcb 0%,#8a5bff 35%,#27d3ff 65%,#ff3dcb 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;font-weight:700;animation:ample-word-shimmer 6s linear infinite}
 @keyframes ample-word-shimmer{to{background-position:-220% 0}}
 @media (prefers-reduced-motion:reduce){.cm-ample-word{animation:none}}
+
+/* the mix offer (previews.js offerRemix): neon in the dark theme */
+.pv-mix{position:fixed;right:20px;bottom:20px;z-index:1000;width:min(440px,calc(100vw - 32px));padding:18px 18px 16px;border-radius:16px;background:linear-gradient(160deg,color-mix(in srgb,var(--panel2) 92%,var(--pink)),var(--panel));color:var(--text);border:1px solid color-mix(in srgb,var(--pink) 55%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--cyan) 25%,transparent),0 0 28px color-mix(in srgb,var(--pink) 35%,transparent),0 18px 50px rgba(0,0,0,.55);animation:pvMixIn .22s ease-out}
+.pv-mix.leaving{opacity:0;transform:translateY(8px);transition:.18s}
+.pv-mix.playing{box-shadow:0 0 0 1px color-mix(in srgb,var(--cyan) 45%,transparent),0 0 36px color-mix(in srgb,var(--cyan) 40%,transparent),0 18px 50px rgba(0,0,0,.55)}
+@keyframes pvMixIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.pv-mix-x{position:absolute;top:8px;right:10px;border:0;background:none;color:var(--dim);font-size:20px;line-height:1;cursor:pointer;padding:4px}
+.pv-mix-x:hover{color:var(--hi)}
+.pv-mix-kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);text-shadow:0 0 10px color-mix(in srgb,var(--cyan) 60%,transparent)}
+.pv-mix-h{margin:4px 28px 12px 0;font-size:16px;line-height:1.35;color:var(--hi)}
+.pv-mix-player{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line)}
+.pv-mix-play{flex:none;display:inline-flex;align-items:center;justify-content:center;line-height:1;width:44px;height:44px;border-radius:50%;border:2px solid var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan);font-size:15px;cursor:pointer;box-shadow:0 0 14px color-mix(in srgb,var(--cyan) 45%,transparent)}
+.pv-mix-play:hover{background:color-mix(in srgb,var(--cyan) 26%,transparent)}
+.pv-mix-wave{flex:1;min-width:0;width:100%;height:56px}
+.pv-mix-p{margin:12px 0 14px;font-size:14px;line-height:1.5;color:var(--text)}
+.pv-mix-p b{color:var(--pink);text-shadow:0 0 10px color-mix(in srgb,var(--pink) 50%,transparent)}
+.pv-mix-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pv-mix-open{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:10px;font-weight:700;color:#10051a;background:linear-gradient(90deg,var(--pink),var(--cyan));box-shadow:0 0 18px color-mix(in srgb,var(--pink) 50%,transparent);text-decoration:none}
+.pv-mix-open:hover{text-decoration:none;filter:brightness(1.1);box-shadow:0 0 26px color-mix(in srgb,var(--cyan) 60%,transparent)}
+.pv-mix-no{padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.pv-mix-no:hover{color:var(--hi);border-color:var(--dim)}
+:root[data-theme=light] .pv-mix{background:var(--panel);border-color:var(--line);box-shadow:0 12px 36px rgba(0,0,0,.18)}
+:root[data-theme=light] .pv-mix-kicker,:root[data-theme=light] .pv-mix-p b{text-shadow:none}
+:root[data-theme=light] .pv-mix-open{color:#fff;background:var(--acc);box-shadow:none}
+:root[data-theme=light] .pv-mix-play{border-color:var(--acc);color:var(--acc);background:transparent;box-shadow:none}
+@media (prefers-reduced-motion:reduce){.pv-mix{animation:none}}
+
+.pv-mix-wow{margin:0 0 12px;padding:9px 12px;border-radius:10px;font-weight:700;font-size:14px;line-height:1.4;color:var(--hi);background:linear-gradient(90deg,color-mix(in srgb,var(--pink) 22%,transparent),color-mix(in srgb,var(--cyan) 18%,transparent));border:1px solid color-mix(in srgb,var(--pink) 45%,transparent);text-shadow:0 0 12px color-mix(in srgb,var(--pink) 55%,transparent)}
+.pv-mix-wow span{color:var(--cyan);margin-right:4px;text-shadow:0 0 10px var(--cyan)}
+:root[data-theme=light] .pv-mix-wow{background:color-mix(in srgb,var(--acc) 10%,transparent);border-color:color-mix(in srgb,var(--acc) 40%,transparent);text-shadow:none}
+:root[data-theme=light] .pv-mix-wow span{color:var(--acc);text-shadow:none}
+
+.pv-mix-no.pv-mix-keep{color:var(--cyan);border-color:color-mix(in srgb,var(--cyan) 60%,var(--line));box-shadow:0 0 12px color-mix(in srgb,var(--cyan) 30%,transparent);font-weight:700}
+.pv-mix-no.pv-mix-keep:hover{color:var(--hi);background:color-mix(in srgb,var(--cyan) 16%,transparent)}
+:root[data-theme=light] .pv-mix-no.pv-mix-keep{color:var(--acc);border-color:var(--acc);box-shadow:none}
+.pv-mix-wow{font-size:13px}
+@media (min-width:900px){.pv-mix{width:600px}.pv-mix-wow{white-space:nowrap}}
+
+/* the music player (app.js) */
+#mus .mctl{display:inline-flex;gap:6px}
+#mus .mctl button{display:inline-flex;align-items:center;justify-content:center;line-height:1;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;font-size:12px}
+#mus .mctl button:hover{border-color:var(--cyan);color:var(--cyan)}
+#mus #mplay{width:36px;height:36px;border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px color-mix(in srgb,var(--cyan) 35%,transparent)}
+#mus.playing #mplay{background:color-mix(in srgb,var(--cyan) 16%,transparent)}
+#mus .msrcbox{position:relative}
+#mus .mremix{display:none;position:absolute;top:10px;right:26px;z-index:2;width:36px;height:36px;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--pink);background:color-mix(in srgb,var(--panel2) 85%,var(--pink));color:var(--pink);text-decoration:none;box-shadow:0 0 14px color-mix(in srgb,var(--pink) 40%,transparent)}
+#mus.open .mremix{display:flex}
+#mus .mremix:hover{text-decoration:none;box-shadow:0 0 20px color-mix(in srgb,var(--pink) 65%,transparent);transform:scale(1.06)}
+:root[data-theme=light] #mus #mplay{border-color:var(--acc);color:var(--acc);box-shadow:none}
+:root[data-theme=light] #mus .mremix{color:var(--acc);border-color:var(--acc)}
+/* the music player stays one row: wider on wide screens, the title shortens instead of wrapping */
+@media (min-width:900px){#mus{width:min(900px,70vw)}}
+#mus .row > span:not(.sp):not(.mctl){flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mus .row > .sp{flex:0 0 0}
+#mus #msrc,#mus .mremix{white-space:nowrap;flex:none}
+
+/* the Stop button next to Music (site.js): only while sounds play */
+#t-stop[hidden]{display:none}
+#t-stop{border-color:color-mix(in srgb,var(--pink) 60%,var(--line));color:var(--pink);box-shadow:0 0 12px color-mix(in srgb,var(--pink) 30%,transparent)}
+#t-stop:hover{background:color-mix(in srgb,var(--pink) 14%,transparent)}
+#t-sound.compact{padding-left:10px;padding-right:10px}
+#t-sound.compact span{display:none}
+:root[data-theme=light] #t-stop{color:var(--acc);border-color:var(--acc);box-shadow:none}
+
+/* the code of the music (app.js) uses the same colours as the code of the sounds */
+#mus pre{--panel:var(--code);--text:#e3e7ff;--data:#c08cff;--audio:var(--cyan);--midi:var(--acc);--studio:var(--gold);--warn:var(--gold);--bad:#ff5d6c}
+#mus pre .cm-editor{background:transparent}
+
+/* the sounds of a mix (previews.js offerRemix): each chip glows with its own level while the mix plays */
+.pv-mix-layers{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pv-mix-chip{--lvl:0;position:relative;display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:4px 10px;border-radius:999px;font-size:12px;color:var(--dim);border:1px solid var(--line);background:color-mix(in srgb,var(--cyan) calc(var(--lvl) * 22%),transparent);box-shadow:0 0 calc(var(--lvl) * 16px) color-mix(in srgb,var(--cyan) 55%,transparent);transition:color .12s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-mix-chip i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--cyan);opacity:calc(.25 + var(--lvl) * .75);transform:scale(calc(.7 + var(--lvl) * .8))}
+.pv-mix-chip.on{color:var(--hi)}
+.pv-mix-chip.music{background:color-mix(in srgb,var(--pink) calc(var(--lvl) * 22%),transparent);box-shadow:0 0 calc(var(--lvl) * 16px) color-mix(in srgb,var(--pink) 55%,transparent)}
+.pv-mix-chip.music i{background:var(--pink)}
+:root[data-theme=light] .pv-mix-chip{box-shadow:none;background:color-mix(in srgb,var(--acc) calc(var(--lvl) * 18%),transparent)}
+:root[data-theme=light] .pv-mix-chip i{background:var(--acc)}
+
+/* the mix panel is a modal dialog: the page behind it is dimmed and cannot be used until a choice is made */
+.pv-mix-backdrop{position:fixed;inset:0;z-index:999;background:rgba(4,4,14,.66);backdrop-filter:blur(3px);animation:pv-fade .18s ease-out}
+.pv-mix-backdrop.leaving{opacity:0;transition:opacity .18s}
+@keyframes pv-fade{from{opacity:0}to{opacity:1}}
+:root[data-theme=light] .pv-mix-backdrop{background:rgba(40,44,60,.45)}
+@media (prefers-reduced-motion:reduce){.pv-mix-backdrop{animation:none}}

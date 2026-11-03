@@ -7,12 +7,16 @@
 //   {{deeper Title}} ... {{/deeper}}    collapsible "Go deeper"      {{try Title}} ... {{/try}}   collapsible exercise
 const slug = (s) => s.toLowerCase().replace(/<[^>]+>/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 export const inline = (s) => s.replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*([^*\s][^*]*?)\*/g, '$1<i>$2</i>').replace(/\[([^\]]+)\]\((#[^)]+)\)/g, '<a href="$2">$1</a>');
+import crypto from 'node:crypto';
+/* share ID of a song in AMPLE Remix: SHA-1 of the code (CRLF -> LF), hex, first 8 chars, upper-case */
+export const remixId = (code) => crypto.createHash('sha1').update(String(code).replace(/\r\n/g, '\n'), 'utf8').digest('hex').slice(0, 8).toUpperCase();
+const remixBtn = (id) => '<a class="remix-btn" href="https://remix.ample-koda.dev/mix/' + id + '" target="_blank" rel="noopener" title="Open this song in AMPLE Remix, ready to change">Remix</a>';
 const attr = (j) => { JSON.parse(j); return j.replace(/'/g, '&#39;'); };
 
 export function render(text, ctx) {
   const tok = [], hold = (h) => { tok.push(h); return `\n@@${tok.length - 1}@@\n`; };
   /* {{amplet Note}} ... {{/amplet}}: a complete AMPLE song, shown with the studio highlighter and a Copy button (checked by hand with `ample check`) */
-  text = text.replace(/\{\{amplet([^\n}]*)\}\}\n([\s\S]*?)\n\{\{\/amplet\}\}/g, (_, note, code) => hold('<div class="pv-src" data-code="' + encodeURIComponent(code) + '" data-note="' + String(note).trim().replace(/"/g, '&quot;') + '"></div>'));
+  text = text.replace(/\{\{amplet([^\n}]*)\}\}\n([\s\S]*?)\n\{\{\/amplet\}\}/g, (_, note, code) => hold('<div class="pv-src" data-code="' + encodeURIComponent(code) + '" data-note="' + String(note).trim().replace(/"/g, '&quot;') + '" data-remix="' + remixId(code) + '"></div>' + remixBtn(remixId(code))));
   text = text.replace(/\{\{(deeper|try) ([^\n}]+)\}\}\n([\s\S]*?)\n\{\{\/\1\}\}/g, (_, k, title, body) => hold(`<details class="${k === 'try' ? 'tryit' : 'deeper'}"><summary>${k === 'try' ? 'Try it: ' : 'Go deeper: '}${inline(title)}</summary><div class="dbody">${render(body, ctx)}</div></details>`));
   text = text.replace(/\{\{blocks ([^}]+)\}\}/g, (_, list) => hold('<table class="blocktable"><tr><th>Block</th><th>What it does</th><th>In → out</th></tr>' + list.split(';').map((e) => e.trim()).filter(Boolean).map((e) => { const [id, ...r] = e.split('='), b = ctx.blockData?.get(id.trim()); if (!b) { ctx.warn('unknown block "' + id.trim() + '"'); return ''; } const first = (b.description || '').split(/(?<=[.!?])\s/)[0], txt = r.length ? r.join('=').trim() : first.length > 190 ? first.slice(0, 187) + '...' : first, ty = (a) => a.length ? a.map((p) => p.t).filter((v, i, x) => x.indexOf(v) === i).join(' + ') : '-'; return '<tr><td><a href="#/blocks/' + b.id + '"><code>' + b.id + '</code></a></td><td>' + inline(txt) + '</td><td>' + ty(b.inputs) + ' → ' + ty(b.outputs) + '</td></tr>'; }).join('') + '</table>'));
   text = text.replace(/\{\{pv (\{.*?\})\}\}(?!\})/g, (_, j) => hold(`<div class="pv" data-pv='${attr(j)}'></div>`));
