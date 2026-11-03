@@ -1,0 +1,21 @@
+{
+  "id": "echo",
+  "version": "1.0.0",
+  "title": "Echo (test voice)",
+  "kind": "voice",
+  "protocolVersion": 1,
+  "experimental": true,
+  "entry": { "command": "node", "args": ["plugin.mjs"] },
+  "platforms": ["windows", "linux", "macos"],
+  "blocks": ["ai-voice"],
+  "capabilities": ["render"],
+  "ports": {
+    "inputs": [{ "name": "lyrics", "type": "text" }],
+    "outputs": [{ "name": "vocal", "type": "audio" }]
+  },
+  "settings": { "schema": { "type": "object", "properties": { "pitchOffset": { "type": "integer", "minimum": -12, "maximum": 12, "default": 0 }, "style": { "type": "string", "enum": ["airy", "warm"], "default": "airy" } }, "additionalProperties": false } },
+  "determinism": "exact",
+  "toolprintFields": ["plugin", "engine"],
+  "needs": { "gpu": false, "network": false, "diskMb": 1, "secrets": [] },
+  "files": { "read": [], "write": [] }
+}

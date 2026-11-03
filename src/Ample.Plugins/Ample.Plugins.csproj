@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Ample.Core.Abstractions/Ample.Core.Abstractions.csproj" />
+    <ProjectReference Include="../Ample.Engine/Ample.Engine.csproj" />
+    <ProjectReference Include="../Ample.Language/Ample.Language.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\spec\schema\analysis-*.schema.json" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,18 @@
+{
+  "id": "voice-clone",
+  "version": "0.1.6",
+  "title": "Local reference voice synthesis",
+  "kind": "voice",
+  "protocolVersion": 1,
+  "experimental": true,
+  "entry": { "command": "node", "args": ["plugin.mjs"] },
+  "platforms": ["windows", "linux", "macos"],
+  "blocks": ["voice-clone"],
+  "capabilities": ["render"],
+  "ports": { "inputs": [], "outputs": [{ "name": "audio", "type": "audio" }, { "name": "render", "type": "render" }] },
+  "settings": { "schema": { "type": "object", "properties": { "python": { "type": "string", "default": "python" }, "pythonXtts": { "type": "string", "default": "" }, "pythonQwen3": { "type": "string", "default": "" }, "pythonChatterbox": { "type": "string", "default": "" }, "modelRoot": { "type": "string", "default": "" }, "ffmpeg": { "type": "string", "default": "ffmpeg" }, "timeoutS": { "type": "integer", "minimum": 5, "maximum": 3600, "default": 1800 }, "keepWarmS": { "type": "integer", "minimum": 0, "maximum": 86400, "default": 600 }, "pressureMb": { "type": "integer", "minimum": 128, "maximum": 65536, "default": 1024 }, "minFreeMb": { "type": "integer", "minimum": 0, "maximum": 65536, "default": 1000 } }, "additionalProperties": false } },
+  "determinism": "unverified",
+  "toolprintFields": ["plugin", "adapter"],
+  "needs": { "gpu": true, "network": true, "diskMb": 500, "secrets": [] },
+  "files": { "read": [], "write": [] }
+}

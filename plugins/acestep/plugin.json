@@ -1,0 +1,49 @@
+{
+  "id": "acestep",
+  "version": "0.6.2",
+  "title": "ACE-Step voice and music (via an acestep.cpp server)",
+  "kind": "voice",
+  "protocolVersion": 1,
+  "experimental": true,
+  "entry": { "command": "node", "args": ["plugin.mjs"] },
+  "platforms": ["windows", "linux", "macos"],
+  "blocks": ["ai-voice", "ace-music"],
+  "capabilities": ["render"],
+  "ports": {
+    "inputs": [{ "name": "lyrics", "type": "text" }, { "name": "melody", "type": "midi" }, { "name": "style", "type": "data" }],
+    "outputs": [{ "name": "vocal", "type": "audio" }, { "name": "audio", "type": "audio" }]
+  },
+  "settings": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "endpoint": { "type": "string", "default": "http://127.0.0.1:8085" },
+        "allowRemote": { "type": "boolean", "default": false },
+        "style": { "type": "string", "default": "airy female vocal, close mic" },
+        "language": { "type": "string", "default": "en" },
+        "melodyField": { "type": "string", "default": "melody" },
+        "backend": { "type": "string", "enum": ["server", "cli", "server-then-cli"], "default": "server", "description": "How the sound is made. server: ace-server (must be running). cli: the acestep.cpp command line tools ace-lm and ace-synth, run here (needs aceBinFolder and modelsFolder). server-then-cli: the server when it answers, else the command line tools. Same seed and same models give the same sound either way (checked 2026-10-04 on one machine). Every song states its backend; the project value is only the default for new songs." },
+        "aceBinFolder": { "type": "string", "default": "", "description": "The folder with ace-lm and ace-synth (needed for the cli backend)." },
+        "lmModelFile": { "type": "string", "default": "", "description": "Exact LM filename for server and CLI. Empty resolves an advertised 4B Q8 model first, then a stable filename order. The actual selected model and generated audio codes are stored with the take." },
+        "cliLmModel": { "type": "string", "default": "", "description": "Language model file for the cli backend (for example acestep-5Hz-lm-1.7B-Q8_0.gguf). Empty takes the 1.7B one, else the first." },
+        "synthModel": { "type": "string", "enum": ["default", "turbo", "sft", "base", "xl-turbo", "xl-sft", "xl-base"], "default": "default", "description": "Which ACE-Step model makes the sound. default: what the server chooses (turbo, fast, 8 steps). sft: cleaner and softer voices, about 50 steps, slower (the best choice for singing). base: the raw model, 50 steps. xl-*: the large versions, better but heavy on video memory. The plugin picks the best installed file of that kind (Q5_K_M first); synthModelFile names one exactly." },
+        "synthModelFile": { "type": "string", "default": "", "description": "Exact ACE server model filename, including unfamiliar installed variants. Faer-inventoried files may be attempted even when ACE /props omits them; the render response confirms acceptance. For the CLI backend, the file must exist in modelsFolder. BF16 needs substantial VRAM and is not guaranteed to sound better. Wins over synthModel; rejected files fail without substitution." },
+        "vocalIsolation": { "type": "string", "enum": ["ace", "demucs", "off"], "default": "ace", "description": "How the voice is separated from the music ACE makes. ace: an ACE-Step Base or SFT model (also works with the heavy XL ones). demucs: Demucs in your own Python (opt in, see demucsPython). off: take what the synthesis gives (fastest, may keep some music)." },
+        "vocalExtraction": { "type": "boolean", "default": true, "description": "Old switch, use vocalIsolation. false still means off." },
+        "vocalExtractionModel": { "type": "string", "default": "", "description": "ACE model file for the isolation, as the server lists it (for example acestep-v15-base-Q4_K_M.gguf or acestep-v15-xl-base-Q5_K_M.gguf). Empty takes the first Base or SFT model of the server, which is a light one when you have it." },
+        "modelsFolder": { "type": "string", "default": "", "description": "The folder with the server's model files. When set, the sha256 of the model that was used is written into the take, so the sound can be traced to its exact model." },
+        "demucsPython": { "type": "string", "default": "", "description": "Path of a Python with demucs and soundfile installed (pip install demucs soundfile). Needed for vocalIsolation demucs." },
+        "demucsModel": { "type": "string", "default": "htdemucs", "description": "Demucs model name." },
+        "vocalExtractionSteps": { "type": "integer", "minimum": 20, "maximum": 100, "default": 50 },
+        "pollMs": { "type": "integer", "minimum": 20, "maximum": 5000, "default": 1000 },
+        "timeoutS": { "type": "integer", "minimum": 5, "maximum": 3600, "default": 900 }
+      },
+      "additionalProperties": false,
+      "x-songRequired": ["backend"]
+    }
+  },
+  "determinism": "unverified",
+  "toolprintFields": ["plugin", "adapter", "serverApi"],
+  "needs": { "gpu": true, "network": true, "diskMb": 200, "secrets": ["ACESTEP_TOKEN"] },
+  "files": { "read": [], "write": [] }
+}

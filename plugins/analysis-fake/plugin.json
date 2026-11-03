@@ -1,0 +1,49 @@
+{
+  "id": "analysis-fake",
+  "version": "1.0.0",
+  "title": "Fake analyser (test)",
+  "kind": "analysis",
+  "protocolVersion": 1,
+  "experimental": true,
+  "entry": {
+    "command": "node",
+    "args": [
+      "plugin.mjs"
+    ]
+  },
+  "platforms": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "blocks": [],
+  "analyses": [
+    "tempo",
+    "key",
+    "transcription"
+  ],
+  "capabilities": [
+    "analyze"
+  ],
+  "settings": {
+    "schema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  "determinism": "exact",
+  "toolprintFields": [
+    "plugin"
+  ],
+  "needs": {
+    "gpu": false,
+    "network": false,
+    "diskMb": 1,
+    "secrets": []
+  },
+  "files": {
+    "read": [],
+    "write": []
+  }
+}

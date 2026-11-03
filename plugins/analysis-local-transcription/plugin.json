@@ -1,0 +1,18 @@
+{
+  "id": "analysis-local-transcription",
+  "version": "0.1.0",
+  "title": "Local stem separation and MIDI estimate",
+  "kind": "analysis",
+  "protocolVersion": 1,
+  "experimental": true,
+  "entry": { "command": "node", "args": ["plugin.mjs"] },
+  "platforms": ["windows", "linux", "macos"],
+  "blocks": [],
+  "analyses": ["transcription"],
+  "capabilities": ["analyze"],
+  "settings": { "schema": { "type": "object", "properties": {}, "additionalProperties": false } },
+  "determinism": "unverified",
+  "toolprintFields": ["plugin"],
+  "needs": { "gpu": true, "network": false, "diskMb": 2048, "secrets": [] },
+  "files": { "read": [], "write": [] }
+}
