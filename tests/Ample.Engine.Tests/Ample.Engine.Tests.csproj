@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsTestProject>true</IsTestProject></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../Ample.Testing/Ample.Testing.csproj" />
+    <ProjectReference Include="../../src/Ample.Core.Abstractions/Ample.Core.Abstractions.csproj" />
+    <ProjectReference Include="../../src/Ample.Language/Ample.Language.csproj" />
+    <ProjectReference Include="../../src/Ample.Engine/Ample.Engine.csproj" />
+    <Compile Include="..\Ample.Audio.Tests\Instruments\Lcg.cs" Link="Shared\Lcg.cs" />
+    <Compile Include="..\Ample.Audio.Tests\Instruments\Sf2Fixture.cs" Link="Shared\Sf2Fixture.cs" />
+    <Compile Include="..\Ample.Storage.Tests\HistoryRig.cs" Link="Shared\HistoryRig.cs" />
+  </ItemGroup>
+</Project>

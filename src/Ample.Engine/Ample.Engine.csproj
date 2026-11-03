@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+
+    <ProjectReference Include="../Ample.Storage/Ample.Storage.csproj" />
+    <InternalsVisibleTo Include="Ample.Core.Tests" />
+    <InternalsVisibleTo Include="Ample.Audio.Tests" />
+    <InternalsVisibleTo Include="Ample.Storage.Tests" />
+    <InternalsVisibleTo Include="Ample.Engine.Tests" />
+    <InternalsVisibleTo Include="Ample.Audio" />
+    <InternalsVisibleTo Include="Ample.Storage" />
+    <InternalsVisibleTo Include="Ample.Engine" />
+  </ItemGroup>
+</Project>
