@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1118",
+    "severity": "info",
+    "line": 1,
+    "col": 1,
+    "endCol": 12,
+    "message": "The song does not say which AMPLE version it was written for: it is read as the current one (1)."
+  }
+]

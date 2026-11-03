@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1113",
+    "severity": "info",
+    "line": 3,
+    "col": 1,
+    "endCol": 16,
+    "message": "The view of the canvas is kept in comment lines."
+  }
+]

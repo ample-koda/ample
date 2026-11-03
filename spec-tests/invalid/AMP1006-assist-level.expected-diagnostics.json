@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1006",
+    "severity": "error",
+    "line": 2,
+    "col": 19,
+    "endCol": 25,
+    "message": "assist must be off, diff, button or auto (found \"always\")."
+  }
+]

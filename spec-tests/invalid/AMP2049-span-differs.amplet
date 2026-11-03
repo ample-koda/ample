@@ -1,0 +1,11 @@
+composition "x" { ample 1  tempo 120  master-seed 1 }
+
+midi-clip melody at 1 for auto {
+  notes walk(C, minor, steps=16, step=0.5beat, octave=5, seed=7)
+}
+
+gm melody-play at 1 for 4 {
+  file pack:musescore-general
+  program 0
+  from melody.notes -> notes
+}

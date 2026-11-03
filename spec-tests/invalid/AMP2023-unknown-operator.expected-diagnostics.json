@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \u0022b\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2023",
+    "severity": "error",
+    "line": 8,
+    "col": 20,
+    "endCol": 28,
+    "message": "Unknown operator \u0022transpos\u0022."
+  }
+]

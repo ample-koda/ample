@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2016",
+    "severity": "error",
+    "line": 4,
+    "col": 1,
+    "endCol": 16,
+    "message": "The autotune block \"tune\" does not say its method: write method spectral (keeps the colour of the voice, the default) or method psola."
+  }
+]

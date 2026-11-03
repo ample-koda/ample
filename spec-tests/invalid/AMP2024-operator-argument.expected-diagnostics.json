@@ -1,0 +1,34 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2036",
+    "severity": "warning",
+    "line": 7,
+    "col": 22,
+    "endCol": 26,
+    "message": "For auto needs the notes of this clip to be valid: the length is taken as 1 bar until they are."
+  },
+  {
+    "code": "AMP2024",
+    "severity": "error",
+    "line": 8,
+    "col": 20,
+    "endCol": 36,
+    "message": "shift needs \"by\" (Duration)."
+  },
+  {
+    "code": "AMP2024",
+    "severity": "error",
+    "line": 8,
+    "col": 26,
+    "endCol": 35,
+    "message": "shift has no argument \"by2\" (it has: by)."
+  }
+]

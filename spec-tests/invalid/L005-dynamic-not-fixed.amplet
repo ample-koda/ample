@@ -1,0 +1,7 @@
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+lint { L005 warning }
+ai-voice v {
+  from w.style -> style
+}
+mood-scene w lock {
+}

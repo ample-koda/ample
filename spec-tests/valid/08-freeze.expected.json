@@ -1,0 +1,46 @@
+{
+  "description": "freeze seeds and freeze plan.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "lyrics",
+      "name": "words",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "ai-voice",
+      "name": "a",
+      "class": "live",
+      "version": "1.0"
+    },
+    {
+      "type": "ai-voice",
+      "name": "b",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 5,
+      "col": 1,
+      "endCol": 2,
+      "message": "The output of \"a\" is not used by any block.  [unused-output]"
+    },
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 8,
+      "col": 10,
+      "endCol": 11,
+      "message": "The output of \"b\" is not used by any block.  [unused-output]"
+    }
+  ]
+}

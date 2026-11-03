@@ -1,0 +1,18 @@
+{
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "d"
+    },
+    {
+      "type": "bass",
+      "name": "b"
+    }
+  ],
+  "diagnosticCodes": [
+    "AMP1001",
+    "L001",
+    "L001",
+    "L002"
+  ]
+}

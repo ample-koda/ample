@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 15,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2036",
+    "severity": "warning",
+    "line": 15,
+    "col": 22,
+    "endCol": 26,
+    "message": "For auto needs the notes of this clip to be valid: the length is taken as 1 bar until they are."
+  },
+  {
+    "code": "AMP2056",
+    "severity": "error",
+    "line": 16,
+    "col": 22,
+    "endCol": 23,
+    "message": "The while loop reached its max of 2 and its condition is still true (write max 2 stop if stopping there is what you want)."
+  }
+]

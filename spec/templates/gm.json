@@ -3,10 +3,10 @@
   "title": "General MIDI",
   "category": "Instruments",
   "class": "stable",
-  "version": "1.0",
+  "version": "1.1",
   "dynamic": false,
   "plugin": null,
-  "description": "Plays the notes it receives with a General MIDI program (bank and program number) from a SoundFont 2 file of the project. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack. It needs a SoundFont file and gives audio.",
+  "description": "Plays the notes it receives with a General MIDI program (bank and program number) from a SoundFont 2 file of the project. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack. It needs a SoundFont file and gives audio, and on send the part of every note that the SoundFont and controller 91 send to a reverb (silent when nothing is sent): connect it to a reverb of the song. chorus is the same for the chorus send (generator 15 and controller 93).",
   "inputs": [
     {
       "name": "notes",
@@ -17,6 +17,14 @@
   "outputs": [
     {
       "name": "audio",
+      "type": "audio"
+    },
+    {
+      "name": "send",
+      "type": "audio"
+    },
+    {
+      "name": "chorus",
       "type": "audio"
     },
     {
@@ -35,7 +43,8 @@
       "default": "samples/musescore-general/MuseScore_General.sf2",
       "kind": "file",
       "accept": [
-        ".sf2"
+        ".sf2",
+        ".sf3"
       ],
       "doc": "Project-relative SF2 SoundFont file."
     },
@@ -88,6 +97,16 @@
         "off"
       ],
       "doc": "Integer soft limiter at the PCM output; off keeps hard clipping."
+    },
+    {
+      "name": "engine",
+      "type": "text",
+      "default": "integer",
+      "options": [
+        "integer",
+        "float"
+      ],
+      "doc": "integer (the default): every machine renders the same bytes. float: needed for an SF3 SoundFont (its Ogg Vorbis samples are decoded with floating point); the render is then machine-exact: the same machine gives the same bytes, another may differ slightly, and AMPLE keeps the take per machine."
     },
     {
       "name": "level",

@@ -1,0 +1,40 @@
+{
+  "description": "A data block with lock.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "mood-scene",
+      "name": "w",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "ai-voice",
+      "name": "v",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 5,
+      "col": 4,
+      "endCol": 5,
+      "message": "The output of \"v\" is not used by any block.  [unused-output]"
+    },
+    {
+      "code": "L002",
+      "severity": "warning",
+      "line": 5,
+      "col": 4,
+      "endCol": 5,
+      "message": "Required input \"lyrics\" of \"v\" has no source.  [missing-input]"
+    }
+  ]
+}

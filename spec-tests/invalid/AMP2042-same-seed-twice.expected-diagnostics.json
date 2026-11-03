@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \u0022b\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2042",
+    "severity": "info",
+    "line": 10,
+    "col": 34,
+    "endCol": 45,
+    "message": "humanize uses the same seed as an earlier humanize in this clip, so their random results are identical."
+  }
+]

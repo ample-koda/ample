@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2055",
+    "severity": "info",
+    "line": 4,
+    "col": 23,
+    "endCol": 36,
+    "message": "This stable name is shared by every call of \"soft\": two calls draw the same random numbers. Pass the seed in as a RandomSource parameter, or fork it per call."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 11,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

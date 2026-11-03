@@ -1,0 +1,7 @@
+# A block with one placement.
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+drums drums at 1 for 16 as "beat A" {
+  kit kit/tape
+  pattern beat-A
+  bars 16
+}

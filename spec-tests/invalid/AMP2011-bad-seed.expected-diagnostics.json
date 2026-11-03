@@ -1,0 +1,34 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "The output of \"v\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "Required input \"lyrics\" of \"v\" has no source.  [missing-input]"
+  },
+  {
+    "code": "L009",
+    "severity": "info",
+    "line": 2,
+    "col": 4,
+    "endCol": 5,
+    "message": "\"v\" uses custom seeds.  [custom-seed]"
+  },
+  {
+    "code": "AMP2011",
+    "severity": "error",
+    "line": 3,
+    "col": 11,
+    "endCol": 13,
+    "message": "A seed must be the word derived or a whole number from 0 to 18446744073709551615 (found -5)."
+  }
+]

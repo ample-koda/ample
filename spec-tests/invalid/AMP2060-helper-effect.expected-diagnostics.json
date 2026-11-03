@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2060",
+    "severity": "error",
+    "line": 3,
+    "col": 1,
+    "endCol": 7,
+    "message": "\"nudge\" uses a dynamic value (the clock, OS randomness, the environment or a dynamic helper) but is not marked dynamic."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 11,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

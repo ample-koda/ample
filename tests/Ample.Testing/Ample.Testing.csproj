@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/Ample.Core.Abstractions/Ample.Core.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

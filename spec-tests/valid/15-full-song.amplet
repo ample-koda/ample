@@ -1,0 +1,19 @@
+# A complete small song.
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+features { quality off  credits off  signing off  secrets on  lyrics on  git-mirror off  assist diff }
+drums drums at 1 for 16 as "beat A" {
+  pattern beat-A
+}
+bass bass {
+  from chords.notes -> notes
+}
+midi-clip chords {
+}
+mixer mix {
+  from drums.audio -> audio1
+  from bass.audio -> audio2
+}
+master master bake {
+  from mix.audio -> audio
+}
+layout drums 280 20

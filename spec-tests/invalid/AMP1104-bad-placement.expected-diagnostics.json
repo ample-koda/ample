@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 1,
+    "endCol": 2,
+    "message": "The output of \"d\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP1104",
+    "severity": "error",
+    "line": 2,
+    "col": 12,
+    "endCol": 13,
+    "message": "Expected: at <bar> for <bars> [as <name>] (several, separated by commas)."
+  },
+  {
+    "code": "AMP1105",
+    "severity": "error",
+    "line": 2,
+    "col": 12,
+    "endCol": 13,
+    "message": "Unknown word \"3\" in the block header."
+  }
+]

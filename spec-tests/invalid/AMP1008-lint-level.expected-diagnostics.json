@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1008",
+    "severity": "error",
+    "line": 2,
+    "col": 13,
+    "endCol": 17,
+    "message": "Level must be off, info, warning or error."
+  }
+]

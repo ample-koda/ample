@@ -1,0 +1,3 @@
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+piano p pinned@2.1 {
+}

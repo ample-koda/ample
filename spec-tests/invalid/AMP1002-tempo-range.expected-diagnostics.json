@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1002",
+    "severity": "error",
+    "line": 1,
+    "col": 34,
+    "endCol": 37,
+    "message": "Tempo must be between 20 and 300 (found 999)."
+  }
+]

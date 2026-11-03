@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 1,
+    "endCol": 2,
+    "message": "The output of \"p\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 2,
+    "col": 1,
+    "endCol": 2,
+    "message": "Required input \"notes\" of \"p\" has no source.  [missing-input]"
+  },
+  {
+    "code": "L006",
+    "severity": "warning",
+    "line": 2,
+    "col": 9,
+    "endCol": 19,
+    "message": "\"p\" is pinned at 0.9 but the template is at 1.0.  [pinned-outdated]"
+  }
+]

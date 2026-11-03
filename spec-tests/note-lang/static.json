@@ -1,0 +1,23 @@
+{
+  "$comment": "What the static checks of a helper body find (docs/language/08-diagnostics.md), in every branch. Both implementations run it: src/Ample.Language (NoteLangCorpusTests.Static_checks) and web/lib/note-lang.mjs (web/lib/test/note-lang.test.mjs). 'issues' are the ids of the new checks only (undefined-name, type-mismatch, no-value, unused-variable, no-effect), sorted; a trailing ! means the issue is an error (strict).",
+  "ids": ["undefined-name", "type-mismatch", "no-value", "unused-variable", "no-effect"],
+  "cases": [
+    { "id": "unknown-name-in-the-branch-that-never-runs", "decls": ["helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n  else { return nothingHere }\n}"], "issues": ["undefined-name"] },
+    { "id": "a-word-in-a-calculation-is-an-error-also-a-pitch-word", "decls": ["helper f(Int p) -> Int {\n  let a = b + 1\n  let b = 2\n  return a\n}"], "issues": ["undefined-name!", "unused-variable"] },
+    { "id": "assigning-to-a-name-that-was-never-declared", "decls": ["helper f(Int p) -> Int {\n  x = 2\n  return 1\n}"], "issues": ["undefined-name!"] },
+    { "id": "a-string-cannot-be-returned-as-an-int", "decls": ["helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n  else { return \"text\" }\n}"], "issues": ["type-mismatch"] },
+    { "id": "a-number-cannot-be-returned-as-a-scale", "decls": ["helper f(Int p) -> ScaleMode {\n  return 3\n}"], "issues": ["type-mismatch"] },
+    { "id": "a-path-without-a-value", "decls": ["helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n}"], "issues": ["no-value"] },
+    { "id": "a-statement-that-does-nothing", "decls": ["helper f(Int p) -> Int {\n  p\n  return 1\n}"], "issues": ["no-effect"] },
+    { "id": "a-variable-that-is-never-read", "decls": ["helper f(Int p) -> Int {\n  let unused = 5\n  return 1\n}"], "issues": ["unused-variable"] },
+    { "id": "good-code-gets-none-of-them", "decls": [
+      "helper modeFor(Int p) -> ScaleMode {\n  if p == 0 { return major }\n  else if p == 1 { return minor }\n  else if p == 2 { return dorian }\n  else { return blues }\n}",
+      "type Steps = Int | Float",
+      "helper delayBy(Notes n, Steps s) -> Notes {\n  if s is Int { return n |> shift(s * 1beat) }\n  return n |> shift(Round(s) * 1beat)\n}",
+      "helper canonVoice(Notes source, Interval by, Duration delay) -> Notes {\n  source |> transpose(by) |> shift(delay)\n}",
+      "helper buildCanon(Notes theme, Int voices = 3, Interval by = +7st, Duration delay = 2bars) -> Notes {\n  for i in 0..voices {\n    emit canonVoice(theme, by * i, delay * i)\n  }\n}",
+      "helper counted(Notes n) -> Int {\n  var total = 0\n  for note in n { total = total + 1 }\n  return total\n}",
+      "helper pitchy(Int p) -> PitchClass {\n  if p == 0 { return C }\n  else { return F# }\n}"
+    ], "issues": [] }
+  ]
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1114",
+    "severity": "error",
+    "line": 3,
+    "col": 3,
+    "endCol": 13,
+    "message": "This line does not belong in the view block."
+  }
+]

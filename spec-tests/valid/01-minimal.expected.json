@@ -1,0 +1,10 @@
+{
+  "description": "Only the project line.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [],
+  "diagnostics": []
+}

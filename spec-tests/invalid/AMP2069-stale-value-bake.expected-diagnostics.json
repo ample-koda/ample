@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 9,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2069",
+    "severity": "warning",
+    "line": 10,
+    "col": 52,
+    "endCol": 66,
+    "message": "This baked value is stale: what gainFor(a.notes) is made of has changed since it was baked (it now resolves to 4)."
+  }
+]

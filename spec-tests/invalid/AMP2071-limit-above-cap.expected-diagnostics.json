@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP2071",
+    "severity": "warning",
+    "line": 2,
+    "col": 12,
+    "endCol": 23,
+    "message": "limits.fuel 999999999999 is above the cap of the server (100000000): 100000000 is used."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 9,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

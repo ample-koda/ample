@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP1001",
+    "severity": "error",
+    "line": 1,
+    "col": 1,
+    "endCol": 2,
+    "message": "Missing the composition line."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 1,
+    "col": 1,
+    "endCol": 2,
+    "message": "The output of \"d\" is not used by any block.  [unused-output]"
+  }
+]

@@ -1,0 +1,4 @@
+composition "demo" { ample 1  tempo 92  master-seed 1 }
+lint { L011 warning L001 off }
+drums beats stable@1.2 at 1 for 2 {
+}

@@ -1,0 +1,10 @@
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+drums beats at 1 for 4 {
+}
+autotune tune {
+  key A minor
+  from beats.audio -> audio
+}
+master master {
+  from tune.audio -> audio
+}

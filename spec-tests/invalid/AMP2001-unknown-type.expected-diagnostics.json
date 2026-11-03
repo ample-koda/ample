@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2001",
+    "severity": "error",
+    "line": 2,
+    "col": 1,
+    "endCol": 6,
+    "message": "Unknown block type \"drumz\"."
+  }
+]

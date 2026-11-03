@@ -2050,7 +2050,7 @@
       "code": "AMP5383",
       "severity": "error",
       "title": "The engine of a block is not valid",
-      "explanation": "The engine parameter of an ace-music, ai-voice or voice-clone block is a place with an optional model: local, faer or faer-else-local, then a colon and a model family (default, turbo, sft, base, xl-turbo, xl-sft, xl-base) or a .gguf file name, for example faer:xl-sft. A voice-clone block takes only the place (it chooses its voice model with its own model parameter). The build stops before any work is done.",
+      "explanation": "The engine parameter of an ace-music, ai-voice or voice-clone block is a place with an optional model: local, faer or faer-else-local, then a colon and a model family (default, turbo, sft, base, xl-turbo, xl-sft, xl-base) or a .gguf file name, for example faer:xl-sft. A voice-clone block takes only the place (it chooses its voice model with its own model parameter). The engine of a gm or midi-render block is integer (the default) or float (machine-exact, needed for SF3 SoundFonts). The build stops before any work is done.",
       "wrongExample": "",
       "rightExample": "",
       "since": "1.0",
@@ -2504,6 +2504,17 @@
       "explanation": "This operation accepts files up to 60 MB. Choose a smaller file.",
       "wrongExample": "",
       "rightExample": "",
+      "since": "1.0",
+      "retired": false,
+      "stage": "runtime"
+    },
+    {
+      "code": "AMP5506",
+      "severity": "error",
+      "title": "A controller of a midi-clip is not a value it can play",
+      "explanation": "A named controller of a midi-clip takes a number in its range (modwheel and the sends 0 to 100 percent, volume and expression 0 down to -96 dB, pan -100 to 100, sustain on or off) or a curve such as auto(1:0, 2:100); cc takes controller=value entries with controllers and values 0 to 127. The build stops at the clip.",
+      "wrongExample": "midi-clip lead { notes 1:0:1:60:100  volume loud  cc \"74:20\" }",
+      "rightExample": "midi-clip lead { notes 1:0:1:60:100  volume -6  cc \"74=20\" }",
       "since": "1.0",
       "retired": false,
       "stage": "runtime"

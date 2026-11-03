@@ -1,0 +1,26 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \u0022b\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2037",
+    "severity": "warning",
+    "line": 8,
+    "col": 9,
+    "endCol": 48,
+    "message": "This pipeline may make up to 3145728 notes; the limit is 100000."
+  },
+  {
+    "code": "AMP5701",
+    "severity": "error",
+    "line": 8,
+    "col": 36,
+    "endCol": 48,
+    "message": "repeat(1024) would make 3145728 notes; the limit is 100000."
+  }
+]

@@ -1,0 +1,14 @@
+# Chords to piano to mixer to master.
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+midi-clip chords {
+  chords Am F C G
+}
+piano piano pinned@2.1 {
+  from chords.notes -> notes
+}
+mixer mix {
+  from piano.audio -> audio1
+}
+master master bake {
+  from mix.audio -> audio
+}

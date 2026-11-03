@@ -1,0 +1,41 @@
+{
+  "description": "A complete small song.",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "drums",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "bass",
+      "name": "bass",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "midi-clip",
+      "name": "chords",
+      "class": "stable",
+      "version": "1.1"
+    },
+    {
+      "type": "mixer",
+      "name": "mix",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "master",
+      "name": "master",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": []
+}

@@ -1,0 +1,9 @@
+composition "x" { ample 1  tempo 120  master-seed 1 }
+
+midi-clip a at 1 for 1 {
+  notes b.notes |> transpose(1)
+}
+
+midi-clip b at 2 for 1 {
+  notes a.notes |> transpose(1)
+}

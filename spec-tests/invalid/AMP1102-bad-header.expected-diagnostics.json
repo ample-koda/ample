@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1102",
+    "severity": "error",
+    "line": 2,
+    "col": 1,
+    "endCol": 8,
+    "message": "Expected a block header: <type> <name> [pinned@<version>] [at ...] {"
+  }
+]

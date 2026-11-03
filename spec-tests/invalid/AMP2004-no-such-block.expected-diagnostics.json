@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 1,
+    "endCol": 2,
+    "message": "The output of \"p\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2004",
+    "severity": "error",
+    "line": 3,
+    "col": 8,
+    "endCol": 14,
+    "message": "There is no block named \"chordz\"."
+  }
+]

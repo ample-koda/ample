@@ -1,0 +1,18 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 7,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \u0022b\u0022 is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2034",
+    "severity": "info",
+    "line": 9,
+    "col": 8,
+    "endCol": 14,
+    "message": "The bake stage \u0022s\u0022 has no notes yet."
+  }
+]

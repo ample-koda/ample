@@ -1,0 +1,26 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Test every test project
+        shell: bash
+        run: |
+          set -euo pipefail
+          for project in tests/*.Tests/*.csproj; do
+            dotnet test "$project" -c Release --nologo
+          done

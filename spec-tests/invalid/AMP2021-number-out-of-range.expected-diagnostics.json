@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP2021",
+    "severity": "warning",
+    "line": 4,
+    "col": 3,
+    "endCol": 7,
+    "message": "gain 54 dB: 54 is outside the range of volume gain (-60 to 48 dB); it is cut to the nearest limit when the block is built."
+  }
+]

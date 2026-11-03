@@ -1,0 +1,7 @@
+# A data block with lock.
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+mood-scene w lock {
+}
+ai-voice v bake {
+  from w.style -> style
+}

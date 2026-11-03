@@ -1,0 +1,4 @@
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+piano p pinned@2.0 at 1 for 8 as verse, 9 for 8 as chorus {
+  set felt-piano
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1005",
+    "severity": "error",
+    "line": 2,
+    "col": 20,
+    "endCol": 25,
+    "message": "Module \"quality\" must be on or off."
+  }
+]

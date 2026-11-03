@@ -1,0 +1,2 @@
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+lint { L099 error }

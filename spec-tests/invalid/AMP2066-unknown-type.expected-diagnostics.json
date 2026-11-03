@@ -1,0 +1,26 @@
+[
+  {
+    "code": "AMP2086",
+    "severity": "info",
+    "line": 3,
+    "col": 8,
+    "endCol": 12,
+    "message": "\"typo\" is never called in this song."
+  },
+  {
+    "code": "AMP2066",
+    "severity": "error",
+    "line": 3,
+    "col": 17,
+    "endCol": 18,
+    "message": "\"Fnt\" is not a type."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 9,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "d"
+    }
+  ],
+  "diagnosticCodes": [
+    "AMP1101",
+    "L001"
+  ]
+}

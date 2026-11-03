@@ -1,0 +1,34 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 7,
+    "endCol": 8,
+    "message": "The output of \"a\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2002",
+    "severity": "error",
+    "line": 4,
+    "col": 2,
+    "endCol": 3,
+    "message": "Two blocks are called \"a\"."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 4,
+    "col": 2,
+    "endCol": 3,
+    "message": "The output of \"a\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 4,
+    "col": 2,
+    "endCol": 3,
+    "message": "Required input \"notes\" of \"a\" has no source.  [missing-input]"
+  }
+]

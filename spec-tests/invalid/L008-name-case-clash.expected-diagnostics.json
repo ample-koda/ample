@@ -1,0 +1,34 @@
+[
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 2,
+    "col": 7,
+    "endCol": 12,
+    "message": "The output of \"Drums\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 4,
+    "col": 6,
+    "endCol": 11,
+    "message": "The output of \"drums\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "L002",
+    "severity": "warning",
+    "line": 4,
+    "col": 6,
+    "endCol": 11,
+    "message": "Required input \"notes\" of \"drums\" has no source.  [missing-input]"
+  },
+  {
+    "code": "L008",
+    "severity": "warning",
+    "line": 4,
+    "col": 6,
+    "endCol": 11,
+    "message": "Block names \"Drums\" and \"drums\" differ only by case.  [name-case-clash]"
+  }
+]

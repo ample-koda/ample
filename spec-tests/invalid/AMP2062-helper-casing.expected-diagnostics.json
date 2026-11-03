@@ -1,0 +1,26 @@
+[
+  {
+    "code": "AMP2078",
+    "severity": "warning",
+    "line": 3,
+    "col": 8,
+    "endCol": 18,
+    "message": "Helpers are written in lowerCamelCase (canonVoice); blocks and resources keep their kebab-case. Rename it with F2 so the calls follow."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 9,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  },
+  {
+    "code": "AMP2062",
+    "severity": "warning",
+    "line": 10,
+    "col": 9,
+    "endCol": 19,
+    "message": "Helper \"CanonVoice\" found, but the casing differs."
+  }
+]

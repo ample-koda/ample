@@ -1,0 +1,44 @@
+{
+  "description": "A source recipe passes through ordered effects and materializes at an audio input.",
+  "project": {
+    "name": "render-demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "drums",
+      "name": "kit",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "eq",
+      "name": "tone",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "reverb",
+      "name": "room",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "mixer",
+      "name": "output",
+      "class": "stable",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "L001",
+      "severity": "info",
+      "line": 11,
+      "col": 7,
+      "endCol": 13,
+      "message": "The output of \"output\" is not used by any block.  [unused-output]"
+    }
+  ]
+}
