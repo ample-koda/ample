@@ -1,6 +1,6 @@
 # Storage: the takebank, protection and clean-up
 
-> Status (2026-10-11): overview, protection rules, clean-up (UI, CLI, API), soft limit, options, size and time estimate, compressed takes and the data path on another drive are built. Finals are also built; see [Finals](finals.md). Remaining storage plan parts: [plan/storage](../plan/storage/README.md).
+> Status (2026-10-11): overview, protection rules, clean-up (UI, CLI, API), soft limit, options, size and time estimate, compressed takes and the data path on another drive are built. Finals are also built; see [Finals](finals.md). Remaining storage plan parts: plan/storage.
 
 Every render is kept as a take in `.ample/data`, so a song never renders twice. Over time that adds up (a dubstep session of a day reached 22 GB). The Storage page (Projects, Storage) and `ample storage` show where the space goes and give it back safely.
 

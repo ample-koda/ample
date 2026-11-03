@@ -6,7 +6,7 @@
 1. **Nothing is lost silently.** Every move is a pointer move recorded in the operation log; only `cleanup` and `purge` remove data, and both are dangerous acts with a dry run, a backup suggestion and typed acceptance.
 2. **Everything stays reachable** until it is deliberately removed: any revision, any line (also archived ones), any earlier arrangement of the lines.
 3. **Revisions are immutable** and tamper-evident (their id is a hash of content and parent).
-4. **No merges in v1.** Lines diverge; one is promoted. "Adopt this block" and structure-aware merge are tracked in [Future ideas](future.md).
+4. **No merges in v1.** Lines diverge; one is promoted. "Adopt this block" and structure-aware merge are tracked in Future ideas.
 5. **Natural navigation is by line, leaf, checkpoint and tag**; hashes are the exception.
 6. **Two audiences, one model:** a simple view that shows what matters, an advanced view that shows everything.
 
@@ -113,7 +113,7 @@ A release is a **locked tag** plus a **sealed release record** (hash, recipe-exa
 - A rolling daily copy of `history.db` protects against corruption.
 
 ## 13. Export and mirror
-- **Export a slice** (`ample export --scope line:garage` or `tag:v1.0` or `checkpoint:"chorus works"`) as a `.ample` file with chosen contents; opening it creates a new project or, later, imports the line into an existing one (see [Future ideas](future.md): pull and push).
+- **Export a slice** (`ample export --scope line:garage` or `tag:v1.0` or `checkpoint:"chorus works"`) as a `.ample` file with chosen contents; opening it creates a new project or, later, imports the line into an existing one (see Future ideas: pull and push).
 - **Git mirror** (module): one-way mirror of lines and tags with the release hash in annotated tags; conversions both ways keep raw git objects for a lossless round trip.
 
 ## 14. CLI twins

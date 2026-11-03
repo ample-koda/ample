@@ -2,7 +2,7 @@
 
 # Regeneration safety
 
-The producer controls now offer **Check reproduction…** using the reference seed and current song/settings/software. The reference stays selected; configuration and provenance drift produce warnings. This is a comparison, not automatic replay of an older recipe. Recipe metadata can create a distinct take even when its audio bytes match. See [the recipe audit and review checklist](render-reproducibility.md).
+The producer controls now offer **Check reproduction…** using the reference seed and current song/settings/software. The reference stays selected; configuration and provenance drift produce warnings. This is a comparison, not automatic replay of an older recipe. Recipe metadata can create a distinct take even when its audio bytes match. See the recipe audit and review checklist.
 
 **The rule in one line:** regenerating an AI block is only guaranteed to give the same result on the same machine and the same toolprint, so AMPLE treats every regeneration as a risky act: the old take is set aside first, the result is verified against it, and if it differs the default answer is **restore the previous take**.
 

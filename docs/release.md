@@ -70,7 +70,7 @@ The performance tests run **alone** (an xUnit collection that is not run in para
 ## How to make a release
 
 1. `pwsh ample/tools/check-all.ps1 -Full` (or `bash ample/tools/check-all.sh --full`) is green on both systems. Full mode fails rather than silently omitting the VS Code grammar or browser-parity suites.
-2. Raise `<Version>` in `ample/Directory.Build.props` and `ample/editors/vscode/package.json`; write the notes in [CHANGELOG](../CHANGELOG.md).
+2. Raise `<Version>` in `ample/Directory.Build.props` and `ample/editors/vscode/package.json`; write the notes in CHANGELOG.
 3. Re-run the audits of [Security review](security-review.md).
 4. Tag `ample-v<version>`; the release workflow builds the artefacts on Windows, runs `tools/smoke-package.ps1`, and attaches the files and `SHA256SUMS.txt` to a **draft** release. Sign them with `pwsh ample/tools/package.ps1 -Sign` on the machine that has the signing key (`ample keys generate` once; the passphrase comes from `AMPLE_VAULT_PASSPHRASE`), and check with `ample verify --file <artefact>`.
 5. The owner reads the draft, then publishes it.

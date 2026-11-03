@@ -20,7 +20,7 @@ Ordinary Play/Stop actions use icons; Build and play/Cancel build retain their e
 
 The default `studio-dark` theme is token-driven by `web/styles/tokens.css`. Shared element treatment lives in `skin.css`; Studio panels build on `studio.css`. Available themes are `studio-dark`, `light`, `high-contrast`, `auto` and `classic`; the selection is remembered in the browser. Custom graph and waveform drawing reads the same CSS tokens.
 
-`ample serve` serves the web app at `/`. It looks like the [clickable sketch](sketch/README.md) on purpose: the sketch's CSS is the app's CSS, and the same regions, buttons and behaviours are used. What is real here that was a mock there: every change goes to the server as an edit of the song text, so the graph and the source are always the same document, and the history, the takes, the seeds and the audio are the real ones.
+`ample serve` serves the web app at `/`. It looks like the clickable sketch on purpose: the sketch's CSS is the app's CSS, and the same regions, buttons and behaviours are used. What is real here that was a mock there: every change goes to the server as an edit of the song text, so the graph and the source are always the same document, and the history, the takes, the seeds and the audio are the real ones.
 
 ## What works
 

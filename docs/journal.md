@@ -7,7 +7,7 @@
 ## 1. The idea
 The history (lines, revisions, tags) holds the moments the producer chose to keep. **AMPLE Redux** is the append-only recovery journal underneath it. It records durable project changes and assistant-task artifacts so work can be inspected and recovered after a crash, a bad replace, a deleted block, a seed overwritten or an undo that went too far.
 
-It is the second half of the **Always rule** ([Decisions](decisions.md)): the Always rule says a take never exists without its plan; AMPLE Redux says *no change exists without a trace*.
+It is the second half of the **Always rule** (Decisions): the Always rule says a take never exists without its plan; AMPLE Redux says *no change exists without a trace*.
 
 ## 2. How it differs from the other layers
 | Layer | Who decides | Granularity | Lives | Shown |

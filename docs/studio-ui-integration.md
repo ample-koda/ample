@@ -14,8 +14,8 @@ This guide is for AMPLE plugins, built-in blocks, editors and panel work. It exp
 
 ## Start here
 
-1. Treat the [Studio mockup](../plan/studio-ui/mockup/index.html) as a historical reference only; it does not define current UI behavior and must not be updated. Read the [Studio UI plan](../plan/studio-ui/README.md) for current implementation guidance.
-2. Read [the web UI status](web-ui.md) and the relevant chunk in the [plan table](../plan/README.md#studio-ui-track). The plan distinguishes real behavior from mock-only behavior.
+1. Treat the Studio mockup as a historical reference only; it does not define current UI behavior and must not be updated. Read the Studio UI plan for current implementation guidance.
+2. Read [the web UI status](web-ui.md) and the relevant chunk in the plan table. The plan distinguishes real behavior from mock-only behavior.
 3. Search the existing UI before adding a new control. Reuse its components, token names, command path and panel registration.
 
 ## Visual language and controls
@@ -29,7 +29,7 @@ This guide is for AMPLE plugins, built-in blocks, editors and panel work. It exp
 
 ### Source editor
 
-The Source view is a locally bundled CodeMirror 6 editor. Its pinned dependencies and offline bundle are maintained by `package.json`, `package-lock.json`, `web/codemirror/ample-language.js` and `tools/build-codemirror.mjs`; rebuild with `npm run build:codemirror`. The AMPLE mode uses lexical facts from `spec/tokens.json` and the documented block-header shape. Theme colors use Studio tokens, and the bundle is lazy-loaded from `web/vendor/` with no CDN. Preserve the source view's LSP client, Apply/Save semantics, read-only file support, gutter, diagnostic/build overlays, links, completion, drops and keyboard actions when changing the editor. Focused browser acceptance is tracked in [CM01](../plan/cm01-codemirror-source-editor.md).
+The Source view is a locally bundled CodeMirror 6 editor. Its pinned dependencies and offline bundle are maintained by `package.json`, `package-lock.json`, `web/codemirror/ample-language.js` and `tools/build-codemirror.mjs`; rebuild with `npm run build:codemirror`. The AMPLE mode uses lexical facts from `spec/tokens.json` and the documented block-header shape. Theme colors use Studio tokens, and the bundle is lazy-loaded from `web/vendor/` with no CDN. Preserve the source view's LSP client, Apply/Save semantics, read-only file support, gutter, diagnostic/build overlays, links, completion, drops and keyboard actions when changing the editor. Focused browser acceptance is tracked in CM01.
 
 ## Adding a block, plugin or view
 
@@ -89,4 +89,4 @@ If all checks are in the “No migration needed” column, link the change to th
 
 For audio cards, request bounded server waveform summaries; never fetch/decode every complete song just to paint a thumbnail. Serialize background summary requests, cache their in-flight promises, and release media sources on Stop. Every recurring poll needs an in-flight guard and teardown cancellation. Avoid redundant polling of a task already shown in its dialog. Close event streams in hidden tabs and reconnect on return. Browser regression coverage: `spec-tests/parity/ai-network-budget.spec.ts`.
 
-Generation fields must display effective numeric defaults, including model-aware CFG, rather than leaving an ambiguous blank. Preserve explicit edits through source reload. Review [the seed/CFG near miss checklist](render-reproducibility.md) for source → request → take coverage. Producer controls expose Check reproduction with separate reference/new-render playback and warnings for changed configuration/software; the original take stays selected.
+Generation fields must display effective numeric defaults, including model-aware CFG, rather than leaving an ambiguous blank. Preserve explicit edits through source reload. Review the seed/CFG near miss checklist for source → request → take coverage. Producer controls expose Check reproduction with separate reference/new-render playback and warnings for changed configuration/software; the original take stays selected.

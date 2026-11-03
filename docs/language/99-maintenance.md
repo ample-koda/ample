@@ -11,14 +11,14 @@
    - an updated **example** (in the page, tagged ```` ```amplet run ```` once the help generator executes them, chunk 12);
    - a line in [CHANGELOG.md](CHANGELOG.md), with a migration note if it breaks anything.
 3. **CI enforces it:** `node ample/tools/validate-spec.mjs` (schemas, unique ids, grammar equals prose, links, every static diagnostic and lint rule has a failing example) and, from chunk 12, `ample docs check` (the generated `help.html` is up to date and all examples compile or fail as stated). A change that breaks either is not done.
-4. **The help is generated, never edited by hand.** It is built from this folder and `ample/spec/` ([chunk 12](../../plan/12-help-generator.md)).
+4. **The help is generated, never edited by hand.** It is built from this folder and `ample/spec/` (chunk 12).
 5. **Codes and ids are never reused.** Retire, do not delete.
 6. **Provisional is allowed, silent is not.** A not-yet-decided detail is marked `provisional` in the data and listed in `../open-questions.md`; it is never guessed in code.
 7. **Corpus before code.** When the implementation and the corpus disagree, decide which is right, fix the spec and the corpus first, then the code. Never edit the corpus just to make a test pass.
 
 ## Review points
 - Whenever a chunk that touches the language is marked done, the agent re-runs `validate-spec` and reads [README.md](README.md) for staleness.
-- At each milestone (M1 to M5 in [the plan](../../plan/README.md)) the owner reviews the spec index and the changelog.
+- At each milestone (M1 to M5 in the plan) the owner reviews the spec index and the changelog.
 - Before 1.0: a full read-through against the working product, with every difference fixed on the side that is wrong.
 
 ## Where the corpus came from

@@ -10,7 +10,7 @@ Project management and history management ([History management](history-manageme
 | **Project** | A folder that contains a mandatory `.ample/` folder. Everything the project needs to reproduce its songs is inside it or reachable through its links. |
 | **Home** | The per-user AMPLE folder (for example `%APPDATA%\ample` or `~/.config/ample`): global links, recent projects, plugin and model catalog, user templates, global settings. Never part of a project or a backup of a project. |
 | **Engine** | The running `ample serve` process. One engine can serve several projects at once (each in its own browser tab). |
-| **Link** | A named folder outside the project that is exposed in the folder browser (see [Tech](tech.md), "Linked folders"). Global or per project, read-only or read-write. |
+| **Link** | A named folder outside the project that is exposed in the folder browser (see Tech, "Linked folders"). Global or per project, read-only or read-write. |
 | **Take bank** | The immutable, hash-addressed store of rendered audio and baked data of a project. |
 
 ## 2. What is in a project folder
@@ -135,7 +135,7 @@ The UI uses one red dialog for all of them so the shape is always recognisable.
 - **Crash safety:** SQLite in WAL mode; the take bank only ever adds files (write to temp, fsync, rename); a rolling daily copy of `history.db`.
 - **Path safety:** the engine serves only paths inside the project and its links; `..` never escapes; read-only links are never written to, also not by plugins.
 - **Privacy:** logs and the health report never contain lyrics, prompts or file names of takes; secrets live only in the sealed vault and never in `project.json`, exports (unless sealed on purpose) or logs.
-- **Network:** the server binds to `127.0.0.1`; remote use is explicit, with a token and an SSH tunnel (see [Tech](tech.md)).
+- **Network:** the server binds to `127.0.0.1`; remote use is explicit, with a token and an SSH tunnel (see Tech).
 
 ## 11. Format versions and migration
 `project.json` carries `format` (an integer). On open:

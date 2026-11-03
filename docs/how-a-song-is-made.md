@@ -58,4 +58,4 @@ master    { limiter -1 dB  target -14 LUFS }
 ## 8. What the sketch does and does not do
 - It follows the dependency graph, the cache colours and the progress per block.
 - Its preview sound is a **stand-in synthesizer**: piano and bass follow the chords you type in the chords block (one chord per bar, major or minor by name), drums play a fixed pattern, the voice is a seeded tone line. It is not the real engine and the voice is not a real take.
-- It does not measure word timing, place takes with warping, or apply the voice-engine recipe; those are designed in [Variants](variants.md), [Bake](bake.md), [Modules](modules.md) and [Tech](tech.md).
+- It does not measure word timing, place takes with warping, or apply the voice-engine recipe; those are designed in [Variants](variants.md), [Bake](bake.md), [Modules](modules.md) and Tech.

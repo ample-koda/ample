@@ -58,7 +58,7 @@ A block can choose its own model (and where it runs) with its `engine` parameter
 
 ## Backend: server, command line tools or both (plugin 0.6.2, 2026-10-17)
 
-Generation recipes must survive the complete path into the immutable take; seeds alone are insufficient. See the [2026-10-17 near miss and review checklist](render-reproducibility.md). LM sampling is explicit: temperature 0.85, CFG 2, top-p 0.9, top-k 0 and an empty negative prompt. `lmModelFile` selects the LM explicitly for either backend; the legacy `cliLmModel` remains accepted. Otherwise an advertised 4B Q8 model is preferred, then a stable sorted selection. The resolved LM and synthesis requests, returned plan and available hashes are retained. These defaults are a reproducible baseline, not a listening-quality guarantee.
+Generation recipes must survive the complete path into the immutable take; seeds alone are insufficient. See the 2026-10-17 near miss and review checklist. LM sampling is explicit: temperature 0.85, CFG 2, top-p 0.9, top-k 0 and an empty negative prompt. `lmModelFile` selects the LM explicitly for either backend; the legacy `cliLmModel` remains accepted. Otherwise an advertised 4B Q8 model is preferred, then a stable sorted selection. The resolved LM and synthesis requests, returned plan and available hashes are retained. These defaults are a reproducible baseline, not a listening-quality guarantee.
 
 The setting `backend` says how the sound is made, and **every song states it itself** (the schema marks it `x-songRequired`; the project value is only the default for new songs, which is `server`):
 

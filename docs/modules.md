@@ -42,7 +42,7 @@ Plugins talk to AMPLE through one contract; AMPLE never links against a model.
 - **Trust:** plugins are pinned by hash in `ample.lock`; an updated plugin has to pass `upgrade-check` (does the release still reproduce) before it replaces a pinned one.
 
 ## Versions and compatibility
-Every module and plugin has a version, and a project records the range it works with. Compatibility groups are proven by canary renders, not just claimed (see [Determinism](determinism.md) and [Tech](tech.md)). Format versions apply to `.amplet`, `.amplelrc`, `.ample` exports and `plugin.json`; readers keep unknown fields.
+Every module and plugin has a version, and a project records the range it works with. Compatibility groups are proven by canary renders, not just claimed (see [Determinism](determinism.md) and Tech). Format versions apply to `.amplet`, `.amplelrc`, `.ample` exports and `plugin.json`; readers keep unknown fields.
 
 ## Open details
 - Which modules ship in the first version (suggested: core, `lyrics`, `quality` minimal, `secrets`).

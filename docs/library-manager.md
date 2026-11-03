@@ -2,7 +2,7 @@
 
 # Library manager
 
-A song depends on things that are not in its text: sample packs, sound fonts, voices, plugins and their models, block templates, external data, imported audio, lyrics and chord files. The **library manager** lists all of them in one place, shows **where each one is used**, and lets you **replace** one by another (with an impact analysis), also **per folder**. It builds on the **linked folders** (mounts) from [Tech](tech.md): global catalogs reach AMPLE as read-only links, and the library manager is how you browse and use them.
+A song depends on things that are not in its text: sample packs, sound fonts, voices, plugins and their models, block templates, external data, imported audio, lyrics and chord files. The **library manager** lists all of them in one place, shows **where each one is used**, and lets you **replace** one by another (with an impact analysis), also **per folder**. It builds on the **linked folders** (mounts) from Tech: global catalogs reach AMPLE as read-only links, and the library manager is how you browse and use them.
 
 ## 1. What is in the library
 | Kind | Examples | Comes from |
@@ -13,7 +13,7 @@ A song depends on things that are not in its text: sample packs, sound fonts, vo
 | plugin, model | `acestep 0.9`, `acestep-turbo-q8` | installed, with their pins in `ample.lock` |
 | block template | `drums 1.2`, `piano pinned 2.0` | the template library |
 | external data | `weather.example/api` (locked 2026-10-01) | recorded once, part of the project |
-Every entry has a **name**, **kind**, **version**, **hash** (content fingerprint, strict, content or loose per [Tech](tech.md)), **size**, **where it lives** (catalog or project folder, with the virtual path), **access** (read-only or read-write) and a **status**:
+Every entry has a **name**, **kind**, **version**, **hash** (content fingerprint, strict, content or loose per Tech), **size**, **where it lives** (catalog or project folder, with the virtual path), **access** (read-only or read-write) and a **status**:
 - **ok:** present and matches the hash in `ample.lock`.
 - **changed:** present but different from the pinned hash. You can accept the new hash (a change to the working copy) or restore the pinned file from the catalog or a backup.
 - **missing:** not reachable (a link that points nowhere, a file that was deleted, a plugin that is not installed). **Relocate** repairs a link without touching the project (a machine-local setting).
@@ -26,7 +26,7 @@ Every entry has a **name**, **kind**, **version**, **hash** (content fingerprint
 - **Duplicates and conflicts:** two links that report the same uuid are the same catalog (a mirror); AMPLE uses the one that is reachable and warns when their fingerprints differ.
 
 ## 3. Global asset catalogs: linked folders ("hard links")
-- A **global catalog** is a folder (for example `D:\Music\Samples`) linked into AMPLE for every project; a **project link** exists for one project only. Links are **AMPLE-level virtual links**, not filesystem hard links (see [Tech](tech.md), "Linked folders (mounts)").
+- A **global catalog** is a folder (for example `D:\Music\Samples`) linked into AMPLE for every project; a **project link** exists for one project only. Links are **AMPLE-level virtual links**, not filesystem hard links (see Tech, "Linked folders (mounts)").
 - A link is **read-only or read-write**. **A read-only link is never written to (by AMPLE or by plugins) and can never be an output folder**. Catalogs are almost always read-only.
 - AMPLE **indexes and fingerprints** a catalog (content hashes, pack hashes, fingerprinter plugins; incrementally and cached), so the song can refer to an asset by **id (shown as its name) and hash**, and a changed or moved file is noticed.
 - The library manager shows catalogs with a link and a lock icon, their folders as a tree, a **missing** badge when the link is unreachable, and offers: **Relocate** (where is this on this computer), **make read-only / read-write**, **Unlink** (dangerous act: it lists how many uses would turn missing), **Link a folder**.
