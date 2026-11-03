@@ -196,7 +196,8 @@ public sealed class PrngTests
         }
 
         string[] assemblies = ["Ample.Audio", "Ample.Storage", "Ample.Engine"];
-        foreach (string file in assemblies.SelectMany(a => Directory.GetFiles(Path.Combine(Root, "src", a), "*.cs", SearchOption.AllDirectories)))
+        // the layers above Audio are not always present (the public repository grows layer by layer): scan the ones that are
+        foreach (string file in assemblies.Select(a => Path.Combine(Root, "src", a)).Where(Directory.Exists).SelectMany(d => Directory.GetFiles(d, "*.cs", SearchOption.AllDirectories)))
         {
             string text = File.ReadAllText(file);
             Assert.DoesNotContain("System.Random", text, StringComparison.Ordinal);
