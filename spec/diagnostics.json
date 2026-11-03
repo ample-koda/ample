@@ -353,6 +353,17 @@
       "stage": "static"
     },
     {
+      "code": "AMP2095",
+      "severity": "warning",
+      "title": "A drum grid does not fill whole bars",
+      "explanation": "A drum grid has one character per sixteenth note: 16 steps fill a 4/4 bar (12 in 3/4), a shorter grid repeats inside the bar, a longer grid goes on over the next bars (32 steps are two bars). A grid whose length does not fit (for example 20 steps) starts again in the middle of a bar, so it does not line up with the bar. Write 4, 8, 16, 32 ... steps.",
+      "wrongExample": "drums beat at 1 for 4 { pattern kick:x...x...x...x...x... }   (20 steps)",
+      "rightExample": "drums beat at 1 for 4 { pattern kick:x...x...x...x... }   (16 steps)",
+      "since": "1.0",
+      "retired": false,
+      "stage": "static"
+    },
+    {
       "code": "AMP1116",
       "severity": "error",
       "title": "Block comment never closed",

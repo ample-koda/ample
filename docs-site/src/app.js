@@ -1,4 +1,4 @@
-/* ===== WIP_HIDDEN (temporary, 2026-11-01): the Playground, the Studio, Koda and the search are not public yet. Set to false to bring them all back (menus, pages, cards, Ctrl K, the Open in playground buttons). ===== */
+/* ===== WIP_HIDDEN (temporary, 2026-11-01): the Playground, the Studio and Koda are not public yet. Set to false to bring them all back (menus, pages, cards, the Open in playground buttons). The search works either way and only finds the pages that are shown. ===== */
 const WIP_HIDDEN = true;
 const run = (t) => WIP_HIDDEN ? '' : `<button class="run" title="Opens this example in the playground">▶ Open in playground</button>`;
 const P = {};
@@ -119,7 +119,7 @@ P['/guide/first-song'] = () => `
   <span class="n">wave</span> triangle
   <span class="n">gain</span> <span class="v">-18 dB</span>
 }</code></pre>
-${WIP_HIDDEN ? '' : '<div class="note"><b>Tip.</b> Not sure what a word does? Press <code>Ctrl K</code> and type it: every block has its own page.</div>'}
+<div class="note"><b>Tip.</b> Not sure what a word does? Press <code>Ctrl K</code> and type it: every block has its own page.</div>
 <h2 id="c">Next</h2><p>Learn how the beat, the tempo and the bars work, then hear what an effect does.</p>
 <div class="pn"><a href="#/learn/music/basic/how-to-use"><small>Previous</small>How to use this course</a><a href="#/learn/music/basic/pulse-and-tempo"><small>Next</small>Pulse and tempo →</a></div>
 <div class="foot"></div>`;
@@ -155,7 +155,7 @@ addEventListener('resize', sizeBg); sizeBg();
 var frame = 0;
 /* ONE beat clock for the whole page. Without music it runs at an idle tempo; with music it is locked to the audio clock of the music. */
 var idleBpm = 96, idleT0 = performance.now() / 1000;
-const clock = () => soundOn && ctx && musicT0 !== null ? {t: ctx.currentTime - musicT0, bpm: musicBpm} : {t: performance.now() / 1000 - idleT0, bpm: idleBpm};
+const clock = () => { const A = window.AmpleAudio; return musicOn && A && A.ctx && A.t0 != null ? {t: A.ctx.currentTime - A.t0, bpm: 120} : {t: performance.now() / 1000 - idleT0, bpm: idleBpm}; };
 const beatInfo = () => { const c = clock(), len = 60 / c.bpm, n = c.t / len; return {n: Math.floor(n), phase: n - Math.floor(n), len, t: c.t}; };
 function drive() {
   requestAnimationFrame(drive);
@@ -172,11 +172,9 @@ const nextBeatDelay = () => { const b = beatInfo(); return Math.max(0, (1 - b.ph
 // interactions land on the beat: a ring at the pointer on the next beat, and a short note when the sound is on
 function onBeat(fn) { setTimeout(fn, nextBeatDelay()); }
 function ring(x, y) { const r = document.createElement('div'); r.className = 'ring'; r.style.left = x + 'px'; r.style.top = y + 'px'; document.body.appendChild(r); setTimeout(() => r.remove(), 800); }
-function blip(k) { if (!soundOn || !ctx) return; const t = themes[pageKey()], f = midi(t.root + 12 + t.chords[0][k % 3] + (k > 2 ? 12 : 0)); const o = ctx.createOscillator(), a = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; a.gain.setValueAtTime(.0001, ctx.currentTime); a.gain.linearRampToValueAtTime(.08, ctx.currentTime + .01); a.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .35); o.connect(a); a.connect(master); o.start(); o.stop(ctx.currentTime + .4); }
-document.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('alive')) return; const x = e.clientX, y = e.clientY; ring(x, y); onBeat(() => { ring(x, y); blip(Math.floor(x / 90)); }); });
+document.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('alive')) return; const x = e.clientX, y = e.clientY; ring(x, y); onBeat(() => ring(x, y)); }); // a click only rings; it makes no sound of its own, the music is the only sound
 var lastHover = null;
-document.addEventListener('pointerover', (e) => { if (!document.body.classList.contains('alive')) return; const el = e.target.closest('a,.btn,.tg,.card,button'); if (!el || el === lastHover) return; lastHover = el; const r = el.getBoundingClientRect(); onBeat(() => { if (el.matches(':hover')) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); blip(Math.floor(r.left / 70)); } }); });
-document.addEventListener('keydown', (e) => { if (document.body.classList.contains('alive') && e.key.length === 1) onBeat(() => blip(e.key.charCodeAt(0))); });
+document.addEventListener('pointerover', (e) => { if (!document.body.classList.contains('alive')) return; const el = e.target.closest('a,.btn,.tg,.card,button'); if (!el || el === lastHover) return; lastHover = el; const r = el.getBoundingClientRect(); onBeat(() => { if (el.matches(':hover')) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); } }); }); // a hover only pulses on the beat; it makes no sound (a sound on hover was confusing)
 function drawBg() {
   requestAnimationFrame(drawBg);
   if (!document.body.classList.contains('alive')) return;
@@ -191,11 +189,10 @@ function drawBg() {
   g.stroke();
 }
 drawBg();
-var hints = {philosophy: 'A song you like can always be returned to.', guide: WIP_HIDDEN ? 'Every block has its own page.' : 'Press Ctrl K to jump to any block.', studio: 'Every drag writes a line of text.', koda: 'Hi! I am the one on the screenshots.', language: 'Try the example: change a number and build.', blocks: 'Every block has an example you can open.', components: 'A component is a block you built yourself.', playground: 'No account. Nothing leaves your browser.', '': 'Write music as code. Turn on Vibe, then Sound: the page moves to the beat.'};
+var hints = {philosophy: 'A song you like can always be returned to.', guide: 'Press Ctrl K to jump to any block.', studio: 'Every drag writes a line of text.', koda: 'Hi! I am the one on the screenshots.', language: 'Try the example: change a number and build.', blocks: 'Every block has an example you can open.', components: 'A component is a block you built yourself.', playground: 'No account. Nothing leaves your browser.', '': 'Write music as code. Turn on Vibe, then Sound: the page moves to the beat.'};
 function onPage() {
   const s = (location.hash.replace(/^#/, '').split('/')[1]) || '';
   const b = $('kb'); b.textContent = hints[s] || 'Hello!'; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
-  if (soundOn) startMusic();
 }
 $('t-alive').onclick = () => { const on = document.body.classList.toggle('alive'); $('t-alive').classList.toggle('on', on); onPage(); render(); };
 
@@ -219,60 +216,50 @@ function sourceOf(t) {
   const steps = t.chords.map((c, i) => '  ' + (1 + i * 2) + ':0:2:' + (t.root + c[0]) + ':50 ' + (1 + i * 2) + ':0:2:' + (t.root + c[1]) + ':44 ' + (1 + i * 2) + ':0:2:' + (t.root + c[2]) + ':44').join(NL);
   return ['composition "' + t.name + '" { ample 1  tempo ' + t.bpm + '  master-seed 7 }', '', 'midi-clip chords at 1 for 8 {', '  bars 8', '  notes', steps, '}', '', 'synth voice at 1 for 8 {', '  wave ' + t.wave, '  attack 120 ms', '  release 900 ms', '  gain -16 dB', '  from chords.notes -> notes', '}', '', 'master master {', '  from voice.audio -> audio', '}'].join(NL);
 }
-var ctx, master, analyser, timer = null, soundOn = false, step = 0, musicT0 = null, musicBpm = 96;
-var layer = null, layers = [], pending = null, pendingTimer = null;
-/* A page of the same part of the site keeps its music. Another part hooks in: its music starts on the next bar line of the music that plays,
-   the old music fades out over that bar and the new music fades in, and the beat clock of the page changes tempo at that very moment. */
-function startMusic() {
-  const key = pageKey(), t = themes[key];
-  if (layer && layer.key === key) return;
-  const now = ctx.currentTime;
-  if (pending) { clearInterval(pending.timer); pending.gain.disconnect(); layers = layers.filter((x) => x !== pending); clearTimeout(pendingTimer); pending = null; if (layer) { layer.endAt = Infinity; layer.killAt = Infinity; layer.gain.gain.cancelScheduledValues(now); layer.gain.gain.setValueAtTime(1, now); } }
-  let startAt = now + .05, fade = .6;
-  if (layer) {
-    const barOld = 4 * 60 / layer.bpm, el = now - layer.T0;
-    startAt = layer.T0 + Math.ceil((el + .08) / barOld) * barOld;
-    fade = 4 * 60 / t.bpm;
-    layer.endAt = startAt;
-    layer.gain.gain.setValueAtTime(1, startAt);
-    layer.gain.gain.linearRampToValueAtTime(0, startAt + fade);
-    layer.killAt = startAt + fade + .1;
-  }
-  const L = {key, bpm: t.bpm, T0: startAt, endAt: Infinity, killAt: Infinity, step: 0, next: 0, gain: ctx.createGain()};
-  L.gain.connect(master);
-  L.gain.gain.setValueAtTime(layer ? 0 : 1, now);
-  if (layer) { L.gain.gain.setValueAtTime(0, startAt); L.gain.gain.linearRampToValueAtTime(1, startAt + fade); }
-  layers.push(L);
-  const beat = 60 / t.bpm / 2;
-  const play = (when) => {
-    const chord = t.chords[Math.floor(L.step / 8) % t.chords.length], i = L.step % 8;
-    const tone = (n, dur, vol, type) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = midi(n); g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(vol, when + .02); g.gain.exponentialRampToValueAtTime(.0001, when + dur); o.connect(g); g.connect(L.gain); o.start(when); o.stop(when + dur + .05); };
-    if (i === 0) chord.forEach((c) => tone(t.root - 12 + c, beat * 8, .05, 'sine'));
-    tone(t.root + 12 + chord[t.arp[i % 4]], beat * 1.8, .06, t.wave);
-    if (i % 4 === 0) tone(t.root - 24 + chord[0], beat * 1.5, .09, 'sine');
-    L.step++;
-  };
-  L.timer = setInterval(() => {
-    while (ctx.currentTime + .12 >= L.T0 + L.next && L.T0 + L.next < L.endAt) { play(L.T0 + L.next); L.next += beat; }
-    if (ctx.currentTime > L.killAt) { clearInterval(L.timer); L.gain.disconnect(); layers = layers.filter((x) => x !== L); }
-  }, 25);
-  // the page follows the new music at the moment it takes over: beat clock, title and source
-  const take = () => { pending = null; layer = L; musicBpm = t.bpm; musicT0 = L.T0; $('mt').textContent = t.name; $('mm').textContent = '· ' + t.bpm + ' bpm · ' + t.wave + ' · ' + noteName(t.root); $('mcode').textContent = sourceOf(t); };
-  if (!layer) take(); else { $('mm').textContent = '· next: ' + t.name + ' on the next bar'; pending = L; pendingTimer = setTimeout(take, Math.max(0, (startAt - now) * 1000)); }
+var ctx, master, analyser, soundOn = false;
+/* The music of the site is an AMPLE song per part of the site (THEMES in lib/amplet.js, rendered like the sound previews, all at 120 bpm),
+   played by previews.js on the same timeline as the previews, so a sound that is clicked joins the music in time. This is a small media player:
+   previous and next go through all the themes, the play button starts and stops the music only, and the source shows the AMPLE code. */
+const THEMES = window.AmpletGen.THEMES;
+var musicIdx = 0, musicOn = false, musicSet = null; // var, not let: clock() (above) reads musicOn while the page starts
+/* The music plays from a SET: three songs of one tempo family (THEME_SETS in lib/amplet.js). Turning the music on picks a song of the set that fits
+   what plays (120 when nothing plays) at random; previous and next stay in the set; a page change does not touch it. When a sound is clicked that
+   does not fit, previews.js fades the music out and asks for a song of the set of that sound (onMusicSwitch), which fades in. */
+const setFor = (bpm) => window.AmpletGen.themeSet(bpm) || window.AmpletGen.THEME_SETS[0];
+const musicSpec = (i) => window.AmpletGen.themeSpec(THEMES.find((x) => x.key === musicSet.keys[i]), musicSet.bpm);
+const playingBpm = () => { const A = window.AmpleAudio; for (const [s, m] of (A && A.meta) || []) if (!s.isMusic) return m.bpm; return 120; };
+function showMusic(i) {
+  const spec = musicSpec(i), th = THEMES.find((x) => x.key === musicSet.keys[i]), r = window.AmpletGen.specToAmplet(spec, true), id = (window.REMIX_IDS || {})[r.id];
+  $('mt').textContent = th.name; $('mm').textContent = '· ' + th.wave + ' in ' + noteName(th.root) + ' · ' + (i + 1) + '/' + musicSet.keys.length;
+  $('mremix').href = id ? 'https://remix.ample-koda.dev/mix/' + id : 'https://remix.ample-koda.dev/';
+  const pre = $('mcode'); pre.textContent = r.code; pre.dataset.code = r.code;
+  window.AmplePreviews.highlight(pre, r.code).catch(() => { pre.textContent = r.code; });
 }
-function stopMusic() { for (const L of layers) { clearInterval(L.timer); try { L.gain.gain.cancelScheduledValues(0); L.gain.gain.setValueAtTime(L.gain.gain.value, ctx.currentTime); L.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + .25); setTimeout(() => L.gain.disconnect(), 400); } catch {} } layers = []; layer = null; pending = null; clearTimeout(pendingTimer); musicT0 = null; }
+function startMusic(i) {
+  if (!musicSet) musicSet = setFor(playingBpm());
+  if (i == null) i = Math.floor(Math.random() * musicSet.keys.length);
+  musicIdx = (i + musicSet.keys.length) % musicSet.keys.length; showMusic(musicIdx); window.AmplePreviews.music.play(musicSpec(musicIdx));
+}
+function stopMusic() { window.AmplePreviews.music.stop(); }
+window.AmpleAudio.onMusicSwitch = (bpm) => { if (!soundOn) return; musicSet = setFor(bpm); startMusic(); };
+window.AmpleAudio.onMusicNext = () => { if (soundOn) startMusic(musicIdx + 1); }; // a song that ended: the next one of the set
+document.addEventListener('ample-music', (e) => { musicOn = !!e.detail.playing; $('mplay').textContent = musicOn ? '\u275a\u275a' : '\u25b6'; $('mplay').setAttribute('aria-label', musicOn ? 'Stop the music' : 'Play the music'); $('mus').classList.toggle('playing', musicOn); });
+$('mprev').onclick = () => startMusic(musicIdx - 1);
+$('mnext').onclick = () => startMusic(musicIdx + 1);
+$('mplay').onclick = () => { const m = window.AmplePreviews.music; if (m.playing()) stopMusic(); else if (m.hasPaused()) m.resumePaused(); else startMusic(musicIdx); };
+$('mremix').addEventListener('click', () => window.AmplePreviews.music.pauseAll()); // opening the music in Remix pauses everything here; play carries on with all of it
 $('t-sound').onclick = () => {
   soundOn = !soundOn; document.body.classList.toggle('sound', soundOn); $('t-sound').classList.toggle('on', soundOn);
-  if (soundOn) { ctx ||= new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); if (!master) { master = ctx.createGain(); master.gain.value = .8; analyser = ctx.createAnalyser(); analyser.fftSize = 128; master.connect(analyser); analyser.connect(ctx.destination); } startMusic(); }
-  else { stopMusic(); level = 0; }
+  if (soundOn) { ctx ||= new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); if (!master) { master = ctx.createGain(); master.gain.value = .8; analyser = ctx.createAnalyser(); analyser.fftSize = 128; master.connect(analyser); analyser.connect(ctx.destination); } musicSet = setFor(playingBpm()); startMusic(); }
+  else { stopMusic(); musicSet = null; level = 0; }
 };
 $('msrc').onclick = (e) => { e.preventDefault(); $('mus').classList.toggle('open'); };
-$('mpg').onclick = (e) => { e.preventDefault(); alert('In the real site this opens the source of the music of this page in playground.ample-koda.dev.'); };
 const vu = $('vu').getContext('2d');
 (function meter() {
   requestAnimationFrame(meter);
-  if (!soundOn || !analyser) return;
-  const d = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(d);
+  const an = (window.AmpleAudio && window.AmpleAudio.analyser) || analyser;
+  if (!soundOn || !an) return;
+  const d = new Uint8Array(an.frequencyBinCount); an.getByteFrequencyData(d);
   level = d.reduce((a, b) => a + b, 0) / d.length / 255 * 2.2;
   vu.clearRect(0, 0, 180, 52); vu.fillStyle = '#19e3c8';
   for (let i = 0; i < 24; i++) { const hh = d[i] / 255 * 50; vu.fillRect(i * 7.5, 52 - hh, 5, hh); }
@@ -280,11 +267,12 @@ const vu = $('vu').getContext('2d');
 onPage();
 document.getElementById('theme').onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; };
 const pal = document.getElementById('pal'), q = document.getElementById('q'), res = document.getElementById('res');
-const all = Object.keys(P).filter(k => k !== '/');
-function list() { const w = q.value.toLowerCase(); res.innerHTML = all.filter(k => !w || k.toLowerCase().includes(w)).slice(0, 9).map((k,i) => `<a class="${i?'':'f'}" href="#${k}"><span>${k.split('/').pop() || k}</span><small>${k.split('/')[1]}</small></a>`).join(''); }
+const HIDDEN_PARTS = WIP_HIDDEN ? ['studio', 'koda', 'playground'] : [];
+const allPages = () => Object.keys(P).filter((k) => k !== '/' && k !== '/404' && !HIDDEN_PARTS.includes(k.split('/')[1]));
+function list() { const w = q.value.toLowerCase(); res.innerHTML = allPages().filter(k => !w || k.toLowerCase().includes(w)).slice(0, 9).map((k,i) => `<a class="${i?'':'f'}" href="#${k}"><span>${k.split('/').pop() || k}</span><small>${k.split('/')[1]}</small></a>`).join(''); }
 const open = () => { pal.classList.add('on'); q.value = ''; list(); q.focus(); };
 document.getElementById('open-search').onclick = open;
-document.addEventListener('keydown', e => { if (!WIP_HIDDEN && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open(); } if (e.key === 'Escape') pal.classList.remove('on'); });
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open(); } if (e.key === 'Escape') pal.classList.remove('on'); });
 pal.onclick = e => { if (e.target === pal || e.target.closest('a')) pal.classList.remove('on'); };
 q.oninput = list;
 q.onkeydown = e => { if (e.key === 'Enter') { const a = res.querySelector('a'); if (a) { location.hash = a.getAttribute('href'); pal.classList.remove('on'); } } };

@@ -40,7 +40,7 @@
       "name": "pattern",
       "type": "text",
       "default": "beat-A",
-      "doc": "Pattern or kit definition. Use the expanded editor for longer definitions.",
+      "doc": "A pattern name (beat-A, beat-B) or voice grids like kick:x...x... snare:....x...: one character per sixteenth note (x hit, X accent, o ghost, . rest). 16 steps fill a 4/4 bar, a shorter grid repeats inside the bar, a longer grid goes on over the next bars (32 steps are two bars). Use the expanded editor for longer definitions.",
       "modalEditor": true,
       "multiline": true,
       "kind": "pattern"
@@ -53,6 +53,15 @@
       "min": 1,
       "max": 128,
       "doc": "Length of the drum block in bars."
+    },
+    {
+      "name": "steps",
+      "type": "number",
+      "default": 16,
+      "kind": "number",
+      "min": 1,
+      "max": 64,
+      "doc": "Steps in a bar (1 to 64). Without it a bar has four steps for every beat: 16 in 4/4, 12 in 3/4. A step lasts a bar divided by this number, so steps 8 makes every step twice as long (the pattern plays at half speed whatever the tempo of the song is), steps 32 half as long. A pattern longer than the steps of a bar goes on over the next bars; a shorter one repeats inside the bar."
     },
     {
       "name": "swing",

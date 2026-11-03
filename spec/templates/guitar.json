@@ -37,7 +37,16 @@
       "type": "text",
       "default": "D...D...D.u.D.u.",
       "kind": "pattern",
-      "doc": "Sixteen strum steps per bar: D/d downstroke, U/u upstroke, x mute and . let ring; bars can be separated by |."
+      "doc": "Strum steps per bar (16 unless steps says otherwise): D/d downstroke, U/u upstroke, x mute and . let ring; bars can be separated by |."
+    },
+    {
+      "name": "steps",
+      "type": "number",
+      "default": 16,
+      "kind": "number",
+      "min": 1,
+      "max": 64,
+      "doc": "Steps in a bar (1 to 64) for the strum. Without it a bar has four steps for every beat: 16 in 4/4, 12 in 3/4. A step lasts a bar divided by this number, so steps 8 makes every strum step twice as long (the strum plays at half speed whatever the tempo of the song is)."
     },
     {
       "name": "voicing",
