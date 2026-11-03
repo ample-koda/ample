@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <ProjectReference Include="../Ample.Audio/Ample.Audio.csproj" />
+    <InternalsVisibleTo Include="Ample.Core.Tests" />
+    <InternalsVisibleTo Include="Ample.Audio.Tests" />
+    <InternalsVisibleTo Include="Ample.Storage.Tests" />
+    <InternalsVisibleTo Include="Ample.Engine.Tests" />
+    <InternalsVisibleTo Include="Ample.Audio" />
+    <InternalsVisibleTo Include="Ample.Storage" />
+    <InternalsVisibleTo Include="Ample.Engine" />
+    <EmbeddedResource Include="..\..\spec\quality-rules.json" LogicalName="quality-rules.json" />
+  </ItemGroup>
+</Project>
