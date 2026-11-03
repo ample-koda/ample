@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Markdig" />
+    <ProjectReference Include="../Ample.Language/Ample.Language.csproj" />
+    <EmbeddedResource Include="Assets/*" />
+  </ItemGroup>
+</Project>

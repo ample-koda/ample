@@ -39,3 +39,7 @@ Brings the native SQLite library to .NET (a dependency of Microsoft.Data.Sqlite)
 ## SQLite
 
 The database engine itself is in the public domain. https://www.sqlite.org/copyright.html
+
+## Markdig 1.4
+
+Turns the Markdown pages into the help (`Ample.Docs`). BSD 2-Clause License, Copyright (c) Alexandre Mutel. https://github.com/xoofx/markdig

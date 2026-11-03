@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMPLE help</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button id="menu" type="button" aria-label="Toggle navigation">Menu</button>
+  <strong>AMPLE help</strong>
+  <input id="q" type="search" placeholder="Search the help (press /)" aria-label="Search the help" autocomplete="off">
+  <button id="theme" type="button" aria-label="Toggle dark or light theme">Theme</button>
+</header>
+<div class="layout">
+  <nav id="nav" aria-label="Help contents">
+{{NAV}}
+  </nav>
+  <main id="content">
+    <div id="results" hidden aria-live="polite"></div>
+{{CONTENT}}
+    <footer class="foot">{{BUILDINFO}}</footer>
+  </main>
+</div>
+<script type="application/json" id="search-index">{{INDEX}}</script>
+<script>{{SCRIPT}}</script>
+</body>
+</html>
