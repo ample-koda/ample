@@ -1,0 +1,21 @@
+{
+  "id": "flaky",
+  "version": "1.0.0",
+  "title": "Flaky (test plugin that misbehaves on purpose)",
+  "kind": "voice",
+  "protocolVersion": 1,
+  "experimental": true,
+  "entry": { "command": "node", "args": ["plugin.mjs"] },
+  "platforms": ["windows", "linux", "macos"],
+  "blocks": ["ai-voice"],
+  "capabilities": ["render"],
+  "ports": {
+    "inputs": [{ "name": "lyrics", "type": "text" }],
+    "outputs": [{ "name": "vocal", "type": "audio" }]
+  },
+  "settings": { "schema": { "type": "object", "properties": {}, "additionalProperties": false } },
+  "determinism": "unverified",
+  "toolprintFields": ["plugin"],
+  "needs": { "gpu": true, "network": false, "diskMb": 1, "secrets": ["TEST_TOKEN"] },
+  "files": { "read": [], "write": [] }
+}
