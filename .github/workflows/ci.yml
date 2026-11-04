@@ -4,12 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   test:
+    # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
+    if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     name: Build and test
     runs-on: ubuntu-latest
     steps:
@@ -47,6 +50,8 @@ jobs:
           done
 
   studio:
+    # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
+    if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     # The browser tests of the studio (Playwright, Chromium): they start the built command line tool and drive its pages.
     name: Studio browser tests
     runs-on: ubuntu-latest
@@ -75,6 +80,13 @@ jobs:
         # the script checks the size and the pinned SHA-256 of the SoundFont, and does not download again when the file is already there (from the cache)
         run: node tools/fetch-gm-soundfont.mjs --download --into
       - name: Run the browser tests
-        # a test that failed gets one more try, with at most 10 seconds (a slow or timing sensitive test passes then; a broken one costs 10 seconds, not 45)
-        run: |
-          npx playwright test --project=chromium --workers=2 || npx playwright test --project=chromium --workers=2 --last-failed --timeout=10000
+        # no retry: a test that fails fails (the owner's rule); the traces below show why
+        run: npx playwright test --project=chromium --workers=2 --trace=retain-on-failure
+      - name: Keep the traces of the failed tests
+        # a trace shows the page, the steps and the console of a test that failed, to be opened with npx playwright show-trace
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-test-traces
+          path: test-results/
+          retention-days: 7

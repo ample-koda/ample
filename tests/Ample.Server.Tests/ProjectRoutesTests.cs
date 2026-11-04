@@ -863,6 +863,32 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.True(master.TryGetProperty("rmsDbfs", out _));
     }
 
+    // A song changed on disk after it was opened (by a script, git or an agent) is built as it is on disk, not as it was when it was opened.
+    [Fact]
+    public async Task Build_follows_a_song_that_changed_on_disk_after_it_was_opened()
+    {
+        Directory.CreateDirectory(Path.Combine(folder, "samples", "kit"));
+        await File.WriteAllBytesAsync(Path.Combine(folder, "samples", "kit", "kick.wav"), Wav.Encode([12000, 0, -8000, 0], 44100));
+        string path = Path.Combine(folder, "song.amplet");
+        const string first = "composition \"demo\" { ample 1  tempo 90 master-seed 1 }\ndrums source at 1 for 1 {\n  kit samples/kit\n  pattern kick:x...............\n}\n";
+        await File.WriteAllTextAsync(path, first);
+        using (JsonDocument opened = JsonDocument.Parse(await Text("/api/doc?path=song.amplet")))
+        {
+            Assert.Equal(first, opened.RootElement.GetProperty("text").GetString());
+        }
+
+        using (HttpResponseMessage one = await Post("/api/build", new { path = "song.amplet", intent = "bake" }))
+        {
+            using JsonDocument built = JsonDocument.Parse(await one.Content.ReadAsStringAsync(CancellationToken.None));
+            Assert.Equal(["source"], built.RootElement.GetProperty("blocks").EnumerateArray().Select(b => b.GetProperty("block").GetString()!).ToArray());
+        }
+
+        await File.WriteAllTextAsync(path, first + "compressor fx {\n  from source.audio -> audio\n}\n");
+        using HttpResponseMessage two = await Post("/api/build", new { path = "song.amplet", intent = "bake" });
+        using JsonDocument rebuilt = JsonDocument.Parse(await two.Content.ReadAsStringAsync(CancellationToken.None));
+        Assert.Contains("fx", rebuilt.RootElement.GetProperty("blocks").EnumerateArray().Select(b => b.GetProperty("block").GetString()));
+    }
+
     private const string DiskSong = "project demo { tempo 90 master-seed 1 }\n# one\n# two\n# three\n# four\n";
 
     private async Task<JsonDocument> OpenDisk(string name)
