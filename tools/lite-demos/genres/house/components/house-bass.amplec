@@ -1,0 +1,36 @@
+/** Notes in, a round offbeat house bass out. */
+#[DisplayName("House bass")]
+#[Category("House")]
+#[Tags("bass", "house", "instrument", "house")]
+component koda.house.houseBass version 1.0.0 current {
+  id "demo.koda.house.house-bass"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(150), MaxValue(3000)]
+  property brightness: Int = 700
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -4dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="3 ms", decay="120 ms", sustain="40", release="60 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> gain(level)
+  }
+}

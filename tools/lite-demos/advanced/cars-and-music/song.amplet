@@ -1,0 +1,161 @@
+composition "cars passing the music" { ample 1  tempo 90  master-seed 31 }
+
+# CARS PASSING THE MUSIC: 24 bars at 90 BPM (64 seconds) in which a street answers the music.
+#
+# The street is two recordings: steady rain, and a car that passes on the wet road four times (bars 1, 8, 15 and 22: about every 19 seconds).
+# A "follow" block LISTENS to the street and makes a control: a curve that is high while a car passes and low in the rain.
+# Listen to what the control does to the music, five things at once:
+#
+#   the beat       a hi-hat and a kick are silent in the rain and rise while a car comes (volume: -40 dB + 40 dB * traffic.level)
+#   the pluck      an arpeggio that swings from left to right with the car (pan: -10 + 40 * traffic.level)
+#   the pad        opens its filter: a "map" turns the control into a cutoff in Hz, and a connection steers the filter with it
+#   the reverb     of the pad gets wetter while a car passes (mix 10 + 60 * traffic.level)
+#   the thump      a "fire" block plays one low note for every car
+#
+# Try it: put a # in front of a "from traffic.level -> ..." line or change a number, press Build & play, and hear what that one connection did.
+# band low listens to the engines, not to the hiss of the rain; baseline on subtracts the steady rain, so only what stands out counts.
+
+# ------------------------------------------------------------------ the street
+ambience rain at 1 for 24 {
+  file samples/street/rain.wav
+}
+
+# one block for each pass (the same recording four times)
+import-audio car1 at 1 for 3 {
+  file samples/street/car.wav
+}
+
+import-audio car2 at 8 for 3 {
+  file samples/street/car.wav
+}
+
+import-audio car3 at 15 for 3 {
+  file samples/street/car.wav
+}
+
+import-audio car4 at 22 for 3 {
+  file samples/street/car.wav
+}
+
+mixer street {
+  inputs 5
+  gains "-8 0 0 0 0"
+  from rain.audio -> audio1
+  from car1.audio -> audio2
+  from car2.audio -> audio3
+  from car3.audio -> audio4
+  from car4.audio -> audio5
+}
+
+# ------------------------------------------------------------------ the control
+follow traffic {
+  band low
+  baseline on
+  baseline_window 6 s
+  attack 100 ms
+  release 900 ms
+  curve soft
+  threshold 40 %
+  hold 800 ms
+  from street.audio -> audio
+}
+
+map swell {
+  unit Hz
+  out_low 300
+  out_high 4200
+  smooth 250 ms
+  from traffic.level -> input
+}
+
+# ------------------------------------------------------------------ the music
+midi-clip chords at 1 for 24 {
+  chords Am F C G Am F C G Am F C G Am F C G Am F C G Am F C G
+  bars 24
+}
+
+synth pad at 1 for 24 {
+  wave saw
+  attack 600 ms
+  release 900 ms
+  gain -8 dB
+  from chords.notes -> notes
+}
+
+filter opens {
+  type lowpass
+  from pad.audio -> audio
+  from swell.level -> cutoff
+}
+
+reverb space {
+  size 70%
+  mix 10 + 60 * traffic.level
+  from opens.audio -> audio
+}
+
+fire hit {
+  note 36
+  gap 2000 ms
+  length 600 ms
+  from traffic.gate -> input
+}
+
+synth thump at 1 for 24 {
+  wave sine
+  attack 5 ms
+  release 500 ms
+  gain -4 dB
+  from hit.notes -> notes
+}
+
+# ------------------------------------------------------------------ the pluck: swings from left to right with the car
+arpeggiator run {
+  rate 1/8
+  pattern up
+  octaves 2
+  gate 70
+  from chords.notes -> notes
+}
+
+synth pluck at 1 for 24 {
+  wave square
+  attack 5 ms
+  decay 180 ms
+  sustain 15
+  release 120 ms
+  cutoff 3200 Hz
+  gain -12 dB
+  from run.notes -> notes
+}
+
+pan sway {
+  pan -10 + 40 * traffic.level
+  from pluck.audio -> audio
+}
+
+# ------------------------------------------------------------------ the beat: silent in the rain, up with the car
+drums beat at 1 for 24 {
+  kit samples/kit
+  pattern kick:x.......x....... hat:x.x.x.x.x.x.x.x.
+  swing 8
+}
+
+volume beatGain {
+  gain -40 dB + 40 dB * traffic.level
+  from beat.audio -> audio
+}
+
+mixer music {
+  inputs 6
+  gains "0 -2 0 -2 -2 0"
+  from space.audio -> audio1
+  from thump.audio -> audio2
+  from street.audio -> audio3
+  from sway.audio -> audio4
+  from beatGain.audio -> audio5
+}
+
+master out {
+  from music.audio -> audio
+}

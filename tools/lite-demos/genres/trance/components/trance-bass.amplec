@@ -1,0 +1,36 @@
+/** Notes in, a sixteenth-note rolling bass out. */
+#[DisplayName("Rolling bass")]
+#[Category("Trance")]
+#[Tags("bass", "trance", "instrument", "trance")]
+component koda.trance.tranceBass version 1.0.0 current {
+  id "demo.koda.trance.trance-bass"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(200), MaxValue(3000)]
+  property brightness: Int = 900
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -4dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="2 ms", decay="100 ms", sustain="60", release="50 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> gain(level)
+  }
+}

@@ -9,3 +9,5 @@ playwright-report/
 *.user
 __pycache__/
 *.pyc
+.ample-home/
+audio-packs/

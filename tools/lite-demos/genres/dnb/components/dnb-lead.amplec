@@ -1,0 +1,37 @@
+/** Notes in, a singing lead with echo out. */
+#[DisplayName("Sky lead")]
+#[Category("Drum and bass")]
+#[Tags("lead", "dnb", "instrument", "dnb")]
+component koda.dnb.dnbLead version 1.0.0 current {
+  id "demo.koda.dnb.dnb-lead"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(800), MaxValue(7000)]
+  property brightness: Int = 3200
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -9dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="triangle", attack="10 ms", decay="200 ms", sustain="70", release="200 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> delay(time=0.75beat, feedback=45%, mix=28%)
+      |> gain(level)
+  }
+}

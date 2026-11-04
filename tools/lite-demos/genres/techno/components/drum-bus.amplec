@@ -1,0 +1,59 @@
+/** Four drum groups in, one punchy drum bus out: a level for each group, glue compression, a touch of tape drive and some air. */
+#[DisplayName("Drum bus")]
+#[Category("Techno")]
+#[Tags("drums", "bus", "glue", "compressor", "techno")]
+component koda.techno.drumBus version 1.0.0 current {
+  id "demo.koda.techno.drum-bus"
+
+  input kick: Audio
+  input snare: Audio
+  input hats: Audio
+  input perc: Audio
+
+  #[DisplayName("Kick"), MinValue(-18dB), MaxValue(6dB)]
+  property kickLevel: Gain = 0dB
+  #[DisplayName("Clap"), MinValue(-18dB), MaxValue(6dB)]
+  property snareLevel: Gain = -3dB
+  #[DisplayName("Hats"), MinValue(-24dB), MaxValue(6dB)]
+  property hatLevel: Gain = -8dB
+  #[DisplayName("Perc"), MinValue(-24dB), MaxValue(6dB)]
+  property percLevel: Gain = -7dB
+  #[DisplayName("Glue"), MinValue(-30dB), MaxValue(0dB)]
+  property glue: Gain = -14dB
+  #[DisplayName("Tape"), MinValue(0dB), MaxValue(18dB)]
+  property tape: Gain = 4dB
+
+  output audio: Audio
+
+  ui {
+    group "Levels" tint blue {
+      row {
+        knob kickLevel tint red
+        knob snareLevel tint orange
+        knob hatLevel tint yellow
+        knob percLevel tint teal
+      }
+    }
+    group "Bus" tint purple {
+      row {
+        knob glue size l
+        knob tape size l tint red
+      }
+    }
+    card {
+      knob glue size s
+      knob tape size s tint red
+    }
+  }
+
+  process {
+    let k = kick |> gain(kickLevel)
+    let s = snare |> gain(snareLevel)
+    let h = hats |> gain(hatLevel)
+    let p = perc |> gain(percLevel)
+    emit mix(k, s, h, p)
+      |> compressor(threshold=glue, ratio=3, attack=12ms, release=90ms)
+      |> distortion(drive=tape, mode="soft", tone=9000Hz, mix=18%)
+      |> eq(low=1dB, high=1.5dB)
+  }
+}

@@ -1,0 +1,242 @@
+composition "house" { ample 1  tempo 124  master-seed 124 }
+
+# HOUSE: deep house, 72 bars at 124 BPM (2:19), made of custom components.
+#
+#   bars  1- 8  intro
+#   bars  9-16  build
+#   bars 17-32  drop
+#   bars 33-40  breakdown
+#   bars 41-64  drop2
+#   bars 65-72  outro
+#
+# Components (techno-style: Notes components arrange the riffs, instruments are Notes in / sound out, the rest are audio components): loopBars, arrange, houseBass, houseKeys, housePad, housePluck, drumBus, pump, master.
+# The drums need the kit in samples/kit (kick, snare, hat, open, tom).
+import "Testjes/Components/house/components/loop-bars.amplec"
+import "Testjes/Components/house/components/arrange.amplec"
+import "Testjes/Components/house/components/house-bass.amplec"
+import "Testjes/Components/house/components/house-keys.amplec"
+import "Testjes/Components/house/components/house-pad.amplec"
+import "Testjes/Components/house/components/house-pluck.amplec"
+import "Testjes/Components/house/components/drum-bus.amplec"
+import "Testjes/Components/house/components/pump.amplec"
+import "Testjes/Components/house/components/master.amplec"
+
+# ------------------------------------------------------------------ riffs, loops and the arrangement of every instrument
+midi-clip houseBassRiff at 1 for 4 {
+  notes 1:0.5:0.4:45:100 1:1.5:0.4:45:90 1:2.5:0.4:57:100 1:3.5:0.4:45:90 2:0.5:0.4:38:100 2:1.5:0.4:38:90 2:2.5:0.4:50:100 2:3.5:0.4:38:90 3:0.5:0.4:43:100 3:1.5:0.4:43:90 3:2.5:0.4:55:100 3:3.5:0.4:43:90 4:0.5:0.4:36:100 4:1.5:0.4:36:90 4:2.5:0.4:48:100 4:3.5:0.4:36:90
+}
+
+koda.house.loopBars houseBassLoop1 at 1 for 24 {
+  times 6
+  from houseBassRiff.notes -> source
+}
+
+koda.house.loopBars houseBassLoop2 at 1 for 24 {
+  times 6
+  from houseBassRiff.notes -> source
+}
+
+koda.house.arrange houseBassPlan at 1 for 72 {
+  s1 8bar
+  s2 40bar
+  from houseBassLoop1.notes -> p1
+  from houseBassLoop2.notes -> p2
+}
+
+koda.house.houseBass houseBass at 1 for 72 {
+  from houseBassPlan.notes -> notes
+}
+
+midi-clip houseKeysRiff at 1 for 4 {
+  notes 1:0.5:0.3:57:92 1:0.5:0.3:60:92 1:0.5:0.3:64:92 1:0.5:0.3:67:92 1:1.5:0.3:57:80 1:1.5:0.3:60:80 1:1.5:0.3:64:80 1:1.5:0.3:67:80 1:2.5:0.3:57:92 1:2.5:0.3:60:92 1:2.5:0.3:64:92 1:2.5:0.3:67:92 1:3.5:0.3:57:80 1:3.5:0.3:60:80 1:3.5:0.3:64:80 1:3.5:0.3:67:80 2:0.5:0.3:50:92 2:0.5:0.3:53:92 2:0.5:0.3:57:92 2:0.5:0.3:60:92 2:1.5:0.3:50:80 2:1.5:0.3:53:80 2:1.5:0.3:57:80 2:1.5:0.3:60:80 2:2.5:0.3:50:92 2:2.5:0.3:53:92 2:2.5:0.3:57:92 2:2.5:0.3:60:92 2:3.5:0.3:50:80 2:3.5:0.3:53:80 2:3.5:0.3:57:80 2:3.5:0.3:60:80 3:0.5:0.3:55:92 3:0.5:0.3:59:92 3:0.5:0.3:62:92 3:0.5:0.3:65:92 3:1.5:0.3:55:80 3:1.5:0.3:59:80 3:1.5:0.3:62:80 3:1.5:0.3:65:80 3:2.5:0.3:55:92 3:2.5:0.3:59:92 3:2.5:0.3:62:92 3:2.5:0.3:65:92 3:3.5:0.3:55:80 3:3.5:0.3:59:80 3:3.5:0.3:62:80 3:3.5:0.3:65:80 4:0.5:0.3:48:92 4:0.5:0.3:52:92 4:0.5:0.3:55:92 4:0.5:0.3:59:92 4:1.5:0.3:48:80 4:1.5:0.3:52:80 4:1.5:0.3:55:80 4:1.5:0.3:59:80 4:2.5:0.3:48:92 4:2.5:0.3:52:92 4:2.5:0.3:55:92 4:2.5:0.3:59:92 4:3.5:0.3:48:80 4:3.5:0.3:52:80 4:3.5:0.3:55:80 4:3.5:0.3:59:80
+}
+
+koda.house.loopBars houseKeysLoop1 at 1 for 8 {
+  times 2
+  from houseKeysRiff.notes -> source
+}
+
+koda.house.loopBars houseKeysLoop2 at 1 for 16 {
+  times 4
+  from houseKeysRiff.notes -> source
+}
+
+koda.house.loopBars houseKeysLoop3 at 1 for 32 {
+  times 8
+  from houseKeysRiff.notes -> source
+}
+
+koda.house.arrange houseKeysPlan at 1 for 72 {
+  s1 0bar
+  s2 16bar
+  s3 40bar
+  from houseKeysLoop1.notes -> p1
+  from houseKeysLoop2.notes -> p2
+  from houseKeysLoop3.notes -> p3
+}
+
+koda.house.houseKeys houseKeys at 1 for 72 {
+  from houseKeysPlan.notes -> notes
+}
+
+midi-clip housePadRiff at 1 for 8 {
+  notes 1:0:4:57:70;tie=1 2:0:4:57:70;tie=1 1:0:4:60:70;tie=2 2:0:4:60:70;tie=2 1:0:4:64:70;tie=3 2:0:4:64:70;tie=3 1:0:4:67:70;tie=4 2:0:4:67:70;tie=4 3:0:4:50:70;tie=5 4:0:4:50:70;tie=5 3:0:4:53:70;tie=6 4:0:4:53:70;tie=6 3:0:4:57:70;tie=7 4:0:4:57:70;tie=7 3:0:4:60:70;tie=8 4:0:4:60:70;tie=8 5:0:4:55:70;tie=9 6:0:4:55:70;tie=9 5:0:4:59:70;tie=10 6:0:4:59:70;tie=10 5:0:4:62:70;tie=11 6:0:4:62:70;tie=11 5:0:4:65:70;tie=12 6:0:4:65:70;tie=12 7:0:4:48:70;tie=13 8:0:4:48:70;tie=13 7:0:4:52:70;tie=14 8:0:4:52:70;tie=14 7:0:4:55:70;tie=15 8:0:4:55:70;tie=15 7:0:4:59:70;tie=16 8:0:4:59:70;tie=16
+}
+
+koda.house.loopBars housePadLoop1 at 1 for 8 {
+  times 1
+  from housePadRiff.notes -> source
+}
+
+koda.house.loopBars housePadLoop2 at 1 for 32 {
+  times 4
+  from housePadRiff.notes -> source
+}
+
+koda.house.arrange housePadPlan at 1 for 72 {
+  s1 8bar
+  s2 32bar
+  from housePadLoop1.notes -> p1
+  from housePadLoop2.notes -> p2
+}
+
+koda.house.housePad housePad at 1 for 72 {
+  from housePadPlan.notes -> notes
+}
+
+midi-clip housePluckRiff at 1 for 4 {
+  notes 1:0:0.5:69:96 1:1.5:0.5:72:92 1:2.5:1:76:100 2:0.5:0.5:74:90 2:2:1:69:94 3:0:0.5:71:92 3:1.5:0.5:74:92 3:2.5:1.5:79:100 4:1:0.5:76:90 4:2:1:72:94
+}
+
+koda.house.loopBars housePluckLoop1 at 1 for 16 {
+  times 4
+  from housePluckRiff.notes -> source
+}
+
+koda.house.loopBars housePluckLoop2 at 1 for 24 {
+  times 6
+  from housePluckRiff.notes -> source
+}
+
+koda.house.arrange housePluckPlan at 1 for 72 {
+  s1 16bar
+  s2 40bar
+  from housePluckLoop1.notes -> p1
+  from housePluckLoop2.notes -> p2
+}
+
+koda.house.housePluck housePluck at 1 for 72 {
+  from housePluckPlan.notes -> notes
+}
+
+# ------------------------------------------------------------------ the music
+mixer music {
+  inputs 4
+  gains "-5 -9 -10 -9"
+  from houseBass.audio -> in1
+  from houseKeys.audio -> in2
+  from housePad.audio -> in3
+  from housePluck.audio -> in4
+}
+
+koda.house.pump pump {
+  from music.mix -> audio
+}
+
+# ------------------------------------------------------------------ the drums, voice by voice
+drums kick1 at 1 for 32 {
+  kit samples/kit
+  pattern kick:x...x...x...x...
+}
+
+drums kick2 at 41 for 32 {
+  kit samples/kit
+  pattern kick:x...x...x...x...
+}
+
+drums snare1 at 9 for 24 {
+  kit samples/kit
+  pattern snare:....x.......x...
+}
+
+drums snare2 at 41 for 24 {
+  kit samples/kit
+  pattern snare:....x.......x...
+}
+
+drums hat1 at 9 for 24 {
+  kit samples/kit
+  pattern hat:..x...x...x...x.
+}
+
+drums hat2 at 41 for 32 {
+  kit samples/kit
+  pattern hat:..x...x...x...x.
+}
+
+drums open1 at 17 for 16 {
+  kit samples/kit
+  pattern open:..x...x...x...x.
+}
+
+drums open2 at 41 for 24 {
+  kit samples/kit
+  pattern open:..x...x...x...x.
+}
+
+drums tom1 at 41 for 24 {
+  kit samples/kit
+  pattern tom:......x.......x.
+}
+
+mixer kicks {
+  inputs 4
+  gains "0 0 0 0"
+  from kick1.audio -> audio1
+  from kick2.audio -> audio2
+}
+
+mixer snares {
+  inputs 4
+  gains "-2 -2 0 0"
+  from snare1.audio -> audio1
+  from snare2.audio -> audio2
+}
+
+mixer hats {
+  inputs 4
+  gains "-2 -2 -6 -6"
+  from hat1.audio -> audio1
+  from hat2.audio -> audio2
+  from open1.audio -> audio3
+  from open2.audio -> audio4
+}
+
+mixer percs {
+  inputs 4
+  gains "-8 0 0 0"
+  from tom1.audio -> audio1
+}
+
+koda.house.drumBus drumBus {
+  from kicks.mix -> kick
+  from snares.mix -> snare
+  from hats.mix -> hats
+  from percs.mix -> perc
+}
+
+# ------------------------------------------------------------------ the mix
+mixer final {
+  inputs 4
+  gains "14 13 0 0"
+  from drumBus.audio -> in1
+  from pump.audio -> in2
+}
+
+koda.house.master finish {
+  from final.mix -> audio
+}
+
+master out {
+  from finish.audio -> mix
+}

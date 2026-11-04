@@ -1,0 +1,32 @@
+/** Notes in, a wobbly jazzy piano out. */
+#[DisplayName("Tape keys")]
+#[Category("Lo-fi")]
+#[Tags("keys", "jazz", "lofi", "instrument", "lofi")]
+component koda.lofi.lofiKeys version 1.0.0 current {
+  id "demo.koda.lofi.lofi-keys"
+
+  input notes: Notes
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -7dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob level size l tint gray
+    }
+    card {
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> piano()
+      |> chorus(depth=9ms, period=3600ms, mix=60)
+      |> reverb(size=45%, decay=40%, mix=16%)
+      |> gain(level)
+  }
+}
