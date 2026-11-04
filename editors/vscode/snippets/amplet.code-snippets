@@ -1,0 +1,1375 @@
+{
+  "ACE music (ACE-Step)": {
+    "prefix": [
+      "ace-music"
+    ],
+    "description": "Creates intended backing music or a full song. Lyrics are optional: without them it makes instrumental music.",
+    "body": [
+      "ace-music ${1:ace-music} {",
+      "  music_direction ${2:}",
+      "  steps ${3:}",
+      "  adapter ${4:}",
+      "  adapter_scale ${5:}",
+      "  voice_strength ${6:}",
+      "  guidance ${7:}",
+      "  shift ${8:}",
+      "  solver ${9:euler}",
+      "  lm_temperature ${10:0.85}",
+      "  lm_cfg_scale ${11:2}",
+      "  lm_top_p ${12:0.9}",
+      "  lm_top_k ${13:0}",
+      "  lm_negative_prompt ${14:}",
+      "  lm_seed ${15:derived}",
+      "  seed ${16:derived}",
+      "  channels ${17:auto}",
+      "  engine ${18:}",
+      "}",
+      "$0"
+    ]
+  },
+  "AI voice (ACE-Step)": {
+    "prefix": [
+      "ai-voice"
+    ],
+    "description": "Sings the linked timed lyrics as isolated vocals only; it never intentionally asks ACE-Step for backing music.",
+    "body": [
+      "ai-voice ${1:ai-voice} {",
+      "  voice ${2:}",
+      "  voice_sample ${3:}",
+      "  adapter ${4:}",
+      "  adapter_scale ${5:}",
+      "  voice_strength ${6:}",
+      "  sing ${7:}",
+      "  fit ${8:off}",
+      "  steps ${9:}",
+      "  guidance ${10:}",
+      "  shift ${11:}",
+      "  solver ${12:euler}",
+      "  lm_temperature ${13:0.85}",
+      "  lm_cfg_scale ${14:2}",
+      "  lm_top_p ${15:0.9}",
+      "  lm_top_k ${16:0}",
+      "  lm_negative_prompt ${17:}",
+      "  lm_seed ${18:derived}",
+      "  seed ${19:derived}",
+      "  channels ${20:auto}",
+      "  engine ${21:}",
+      "}",
+      "$0"
+    ]
+  },
+  "Ambience": {
+    "prefix": [
+      "ambience"
+    ],
+    "description": "A recording (rain, a room tone, a crowd) turned into a seamless ambience of any length: stretches of it are chained with crossfades, from random places, so no loop can be heard.",
+    "body": [
+      "ambience ${1:ambience} {",
+      "  enabled ${2:on}",
+      "  file ${3:}",
+      "  start ${4:}",
+      "  end ${5:}",
+      "  segment ${6:12}",
+      "  crossfade ${7:3}",
+      "  variation ${8:40}",
+      "  channels ${9:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Arpeggiator": {
+    "prefix": [
+      "arpeggiator"
+    ],
+    "description": "Turns chords into runs of single notes, one after the other, at a rate you choose (for example 1/16). It takes notes between a clip and an instrument and gives notes back.",
+    "body": [
+      "arpeggiator ${1:arpeggiator} {",
+      "  enabled ${2:on}",
+      "  rate ${3:1/16}",
+      "  pattern ${4:up}",
+      "  octaves ${5:1}",
+      "  gate ${6:80}",
+      "}",
+      "$0"
+    ]
+  },
+  "Autotune": {
+    "prefix": [
+      "autotune"
+    ],
+    "description": "Pulls a voice (one singer, or one monophonic instrument) to the right notes. Every moment gets the note it should be: a note of the key, the note the melody on target plays at that time, or a fix from the window. Speed 0 ms is the hard robot sound, 20 to 200 ms a natural correction. The vowels keep their colour (PSOLA).",
+    "body": [
+      "autotune ${1:autotune} {",
+      "  enabled ${2:on}",
+      "  key ${3:auto}",
+      "  speed ${4:20 ms}",
+      "  amount ${5:100%}",
+      "  humanize ${6:30%}",
+      "  vibrato ${7:keep}",
+      "  method ${8:spectral}",
+      "  fixes ${9:}",
+      "  channels ${10:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Bass": {
+    "prefix": [
+      "bass"
+    ],
+    "description": "Plays a bass line on the notes it receives, using the sounds of a sample set (the default is analog-808) and a bass pattern. It needs notes as input and gives audio.",
+    "body": [
+      "bass ${1:bass} {",
+      "  set ${2:analog-808}",
+      "  pattern ${3:bass-A}",
+      "  gain ${4:0}",
+      "  humanize ${5:0}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Bitcrusher": {
+    "prefix": [
+      "bitcrusher"
+    ],
+    "description": "Gives the sound a lo-fi, crunchy character by using fewer bits and a lower sample rate. Takes audio and gives audio; mix sets how much of the effect you hear.",
+    "body": [
+      "bitcrusher ${1:bitcrusher} {",
+      "  enabled ${2:on}",
+      "  bits ${3:8}",
+      "  downsample ${4:1}",
+      "  mix ${5:100}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Bus": {
+    "prefix": [
+      "bus"
+    ],
+    "description": "A group fader: sums the tracks that connect to it (like a mixer) and has one gain and one mute for the whole scene. Put the rain, the pub and the music on their own bus.",
+    "body": [
+      "bus ${1:bus} {",
+      "  gains ${2:0 0 0 0}",
+      "  pan ${3:c c c c}",
+      "  inputs ${4:4}",
+      "  gain ${5:0}",
+      "  mute ${6:off}",
+      "  solo ${7:off}",
+      "  channels ${8:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Choir layer (overlap)": {
+    "prefix": [
+      "choir"
+    ],
+    "description": "Layers several AI voices that sing the linked lyrics together, slightly spread apart in time. It needs lyrics as input, the ACE-Step plugin, and gives audio.",
+    "body": [
+      "choir ${1:choir} {",
+      "  voices ${2:3}",
+      "  spread ${3:12%}",
+      "  channels ${4:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Chop": {
+    "prefix": [
+      "chop"
+    ],
+    "description": "Cuts a recording into slices (the words of a spoken phrase, found by following the level, or start times you give) and puts them back on the beat in the order of a pattern: 1 2 3 4 3 4*2 plays the four slices on the grid, - is a rest and 4*2 repeats a slice twice inside its step (a stutter). Use it on a spoken line, then through a vocoder, for a rhythmic robot voice.",
+    "body": [
+      "chop ${1:chop} {",
+      "  slices ${2:auto}",
+      "  sensitivity ${3:50 %}",
+      "  gap ${4:150 ms}",
+      "  pattern ${5:}",
+      "  step ${6:1}",
+      "  gate ${7:90 %}",
+      "  fit ${8:0 %}",
+      "  repeat ${9:1}",
+      "}",
+      "$0"
+    ]
+  },
+  "Chord": {
+    "prefix": [
+      "chord"
+    ],
+    "description": "Turns every incoming note into a chord of the chosen type (for example major) and inversion. It takes notes between a clip and an instrument and gives notes back.",
+    "body": [
+      "chord ${1:chord} {",
+      "  enabled ${2:on}",
+      "  type ${3:major}",
+      "  inversion ${4:0}",
+      "}",
+      "$0"
+    ]
+  },
+  "Chorus": {
+    "prefix": [
+      "chorus"
+    ],
+    "description": "Thickens the sound by mixing in a slightly delayed copy whose pitch moves slowly, so one voice sounds like several. Takes audio and gives audio.",
+    "body": [
+      "chorus ${1:chorus} {",
+      "  enabled ${2:on}",
+      "  depth ${3:5 ms}",
+      "  period ${4:1500 ms}",
+      "  mix ${5:50}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Click": {
+    "prefix": [
+      "click"
+    ],
+    "description": "A metronome: one short click on every beat for as long as the block lasts, louder and higher on the first beat of each bar. Use it as a count-in or to check that other blocks sit on the grid. It makes no use of any file and gives audio.",
+    "body": [
+      "click ${1:click} {",
+      "  accent ${2:on}",
+      "  per_beat ${3:1}",
+      "}",
+      "$0"
+    ]
+  },
+  "Compressor": {
+    "prefix": [
+      "compressor"
+    ],
+    "description": "Evens out loud and soft parts. Connect a sound to key to make it a sidechain compressor (the key drives the reduction).",
+    "body": [
+      "compressor ${1:compressor} {",
+      "  enabled ${2:on}",
+      "  threshold ${3:-18 dB}",
+      "  ratio ${4:4}",
+      "  attack ${5:10 ms}",
+      "  release ${6:120 ms}",
+      "  makeup ${7:0 dB}",
+      "  keyFilter ${8:0 Hz}",
+      "  channels ${9:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Convolution reverb": {
+    "prefix": [
+      "convolution"
+    ],
+    "description": "Puts the sound in a real space: it is convolved with an impulse response (a WAV file of the project), for example a room, a plate or a street.",
+    "body": [
+      "convolution ${1:convolution} {",
+      "  enabled ${2:on}",
+      "  ir ${3:file}",
+      "  file ${4:}",
+      "  mix ${5:30}",
+      "  predelay ${6:0}",
+      "  length ${7:3}",
+      "  level ${8:0}",
+      "  normalize ${9:on}",
+      "  channels ${10:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Crossfade": {
+    "prefix": [
+      "crossfade"
+    ],
+    "description": "Input a fades out while input b fades in over the same stretch, in bars or seconds. Equal power by default.",
+    "body": [
+      "crossfade ${1:crossfade} {",
+      "  start ${2:1}",
+      "  length ${3:2}",
+      "  shape ${4:equal}",
+      "  channels ${5:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Curve": {
+    "prefix": [
+      "curve"
+    ],
+    "description": "A control that you write as a curve over the song (auto, lfo or env, like a parameter) so that one curve can steer several parameters.",
+    "body": [
+      "curve ${1:curve} {",
+      "  value ${2:auto(1:0, 5:1000)}",
+      "  unit ${3:none}",
+      "}",
+      "$0"
+    ]
+  },
+  "Cut / trim": {
+    "prefix": [
+      "cut"
+    ],
+    "description": "Keep a stretch of the input: from a start to an end, or only the first or the last seconds, once or repeated.",
+    "body": [
+      "cut ${1:cut} {",
+      "  enabled ${2:on}",
+      "  start ${3:}",
+      "  end ${4:}",
+      "  first ${5:}",
+      "  last ${6:}",
+      "  loop ${7:off}",
+      "  channels ${8:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "De-esser": {
+    "prefix": [
+      "deesser"
+    ],
+    "description": "Tames harsh s and t sounds in a voice by turning down the loud high frequencies around the chosen frequency. Takes audio and gives audio.",
+    "body": [
+      "deesser ${1:deesser} {",
+      "  enabled ${2:on}",
+      "  frequency ${3:6000 Hz}",
+      "  threshold ${4:-30 dB}",
+      "  ratio ${5:4}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Delay (echo)": {
+    "prefix": [
+      "delay"
+    ],
+    "description": "Repeats the sound after a time you choose (for example 250 ms), with feedback for several echoes and mix for how loud the echoes are. Takes audio and gives audio.",
+    "body": [
+      "delay ${1:delay} {",
+      "  enabled ${2:on}",
+      "  time ${3:250 ms}",
+      "  feedback ${4:35%}",
+      "  mix ${5:30%}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Delay Llama": {
+    "prefix": [
+      "delay-llama"
+    ],
+    "description": "A singing voice made of formants (FOF synthesis), in the spirit of the classic Delay Lama: notes in, a chanting, humming, oohing and aahing voice out. Vowel, voice (the size of the singer) and mouth can be curves over the song; glide slides between notes that touch, vibrato wobbles, unison stacks detuned voices, echo adds the classic stereo echo. The pitch bend of the notes is sung by the voice itself.",
+    "body": [
+      "delay-llama ${1:delay-llama} {",
+      "  enabled ${2:on}",
+      "  vowel ${3:50}",
+      "  voice ${4:50}",
+      "  mouth ${5:60}",
+      "  glide ${6:60 ms}",
+      "  vibrato ${7:30%}",
+      "  vibrato_rate ${8:5.5 Hz}",
+      "  breath ${9:50%}",
+      "  unison ${10:1}",
+      "  detune ${11:12}",
+      "  spread ${12:60%}",
+      "  attack ${13:20 ms}",
+      "  decay ${14:200 ms}",
+      "  sustain ${15:85%}",
+      "  release ${16:180 ms}",
+      "  echo ${17:0%}",
+      "  leveler ${18:50%}",
+      "  gain ${19:-6 dB}",
+      "  character ${20:on}",
+      "}",
+      "$0"
+    ]
+  },
+  "Denoise": {
+    "prefix": [
+      "denoise"
+    ],
+    "description": "Takes steady noise (hiss, room tone, rain on a recording) away: the noise level of every frequency band is estimated and subtracted.",
+    "body": [
+      "denoise ${1:denoise} {",
+      "  enabled ${2:on}",
+      "  reduction ${3:12}",
+      "  sensitivity ${4:50}",
+      "  noise ${5:auto}",
+      "  learn ${6:0.5}",
+      "  learn_from ${7:0}",
+      "  channels ${8:auto}",
+      "  optimize ${9:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Distortion": {
+    "prefix": [
+      "distortion"
+    ],
+    "description": "Warm saturation up to heavy distortion; also useful to make a voice rougher.",
+    "body": [
+      "distortion ${1:distortion} {",
+      "  enabled ${2:on}",
+      "  drive ${3:12 dB}",
+      "  mode ${4:soft}",
+      "  tone ${5:8000 Hz}",
+      "  level ${6:0 dB}",
+      "  mix ${7:100%}",
+      "  channels ${8:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Drums": {
+    "prefix": [
+      "drums"
+    ],
+    "description": "Plays a drum pattern with the samples of a drum kit folder of the project, triggered by the pattern you write (and optionally by notes). It needs a kit (a sample set) and gives audio.",
+    "body": [
+      "drums ${1:drums} {",
+      "  kit ${2:kit/tape}",
+      "  pattern ${3:beat-A}",
+      "  bars ${4:16}",
+      "  steps ${5:16}",
+      "  swing ${6:0}",
+      "  choke ${7:}",
+      "  map ${8:}",
+      "  fallback ${9:}",
+      "  humanize ${10:0}",
+      "  patterns ${11:}",
+      "  song ${12:}",
+      "  channels ${13:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Duck (pumping)": {
+    "prefix": [
+      "duck"
+    ],
+    "description": "Makes the sound dip at every hit of a pattern and come back, like sidechain compression keyed by the kick.",
+    "body": [
+      "duck ${1:duck} {",
+      "  enabled ${2:on}",
+      "  depth ${3:10 dB}",
+      "  release ${4:160 ms}",
+      "  pattern ${5:x...x...x...x...}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Equalizer": {
+    "prefix": [
+      "eq"
+    ],
+    "description": "Boosts or cuts the low, middle and high parts of a sound, with the two crossover frequencies you choose. Takes audio and gives audio.",
+    "body": [
+      "eq ${1:eq} {",
+      "  enabled ${2:on}",
+      "  low ${3:0 dB}",
+      "  mid ${4:0 dB}",
+      "  high ${5:0 dB}",
+      "  low_hz ${6:250 Hz}",
+      "  high_hz ${7:3000 Hz}",
+      "  channels ${8:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Fade": {
+    "prefix": [
+      "fade"
+    ],
+    "description": "Fades a sound in or out, in bars or seconds, and ends in exact silence. The same as a volume gain with fadein(...) or fadeout(...).",
+    "body": [
+      "fade ${1:fade} {",
+      "  enabled ${2:on}",
+      "  direction ${3:out}",
+      "  start ${4:1}",
+      "  length ${5:2}",
+      "  shape ${6:lin}",
+      "  channels ${7:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Filter": {
+    "prefix": [
+      "filter"
+    ],
+    "description": "Removes the highs (lowpass), the lows (highpass), everything but a band (bandpass) or a narrow band (notch) of a sound around a cutoff frequency, with a gentle or steep slope, with optional resonance, and can move the cutoff with an LFO (free or tempo-synced) for a wobble. Takes audio and gives audio.",
+    "body": [
+      "filter ${1:filter} {",
+      "  enabled ${2:on}",
+      "  type ${3:lowpass}",
+      "  slope ${4:12}",
+      "  cutoff ${5:1000 Hz}",
+      "  resonance ${6:0 %}",
+      "  lfo_rate ${7:off}",
+      "  lfo_depth ${8:0 oct}",
+      "  lfo_shape ${9:sine}",
+      "  channels ${10:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Fire (notes from a control)": {
+    "prefix": [
+      "fire"
+    ],
+    "description": "Plays a note when a control passes a level, once for every time it does (a car passes, a hit plays), with a minimum time between two notes.",
+    "body": [
+      "fire ${1:fire} {",
+      "  enabled ${2:on}",
+      "  threshold ${3:0.5}",
+      "  direction ${4:rising}",
+      "  note ${5:60}",
+      "  velocity ${6:100}",
+      "  length ${7:250 ms}",
+      "  gap ${8:600 ms}",
+      "}",
+      "$0"
+    ]
+  },
+  "Flanger": {
+    "prefix": [
+      "flanger"
+    ],
+    "description": "A very short delay that moves slowly, fed back into itself, which gives the sweeping jet sound. Takes audio and gives audio.",
+    "body": [
+      "flanger ${1:flanger} {",
+      "  enabled ${2:on}",
+      "  depth ${3:2 ms}",
+      "  period ${4:2000 ms}",
+      "  feedback ${5:50}",
+      "  mix ${6:50}",
+      "  channels ${7:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Follow (envelope)": {
+    "prefix": [
+      "follow"
+    ],
+    "description": "Listens to a sound and makes a control that follows how loud it is: a car passing, a kick, a voice. Choose the band (so the cars count, not the rain), subtract the steady background, and say how fast it rises and falls. The control steers any parameter that can be automated, and the gate is on while the sound is above a level.",
+    "body": [
+      "follow ${1:follow} {",
+      "  enabled ${2:on}",
+      "  band ${3:full}",
+      "  baseline ${4:on}",
+      "  baseline_window ${5:10 s}",
+      "  attack ${6:80 ms}",
+      "  release ${7:600 ms}",
+      "  normalize ${8:on}",
+      "  curve ${9:linear}",
+      "  range ${10:0 .. 1}",
+      "  unit ${11:none}",
+      "  threshold ${12:30 %}",
+      "  hold ${13:500 ms}",
+      "}",
+      "$0"
+    ]
+  },
+  "Gate": {
+    "prefix": [
+      "gate"
+    ],
+    "description": "Silences the sound whenever it falls below a threshold, for example the noise between phrases. Takes audio and gives audio.",
+    "body": [
+      "gate ${1:gate} {",
+      "  enabled ${2:on}",
+      "  threshold ${3:-50 dB}",
+      "  attack ${4:5 ms}",
+      "  hold ${5:80 ms}",
+      "  release ${6:150 ms}",
+      "  channels ${7:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "General MIDI": {
+    "prefix": [
+      "gm"
+    ],
+    "description": "Plays the notes it receives with a General MIDI program (bank and program number) from a SoundFont 2 file of the project. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack. It needs a SoundFont file and gives audio, and on send the part of every note that the SoundFont and controller 91 send to a reverb (silent when nothing is sent): connect it to a reverb of the song. chorus is the same for the chorus send (generator 15 and controller 93).",
+    "body": [
+      "gm ${1:gm} {",
+      "  file ${2:samples/musescore-general/MuseScore_General.sf2}",
+      "  bank ${3:0}",
+      "  program ${4:0}",
+      "  channel ${5:-1}",
+      "  gain ${6:0}",
+      "  limiter ${7:soft}",
+      "  engine ${8:integer}",
+      "  level ${9:auto}",
+      "  channels ${10:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Granular": {
+    "prefix": [
+      "granular"
+    ],
+    "description": "Cuts the sound into short windowed grains and scatters them along its length (with a little pitch variation): a longer, never repeating texture from a short sound.",
+    "body": [
+      "granular ${1:granular} {",
+      "  enabled ${2:on}",
+      "  grain ${3:120}",
+      "  density ${4:40}",
+      "  scatter ${5:60}",
+      "  pitch ${6:0}",
+      "  channels ${7:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Group (empty block)": {
+    "prefix": [
+      "group"
+    ],
+    "description": "A container that holds other blocks and shows them as one block with one input and one output. Use it to keep a chain of blocks together.",
+    "body": [
+      "group ${1:group} {",
+      "}",
+      "$0"
+    ]
+  },
+  "Guitar (samples)": {
+    "prefix": [
+      "guitar"
+    ],
+    "description": "Plays recorded guitar notes from a sample set of the project as a strummed chord pattern. It needs a sample set and notes, and gives audio.",
+    "body": [
+      "guitar ${1:guitar} {",
+      "  set ${2:}",
+      "  strum ${3:D...D...D.u.D.u.}",
+      "  steps ${4:16}",
+      "  voicing ${5:open}",
+      "  stagger ${6:22}",
+      "  gain ${7:0}",
+      "  humanize ${8:0}",
+      "  patterns ${9:}",
+      "  song ${10:}",
+      "  channels ${11:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Import audio": {
+    "prefix": [
+      "import-audio"
+    ],
+    "description": "Plays an audio (WAV) file of the project as a sound source, optionally only a part of it, offset in time or looped. The file is identified by its content, so the song keeps working if the file is renamed. It needs a file and gives audio.",
+    "body": [
+      "import-audio ${1:import-audio} {",
+      "  file ${2:}",
+      "  start ${3:}",
+      "  end ${4:}",
+      "  offset ${5:}",
+      "  loop ${6:off}",
+      "  loop_start ${7:}",
+      "  loop_end ${8:}",
+      "  crossfade ${9:}",
+      "  crossfade_curve ${10:equal-power}",
+      "  fingerprint ${11:content}",
+      "  channels ${12:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Join one after the other": {
+    "prefix": [
+      "join"
+    ],
+    "description": "Puts the connected inputs one after the other (in1, then in2, then in3 ...) with a gap between them: spoken phrases with a pause between, hits in a row. The gap is seconds plus beats; the result is as long as all parts and the gaps together.",
+    "body": [
+      "join ${1:join} {",
+      "  enabled ${2:on}",
+      "  seconds ${3:0.5}",
+      "  beats ${4:0}",
+      "  channels ${5:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Limiter": {
+    "prefix": [
+      "limiter"
+    ],
+    "description": "Keeps the sound under a ceiling (for example -1 dB) so that it can never clip. Takes audio and gives audio.",
+    "body": [
+      "limiter ${1:limiter} {",
+      "  enabled ${2:on}",
+      "  ceiling ${3:-1 dB}",
+      "  release ${4:100 ms}",
+      "  lookahead ${5:5 ms}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Timed lyrics": {
+    "prefix": [
+      "lyrics"
+    ],
+    "description": "Holds the timed words of a song in a lyrics file and gives them as text. The voice and music blocks read their words from it. It needs a lyrics file.",
+    "body": [
+      "lyrics ${1:lyrics} {",
+      "  lang ${2:nl}",
+      "  timing ${3:per-word}",
+      "  first5s ${4:check}",
+      "  file ${5:}",
+      "}",
+      "$0"
+    ]
+  },
+  "Map (scale a control)": {
+    "prefix": [
+      "map"
+    ],
+    "description": "Rescales a control: from one range to another, turned around, limited, smoothed and given a unit (so a general control can steer a parameter in Hz or dB).",
+    "body": [
+      "map ${1:map} {",
+      "  enabled ${2:on}",
+      "  in_low ${3:0}",
+      "  in_high ${4:1}",
+      "  out_low ${5:0}",
+      "  out_high ${6:1}",
+      "  unit ${7:none}",
+      "  invert ${8:off}",
+      "  limit ${9:on}",
+      "  smooth ${10:0 ms}",
+      "}",
+      "$0"
+    ]
+  },
+  "Master chain": {
+    "prefix": [
+      "master"
+    ],
+    "description": "The end of the song: takes the final mix, applies a limiter and a loudness target, and gives the audio that is rendered. A slice can cut one part of the arrangement out (slice_from and slice_to, in bars; set it by dragging on the ruler of the Arrangement).",
+    "body": [
+      "master ${1:master} {",
+      "  limiter ${2:-1 dB}",
+      "  target ${3:-14 LUFS}",
+      "  slice_from ${4:}",
+      "  slice_to ${5:}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Meter": {
+    "prefix": [
+      "meter"
+    ],
+    "description": "Passes the sound on unchanged and reports its peak, RMS, integrated loudness, crest factor and clipped samples as text (the report output; ample build prints it).",
+    "body": [
+      "meter ${1:meter} {",
+      "  enabled ${2:on}",
+      "  channels ${3:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "MIDI file": {
+    "prefix": [
+      "midi"
+    ],
+    "description": "Reads a Standard MIDI File of the project and gives its notes, so that an instrument block can play them. It needs a .mid file; it can also give the audio of a built-in rendering.",
+    "body": [
+      "midi ${1:midi} {",
+      "  file ${2:}",
+      "  source-file ${3:}",
+      "  variant-file ${4:}",
+      "  variant-module ${5:}",
+      "  track ${6:all}",
+      "  bars ${7:8}",
+      "  limiter ${8:soft}",
+      "  channels ${9:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "MIDI clip / chords": {
+    "prefix": [
+      "midi-clip"
+    ],
+    "description": "Textual MIDI: writes notes as text in the song: chords, a melody, or a list of notes with their timing, over a number of bars. It needs no file and gives notes that an instrument can play.",
+    "body": [
+      "midi-clip ${1:midi-clip} {",
+      "  ppq ${2:1000000}",
+      "  chords ${3:}",
+      "  melody ${4:}",
+      "  notes ${5:}",
+      "  scale ${6:none}",
+      "  bars ${7:8}",
+      "  bend ${8:}",
+      "  bend_range ${9:}",
+      "  modwheel ${10:}",
+      "  volume ${11:}",
+      "  expression ${12:}",
+      "  pan ${13:}",
+      "  sustain ${14:}",
+      "  reverb_send ${15:}",
+      "  chorus_send ${16:}",
+      "  cc ${17:}",
+      "}",
+      "$0"
+    ]
+  },
+  "MIDI humanize": {
+    "prefix": [
+      "midi-humanize"
+    ],
+    "description": "Adds a little random variation to the velocity and the start time of every note so that the music sounds played by hand. It takes notes and gives notes back.",
+    "body": [
+      "midi-humanize ${1:midi-humanize} {",
+      "  enabled ${2:on}",
+      "  velocity ${3:10}",
+      "  timing ${4:20}",
+      "}",
+      "$0"
+    ]
+  },
+  "MIDI to audio": {
+    "prefix": [
+      "midi-render"
+    ],
+    "description": "Plays MIDI notes (or a MIDI sequence) through a SoundFont and gives audio, using only integer calculations so that the result is the same on every machine. It needs a SoundFont file.",
+    "body": [
+      "midi-render ${1:midi-render} {",
+      "  file ${2:pack:musescore-general}",
+      "  bank ${3:source}",
+      "  program ${4:source}",
+      "  gain ${5:0}",
+      "  limiter ${6:soft}",
+      "  engine ${7:integer}",
+      "  track ${8:all}",
+      "  channels ${9:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Mixer": {
+    "prefix": [
+      "mixer"
+    ],
+    "description": "Sums several tracks into one, each with its own gain and pan. Drag the grip at the bottom right to add input lanes (4 to 16); lanes that are in use cannot be taken away.",
+    "body": [
+      "mixer ${1:mixer} {",
+      "  gains ${2:0 0 0 0}",
+      "  pan ${3:c c c c}",
+      "  inputs ${4:4}",
+      "  channels ${5:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Mood / scene": {
+    "prefix": [
+      "mood-scene"
+    ],
+    "description": "Describes in words the scene and the emotion that the music should have, and gives that as style data to blocks that accept it (such as ace-music). It makes no sound itself.",
+    "body": [
+      "mood-scene ${1:mood-scene} {",
+      "  direction ${2:}",
+      "}",
+      "$0"
+    ]
+  },
+  "Normalize": {
+    "prefix": [
+      "normalize"
+    ],
+    "description": "Scales the sound to a target peak or a target integrated loudness (never past -0.1 dBFS): a very quiet recording needs no hand-found gain.",
+    "body": [
+      "normalize ${1:normalize} {",
+      "  enabled ${2:on}",
+      "  mode ${3:peak}",
+      "  peak ${4:-1}",
+      "  loudness ${5:-18}",
+      "  max_gain ${6:48}",
+      "  channels ${7:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Pan": {
+    "prefix": [
+      "pan"
+    ],
+    "description": "Places the sound between left and right in the stereo image. Takes audio and gives audio.",
+    "body": [
+      "pan ${1:pan} {",
+      "  enabled ${2:on}",
+      "  pan ${3:0}",
+      "  channels ${4:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Parametric EQ": {
+    "prefix": [
+      "peq"
+    ],
+    "description": "A parametric equaliser with up to six free bands: each band is a peak, a low or high shelf, a notch, or a low cut or high cut (12 dB per octave) with its own frequency, gain and Q, and can be switched off. Takes audio and gives audio. The eq block stays the simple three-band tone control.",
+    "body": [
+      "peq ${1:peq} {",
+      "  enabled ${2:on}",
+      "  band1_type ${3:lowshelf}",
+      "  band1_hz ${4:80 Hz}",
+      "  band1_gain ${5:0 dB}",
+      "  band1_q ${6:1}",
+      "  band1_enabled ${7:on}",
+      "  band2_type ${8:peak}",
+      "  band2_hz ${9:250 Hz}",
+      "  band2_gain ${10:0 dB}",
+      "  band2_q ${11:1}",
+      "  band2_enabled ${12:on}",
+      "  band3_type ${13:peak}",
+      "  band3_hz ${14:800 Hz}",
+      "  band3_gain ${15:0 dB}",
+      "  band3_q ${16:1}",
+      "  band3_enabled ${17:on}",
+      "  band4_type ${18:peak}",
+      "  band4_hz ${19:2500 Hz}",
+      "  band4_gain ${20:0 dB}",
+      "  band4_q ${21:1}",
+      "  band4_enabled ${22:on}",
+      "  band5_type ${23:peak}",
+      "  band5_hz ${24:6000 Hz}",
+      "  band5_gain ${25:0 dB}",
+      "  band5_q ${26:1}",
+      "  band5_enabled ${27:on}",
+      "  band6_type ${28:highshelf}",
+      "  band6_hz ${29:12000 Hz}",
+      "  band6_gain ${30:0 dB}",
+      "  band6_q ${31:1}",
+      "  band6_enabled ${32:on}",
+      "  channels ${33:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Phaser": {
+    "prefix": [
+      "phaser"
+    ],
+    "description": "Moving notches in the frequency spectrum of the sound, which give a slow swirling effect. Takes audio and gives audio.",
+    "body": [
+      "phaser ${1:phaser} {",
+      "  enabled ${2:on}",
+      "  stages ${3:4}",
+      "  period ${4:2500 ms}",
+      "  mix ${5:50}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Felt piano": {
+    "prefix": [
+      "piano"
+    ],
+    "description": "Plays the notes it receives with a piano from a sample set of the project (for example felt-piano); the sample set is pinned by its content hash so the song always sounds the same. It needs a sample set and gives audio.",
+    "body": [
+      "piano ${1:piano} {",
+      "  set ${2:felt-piano}",
+      "  velocity ${3:natural}",
+      "  gain ${4:0}",
+      "  humanize ${5:0}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Pitch shift": {
+    "prefix": [
+      "pitch"
+    ],
+    "description": "Moves the pitch up or down and keeps the length. The method matters: wsola is clean for instruments and sounds, voice keeps the character of a singing or speaking voice, granular is the simple first one.",
+    "body": [
+      "pitch ${1:pitch} {",
+      "  enabled ${2:on}",
+      "  semitones ${3:0}",
+      "  range ${4:}",
+      "  method ${5:wsola}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Quantize": {
+    "prefix": [
+      "quantize"
+    ],
+    "description": "Moves the start of notes to the nearest point of a grid (for example 1/16), fully or partly, so that loose playing becomes tight. It takes notes and gives notes back.",
+    "body": [
+      "quantize ${1:quantize} {",
+      "  enabled ${2:on}",
+      "  grid ${3:1/16}",
+      "  strength ${4:100}",
+      "  lengths ${5:off}",
+      "}",
+      "$0"
+    ]
+  },
+  "Region merge (a loop seam back to audio)": {
+    "prefix": [
+      "region-merge"
+    ],
+    "description": "The one block that turns a region back into audio. Connect the body of a loop (optional) and the region (after its effects): the output is body plus region. With only the region connected it gives the processed region alone.",
+    "body": [
+      "region-merge ${1:region-merge} {",
+      "}",
+      "$0"
+    ]
+  },
+  "Reverb": {
+    "prefix": [
+      "reverb"
+    ],
+    "description": "Puts the sound in a room: size and decay set the space, mix sets how much of the room you hear. Takes audio and gives audio.",
+    "body": [
+      "reverb ${1:reverb} {",
+      "  enabled ${2:on}",
+      "  size ${3:50%}",
+      "  decay ${4:60%}",
+      "  mix ${5:25%}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Reverse": {
+    "prefix": [
+      "reverse"
+    ],
+    "description": "Plays the sound backwards: a reversed hit or cymbal makes a swell that lands on the beat.",
+    "body": [
+      "reverse ${1:reverse} {",
+      "  enabled ${2:on}",
+      "  channels ${3:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Rewind (DJ pull-up)": {
+    "prefix": [
+      "rewind"
+    ],
+    "description": "Pulls the record back like a DJ: the music stops, only the scratch is heard (for example 2 s), and the music goes on from an earlier place of the same sound (for example 5 s back). Times are those of the block, as you hear it. Several events work in one pass. Connect a real scratch sample to fx for the most realistic sound.",
+    "body": [
+      "rewind ${1:rewind} {",
+      "  enabled ${2:on}",
+      "  events ${3:}",
+      "  sound ${4:auto}",
+      "  fade ${5:5 ms}",
+      "  hardness ${6:100%}",
+      "  blend ${7:120 ms}",
+      "  smear ${8:0 ms}",
+      "  brake ${9:0 ms}",
+      "  curve ${10:motor}",
+      "  end ${11:stop}",
+      "  channels ${12:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Sampler": {
+    "prefix": [
+      "sampler"
+    ],
+    "description": "Plays one sample (a WAV file of the project) on the notes it receives, moved in pitch from a root note. It needs a file and notes, and gives audio.",
+    "body": [
+      "sampler ${1:sampler} {",
+      "  enabled ${2:on}",
+      "  file ${3:}",
+      "  root ${4:60}",
+      "  mode ${5:oneshot}",
+      "  release ${6:30 ms}",
+      "  gain ${7:0 dB}",
+      "  channels ${8:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Scorer: timing error": {
+    "prefix": [
+      "scorer"
+    ],
+    "description": "Checks the timing of a recording with its own model (an opt-in plugin) and gives a score as data. It needs the timing plugin and takes audio.",
+    "body": [
+      "scorer ${1:scorer} {",
+      "  limit ${2:120 ms}",
+      "}",
+      "$0"
+    ]
+  },
+  "Scratch (DJ)": {
+    "prefix": [
+      "scratch"
+    ],
+    "description": "Moves the sound like a record under the hand of a DJ: per step the record is pushed forward and pulled back, pulled back only, spun back or cut, so the sound squeals up and down in pitch.",
+    "body": [
+      "scratch ${1:scratch} {",
+      "  enabled ${2:on}",
+      "  pattern ${3:x.x.b...x.x.r...}",
+      "  depth ${4:120 ms}",
+      "  bars ${5:}",
+      "  mix ${6:100%}",
+      "  channels ${7:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Send bus": {
+    "prefix": [
+      "send"
+    ],
+    "description": "Sends a part of up to four sounds to a shared effect: through is the plain sum, send the sum with a send level per input.",
+    "body": [
+      "send ${1:send} {",
+      "  levels ${2:-12 -12 -12 -12}",
+      "  channels ${3:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Sequencer": {
+    "prefix": [
+      "sequencer"
+    ],
+    "description": "An advanced block: channels, patterns and a playlist from a .ampleseq file or kept in the song, mixed into one output and into up to eight lanes that name the channels they carry. It can read a sequence file and gives audio.",
+    "body": [
+      "sequencer ${1:sequencer} {",
+      "  file ${2:}",
+      "  lanes ${3:}",
+      "  gain ${4:0 dB}",
+      "  sequence ${5:}",
+      "  channels ${6:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Shift in time": {
+    "prefix": [
+      "shift"
+    ],
+    "description": "Start the input a little later (or earlier): put it after one block to move only that block by some seconds or beats, without moving it on the timeline.",
+    "body": [
+      "shift ${1:shift} {",
+      "  enabled ${2:on}",
+      "  seconds ${3:0}",
+      "  beats ${4:0}",
+      "  channels ${5:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Silence": {
+    "prefix": [
+      "silence"
+    ],
+    "description": "Blank audio: nothing to hear, as long as you say (silence(10s)) or, with auto, as long as the block that holds it. Use it where a branch of a component has no sound, so a mix or an effect still has something to take.",
+    "body": [
+      "silence ${1:silence} {",
+      "  length ${2:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Stereo splitter": {
+    "prefix": [
+      "splitter"
+    ],
+    "description": "Split stereo audio into independent left and right mono outputs. Mono input appears on both outputs.",
+    "body": [
+      "splitter ${1:splitter} {",
+      "  channels ${2:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Time stretch": {
+    "prefix": [
+      "stretch"
+    ],
+    "description": "Plays the sound faster or slower, cut or padded to the same length.",
+    "body": [
+      "stretch ${1:stretch} {",
+      "  enabled ${2:on}",
+      "  speed ${3:100}",
+      "  channels ${4:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Synth": {
+    "prefix": [
+      "synth"
+    ],
+    "description": "A small subtractive synth: oscillator, ADSR envelope, optional detune and a low-pass filter. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack.",
+    "body": [
+      "synth ${1:synth} {",
+      "  enabled ${2:on}",
+      "  wave ${3:saw}",
+      "  attack ${4:10 ms}",
+      "  decay ${5:200 ms}",
+      "  sustain ${6:70}",
+      "  release ${7:250 ms}",
+      "  detune ${8:0}",
+      "  cutoff ${9:8000 Hz}",
+      "  gain ${10:-6 dB}",
+      "  channels ${11:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Transpose": {
+    "prefix": [
+      "transpose"
+    ],
+    "description": "Moves every note up or down by a number of semitones. It takes notes between a clip and an instrument and gives notes back.",
+    "body": [
+      "transpose ${1:transpose} {",
+      "  enabled ${2:on}",
+      "  semitones ${3:0}",
+      "}",
+      "$0"
+    ]
+  },
+  "Tremolo / autopan": {
+    "prefix": [
+      "tremolo"
+    ],
+    "description": "Moves the level of the sound (tremolo) or its place between left and right (autopan), at a rate in Hz or locked to the tempo; with shape gate and a step pattern it is a trance gate that cuts a steady pad into rhythm.",
+    "body": [
+      "tremolo ${1:tremolo} {",
+      "  enabled ${2:on}",
+      "  mode ${3:tremolo}",
+      "  rate ${4:4}",
+      "  sync ${5:off}",
+      "  depth ${6:50}",
+      "  shape ${7:sine}",
+      "  pattern ${8:x.x.x.x.x.x.x.x.}",
+      "  phase ${9:0}",
+      "  channels ${10:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Trim (cut the silence)": {
+    "prefix": [
+      "trim"
+    ],
+    "description": "Finds where the sound of a recording really is and cuts the silence before and after it, so a car that passes in a long recording starts at its first sound. When the recording holds several stretches of sound it says so and uses the first, the last, or everything from the start of the first to the end of the last.",
+    "body": [
+      "trim ${1:trim} {",
+      "  enabled ${2:on}",
+      "  threshold ${3:-45 dB}",
+      "  gap ${4:400 ms}",
+      "  sections ${5:warn}",
+      "  padding ${6:50 ms}",
+      "  fadein ${7:0 ms}",
+      "  fadeout ${8:0 ms}",
+      "}",
+      "$0"
+    ]
+  },
+  "Variants set": {
+    "prefix": [
+      "variants"
+    ],
+    "description": "Makes several takes of a block (the count) by changing its seed, so that you can pick the one you like best. It takes the block as input and gives the chosen take.",
+    "body": [
+      "variants ${1:variants} {",
+      "  count ${2:20}",
+      "  vary ${3:seed}",
+      "  channels ${4:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Vocoder": {
+    "prefix": [
+      "vocoder"
+    ],
+    "description": "Makes one sound speak with another: the voice on the modulator input is split into frequency bands and the loudness of every band sets the loudness of the same band of the carrier (a chord, a pad, a saw), so the carrier says the words. Consonants such as s and t come from noise that follows the highest band of the voice. For robot voices and the classic Daft Punk sound.",
+    "body": [
+      "vocoder ${1:vocoder} {",
+      "  bands ${2:20}",
+      "  low ${3:120 Hz}",
+      "  high ${4:7500 Hz}",
+      "  attack ${5:4 ms}",
+      "  release ${6:70 ms}",
+      "  width ${7:140 %}",
+      "  sibilance ${8:35 %}",
+      "  shift ${9:0 st}",
+      "  mix ${10:100 %}",
+      "  gain ${11:0 dB}",
+      "}",
+      "$0"
+    ]
+  },
+  "Spoken voice (voice clone)": {
+    "prefix": [
+      "voice-clone"
+    ],
+    "description": "Speaks the text in a selected voice using a reference recording. The chosen voice sample is not connected to the song's audible mix.",
+    "body": [
+      "voice-clone ${1:voice-clone} {",
+      "  file ${2:}",
+      "  text ${3:}",
+      "  model ${4:xtts}",
+      "  language ${5:nl}",
+      "  reference_text ${6:}",
+      "  auto_detect ${7:off}",
+      "  channels ${8:auto}",
+      "  engine ${9:}",
+      "}",
+      "$0"
+    ]
+  },
+  "Volume / channels": {
+    "prefix": [
+      "volume"
+    ],
+    "description": "Adjust gain, mute either channel or fold audio to mono.",
+    "body": [
+      "volume ${1:volume} {",
+      "  enabled ${2:on}",
+      "  gain ${3:0 dB}",
+      "  left_gain ${4:0 dB}",
+      "  right_gain ${5:0 dB}",
+      "  linked ${6:on}",
+      "  left ${7:on}",
+      "  right ${8:on}",
+      "  mono ${9:off}",
+      "  channels ${10:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Width": {
+    "prefix": [
+      "width"
+    ],
+    "description": "Widens or narrows the stereo image: 0 is mono, 100 is unchanged, more is wider. Takes audio and gives audio.",
+    "body": [
+      "width ${1:width} {",
+      "  enabled ${2:on}",
+      "  width ${3:100}",
+      "  channels ${4:auto}",
+      "}",
+      "$0"
+    ]
+  }
+}
