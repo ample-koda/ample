@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Studio (ample serve)": {
+      "commandName": "Project",
+      "commandLineArgs": "serve"
+    },
+    "Remix (ample serve --lite-only)": {
+      "commandName": "Project",
+      "commandLineArgs": "serve --lite-only --port 5080"
+    },
+    "Help (ample --help)": {
+      "commandName": "Project",
+      "commandLineArgs": "--help"
+    }
+  }
+}
