@@ -1,0 +1,27 @@
+{
+  "name": "ample",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling for the AMPLE web UI: Playwright parity tests (npm install, then npm run test:web; needs dotnet build ample/Ample.sln first).",
+  "scripts": {
+    "test:web": "playwright test --project=chromium",
+    "test:web:slow": "playwright test --project=slow --workers=1",
+    "build:codemirror": "node tools/build-codemirror.mjs",
+    "test:web-lib": "node --test \"web/lib/test/*.mjs\" \"web/remix/test/*.mjs\"",
+    "guide:build": "node tools/guide/build.mjs",
+    "guide:check": "node tools/guide/build.mjs --check",
+    "guide:shots": "playwright test --config=guide/shots/playwright.config.ts",
+    "test:guide": "node --test tools/guide/guide.test.mjs"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.14",
+    "@lezer/highlight": "1.2.5",
+    "@playwright/test": "1.63.0",
+    "esbuild": "0.28.2",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}

@@ -1,0 +1,273 @@
+/* Phone layout. One breakpoint (700px) for everything; desktop rules above stay as they are. @ample:mobile-ui */
+
+/* things that exist only for the phone layout */
+.more-menu,#sheet-handle,.nav-more{display:none}
+
+@media (max-width:700px){
+  :root{--safe-b:env(safe-area-inset-bottom,0px)}
+  body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+
+  /* MUI01: the header is one row */
+  header{flex-wrap:nowrap;gap:4px;padding:calc(4px + env(safe-area-inset-top,0px)) 6px 4px;overflow:visible}
+  header h1#brand,#btn-fs,#btn-koda,#b-line,#b-studio,#btn-save,#b-dirty,#save-ctl-top,#btn-cp,#b-playing,.transport-volume,#tg-left,#tg-right,#tg-bottom,.help-menu,#btn-play-options,#play-options,#btn-build{display:none!important}
+  header .sp{flex:1 1 0;min-width:0}
+  header button{padding:5px 7px;white-space:nowrap;flex:none}
+  #btn-projects{font-size:12px;padding-inline:5px}
+  .hgroup{gap:2px}
+  .hgroup .lab{display:none}
+  .hgroup .ico{font-size:17px;line-height:1}
+  /* the play button is the big Build-and-play button (its label says Build and play when the song is out of date) */
+  .transport-combo>#btn-preview{border-radius:6px;font-size:14px;font-weight:700;padding:6px 9px;white-space:nowrap}
+  /* Play and Stop are one button on a phone (initPlayStop in mobile.js): the Stop button stays in the DOM but is not shown */
+  #btn-stop{display:none}
+  .transport-combo>#btn-preview.as-stop{font-size:0;background:#c99a2e;border-color:#e0b34a;color:#1b1b1b}
+  .transport-combo>#btn-preview.as-stop[data-stop-mode=build]{background:#bd3434;border-color:#e14b4b;color:#fff}
+  .transport-combo>#btn-preview.as-stop::after{content:'■ Stop';font-size:14px;font-weight:700}
+  .transport-combo>#btn-preview.as-stop[data-stop-mode=build]::after{content:'■ Cancel'}
+  /* the status as a small pill beside Build */
+  #bprog{flex:0 1 auto;width:auto;min-width:38px;max-width:64px;height:18px;order:0}
+  #btxt{padding:0 6px;font-size:10px;line-height:16px}
+  .more-menu{display:inline-flex;position:relative;flex:none}
+  .more-menu .transport-popup{right:0;left:auto;min-width:min(320px,calc(100vw - 16px));display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:calc(100vh - 80px);overflow:auto}
+  .more-menu .transport-popup[hidden]{display:none}
+  .more-menu .mm-h{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);padding:6px 4px 0}
+  .more-menu .transport-popup>.wide{grid-column:1/-1}
+  .more-menu [role^="menuitem"]{display:block;width:100%;text-align:left;white-space:nowrap;padding:9px 10px;border-color:transparent;background:transparent}
+  .more-menu [role^="menuitem"]:hover,.more-menu [role^="menuitem"]:focus-visible{border-color:var(--acc);background:var(--panel2)}
+  .more-menu [role=menuitemcheckbox][aria-checked=true]::after{content:' \2713'}
+  #btn-more{font-size:20px;line-height:1;padding:3px 9px}
+
+  /* MUI02: bottom navigation, the panel opens as a sheet above it */
+  #bottom{height:auto!important;min-height:0;position:relative;border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
+  #bgrip,#b-min{display:none!important}
+  #btabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0;overflow:visible;position:relative}
+  #btabs>button[data-t]{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-radius:0;border:0;border-top:2px solid transparent;background:transparent;min-height:50px;padding:4px 2px;font-size:11px;white-space:nowrap;overflow:hidden}
+  #btabs>button[data-t].on{border-top-color:var(--acc);background:var(--bg);color:var(--acc)}
+  #btabs>button[data-t="var"],#btabs>button[data-t="assistant"],#btabs>button[data-t="log"]{display:none}
+  #btabs>button[data-t]::before{font-size:18px;line-height:1;content:'\25A4'}
+  #btabs>button[data-t="arr"]::before{content:'\25A6'}
+  #btabs>button[data-t="branch"]::before{content:'\2442'}
+  #btabs>button[data-t="hist"]::before{content:'\27F2'}
+  #btabs>button[data-t="project"]::before{content:'\25A4'}
+  #btabs>.sp{display:none}
+  .nav-more{display:block;position:relative}
+  .nav-more>#b-more{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:50px;padding:4px 2px;border:0;border-top:2px solid transparent;border-radius:0;background:transparent;font-size:11px}
+  .nav-more>#b-more.on{border-top-color:var(--acc);color:var(--acc);background:var(--bg)}
+  .nav-more .ico{font-size:20px;line-height:1}
+  .nav-popup{top:auto!important;bottom:calc(100% + 4px);right:4px;left:auto}
+  .nav-popup [role=menuitem]{display:block;width:100%;text-align:left;padding:11px 12px;border-color:transparent;background:transparent}
+  .nav-popup [role=menuitem]:hover,.nav-popup [role=menuitem]:focus-visible{border-color:var(--acc);background:var(--panel2)}
+
+  #bbody{position:fixed;left:0;right:0;bottom:calc(var(--nav-h,52px) + var(--safe-b));z-index:30;height:var(--sheet-h,58dvh);max-height:calc(100dvh - 120px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 -8px 28px #0007;overflow:hidden}
+  #bottom.min #bbody{display:none}
+  #bbody>.bsec{flex:1 1 auto;min-height:0;overflow:auto}
+  #sheet-handle{display:flex;flex:none;align-items:center;justify-content:center;height:26px;cursor:grab;touch-action:none}
+  #sheet-handle>i{display:block;width:44px;height:5px;border-radius:3px;background:var(--dim);opacity:.7}
+  #sheet-handle:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+}
+
+/* MUI03: canvas on touch */
+.port::after{content:none}
+@media (max-width:700px),(pointer:coarse){
+  /* bigger connector dots; the invisible hit area around them is bigger still (the centre of the dot stays on the block edge) */
+  .port{width:18px;height:18px;margin-top:-3px}
+  .port.in{left:-10px}.port.out{right:-10px}
+  .port::after{content:'';position:absolute;inset:-5px -12px}
+  .port.chosen{box-shadow:0 0 0 4px var(--acc);transform:scale(1.15)}
+  #cv.connecting .port.in.can{box-shadow:0 0 0 4px var(--ok)}
+}
+@media (max-width:700px){
+  /* the zoom pill floats bottom right; the hint sits above it so they never overlap; the minimap (on demand) above the hint */
+  #zoomctl{right:8px;bottom:8px;max-width:calc(100% - 16px);gap:2px;padding:3px 4px}
+  #hint{left:10px;right:10px;bottom:72px;line-height:1.35;text-shadow:0 0 4px var(--bg),0 0 4px var(--bg)}
+  #mini{right:10px;bottom:112px}
+}
+
+/* MUI04: touch targets of at least 44x44 px, more room between the header buttons */
+@media (max-width:700px){
+  header{gap:3px;padding:calc(3px + env(safe-area-inset-top,0px)) 3px 3px}
+  header button{min-width:44px;min-height:44px}
+  #btn-projects{font-size:11px;padding-inline:2px;min-width:44px;max-width:52px;overflow:hidden;text-overflow:ellipsis}
+  .hgroup{gap:6px}
+  #btn-stop{padding-inline:4px}
+  .transport-combo>#btn-preview{min-width:44px;max-width:112px;overflow:hidden;text-overflow:ellipsis;padding-inline:5px;font-size:12px}
+  #bprog{min-width:30px;max-width:38px}
+  #btn-more{padding:3px 4px}
+  #zoomctl button{min-width:44px;min-height:44px;padding:0 4px}
+  #zoomctl #z-pct{min-width:40px;text-align:center}
+  #zoomctl{gap:0;padding:2px}
+  #hint{bottom:78px}
+  #mini{bottom:118px}
+  #menu>div:not(.flyout),#menu .flyout>div{min-height:44px;display:flex;align-items:center}
+  dialog button,.dlg-btns button,#dlg-btns button,#bbody button{min-height:44px;min-width:44px}
+  .more-menu [role^="menuitem"],.nav-popup [role=menuitem]{min-height:44px}
+  /* the volume popup, opened from the more menu, floats under the header */
+  header .transport-volume.phone-open{display:block!important;position:fixed;top:calc(56px + env(safe-area-inset-top,0px));right:8px;z-index:60}
+  .transport-volume.phone-open>#btn-volume{display:none}
+  .transport-volume.phone-open>.volume-popup{position:relative;left:auto;right:auto;top:auto;transform:none;min-height:0}
+  .volume-popup input[type=range]{min-height:44px}
+}
+@media (max-width:700px),(pointer:coarse){
+  /* small controls on a block (the </> button, the effects arrow, the pin) get an invisible hit area of 44 px; their tooltip is shown by a long press */
+  .node .studio-source-node,.node .studio-advanced-node,.node .studio-effect-arrow,.node .node-pin,.node .node-toolbar button{position:relative}
+  .node .studio-source-node::after,.node .studio-advanced-node::after,.node .studio-effect-arrow::after,.node .node-pin::after,.node .node-toolbar button::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}
+}
+
+/* MUI05: dialogs and panels are full-screen pages on a phone (a tablet with a touch screen up to 900px too), with a Back bar */
+.mob-back{display:none}
+@media (max-width:700px),(pointer:coarse) and (max-width:900px){
+  dialog[open]:not(.mls-panel):not(#session-warning){position:fixed;inset:0;margin:0;width:100%!important;min-width:0!important;max-width:100%!important;height:100dvh!important;min-height:0!important;max-height:100dvh!important;box-sizing:border-box;border-radius:0!important;box-shadow:none;overflow:auto;overscroll-behavior:contain;
+    /* the safe areas are a border in the panel colour, so every dialog keeps its own padding */
+    border:solid var(--panel)!important;border-width:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)!important}
+  dialog[open]:not(.mls-panel):not(#session-warning)::backdrop{background:var(--panel)}
+  dialog[open]:not(.mls-panel):not(#session-warning) .mob-back{display:flex;position:sticky;top:0;z-index:20;flex:none;align-items:center;gap:8px;min-height:48px;margin:0 0 6px;padding:2px 6px 2px 2px;background:var(--panel);border-bottom:1px solid var(--line)}
+  dialog.studio-dialog[open] .mob-back,dialog.tx-dialog[open] .mob-back,dialog.defrag[open] .mob-back,dialog.recovery-diff-dialog[open] .mob-back{position:relative}
+  .mob-back-btn{min-width:72px;min-height:44px;font-size:15px;font-weight:600;color:var(--acc)}
+  .mob-back-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  /* dialog content must not push the page sideways */
+  dialog[open] :where(form,.tx-body,.tx-foot,.row){max-width:100%;min-width:0}
+  dialog[open] :where(img,video,canvas,table,pre,textarea){max-width:100%}
+  dialog[open] pre,dialog[open] table{overflow:auto}
+  dialog[open] :where(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){max-width:100%;box-sizing:border-box}
+  dialog[open] .row{flex-wrap:wrap}
+  .ai-dialog select,.ai-dialog textarea{min-width:0;width:100%}
+  dialog.ask-dialog form,dialog.ask-dialog #dlg-extra{max-width:100%}
+  dialog.ask-dialog #dlg-btns{justify-content:stretch}
+  dialog.ask-dialog #dlg-btns button{flex:1 1 40%}
+  dialog.ask-dialog.multiline-parameter-dialog textarea.parameter-modal-editor{height:min(50dvh,560px)}
+  dialog.compare-dialog form{height:auto;max-height:none;min-height:60dvh}
+  /* the Studio: header, body and preview strip stack, the body takes the room and scrolls */
+  dialog.studio-dialog[open]{display:flex;flex-direction:column;padding:0}
+  .studio-dialog-body{max-height:none;flex:1 1 auto;min-height:0;padding:12px;gap:10px}
+  .studio-dialog-header{flex-wrap:wrap}
+  .studio-preview-slot{flex-wrap:wrap}
+  /* other floating cards stay inside the screen */
+  .float-preview{width:min(490px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)}
+}
+
+/* MUI06: the Lite piano roll (AMPLE Jam) on touch */
+.mls-grid,.mls-ruler,.mls-keys,.mls-velocity{touch-action:none}
+.mls-grid[data-tool="pan"]{cursor:grab}
+.mls-grid[data-tool="pan"][data-drag="pan"]{cursor:grabbing}
+@media (max-width:700px),(pointer:coarse){
+  .mls-toolbar button,.mls-toolbar select,.mls-strip .mls-chip,.mls-close,.mls-hint-x,.mls-form-input,.mls-form-actions button{min-height:44px;min-width:44px}
+  .mls-toolbar,.mls-strip{touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:thin}
+  .mls-toolbar{padding:4px 8px;gap:6px}
+  .mls-tools .mls-tool{min-width:44px}
+  .mls-strip{gap:6px;padding:3px 8px}
+  .mls-chip{padding:1px 12px;font-size:12px}
+}
+@media (max-width:700px),(pointer:coarse) and (max-width:900px){
+  dialog.mls-panel[open]{inset:0!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100dvh!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100dvh!important;resize:none;border-radius:0;z-index:45;
+    border:solid var(--panel);border-width:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+  .mls-title{cursor:default;min-height:48px;padding:2px 8px 2px 4px;gap:8px}
+  .mls-title .mls-clip{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mls-title strong{white-space:nowrap}
+  /* the close button is the Back button of the panel, first in the bar */
+  .mls-close{order:-1;font-size:0;min-width:72px;color:var(--acc);font-weight:600}
+  .mls-close::after{content:'\2039  Back';font-size:15px}
+  .mls-badge{margin-left:auto;max-width:35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mls-hint{left:54px;right:6px;top:32px;font-size:11px}
+  .mls-help{left:6px;right:6px;max-width:none}
+  .mls-help-row kbd{min-width:7em}
+}
+
+/* MUI07: the narrowest phones (360 px): with the longest play label ("Build and play") the status pill gives way first, then the label shrinks a little */
+@media (max-width:380px){
+  #btn-projects{max-width:44px;font-size:10px}
+  .transport-combo>#btn-preview{max-width:106px;font-size:11.5px;padding-inline:3px}
+  #bprog{min-width:0;flex-shrink:1;overflow:hidden}
+}
+
+/* icon-only head buttons in the assistant panel; the text stays as aria-label/title. @ample:mobile-ui */
+@media (max-width:700px){
+  .assistant-panel-head{gap:8px;padding:8px 10px}
+  .assistant-panel-brand p{display:none}
+  .assistant-panel-head button[data-icon]{font-size:0;width:44px;min-width:44px;padding:0}
+  .assistant-panel-head button[data-icon]::before{content:attr(data-icon);font-size:20px;line-height:1}
+  #toast,#toast[popover]{bottom:calc(var(--mtabs-h,56px) + 12px + env(safe-area-inset-bottom,0px))}
+}
+/* session cards: title plus three action buttons on one row, nothing sticking out of the card. @ample:mobile-ui */
+@media (max-width:700px){
+  .assistant-session-row{grid-template-columns:minmax(0,1fr) repeat(3,40px);gap:4px}
+  .assistant-session-action{width:40px;min-width:0;height:40px;padding:0}
+  .assistant-session{min-height:48px}
+}
+/* assistant proposal on a phone: less chrome, more room for the conversation. @ample:mobile-ui */
+@media (max-width:700px){
+  #ai-task{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  #ai-task .tx-head{padding:6px 10px;gap:6px}
+  #ai-task .tx-head h2{display:none}
+  #ai-task .tx-head .ai-badge{flex:1;min-width:0;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;padding:3px 10px}
+  #ai-task .tx-body{padding:8px 10px 10px}
+  #ai-task .tx-seg button{padding:6px 10px;min-height:40px}
+  #ai-task .ai-log{font-size:12px;max-height:none;padding:4px 6px}
+  #ai-task .ai-line{grid-template-columns:1fr;gap:0}
+  #ai-task .ai-line span:first-child{font-size:10px}
+  #ai-task .tx-foot{padding:6px 10px;gap:6px}
+  #ai-task .tx-foot button{min-height:40px;padding:4px 12px}
+}
+
+/* arrangement on a phone: one tool row of icons, narrow lane labels. @ample:mobile-ui */
+@media (max-width:700px){
+  #arr-ctl{gap:4px;flex-wrap:wrap}
+  #arr-ctl>button[data-icon]{font-size:0;width:40px;min-width:40px;padding:0}
+  #arr-ctl>button[data-icon]::before{content:attr(data-icon);font-size:18px;line-height:1}
+  #arr-ctl>.arr-info{width:32px;min-width:32px;height:32px;min-height:32px;font-size:12px}
+  #arr-ctl>#arr-bw{font-size:11px;white-space:nowrap}
+  #arr-ctl>#transport{flex:1 1 100%}
+  .arr-labels{width:96px}
+  .arr-label-content *{font-size:11px}
+}
+
+/* The Project panel on a phone: one narrow column for the list (the folders are in it and in the path above), a compact toolbar of three rows (path, search with the view and + buttons, one scrolling row of filter icons) */
+@media (max-width:900px){
+  .project-panel-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .project-panel-toolbar>.project-breadcrumb{order:0;flex:1 0 100%}
+  .project-panel-toolbar>input[type=search]{order:1;flex:1 1 120px;min-width:0;max-width:none;min-height:36px}
+  .project-panel-toolbar>input[type=range]{display:none}
+  .project-panel-toolbar>button{order:2;min-height:36px;padding-inline:10px}
+  .project-panel-toolbar>.project-panel-filters{order:3;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;padding-bottom:2px}
+  .project-panel-filters .chip{flex:none;min-width:40px;min-height:36px;padding-inline:8px}
+  .project-panel-body{grid-template-columns:minmax(0,1fr)!important;min-height:0}
+  .project-panel-body>.project-panel-tree,.project-panel-body>.project-tree-grip{display:none}
+}
+@media (max-width:900px){
+  /* tiles keep their width and shrink in height: no empty rows (the play controls appear when the tile is touched) */
+  .project-tile{min-height:0;grid-template-rows:auto auto;row-gap:4px;padding:8px 10px}
+  .project-tile:not(:hover):not(:focus-within) .project-tile-controls{display:none}
+  .project-tile:not(:has(.file-preview)){grid-template-rows:auto auto}
+}
+
+/* a finger cannot hit a handle of 8 or 9 pixels: on a touch screen the three resize handles (library, properties, bottom panel) get a bigger area and a visible grip */
+@media (pointer:coarse) and (min-width:701px){
+  #bgrip{height:24px;position:relative;background:var(--panel2)}
+  #bgrip::after{content:"";position:absolute;left:50%;top:50%;width:56px;height:6px;margin:-3px 0 0 -28px;border-radius:3px;background:var(--dim);opacity:.8}
+  .grip.v{width:22px}
+  .grip.v::before{content:"";position:absolute;left:50%;top:50%;width:5px;height:56px;margin:-28px 0 0 -2px;border-radius:3px;background:var(--dim);opacity:.6}
+}
+
+/* context menus on a small screen: a sheet at the bottom, submenus unfold under their item (ui.js: compactMenus) */
+#menu.sheet { left: 8px !important; right: 8px; top: auto !important; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); max-height: 72vh !important; min-width: 0; border-radius: 14px; padding: 6px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .45), var(--shadow-2); }
+#menu.sheet > div:not(.flyout), #menu.sheet .flyout > div { min-height: 46px; font-size: 15px; }
+#menu.sheet .flyout { position: static !important; display: none; margin: 0 0 4px 14px; padding: 0 0 0 8px; min-width: 0; border: 0; border-left: 2px solid var(--line); border-radius: 0; box-shadow: none; max-height: none !important; overflow: visible !important; }
+#menu.sheet .sub:hover > .flyout { display: none; }
+#menu.sheet .sub.open > .flyout { display: block; }
+
+/* the sequencer on a phone: one column that scrolls as a whole (the channels, then the patterns, the playlist and the lanes), the controls in rows that a thumb reaches */
+@media (max-width: 700px) {
+  #sq { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  #sq .bmbar { gap: 6px; padding: 8px; }
+  #sq .bmbar > button, #sq .bmbar .sqtransport button { min-height: 40px; }
+  #sq-undoback, #sq-apply { order: 1; flex: 1 1 40%; min-height: 44px; }
+  #sq .bmbar > b { order: 2; flex: 1 1 100%; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sq .bmbar > .sqtransport { order: 3; flex: 1 1 100%; margin: 0; gap: 6px; }
+  #sq .bmbar > :not(#sq-undoback):not(#sq-apply):not(b):not(.sqtransport):not(.sp) { order: 4; }
+  #sq .bmbar > .sp { display: none; }
+  #sq .sqhint { display: none; }
+  #sq .sqbody { display: block; flex: none; min-height: 0; }
+  #sq .sqrack { overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); }
+  #sq .sqmain { overflow: visible; min-width: 0; padding: 8px; }
+  #sq .sqplaylist .sqscroll, #sq .sqpatterns { max-width: 100%; }
+  #sq .sqchannel select, #sq .sqchannel input { min-height: 38px; }
+}

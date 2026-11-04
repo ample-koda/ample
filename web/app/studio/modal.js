@@ -1,0 +1,453 @@
+import { fieldFor } from '../fields.js';
+import { rememberedSize, resizeGrip } from '../window.js';
+import { el } from '../ui.js';
+import { subscribe } from '../store.js';
+import { knob } from './knob.js';
+import { led } from './led.js';
+import { selector } from './selector.js';
+import { renderStudioPanel } from './panels/registry.js';
+import './panels/eq-filter.js';
+import './panels/peq.js';
+import './panels/compressor-duck.js';
+import './panels/time-effects.js';
+import './panels/mixer.js';
+import './panels/volume.js';
+import './panels/denoise.js';
+import './panels/rewind.js';
+import './panels/autotune.js';
+import './panels/vocoder.js';
+import './panels/chop.js';
+import './panels/delay-llama.js';
+import './panels/limiter-pan-width.js';
+import './panels/voice-effects.js';
+import './panels/master.js';
+import { masterAudioBuffer } from '../../lib/clientside-mix.mjs';
+import { meterAudio } from '../../lib/clientside-meter.mjs';
+import { onPlayer, peaksOf, play, playTransient, playLivePreview, updateLivePreview, replaceLivePreviewImpulse, setAuditionBlock, playerState, seekFraction, setLoop, setLoopRegion, stop } from '../player.js';
+import { scrubBar } from './scrub.js';
+import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectGraph } from './preview/audio.js';
+import { renderDenoisePreview } from './preview/denoise.js';
+import { meter } from './meter.js';
+
+let active = null;
+
+function numericValue(value, unit) {
+  const text = String(value).trim().replace(unit || '\u0000', '').trim();
+  return /^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(text) ? Number(text) : null;
+}
+
+function panelState(state) {
+  const panel = state;
+  const takeId = typeof panel.getTakeId === 'function' ? panel.getTakeId() : panel.takeId;
+  const preview = (name, value) => {
+    panel.preview?.(name, value);
+    if (state.previewMode !== 'live') return;
+    state.liveParams[name] = value;
+    if (panel.type === 'master') {
+      if (name === 'target') return;
+      clearTimeout(state.localRefreshTimer); state.denoiseAbort?.abort();
+      state.localRefreshTimer = setTimeout(() => playLocalPreview(state, { ...state.liveParams, enabled: state.ab.getAttribute('aria-pressed') === 'true' ? 'off' : 'on' }, true).catch((error) => { if (error.name !== 'AbortError') state.status.textContent = error.message; }), 180);
+    } else updateLivePreview({ ...state.liveParams, ...(state.ab.getAttribute('aria-pressed') === 'true' ? { enabled: 'off' } : {}) });
+  };
+  return panel === state ? { ...state, takeId, preview } : { ...panel, takeId, preview, commit: state.wrapCommit(panel.commit), commitMany: state.wrapCommitMany(panel.commitMany) };
+}
+
+const LOCAL_PREVIEW_TYPES = new Set(['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'convolution', 'denoise', 'chorus', 'tremolo', 'master']);
+function canRenderedPreview(panel) { return Boolean(panel.takeId && typeof panel.realPreview === 'function'); }
+function canLocalPreview(panel) { return Boolean(panel.takeId && LOCAL_PREVIEW_TYPES.has(panel.type)); }
+
+function applyPreviewLoop(state) { if (state.previewLoop && state.previewLoopRegion) setLoopRegion(state.previewLoopRegion); else setLoop(state.previewLoop); }
+
+async function loadSelectedInput(state) {
+  const panel = panelState(state);
+  if (!panel.loadInput) return;
+  try {
+    await panel.loadInput();
+    if (!state.dialog.open || panelState(state).block !== panel.block) return;
+    renderBody(state); renderTransport(state);
+  } catch (error) { if (state.dialog.open && state.status) state.status.textContent = error.message; }
+}
+
+function renderHeader(state) {
+  const panel = panelState(state);
+  state.titleElement.textContent = (panel.title || panel.type).toUpperCase();
+  state.blockElement.textContent = `block ${panel.block}`;
+  state.bypassHost.replaceChildren();
+  state.ab.hidden = typeof panel.realPreview !== 'function' && panel.type !== 'master';
+  state.ab.disabled = !canRenderedPreview(panel) && !(panel.type === 'master' && canLocalPreview(panel));
+  state.ab.title = canRenderedPreview(panel) ? `Compare ${panel.title} with its bypassed input` : 'Select an effect and build its upstream input before comparing';
+  if (panel.definitions.some((definition) => definition.name === 'enabled')) {
+    state.bypassHost.append(led({ label: 'Effect enabled', value: (panel.getParams().enabled ?? 'on') === 'on', disabled: panel.readOnly, onCommit: (value) => panel.commit('enabled', value ? 'on' : 'off') }));
+  }
+}
+
+// a stable key for the focused control: its place in the body plus its label, so focus survives the body being drawn again
+function focusKey(body) {
+  const focused = document.activeElement;
+  if (!focused || focused === body || !body.contains(focused)) return null;
+  const path = [];
+  for (let node = focused; node && node !== body; node = node.parentNode) path.unshift(Array.prototype.indexOf.call(node.parentNode.children, node));
+  const input = focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement;
+  return { path, label: focused.getAttribute('aria-label') || '', selection: input ? [focused.selectionStart, focused.selectionEnd] : null };
+}
+function restoreFocus(body, key) {
+  if (!key) return;
+  let node = body;
+  for (const index of key.path) { node = node?.children?.[index]; if (!node) return; }
+  if ((node.getAttribute('aria-label') || '') !== key.label || typeof node.focus !== 'function') return;
+  node.focus({ preventScroll: true });
+  if (key.selection && key.selection[0] != null) { try { node.setSelectionRange(key.selection[0], key.selection[1]); } catch { /* not a text field */ } }
+}
+const signatureOf = (state) => { const panel = panelState(state); return JSON.stringify([panel.getParams(), panel.takeId ?? null, panel.readOnly ?? false, panel.tempo ?? null, panel.title ?? '', panel.definitions.map((d) => d.name)]); };
+const textFieldFocused = (state) => { const focused = document.activeElement; return Boolean(focused && state.body.contains(focused) && (focused instanceof HTMLTextAreaElement || (focused instanceof HTMLInputElement && ['text', 'number', 'search'].includes(focused.type)))); };
+
+function renderBody(state) {
+  const key = focusKey(state.body);
+  renderBodyNow(state);
+  state.signature = signatureOf(state);
+  restoreFocus(state.body, key);
+}
+
+function renderBodyNow(state) {
+  const body = state.body;
+  body.querySelectorAll('.studio-eq-panel, .studio-live-panel').forEach((panel) => panel.dispose?.());
+  body.replaceChildren();
+  const panel = panelState(state);
+  renderHeader(state);
+  const params = panel.getParams();
+  state.displayedParams = { ...params }; state.localChanges.clear();
+  const definitions = panel.definitions;
+  const bespoke = renderStudioPanel(panel.type, { params, definitions, preview: panel.preview, commit: panel.commit, commitMany: panel.commitMany, block: panel.block, readOnly: panel.readOnly, tempo: panel.tempo, inputBuffer: panel.takeId ? () => decodedInput(`${panel.block}:${panel.takeId}`, () => fetchTakeAudio(panel.takeId)) : null, renderedBuffer: panel.takeId && panel.realPreview ? async (values) => decodePreviewBlob(await panel.realPreview(values, panel.takeId)) : null });
+  if (bespoke) { body.append(bespoke); if (panel.type === 'master' && state.masterLevels) bespoke.setMasterLevels(state.masterLevels); }
+  else definitions.forEach((definition) => {
+    if (definition.name === 'enabled') return; // the header already shows the "Effect enabled" switch
+    const value = params[definition.name] ?? definition.default ?? '';
+    const controlOptions = { label: definition.label || definition.name, disabled: panel.readOnly, onPreview: (preview) => { if (panel.preview) panel.preview(definition.name, preview); }, onCommit: (next) => panel.commit(definition.name, next) };
+    let control;
+    if (definition.kind === 'choice' && definition.options?.length) {
+      control = selector({ ...controlOptions, value, choices: definition.options.map((option) => ({ value: option, label: option })) });
+    } else if (definition.kind === 'number' && numericValue(value, definition.unit) !== null) {
+      const number = numericValue(value, definition.unit);
+      const min = Number.isFinite(definition.min) ? definition.min : 0;
+      const max = Number.isFinite(definition.max) && definition.max > min ? definition.max : Math.max(min + 1, number * 2);
+      control = knob({ ...controlOptions, onCommit: (next) => panel.commit(definition.name, definition.unit ? `${next} ${definition.unit}` : String(next)), min, max, value: number, defaultValue: numericValue(definition.default, definition.unit) ?? number, step: definition.step, unit: definition.unit || '', scale: definition.scale || 'linear' });
+    } else {
+      control = fieldFor(definition.name, definition, String(value), { disabled: panel.readOnly, title: definition.doc || '', save: (next) => panel.commit(definition.name, next) });
+      if (!control) { const input = el('input', { type: 'text', value: String(value), disabled: panel.readOnly, 'aria-label': definition.label || definition.name }); input.onchange = () => panel.commit(definition.name, input.value); control = input; }
+    }
+    body.append(el('label', { className: 'studio-panel-control' }, [el('span', { textContent: definition.label || definition.name }), control]));
+  });
+  if (!definitions.length && !bespoke) body.append(el('p', { className: 'note', textContent: 'This block has no editable parameters.' }));
+}
+
+// The input take is immutable and independent of this effect's controls, so download and decode it once per take for local preview.
+function cachedTakeInput(state, panel) {
+  if (state.takeInputCache?.takeId !== panel.takeId) {
+    const blob = fetchTakeAudio(panel.takeId).catch((error) => { if (state.takeInputCache?.takeId === panel.takeId) state.takeInputCache = null; throw error; });
+    state.takeInputCache = { takeId: panel.takeId, blob, decoded: null };
+  }
+  return state.takeInputCache;
+}
+
+async function playLocalPreview(state, params, preservePosition) {
+  const generation = ++state.localGeneration;
+  const panel = panelState(state);
+  state.denoiseAbort?.abort();
+  const denoiseAbort = ['denoise', 'master'].includes(panel.type) ? new AbortController() : null;
+  state.denoiseAbort = denoiseAbort;
+  state.liveParams = { ...params };
+  state.status.textContent = 'Loading input for live local preview…';
+  const cache = cachedTakeInput(state, panel);
+  const [audio, impulse] = await Promise.all([cache.blob, panel.type === 'convolution' ? panel.loadImpulse(params).then(decodePreviewBlob) : null]);
+  if (generation !== state.localGeneration || !state.dialog.open) return;
+  state.auditioning = true;
+  if (panel.type === 'master') {
+    state.status.textContent = 'Preparing master preview on this device…';
+    if (!cache.decoded) cache.decoded = decodePreviewBlob(audio);
+    const decoded = await cache.decoded;
+    const source = { sampleRate: decoded.sampleRate, channels: Array.from({ length: decoded.numberOfChannels }, (_, channel) => decoded.getChannelData(channel)) };
+    const result = await masterAudioBuffer(source, params, Number(panel.tempo) || 120, denoiseAbort.signal);
+    if (!result.channels[0].length) throw new Error('The master slice contains no input audio.');
+    const input = cache.masterLevels || await meterAudio(source, {}, denoiseAbort.signal);
+    cache.masterLevels = input;
+    const output = await meterAudio(result, {}, denoiseAbort.signal);
+    denoiseAbort.signal.throwIfAborted();
+    if (generation !== state.localGeneration || !state.dialog.open) return;
+    state.masterLevels = { input, output };
+    state.body.querySelector('.studio-master-panel')?.setMasterLevels(state.masterLevels);
+    const previous = playerState(); applyPreviewLoop(state);
+    await playTransient(encodeWav({ numberOfChannels: result.channels.length, sampleRate: result.sampleRate, length: result.channels[0].length, getChannelData: (channel) => result.channels[channel] }));
+    setAuditionBlock(panel.block);
+    if (preservePosition && previous.duration > 0) seekFraction(previous.time / previous.duration);
+    state.status.textContent = 'Client-side master preview · approximate · target is a reference.';
+    return;
+  }
+  if (panel.type === 'denoise') {
+    state.status.textContent = 'Filtering the preview on this device…';
+    let filtered = audio;
+    if (state.liveParams.enabled !== 'off') {
+      if (!cache.decoded) cache.decoded = decodePreviewBlob(audio);
+      filtered = await renderDenoisePreview(await cache.decoded, state.liveParams, denoiseAbort.signal);
+    }
+    if (state.denoiseAbort === denoiseAbort) state.denoiseAbort = null;
+    if (generation !== state.localGeneration || !state.dialog.open) return;
+    // captured only now, right before the swap: the previous preview kept playing during the fetch/decode/FFT above, so capturing it earlier
+    // (before that wait) restored a stale, now-passed position and made the preview visibly jump backward on every change.
+    const previous = playerState();
+    applyPreviewLoop(state);
+    await playTransient(filtered);
+    setAuditionBlock(panel.block);
+    if (generation !== state.localGeneration || !state.dialog.open) return;
+    if (preservePosition && previous.duration > 0) seekFraction(previous.time / previous.duration);
+    state.status.textContent = 'Client-side denoise preview · approximate.';
+    return;
+  }
+
+  const previous = playerState();
+  applyPreviewLoop(state);
+  await playLivePreview(audio, (context, source, output) => liveEffectGraph(context, source, output, panel.type, state.liveParams, panel.tempo, impulse));
+  setAuditionBlock(panel.block);
+  if (generation !== state.localGeneration || !state.dialog.open) return;
+  if (preservePosition && previous.duration > 0) seekFraction(previous.time / previous.duration);
+  state.status.textContent = `Live local preview · ${panel.title} · approximate`;
+}
+
+async function playRenderedPreview(state, params, preservePosition) {
+  const generation = ++state.localGeneration;
+  const panel = panelState(state);
+  state.status.textContent = `Rendering ${panel.title} on input from ${panel.inputTitle || 'the upstream block'}…`;
+  const audio = await panel.realPreview(params, panel.takeId);
+  if (generation !== state.localGeneration || !state.dialog.open) return;
+  state.auditioning = true;
+  const previous = playerState();   // captured after the render, not before: the previous preview kept playing during it
+  applyPreviewLoop(state);
+  await playTransient(audio);
+  setAuditionBlock(panel.block);
+  if (generation !== state.localGeneration || !state.dialog.open) return;
+  if (preservePosition && previous.duration > 0) seekFraction(previous.time / previous.duration);
+  state.status.textContent = `Rendered preview · ${panel.title}. Knob changes replay this preview after release.`;
+}
+
+function renderTransport(state) {
+  state.unsubscribePlayer?.(); state.unsubscribePlayer = null; state.scrub = null;
+  const panel = panelState(state);
+  state.inputTakeId = panel.takeId;
+  const footer = state.footer;
+  footer.replaceChildren();
+  // the rewind and autotune panels have their own play bar (Play, Loop, A/B, scrub) on top, worked out in the browser
+  footer.hidden = panel.type === 'rewind' || panel.type === 'autotune' || panel.type === 'delay-llama' || panel.type === 'vocoder' || panel.type === 'chop';
+  // these two windows are resized with a grip, like Jam: their graph grows with the window
+  if (footer.hidden && !state.dialog.querySelector('.aw-grip')) {
+    state.dialog.classList.add('studio-resizable');
+    resizeGrip(state.dialog, `studio-${panel.type}`);
+    const size = rememberedSize(`studio-${panel.type}`);
+    if (size) { state.dialog.style.width = `${size.width}px`; state.dialog.style.height = `${size.height}px`; }
+  }
+  // their A/B is in that play bar too: the A/B of the header (which needs a rendered preview) is not shown for them
+  state.ab.hidden = footer.hidden;
+  if (footer.hidden) { state.status = el('span'); return; }
+  const renderedAvailable = canRenderedPreview(panel), localAvailable = canLocalPreview(panel);
+  const effectControls = typeof panel.realPreview === 'function' || panel.type === 'master';
+  const previewKind = panel.type === 'denoise' ? 'client-side preview is approximate' : 'live preview is approximate';
+  const statusText = panel.takeId ? localAvailable ? `Input: ${panel.inputTitle || 'upstream audio'} · ${previewKind}` : 'Ready to play' : panel.buildInput ? 'Build audio to play' : 'Connect an audio input';
+  const status = el('span', { className: 'note', textContent: statusText });
+  state.status = status;
+  if (!panel.takeId) {
+    const inputPlay = el('button', { type: 'button', textContent: panel.playLabel || 'Play input', disabled: true, 'aria-label': 'Play the selected audio take', title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
+    const local = el('button', { type: 'button', textContent: 'Live local preview', disabled: true, title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
+    const rendered = el('button', { type: 'button', textContent: 'Play rendered effect', disabled: true, title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
+    if (panel.buildInput) {
+      const buildInput = el('button', { type: 'button', textContent: panel.buildLabel || 'Build input', disabled: panel.readOnly });
+      buildInput.onclick = async () => {
+        buildInput.disabled = true; status.textContent = panel.buildLabel === 'Build block' ? 'Building this block…' : 'Building the upstream input…';
+        try { state.takeId = await panel.buildInput() || state.takeId; renderBody(state); renderTransport(state); }
+        catch (error) { status.textContent = error.message; buildInput.disabled = false; }
+      };
+      if (!effectControls) footer.append(inputPlay); footer.append(buildInput, status);
+    } else {
+      if (!effectControls) footer.append(inputPlay); footer.append(status);
+    }
+    return;
+  }
+  const inputPlay = el('button', { type: 'button', textContent: panel.playLabel || 'Play input', 'aria-label': 'Play the selected audio take' });
+  const local = el('button', { type: 'button', textContent: 'Live local preview', 'aria-label': panel.type === 'denoise' ? 'Client-side denoise preview' : 'Live local preview', disabled: !localAvailable, title: panel.type === 'denoise' ? 'Denoise the bounded preview audio on this device; approximate, not bit-exact' : localAvailable ? 'Play this input through a live local effect; knobs change the sound immediately (approximate model)' : 'Select an effect and build its upstream input first' });
+  const rendered = el('button', { type: 'button', textContent: 'Play rendered effect', disabled: !renderedAvailable, title: renderedAvailable ? `Play ${panel.title} rendered by AMPLE's integer DSP on its upstream input` : 'Select an effect and build its upstream input first' });
+  const levelMeter = meter({ label: 'Live output level', min: 0, max: 1, value: 0, peak: 0 });
+  const scrubHost = el('span', { className: 'studio-scrub-placeholder', textContent: 'Loading waveform…', 'aria-live': 'polite' });
+  const loop = el('button', { type: 'button', textContent: '↻ Loop', title: 'Repeat the preview sample; Shift-drag the waveform to choose a loop range', 'aria-pressed': String(state.previewLoop), className: state.previewLoop ? 'on' : '' });
+  loop.onclick = () => { state.previewLoop = !state.previewLoop; state.loopChanged = true; if (!state.previewLoop) state.previewLoopRegion = null; applyPreviewLoop(state); state.scrub?.setScrubLoop(state.previewLoopRegion); loop.setAttribute('aria-pressed', String(state.previewLoop)); loop.classList.toggle('on', state.previewLoop); };
+  inputPlay.onclick = () => { clearTimeout(state.localRefreshTimer); state.denoiseAbort?.abort(); state.denoiseAbort = null; state.localGeneration++; state.previewMode = null; state.localPreviewActive = false; if (playerState().playing && playerState().take === panel.takeId) { stop(); return; } applyPreviewLoop(state); state.startedPlayback = true; play(panel.takeId).catch((error) => { status.textContent = error.message; }); };
+  local.onclick = async () => {
+    if (state.previewMode === 'live' && playerState().playing) { state.denoiseAbort?.abort(); state.denoiseAbort = null; stop(); state.previewMode = null; state.auditioning = false; status.textContent = statusText; return; }
+    local.disabled = true; state.localPreviewActive = true; state.previewMode = 'live';
+    try {
+      const params = { ...panel.getParams() }; if (state.ab.getAttribute('aria-pressed') === 'true') params.enabled = 'off';
+      await playLocalPreview(state, params, false);
+    } catch (error) { if (error.name !== 'AbortError') status.textContent = error.message; }
+    finally { local.disabled = !canLocalPreview(panel); }
+  };
+  rendered.onclick = async () => {
+    state.denoiseAbort?.abort(); state.denoiseAbort = null; rendered.disabled = true; state.previewMode = 'rendered'; state.localPreviewActive = false;
+    try { const params = { ...panel.getParams() }; if (state.ab.getAttribute('aria-pressed') === 'true') params.enabled = 'off'; await playRenderedPreview(state, params, false); }
+    catch (error) { state.auditioning = false; status.textContent = error.message; }
+    finally { rendered.disabled = !canRenderedPreview(panel); }
+  };
+  // an effect without a live model: the main Play button plays the input take (it stayed greyed out while the status said "Ready to play")
+  if (effectControls && !localAvailable && panel.takeId) {
+    local.disabled = false;
+    local.title = 'Play the input of this block';
+    local.setAttribute('aria-label', 'Play the input of this block');
+    local.onclick = inputPlay.onclick;
+  }
+  if (effectControls) {
+    const more = el('details', { className: 'studio-preview-more' });
+    more.append(el('summary', { textContent: 'Compare / render' }), inputPlay, rendered);
+    if (panel.type === 'master') {
+      rendered.hidden = true;
+      if (panel.buildInput) more.append(el('button', { type: 'button', textContent: 'Rebuild input', disabled: panel.readOnly, onclick: async () => { try { state.takeId = await panel.buildInput(); renderBody(state); renderTransport(state); } catch (error) { state.status.textContent = error.message; } } }));
+    }
+    footer.append(local, loop, scrubHost, levelMeter, more, status);
+  } else footer.append(inputPlay, loop, scrubHost, levelMeter, status);
+  const syncScrub = (player) => {
+    levelMeter.setMeterValue(player.level, player.peak);
+    local.textContent = state.previewMode === 'live' && player.playing ? '■ Stop' : panel.type === 'denoise' ? '▶ Preview' : '▶ Play';
+    local.setAttribute('aria-label', panel.type === 'denoise' ? 'Client-side denoise preview' : 'Live local preview');
+    if (!state.scrub || (player.take !== panel.takeId && player.take !== 'audition')) return;
+    if (player.duration > 0) state.scrub.setScrubPosition(player.time / player.duration);
+  };
+  state.unsubscribePlayer = onPlayer(syncScrub);
+  peaksOf(panel.takeId, 400).then((summary) => {
+    if (!scrubHost.isConnected) return;
+    const scrub = scrubBar({
+      label: 'Preview waveform and position', position: 0, peaks: summary.peaks, peaksArePairs: true,
+      loop: playerState().loopRegion || null,
+      onPreview: seekFraction, onCommit: seekFraction,
+      onLoopPreview: (range) => scrub.setScrubLoop(range),
+      onLoopCommit: (range) => { state.loopChanged = true; state.previewLoop = true; state.previewLoopRegion = range; setLoopRegion(range); loop.setAttribute('aria-pressed', 'true'); loop.classList.add('on'); status.textContent = `Loop ${Math.round(range[0] * 100)}–${Math.round(range[1] * 100)}% of the input.`; },
+    });
+    state.scrub = scrub; scrubHost.replaceWith(scrub); syncScrub(playerState());
+  }).catch((error) => { if (scrubHost.isConnected) scrubHost.textContent = `Waveform unavailable: ${error.message}`; });
+}
+
+export function openStudioPanel(options) {
+  if (active?.dialog.open) active.dialog.close();
+  const dialog = el('dialog', { id: 'studio', className: 'studio-dialog', 'aria-labelledby': 'studio-title' });
+  const title = el('strong', { id: 'studio-title', textContent: (options.title || options.type).toUpperCase() });
+  const block = el('span', { className: 'note', textContent: `block ${options.block}` });
+  const close = el('button', { type: 'button', textContent: '×', 'aria-label': 'Close advanced controls' });
+  const bypassHost = el('span', { className: 'studio-dialog-bypass' });
+  const header = el('header', { className: 'studio-dialog-header' }, [title, block, bypassHost]);
+  const ab = el('button', { type: 'button', className: 'studio-ab', textContent: 'A/B', 'aria-label': 'A/B bypass', 'aria-pressed': 'false', title: 'Build an audio input before comparing', disabled: true });
+  ab.onclick = async () => {
+    const on = ab.getAttribute('aria-pressed') !== 'true';
+    const panel = panelState(state);
+    if (panel.type === 'master' && canLocalPreview(panel)) {
+      ab.setAttribute('aria-pressed', String(on)); ab.classList.toggle('on', on); state.previewMode = 'live'; state.localPreviewActive = true;
+      try { await playLocalPreview(state, { ...panel.getParams(), enabled: on ? 'off' : 'on' }, true); } catch (error) { if (error.name !== 'AbortError') state.status.textContent = error.message; }
+      return;
+    }
+    if (!canRenderedPreview(panel)) return;
+    ab.setAttribute('aria-pressed', String(on)); ab.classList.toggle('on', on);
+    try { const params = { ...panel.getParams(), enabled: on ? 'off' : (panel.getParams().enabled || 'on') }; if (state.previewMode === 'live' && state.type === 'denoise') { state.liveParams = { ...state.liveParams, enabled: params.enabled }; await playLocalPreview(state, state.liveParams, true); } else if (state.previewMode === 'live') updateLivePreview({ ...state.liveParams, enabled: params.enabled }); else { state.previewMode = 'rendered'; state.localPreviewActive = false; await playRenderedPreview(state, params, false); } }
+    catch (error) { if (state.status) state.status.textContent = error.message; }
+  };
+  header.append(ab, close);
+  const body = el('div', { className: 'studio-dialog-body' });
+  const footer = el('footer', { className: 'studio-preview-slot', 'aria-label': 'Effect preview controls' });
+  dialog.append(header, body, footer); document.body.append(dialog);
+  const previousPlayer = playerState();
+  const state = { ...options, dialog, body, footer, titleElement: title, blockElement: block, bypassHost, ab, type: options.type, title: options.title, block: options.block, tempo: options.tempo, definitions: options.definitions, readOnly: options.readOnly, getParams: options.getParams, preview: options.preview, commit: options.commit, commitMany: options.commitMany, effectChain: options.effectChain || null, takeId: options.takeId, buildInput: options.buildInput, realPreview: options.realPreview, status: null, scrub: null, unsubscribePlayer: null, auditioning: false, localPreviewActive: false, localGeneration: 0, localRefreshTimer: 0, takeInputCache: null, localChanges: new Set(), loopChanged: false, originalLoop: previousPlayer.loop && !previousPlayer.loopRegion, originalLoopRegion: previousPlayer.loopRegion };
+  state.previewLoop = previousPlayer.loop;
+  state.previewLoopRegion = previousPlayer.loopRegion;
+  const scheduleLocalUpdate = (changed) => {
+    if (!state.previewMode) return;
+    if (state.type === 'master' && (Array.isArray(changed) ? changed : [changed]).every((name) => name === 'target')) return;
+    if (state.previewMode === 'live') {
+      state.liveParams = { ...panelState(state).getParams() };
+      if (state.type === 'denoise' || state.type === 'master') {
+        if (state.ab.getAttribute('aria-pressed') === 'true') state.liveParams.enabled = 'off';
+        clearTimeout(state.localRefreshTimer);
+    state.localRefreshTimer = setTimeout(() => playLocalPreview(state, state.liveParams, true).catch((error) => { if (error.name !== 'AbortError' && state.status) state.status.textContent = error.message; }), 180);
+        return;
+      }
+
+      if (state.type === 'convolution' && (Array.isArray(changed) ? changed : [changed]).some((name) => name === 'file' || name === 'ir')) {
+        const generation = ++state.localGeneration, panel = panelState(state);
+        panel.loadImpulse(state.liveParams).then(decodePreviewBlob).then((impulse) => {
+          if (generation === state.localGeneration && state.dialog.open && state.previewMode === 'live') replaceLivePreviewImpulse(impulse, state.liveParams);
+        }).catch((error) => { if (state.status) state.status.textContent = error.message; });
+      } else updateLivePreview({ ...state.liveParams, ...(state.ab.getAttribute('aria-pressed') === 'true' ? { enabled: 'off' } : {}) });
+      return;
+    }
+    clearTimeout(state.localRefreshTimer);
+    state.localRefreshTimer = setTimeout(() => {
+      const panel = panelState(state);
+      const params = { ...panel.getParams() }; if (state.ab.getAttribute('aria-pressed') === 'true') params.enabled = 'off';
+      const replay = state.previewMode === 'rendered' ? playRenderedPreview : playLocalPreview;
+      replay(state, params, true).catch((error) => { if (state.status) state.status.textContent = error.message; });
+    }, 180);
+  };
+  const commit = options.commit;
+  state.commit = (name, value) => { if (state.type === 'convolution' && state.previewMode === 'live') state.localChanges.add(name); const result = commit(name, value); Promise.resolve(result).then(() => scheduleLocalUpdate(name)).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
+  const commitMany = options.commitMany;
+  if (commitMany) state.commitMany = (values) => { const result = commitMany(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
+  state.wrapCommit = (commitEffect) => (name, value) => { const result = commitEffect(name, value); Promise.resolve(result).then(() => scheduleLocalUpdate(name)).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
+  state.wrapCommitMany = (commitEffects) => (values) => { const result = commitEffects(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
+  active = state; renderBody(state);
+  renderTransport(state);
+  close.onclick = () => dialog.close();
+  let backdropDown = false;
+  const outside = (event) => { const rect = dialog.getBoundingClientRect(); return event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom); };
+  dialog.addEventListener('pointerdown', (event) => { backdropDown = outside(event); });
+  dialog.addEventListener('click', (event) => { if (backdropDown && outside(event)) dialog.close(); backdropDown = false; });
+  dialog.onclose = () => {
+    clearTimeout(state.localRefreshTimer); state.denoiseAbort?.abort(); state.localGeneration++;
+    const panel = panelState(state);
+    body.querySelectorAll('.studio-eq-panel, .studio-live-panel').forEach((panel) => panel.dispose?.());
+    state.unsubscribePlayer?.();
+    const current = active === state;
+    if (current && (state.auditioning || (state.startedPlayback && playerState().take === panel.takeId))) stop();
+    if (current && state.loopChanged) { if (state.originalLoopRegion) setLoopRegion(state.originalLoopRegion); else setLoop(state.originalLoop); }
+    dialog.remove(); if (active === state) active = null;
+  };
+  dialog.showModal();
+  loadSelectedInput(state);
+  return dialog;
+}
+
+let redrawAfterDrag = false;
+const redraw = () => {
+  if (!active?.dialog.open) return;
+  if (active.type === 'convolution' && active.previewMode === 'live' && active.inputTakeId === panelState(active).takeId) {
+    const params = panelState(active).getParams(), changed = new Set([...Object.keys(params), ...Object.keys(active.displayedParams)].filter((name) => String(params[name]) !== String(active.displayedParams[name])));
+    if ([...changed].every((name) => active.localChanges.has(name))) return;
+  }
+  if (active.inputTakeId !== panelState(active).takeId) {
+    clearTimeout(active.localRefreshTimer); active.localGeneration++;
+    if (active.auditioning) stop();
+    active.previewMode = null; active.localPreviewActive = false; active.auditioning = false; active.takeInputCache = null;
+  }
+  if (active.signature === signatureOf(active)) { // nothing the panel shows has changed (a source that settles a moment later is looked at once more)
+    const state = active; clearTimeout(state.recheckTimer);
+    state.recheckTimer = setTimeout(() => { if (active === state && state.dialog.open && state.signature !== signatureOf(state)) redraw(); }, 150);
+    return;
+  }
+  if (textFieldFocused(active)) { // never destroy a field that is being typed in; draw again once it is left
+    if (!active.redrawOnBlur) { const state = active; state.redrawOnBlur = true; state.body.addEventListener('focusout', () => setTimeout(() => { state.redrawOnBlur = false; if (!textFieldFocused(state)) redraw(); }, 0), { once: true }); }
+    return;
+  }
+  renderBody(active); renderTransport(active);
+};
+// the body is drawn again when the song changes, but never under a knob that is being dragged (the knob would be replaced and the gesture lost): it waits for the end of the gesture
+subscribe(() => {
+  if (document.body.classList.contains('studio-dragging')) {
+    if (!redrawAfterDrag) {
+      redrawAfterDrag = true;
+      addEventListener('pointerup', () => setTimeout(() => { redrawAfterDrag = false; redraw(); }, 0), { once: true, capture: true });
+    }
+
+    return;
+  }
+
+  redraw();
+});

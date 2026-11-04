@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 170" width="560" height="170" role="img" aria-label="AMPLE">
+  <title>AMPLE (for light backgrounds)</title>
+  <defs>
+    <linearGradient id="ink" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="500" y2="0">
+      <stop offset="0" stop-color="#0a8fc0"/>
+      <stop offset="1" stop-color="#c2208f"/>
+    </linearGradient>
+  </defs>
+  <!-- the same letters without the glow: a darker gradient that holds on white -->
+  <g fill="none" stroke="url(#ink)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 138 L64 36 L102 138"/><path d="M136 138 V36 L178 102 L220 36 V138"/><path d="M254 138 V36 H286 a26 26 0 0 1 0 52 H254"/><path d="M342 36 V138 H398"/><path d="M478 36 H436 V138 H478 M436 87 H468"/>
+  </g>
+  <path d="M40 104 q6 -17 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#1a2342" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="512" cy="44" rx="8" ry="6" fill="#0fae99" transform="rotate(-20 512 44)"/>
+  <path d="M519 42 V12 q10 3 15 15" fill="none" stroke="#0fae99" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

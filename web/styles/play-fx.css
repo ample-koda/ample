@@ -1,0 +1,48 @@
+/* The play lights (app/play-fx.js, lib/block-activity.mjs): while the song plays, the blocks that sound glow in neon and the lines carry the signal. Cyan to magenta like the Jam window.
+   The glow lives on ::before and ::after so the box-shadow of .sel, .st-running and .st-done is left alone. Only opacity and transform are animated (cheap, no layout).
+   --fx-beat is one beat in seconds (set on #world by the controller); --fx-delay puts the animation in step with the playhead when a card lights up. */
+#world{--fx-beat:.5s}
+#world .node.fx-on{--fx-c:#2de2ff;--fx-d:var(--fx-delay,0s)}
+#world .node.fx-on[data-fx="low"],#world .node.fx-on[data-fx="master"]{--fx-c:#ff4fd8}
+#world .node.fx-on[data-fx="echo"],#world .node.fx-on[data-fx="merge"]{--fx-c:#9b7bff}
+#world .node.fx-on[data-fx="squash"]{--fx-c:#ffb347}
+#world .node.fx-on[data-fx="wave"]{--fx-c:#4dffb0}
+
+#world .node.fx-on::before{content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;z-index:2;
+  border:1.5px solid var(--fx-c);box-shadow:0 0 calc(8px + var(--fx-lvl,.5) * 20px) var(--fx-c),inset 0 0 calc(10px + var(--fx-lvl,.5) * 12px) -4px var(--fx-c);opacity:.85;
+  animation:fx-breathe calc(var(--fx-beat) * 4) ease-in-out var(--fx-d) infinite}
+#world .node.fx-on::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;opacity:0}
+
+/* what a block does, as a motion */
+#world .node.fx-on[data-fx="pulse"]::before{animation:fx-hit var(--fx-beat) cubic-bezier(.1,.9,.3,1) var(--fx-d) infinite}
+#world .node.fx-on[data-fx="low"]::before{box-shadow:0 0 22px var(--fx-c),inset 0 0 26px -2px var(--fx-c);border-width:2.5px;animation:fx-breathe calc(var(--fx-beat) * 2) ease-in-out var(--fx-d) infinite}
+#world .node.fx-on[data-fx="note"]::before{animation:fx-flicker calc(var(--fx-beat) * 2) steps(1,end) var(--fx-d) infinite}
+#world .node.fx-on[data-fx="wave"]::before{animation:fx-breathe calc(var(--fx-beat) * 8) ease-in-out var(--fx-d) infinite}
+#world .node.fx-on[data-fx="sweep"]::after{opacity:1;background:linear-gradient(100deg,transparent 35%,color-mix(in srgb,var(--fx-c) 55%,transparent) 50%,transparent 65%);background-size:300% 100%;mix-blend-mode:screen;animation:fx-sweep calc(var(--fx-beat) * 4) linear var(--fx-d) infinite}
+#world .node.fx-on[data-fx="echo"]::after{opacity:1;border:1.5px solid var(--fx-c);animation:fx-ring calc(var(--fx-beat) * 2) ease-out var(--fx-d) infinite}
+#world .node.fx-on[data-fx="squash"]::before{animation:fx-squash var(--fx-beat) ease-in-out var(--fx-d) infinite}
+#world .node.fx-on[data-fx="merge"]::before{border-width:2px;animation:fx-breathe calc(var(--fx-beat) * 2) ease-in-out var(--fx-d) infinite}
+#world .node.fx-on[data-fx="master"]::before{opacity:1;box-shadow:0 0 26px var(--fx-c),inset 0 0 24px -2px var(--fx-c);animation:fx-hit calc(var(--fx-beat) * 4) cubic-bezier(.1,.9,.3,1) var(--fx-d) infinite}
+
+@keyframes fx-breathe{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes fx-hit{0%{opacity:1}100%{opacity:.35}}
+@keyframes fx-flicker{0%{opacity:1}12%{opacity:.45}25%{opacity:.9}37%{opacity:.4}50%{opacity:1}62%{opacity:.55}75%{opacity:.95}87%{opacity:.4}}
+@keyframes fx-sweep{from{background-position:120% 0}to{background-position:-20% 0}}
+@keyframes fx-ring{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.14,1.3)}}
+@keyframes fx-squash{0%{opacity:1}30%{opacity:.4}100%{opacity:1}}
+
+/* the lines: a dashed neon stroke from the shared gradient (defined in #links by canvas.js) that runs from the output to the input, at the speed of the beat */
+#links path.vis.fx-on{stroke:url(#fx-neon);stroke-width:calc(2.5px + var(--fx-lvl,.4) * 2.5px);stroke-dasharray:14 10;stroke-linecap:round;opacity:1;
+  filter:drop-shadow(0 0 4px #2de2ff);animation:fx-flow calc(var(--fx-beat) * 1.4) linear infinite}
+@keyframes fx-flow{to{stroke-dashoffset:-24}}
+
+@media (prefers-reduced-motion:reduce){
+  #world .node.fx-on::before,#world .node.fx-on::after{animation:none!important}
+  #world .node.fx-on::before{opacity:.9}
+  #world .node.fx-on[data-fx="sweep"]::after,#world .node.fx-on[data-fx="echo"]::after{opacity:0}
+  #links path.vis.fx-on{animation:none}
+}
+
+/* the scrubber of a lit block (app/play-fx.js scrub): the playhead in its own waveform glows in the colour of the block */
+#world .node.fx-on .player .plhead{background:var(--fx-c);box-shadow:0 0 8px var(--fx-c),0 0 2px #fff;width:2px}
+#world .node.fx-on .player .pl-played{background:color-mix(in srgb,var(--fx-c) 22%,transparent)}

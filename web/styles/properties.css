@@ -1,0 +1,12 @@
+@import url('./effects.css');
+/* Only the active tab takes space; background updates in hidden tabs must not move the actions. */
+.prop-tabs{display:flex;gap:12px;overflow:auto;border-bottom:1px solid var(--line);padding:0 10px}
+.prop-tabs button{flex:none;background:transparent;border:0;border-radius:0;padding:7px 2px 6px;color:var(--dim)}
+.prop-tabs button.active{color:var(--text);box-shadow:inset 0 -2px var(--acc)}
+.prop-tabs button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.prop-deck{padding:6px 10px}
+.prop-tabpanel{display:none;min-width:0}
+.prop-tabpanel.active{display:block}
+.prop-deck .prop{grid-template-columns:90px minmax(0,1fr)}
+#right{overflow-x:hidden}#props{min-width:0}#props input,#props select,#props textarea{box-sizing:border-box;min-width:0}
+.prop-actions{padding:0 10px 8px}

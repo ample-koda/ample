@@ -1,0 +1,45 @@
+/* The reusable window (app/window.js): the metal frame and title bar of the Jam window (skin.css), colours from the theme tokens. */
+dialog.ample-win{position:fixed;inset:auto;margin:0;padding:0;display:none;flex-direction:column;overflow:hidden;max-width:calc(100vw - 8px);max-height:calc(100vh - 8px);min-width:320px;min-height:180px;border:1px solid var(--line);border-radius:10px;color:var(--text);z-index:40;box-shadow:0 18px 50px #000a}
+dialog.ample-win[open]{display:flex}
+dialog.ample-win::backdrop{background:rgba(6,8,16,.55);backdrop-filter:blur(2px)}
+.aw-bar{display:flex;align-items:center;gap:10px;padding:6px 10px;cursor:move;user-select:none;touch-action:none}
+.aw-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--metal-text,#f2f7fc)}
+.aw-close{width:auto;padding:2px 8px}
+.aw-body{flex:1;min-height:0;overflow:auto;background:var(--panel3);padding:12px 14px;position:relative}
+.aw-foot{display:flex;gap:8px;justify-content:flex-end;padding:8px 12px;border-top:1px solid var(--line);background:var(--panel2)}
+/* the close question inside the window */
+.aw-sheet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,8,16,.6);z-index:5}
+.aw-sheet[hidden]{display:none}
+.aw-card{background:var(--panel);border:1px solid var(--line-strong,var(--line));border-radius:10px;padding:14px 16px;max-width:min(380px,calc(100% - 24px));box-shadow:0 12px 36px #000b}
+.aw-card p{margin:6px 0 12px;color:var(--dim)}
+.aw-card-buttons{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* a phone: full screen, no drag */
+@media (max-width:700px){dialog.ample-win{left:4px!important;top:4px!important;width:calc(100vw - 8px)!important;height:calc(100vh - 8px)!important;min-width:0}.aw-bar{cursor:default}}
+/* the beat wizard (app/beat-wizard.js) */
+.bw{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}
+@media (max-width:760px){.bw{grid-template-columns:minmax(0,1fr)}}
+.bw-say{font:13px ui-monospace,Consolas,monospace;margin:0 0 8px;color:var(--text)}
+.bw-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.bw-bars{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;font-size:12px;color:var(--dim);margin-bottom:8px}
+.bw-fit{margin:0 0 10px;padding:6px 10px;border-radius:8px;background:var(--panel2);font-size:12px;color:var(--dim)}.bw-fit.outside{color:var(--warn)}.bw-fit.double,.bw-fit.half{color:var(--warn)}.bw-fit.in\ range{color:var(--ok)}
+.bw-sec{margin:10px 0 0}.bw-sec h4{margin:0 0 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.bw-list{margin:0;padding-left:18px;font-size:12px;display:flex;flex-direction:column;gap:3px}
+.bw-settings{display:flex;flex-direction:column;gap:10px}
+.bw-field{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--dim)}.bw-field input,.bw-field select{width:100%}.bw-field small{color:var(--warn)}
+.bw-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bw-map{display:flex;flex-direction:column;gap:4px}.bw-maprow{display:grid;grid-template-columns:90px 20px 1fr;align-items:center;gap:6px;font-size:12px}
+.bw-warn{margin:0;color:var(--warn);font-size:12px}.bw-warn:empty{display:none}
+.bw-slider{display:grid;grid-template-columns:70px 1fr 64px;gap:8px;align-items:center;font-size:12px;color:var(--dim)}.bw-slider output{text-align:right;color:var(--text)}
+.bw-more{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:12px;color:var(--dim)}
+.bw-play{display:flex;gap:8px}.bw-note{color:var(--dim)}
+/* Koda's login window (app/koda-login.js) */
+.kl{display:flex;flex-direction:column;gap:12px}.kl-status{margin:0}.kl-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.kl-code{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:10px;background:var(--panel2)}.kl-code p{margin:0}.kl-user{font:700 22px ui-monospace,Consolas,monospace;letter-spacing:.14em}
+/* saving and adding project templates (app/project-templates.js) */
+.pt{display:flex;flex-direction:column;gap:10px}.pt p{margin:0}.pt-blocks{color:var(--dim)}.pt-h{margin:6px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.pt-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}.pt-row{display:grid;grid-template-columns:22px minmax(0,1fr) 150px;gap:8px;align-items:center;font-size:12px}.pt-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-source{margin:0;padding:8px 10px;max-height:220px;overflow:auto;background:var(--panel2);border-radius:8px;font:12px ui-monospace,Consolas,monospace;white-space:pre}
+
+/* a resizable window: the grip in the bottom right corner */
+dialog.ample-win .aw-grip{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:5;background:linear-gradient(135deg,transparent 55%,#8a93c466 55%,#8a93c466 62%,transparent 62%,transparent 72%,#8a93c466 72%,#8a93c466 79%,transparent 79%)}
+.bw-switch{display:flex;align-items:center;gap:8px;font-size:13px}.bw-switch input{width:auto;margin:0}

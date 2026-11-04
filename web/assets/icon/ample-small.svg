@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="AMPLE">
+  <title>AMPLE (small sizes)</title>
+  <!-- the same icon for 16 to 32 px: the eighth note is a bold teal dot, the grid is a little stronger, the strokes are a little thicker -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1226"/>
+      <stop offset="1" stop-color="#241a4a"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2de2ff"/>
+      <stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="clip"><rect x="8" y="8" width="240" height="240" rx="58"/></clipPath>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="58" fill="url(#tile)"/>
+  <g clip-path="url(#clip)" stroke="#ff4fd8" stroke-opacity=".6" stroke-width="6">
+    <path d="M8 222H248M8 238H248"/>
+  </g>
+  <path d="M66 198 L128 54 L190 198" fill="none" stroke="url(#neon)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <path d="M90 156 q9 -30 19 0 t19 0 t19 0 t19 0" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="204" cy="62" r="19" fill="#19e3c8"/>
+</svg>

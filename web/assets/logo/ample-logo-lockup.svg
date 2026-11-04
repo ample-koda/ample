@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 220" width="840" height="220" role="img" aria-label="AMPLE, Assisted Music Programming Language Experience">
+  <title>AMPLE: Assisted Music Programming Language Experience</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f1226"/><stop offset="1" stop-color="#241a4a"/></linearGradient>
+    <linearGradient id="neon" gradientUnits="userSpaceOnUse" x1="270" y1="0" x2="750" y2="0"><stop offset="0" stop-color="#2de2ff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+    <linearGradient id="neonIcon" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2de2ff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+    <filter id="glow" x="-20%" y="-40%" width="140%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="wide"/>
+      <feColorMatrix in="wide" type="matrix" values="1 0 0 0 .6  0 .3 0 0 0  0 0 1 0 .5  0 0 0 .7 0" result="pink"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="tight"/>
+      <feMerge><feMergeNode in="pink"/><feMergeNode in="tight"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowWhite" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowNote" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowIcon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="wide"/>
+      <feColorMatrix in="wide" type="matrix" values="1 0 0 0 .6  0 .3 0 0 0  0 0 1 0 .5  0 0 0 .75 0" result="pink"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="tight"/>
+      <feMerge><feMergeNode in="pink"/><feMergeNode in="tight"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="clip"><rect x="8" y="8" width="240" height="240" rx="58"/></clipPath>
+  </defs>
+
+  <!-- the icon, 190 px -->
+  <g transform="translate(14 14) scale(.77)">
+    <rect x="8" y="8" width="240" height="240" rx="58" fill="url(#tile)"/>
+    <g clip-path="url(#clip)" stroke="#ff4fd8" stroke-opacity=".45" stroke-width="2">
+      <path d="M8 214H248M8 226H248M8 240H248"/>
+      <path d="M128 204 L128 248M128 204 L84 248M128 204 L40 248M128 204 L8 236M128 204 L172 248M128 204 L216 248M128 204 L248 236"/>
+    </g>
+    <path d="M68 196 L128 58 L188 196" fill="none" stroke="url(#neonIcon)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowIcon)"/>
+    <path d="M92 152 q9 -26 18 0 t18 0 t18 0 t18 0" fill="none" stroke="#fff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowWhite)"/>
+    <g filter="url(#glowNote)">
+      <ellipse cx="196" cy="76" rx="11" ry="8" fill="#19e3c8" transform="rotate(-20 196 76)"/>
+      <path d="M205 74 V34 q14 4 20 20" fill="none" stroke="#19e3c8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- the word -->
+  <g transform="translate(0 14)">
+    <g fill="none" stroke="url(#neon)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+      <path d="M276 138 L314 36 L352 138"/><path d="M386 138 V36 L428 102 L470 36 V138"/><path d="M504 138 V36 H536 a26 26 0 0 1 0 52 H504"/><path d="M592 36 V138 H648"/><path d="M728 36 H686 V138 H728 M686 87 H718"/>
+    </g>
+    <path d="M290 104 q6 -17 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowWhite)"/>
+    <g filter="url(#glowNote)">
+      <ellipse cx="762" cy="44" rx="8" ry="6" fill="#19e3c8" transform="rotate(-20 762 44)"/>
+      <path d="M769 42 V12 q10 3 15 15" fill="none" stroke="#19e3c8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- the whole name under the word -->
+  <text x="276" y="196" fill="#9aa7bb" font-family="Segoe UI, system-ui, Arial, sans-serif" font-size="14.5" letter-spacing="2.4">ASSISTED MUSIC PROGRAMMING LANGUAGE EXPERIENCE</text>
+</svg>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/svg+xml" href="assets/icon/ample.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon/ample-32.png">
+<link rel="apple-touch-icon" href="assets/icon/ample-256.png">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<meta name="theme-color" content="#161a1f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AMPLE">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AMPLE</title>
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/app.css">
+<link rel="stylesheet" href="/styles/skin.css">
+<link rel="stylesheet" href="/styles/studio.css">
+<link rel="stylesheet" href="/styles/extra.css">
+<link rel="stylesheet" href="/styles/component-library.css">
+<link rel="stylesheet" href="/styles/component-ui.css">
+<link rel="stylesheet" href="/styles/pianoroll-lite.css">
+<link rel="stylesheet" href="/styles/play-fx.css">
+<link rel="stylesheet" href="/styles/window.css">
+<link rel="stylesheet" href="/styles/koda.css">
+<link rel="stylesheet" href="/styles/koda-layer.css">
+<link rel="stylesheet" href="/styles/mobile.css">
+</head>
+<body>
+<header>
+  <h1 id="brand" title="AMPLE: Assisted Music Programming Language Experience"><img src="assets/logo/ample-logo.svg" alt="AMPLE" width="92" height="28" decoding="async"></h1>
+  <button id="btn-projects">Projects</button>
+  <span id="b-line" class="badge" title="The branch you are working on. Saving puts a new revision on it."></span>
+  <span id="b-studio" class="badge studio" title="The main branch of the project (called studio) and the revision it points at."></span>
+  <span class="hgroup" role="group" aria-label="Save, checkpoint, undo and redo"><button id="btn-save" title="Save (Ctrl+S)">Save</button><span id="b-dirty" class="badge peek" style="display:none" title="The working copy differs from the saved file. Save writes it to the file.">● changed</span><span id="save-ctl-top"></span>
+  <button id="btn-cp" title="Make a checkpoint: a named revision of the saved files that you can come back to later. Nothing else changes.">Checkpoint...</button>
+  <button id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo"><span class="ico">↶</span><span class="lab"> Undo</span></button><button id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><span class="ico">↷</span><span class="lab"> Redo</span></button></span>
+  <span class="sp"></span>
+  <button id="btn-build" class="primary" title="Build (Ctrl+B)">Build</button>
+  <span id="bprog"><i id="bfill"></i><em id="btxt">idle</em></span><span id="b-failed" class="badge bad" role="button" tabindex="0" style="display:none"></span><button id="btn-bake-dyn" style="display:none" title="Bake the values the clock gave in the last build into the source (in this song, or in a new one), so this exact version stays reproducible">Bake clock values</button>
+  <span class="transport-combo"><button id="btn-preview" class="primary" aria-label="Play" title="Play (Space)">▶</button><button id="btn-play-options" class="primary" aria-label="Playback options" aria-expanded="false" aria-controls="play-options">▾</button><span id="play-options" class="transport-popup" hidden><button id="btn-loop" role="menuitemcheckbox" aria-checked="false" aria-pressed="false" title="Repeat the audio when it ends (also for the chosen bars)">⟳ Loop</button><button id="btn-build-play-preview" role="menuitem" title="Render unsupported parts on the server, process supported mix blocks locally, then play the approximate preview">▶ Play preview</button></span></span><span id="b-playing" class="badge" style="display:none"></span><button id="btn-stop" class="audio-stop" aria-label="Stop" aria-pressed="false" disabled>■</button><span class="transport-volume"><button id="btn-volume" aria-label="Local playback volume" aria-expanded="false" aria-controls="play-volume" title="Local playback volume: 100%"><svg class="vol-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="vol-mini" aria-hidden="true"><i></i><i></i></span></button><span id="play-volume" class="transport-popup volume-popup" hidden><div class="vol-cols"><div class="vol-col" data-side="left"><output>100%</output><div class="vol-track"><div class="vol-meter" aria-hidden="true"><b class="vol-bar"></b><i class="vol-peak"></i></div><input type="range" min="0" max="150" step="1" value="100" aria-label="Left channel volume percent"></div><span class="vol-name">L</span></div><button id="play-volume-link" type="button" aria-pressed="true" title="Linked"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><div class="vol-col" data-side="right"><output>100%</output><div class="vol-track"><div class="vol-meter" aria-hidden="true"><b class="vol-bar"></b><i class="vol-peak"></i></div><input type="range" min="0" max="150" step="1" value="100" aria-label="Right channel volume percent"></div><span class="vol-name">R</span></div></div><button id="play-volume-reset" type="button" title="Reset local playback to 100%" aria-label="Reset local playback to 100%">↺ 100%</button></span></span><button id="btn-play-range" style="display:none"></button>
+  <button id="tg-left" class="on" title="Show or hide the block library">Block library</button>
+  <button id="tg-right" class="on" title="Toggle properties">Properties</button>
+  <button id="tg-bottom" class="on" title="Toggle bottom panel">Panel</button>
+  <span class="more-menu"><button id="btn-more" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="more-popup" aria-label="More: save, checkpoint, panels, help" title="More">⋯</button><span id="more-popup" class="transport-popup" role="menu" hidden></span></span>
+  <button id="btn-keys" type="button" aria-pressed="false" aria-label="Keyboard" title="Touch keyboard and MIDI in: play the selected clip or instrument">🎹</button>
+  <button id="btn-koda" type="button" aria-pressed="false" aria-label="Koda, the helper" title="Koda: show or hide (Ctrl+K asks)">♪</button>
+  <button id="btn-fs" type="button" aria-pressed="false" aria-label="Full screen" title="Full screen on or off (F11)" hidden>⛶</button>
+  <span class="help-menu"><button id="btn-help" class="help-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="help-popup" aria-label="Guide, help and about" title="Guide, help and about">?</button><span id="help-popup" class="transport-popup help-popup" role="menu" hidden><a role="menuitem" href="/guide/" target="_blank" title="The guide: explains how AMPLE works, with pictures and a dictionary">Guide</a><a role="menuitem" href="/help" target="_blank">Help</a><button id="btn-select-guard" data-select-guard type="button" role="menuitemcheckbox" aria-checked="true" title="On: the text of labels and buttons cannot be selected by accident (fields, editors, logs and errors still can). Off: text can be selected everywhere.">Stop accidental text selection</button><button id="btn-about" type="button" role="menuitem">About AMPLE</button></span></span>
+</header>
+<div id="banner" class="banner"></div>
+
+<div id="work">
+  <aside id="left">
+    <div id="ltabs" role="tablist" aria-label="Left panel"><button data-l="lib" class="on" role="tab" aria-selected="true" aria-label="Block library" title="Block library"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></button><button data-l="struct" role="tab" aria-selected="false" aria-label="Structure" title="Structure"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M8 12h12M12 19h8"/><path d="M4 12h.01M8 19h.01"/></svg></button><button data-l="tpl" role="tab" aria-selected="false" aria-label="Templates" title="Templates: ready-made beats and your own"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4L12 3z"/><path d="M18 16l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8L18 16z"/></svg></button><button data-l="clib" role="tab" aria-selected="false" aria-label="Component library" title="Component library: every component of the project, also the ones this song does not import yet"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button></div>
+    <div id="pane-struct" class="tree" style="display:none"></div>
+    <div id="pane-tpl" style="display:none"></div>
+    <div id="pane-clib" style="display:none"></div>
+    <div id="pane-lib">
+    <div class="pad"><input id="lib-q" placeholder="Search blocks.."></div>
+    <div id="lib"></div>
+    <details open><summary>Project files</summary><div class="pad" id="pfiles"></div></details>
+    <details open><summary>Folders and links</summary><div class="pad" id="mounts"></div></details>
+    <details open><summary>Plugins</summary><div class="pad" id="plugins"></div></details>
+    </div>
+    <div id="lgrip" class="grip v" title="Drag to resize"></div>
+  </aside>
+  <div id="canvaswrap">
+    <div id="vswitch"><button id="vs-blocks" class="on">Blocks</button><button id="vs-source">Source</button><button id="vs-library" title="Project assets and linked folders">Assets</button><button id="vs-branches">Branch manager</button></div>
+    <div id="bm"></div>
+    <div id="se"></div>
+    <div id="ly"></div>
+    <div id="pg"></div>
+    <div id="pt"></div>
+    <div id="sq"></div>
+    <div id="lb"></div>
+    <div id="robanner"><span id="ro-errors" style="display:none">Read-only: <span id="ro-file">the song</span> has <b id="ro-n">0</b> error(s). Fix them in the source editor. <button id="ro-back" class="primary">Back to the editor</button></span><span id="midi-gate" style="display:none"><button id="ro-source" class="primary">Edit MIDI event source</button><button id="ro-midi-info" type="button" aria-label="MIDI source information" title="MIDI source information">i</button></span></div>
+    <div id="se-tip"></div>
+    <div id="cv"><div id="world"><svg id="links"></svg></div></div>
+    <div id="crumbs"></div>
+    <canvas id="mini" width="180" height="110" role="img" aria-label="Canvas minimap showing all blocks and the current viewport"></canvas><div id="band"></div>
+    <div id="zoomctl" aria-label="Canvas navigation"><button id="z-out" aria-label="Zoom out">−</button><span id="z-pct" aria-live="polite">100%</span><button id="z-in" aria-label="Zoom in">+</button><button id="z-map" class="on" aria-pressed="true">Map</button><button id="z-lights" class="on" aria-pressed="true" title="Play lights: while the song plays, the blocks that sound glow and the lines carry the signal">Lights</button><button id="z-fit" title="Fit the view (F)">Fit</button><button id="z-100">1:1</button></div>
+    <div id="hint">wheel = zoom · drag background = pan · double-click a block = its source · drag from a dot to connect · right-click for menus</div>
+  </div>
+  <aside id="right"><div id="rgrip" class="grip v" title="Drag to resize"></div><div id="props"></div></aside>
+  <button type="button" id="lip-left" class="lip l" title="Show or hide the block library" aria-label="Block library" aria-expanded="true"></button>
+  <button type="button" id="lip-top" class="lip t" title="Show or hide the top bar" aria-label="Top bar" aria-expanded="true">▴</button>
+  <button type="button" id="lip-right" class="lip r" title="Show or hide the properties" aria-label="Properties" aria-expanded="true"></button>
+</div>
+
+<div id="bottom">
+  <div id="bgrip"></div>
+  <div id="btabs">
+    <button data-t="arr" class="on">Arrangement</button>
+    <button data-t="branch">Branches</button>
+    <button data-t="hist">History</button>
+    <button data-t="project">Project</button>
+    <button data-t="var">Variants</button>
+    <button data-t="assistant"><svg class="ai-tab-icon" width="22" height="18" viewBox="0 0 40 32" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="ai-tab-g" x1="2" y1="0" x2="30" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#2de2ff"/><stop offset="1" stop-color="#ff4fd8"/>
+        </linearGradient>
+        <filter id="ai-tab-glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <g fill="none" stroke="url(#ai-tab-g)" stroke-width="3.4" stroke-linecap="round" filter="url(#ai-tab-glow)">
+        <path d="M4 26 L10 6 L16 26"/>
+        <path d="M6.5 18 H13.5"/>
+        <path d="M24 15 V26"/>
+      </g>
+      <g fill="#19e3c8" filter="url(#ai-tab-glow)">
+        <ellipse cx="27.3" cy="8.3" rx="2.5" ry="1.9" transform="rotate(-18 27.3 8.3)"/>
+        <path d="M29.6 7.5 V1.4 q3.2 1 4.6 4.6 a1.2 1.2 0 0 1 -1.9 1.3 q-1.1 -1.5 -2.7 -1.8 Z"/>
+      </g>
+    </svg>Assistant</button>
+    <button data-t="log">Log</button>
+    <span class="sp"></span><button id="b-min" title="Collapse">▾</button>
+  </div>
+  <div id="bbody">
+    <div class="bsec on" id="b-arr"></div>
+    <div class="bsec" id="b-branch"></div>
+    <div class="bsec" id="b-hist">
+      <div class="row"><button id="hist-project-tab" class="on" aria-pressed="true">Project history</button><button id="hist-edit-tab" aria-pressed="false">Edit history (undo / redo)</button></div>
+      <div id="hist-project-view">
+      <p class="note">Double-click a revision to go there; right-click for more. Two pointers: <b>here</b> (ring) and <b>studio</b> (star). Tags are locked.</p>
+      <div class="row"><button id="btn-promote" class="primary" title="Make the branch you work on (garage) the main branch (studio). The old main branch stays in the history.">Make this the main branch...</button><button id="btn-fork" title="Start a new branch from the main branch (studio). What you have now stays in the history.">Start a new branch...</button><button id="h-adv" aria-pressed="false">Advanced view</button><button id="h-layout" aria-pressed="false">List view</button><button id="h-compare">Compare...</button><button id="h-cleanup">Clean up...</button><span class="note" id="h-hint"></span></div>
+      <div class="hgrid"><div id="history-graph-view"><div class="history-graph-scroll"><svg id="hist"></svg></div><h4 style="padding-left:0">branches</h4><div id="leaves"></div></div><div id="history-git-view" hidden></div><div id="history-splitter" role="separator" aria-label="Resize history and revision details" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="50" tabindex="0"></div><div id="hdetail" class="hdetail"></div></div>
+      </div>
+      <div id="hist-edit-view" hidden><div class="row"><span class="note" id="edit-history-summary"></span><button id="edit-history-return" hidden>Return to current work</button><button id="edit-history-restore" class="primary" hidden>Restore this step</button></div><div id="edit-history-list" class="edit-history-list"></div><div id="edit-history-detail" class="hdetail"></div></div>
+    </div>
+    <div class="bsec" id="b-project"></div>
+    <div class="bsec" id="b-var"></div>
+    <div class="bsec" id="b-assistant"></div>
+      <div class="bsec" id="b-log"><div class="build-log-head"><div class="log-tabs"><button type="button" data-log-tab="build" class="on">Build log</button><button type="button" data-log-tab="project">Project log</button><button type="button" data-log-tab="song">Song log</button></div><div id="log-actions"><button id="blog-export" type="button" title="Download the build log as a text file">Export .txt</button><button id="blog-clear" type="button" title="Clear all build log entries">Clear log</button></div></div><div id="blog" class="note log-tab-content"></div><div id="plog" class="note log-tab-content" hidden></div><div id="slog" class="note log-tab-content" hidden></div></div>
+  </div>
+</div>
+
+<div id="pm"></div>
+<div id="menu"></div><div id="toast" popover="manual"></div><dialog id="session-warning" aria-labelledby="session-warning-title"><h2 id="session-warning-title">AMPLE session expired</h2><p>This tab's session was rejected. Project edits will not save.</p><p id="session-plain">Open the current link printed by <code>ample open</code> in a new tab; reloading this tab cannot restore an expired token.</p><p id="session-login" hidden><a class="session-signin" href="/login">Sign in again</a> to continue. Reloading this tab is not enough.</p></dialog>
+<dialog id="dlg"><form method="dialog"><h3 id="dlg-t"></h3><p id="dlg-b" style="white-space:pre-line"></p><div class="row" id="dlg-extra"></div><div class="row" id="dlg-btns"></div></form></dialog>
+<script type="module" src="/app/main.js"></script>
+</body>
+</html>

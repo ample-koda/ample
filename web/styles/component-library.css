@@ -1,0 +1,25 @@
+/* The Library tab of the left panel (app/component-library.js): one row per component like the palette, icons instead of words, the details in the tooltip. */
+#pane-clib .clib-bar{display:flex;gap:6px;align-items:center}
+#pane-clib .clib-bar input{flex:1;min-width:0}
+#pane-clib .clib-bar select{width:auto;flex:none}
+#pane-clib .clib-info{color:var(--dim);font-size:12px;padding:0 12px 6px}
+#pane-clib .clib-entry{margin:3px 0}
+#pane-clib .clib-entry .tplitem{margin-bottom:0;cursor:pointer}
+#pane-clib .clib-entry.cur .tplitem{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 10%,var(--panel2))}
+#pane-clib .clib-ic{width:16px;text-align:center;flex:none;font-size:14px}
+#pane-clib .clib-ic.audio{color:var(--audio)}
+#pane-clib .clib-ic.notes{color:var(--midi)}
+#pane-clib .clib-st{flex:none;color:var(--ok,#6ccf7a);font-size:13px}
+#pane-clib .clib-vers{flex:none;color:var(--dim);font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 6px}
+#pane-clib .clib-acts{display:none;gap:3px;flex:none}
+#pane-clib .clib-entry:hover .clib-acts,#pane-clib .clib-entry.cur .clib-acts{display:flex}
+#pane-clib .clib-acts button{padding:0 7px;min-width:24px;height:22px;font-size:12px;line-height:1}
+#pane-clib .clib-desc{margin:2px 12px 0;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pane-clib .clib-entry.cur .clib-desc{white-space:normal}
+#pane-clib .clib-tags{display:none;gap:4px;flex-wrap:wrap;margin:4px 12px 0}
+#pane-clib .clib-entry.cur .clib-tags{display:flex}
+#pane-clib .clib-chip{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:0 6px;cursor:pointer}
+#pane-clib .clib-chip:hover,#pane-clib .clib-chip.on{color:var(--acc);border-color:var(--acc)}
+#pane-clib mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;border-radius:2px}
+.clib-diff{margin:8px 0;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font:12px/1.5 ui-monospace,Consolas,monospace;color:var(--ok,#6ccf7a);white-space:pre-wrap}
+#pane-clib .clib-taken{flex:none;color:var(--warn);font-size:13px}

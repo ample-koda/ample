@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 170" width="560" height="170" role="img" aria-label="AMPLE">
+  <title>AMPLE</title>
+  <defs>
+    <linearGradient id="neon" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="500" y2="0">
+      <stop offset="0" stop-color="#2de2ff"/>
+      <stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-40%" width="140%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="wide"/>
+      <feColorMatrix in="wide" type="matrix" values="1 0 0 0 .6  0 .3 0 0 0  0 0 1 0 .5  0 0 0 .7 0" result="pink"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="tight"/>
+      <feMerge><feMergeNode in="pink"/><feMergeNode in="tight"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowWhite" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowNote" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- the letters are neon tubes: one stroke, round ends, cyan to magenta across the word; the crossbar of the A is the white wave of the icon; the eighth note ends the word -->
+  <g transform="translate(0 0)">
+    <g fill="none" stroke="url(#neon)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+      <path d="M26 138 L64 36 L102 138"/><path d="M136 138 V36 L178 102 L220 36 V138"/><path d="M254 138 V36 H286 a26 26 0 0 1 0 52 H254"/><path d="M342 36 V138 H398"/><path d="M478 36 H436 V138 H478 M436 87 H468"/>
+    </g>
+    <path d="M40 104 q6 -17 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowWhite)"/>
+    <g filter="url(#glowNote)">
+      <ellipse cx="512" cy="44" rx="8" ry="6" fill="#19e3c8" transform="rotate(-20 512 44)"/>
+      <path d="M519 42 V12 q10 3 15 15" fill="none" stroke="#19e3c8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+</svg>

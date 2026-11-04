@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="AMPLE">
+  <title>AMPLE</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1226"/>
+      <stop offset="1" stop-color="#241a4a"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2de2ff"/>
+      <stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+    <!-- a wide pink glow and a tight one, like a real neon tube -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="wide"/>
+      <feColorMatrix in="wide" type="matrix" values="1 0 0 0 .6  0 .3 0 0 0  0 0 1 0 .5  0 0 0 .75 0" result="pink"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="tight"/>
+      <feMerge><feMergeNode in="pink"/><feMergeNode in="tight"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowWhite" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowNote" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="clip"><rect x="8" y="8" width="240" height="240" rx="58"/></clipPath>
+  </defs>
+  <!-- the tile: a dark studio panel -->
+  <rect x="8" y="8" width="240" height="240" rx="58" fill="url(#tile)"/>
+  <!-- the 80s grid under the A -->
+  <g clip-path="url(#clip)" stroke="#ff4fd8" stroke-opacity=".45" stroke-width="2">
+    <path d="M8 214H248M8 226H248M8 240H248"/>
+    <path d="M128 204 L128 248M128 204 L84 248M128 204 L40 248M128 204 L8 236M128 204 L172 248M128 204 L216 248M128 204 L248 236"/>
+  </g>
+  <!-- the A in neon -->
+  <path d="M68 196 L128 58 L188 196" fill="none" stroke="url(#neon)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <!-- its crossbar is a white sound wave (two periods) -->
+  <path d="M92 152 q9 -26 18 0 t18 0 t18 0 t18 0" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowWhite)"/>
+  <!-- an eighth note in teal -->
+  <g filter="url(#glowNote)">
+    <ellipse cx="196" cy="76" rx="11" ry="8" fill="#19e3c8" transform="rotate(-20 196 76)"/>
+    <path d="M205 74 V34 q14 4 20 20" fill="none" stroke="#19e3c8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
