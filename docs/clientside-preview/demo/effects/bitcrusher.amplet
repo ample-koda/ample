@@ -1,0 +1,23 @@
+composition "Bitcrusher preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  melody C4:1/8 G4:1/8 E4:1/8 G4:1/8
+  bars 2
+}
+
+synth source {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+bitcrusher crush {
+  bits 6
+  downsample 4
+  mix 75 %
+  from source.audio -> audio
+}
+
+master master {
+  from crush.audio -> audio
+}

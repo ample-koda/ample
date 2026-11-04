@@ -1,0 +1,30 @@
+{
+  "comment": "Performance budgets (milliseconds) for tests/Ample.Core.Tests/PerformanceTests.cs. Each is a generous multiple of the baseline measured on the development machine (see docs/release.md), so a slow CI machine passes and a real regression fails. Raise a budget only with a note in docs/release.md.",
+  "budgetsMilliseconds": {
+    "parse2000Blocks": 500,
+    "format2000Blocks": 500,
+    "journalAppend1000": 25000,
+    "journalReadAndVerify1000": 500,
+    "buildFortyBlocksPreview": 15000,
+    "cachedRebuildFortyBlocks": 3000,
+    "denoiseAutoStereo60Seconds44kStereo": 120000,
+    "listTakes1500": 1000,
+    "backup64MiB": 10000,
+    "verifyBackup64MiB": 10000,
+    "secondBackupUnchanged": 4000
+  },
+  "baselineMilliseconds": {
+    "parse2000Blocks": 33,
+    "format2000Blocks": 21,
+    "journalAppend1000": 2359,
+    "journalReadAndVerify1000": 26,
+    "buildFortyBlocksPreview": 1095,
+    "cachedRebuildFortyBlocks": 161,
+    "denoiseAutoStereo60Seconds44kStereo": 10812,
+    "listTakes1500": 29,
+    "backup64MiB": 591,
+    "verifyBackup64MiB": 650,
+    "secondBackupUnchanged": 285
+  },
+  "baselineMeasured": "2026-10-03, Windows 11, the development machine (not a CI runner), Release-like Debug build of the test project"
+}

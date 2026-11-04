@@ -1,0 +1,26 @@
+composition "Splitter preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+splitter split {
+  from source.audio -> audio
+}
+
+mixer branches {
+  gains -3 -9
+  from split.left -> audio1
+  from split.right -> audio2
+}
+
+master master {
+  from branches.audio -> audio
+}

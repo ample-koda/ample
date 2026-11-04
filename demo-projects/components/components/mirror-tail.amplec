@@ -1,0 +1,18 @@
+/** The notes, followed by the same notes played backwards. */
+#[DisplayName("Mirror tail")]
+#[Category("Notes")]
+#[Tags("mirror", "reverse", "tail")]
+component koda.notes.mirrorTail version 1.0.0 current {
+  id "demo.koda.notes.mirror-tail"
+
+  input source: Notes
+
+  property span: Duration = 1bar
+
+  output notes: Notes
+
+  process {
+    emit source
+    emit source |> reverse() |> shift(span)
+  }
+}

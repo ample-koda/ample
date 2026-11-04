@@ -1,0 +1,21 @@
+# Voice clone uses the configured Python/model runtime; the reference recording is intentionally not included.
+composition "Voice clone hybrid preview" { ample 1  tempo 96  master-seed 20261017 }
+
+voice-clone spoken {
+  file recordings/reference.wav
+  text "We can find our way together."
+  model xtts
+  language en
+  auto_detect off
+  channels stereo
+}
+
+reverb local_space {
+  size 30 %
+  mix 20 %
+  from spoken.audio -> audio
+}
+
+master output {
+  from local_space.audio -> audio
+}

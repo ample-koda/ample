@@ -1,0 +1,26 @@
+composition "Width preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+pan spread {
+  pan -12
+  from source.audio -> audio
+}
+
+width widen {
+  width 150
+  from spread.audio -> audio
+}
+
+master master {
+  from widen.audio -> audio
+}

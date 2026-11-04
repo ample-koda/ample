@@ -1,0 +1,20 @@
+/** Stacks the notes with copies an octave higher each. */
+#[DisplayName("Octave layers")]
+#[Category("Notes")]
+#[Tags("layers", "octave", "harmony")]
+component koda.notes.octaveLayers version 1.0.0 current {
+  id "demo.koda.notes.octave-layers"
+
+  input source: Notes
+
+  #[MinValue(1), MaxValue(4), Step(1)]
+  property layers: Int = 2
+
+  output notes: Notes
+
+  process {
+    for i in 0..layers {
+      emit source |> transpose(i * 12)
+    }
+  }
+}

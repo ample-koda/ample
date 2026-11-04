@@ -1,0 +1,21 @@
+composition "Transpose preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+transpose octave {
+  semitones 12
+  from phrase.notes -> notes
+}
+
+synth instrument {
+  wave triangle
+  gain -9 dB
+  from octave.notes -> notes
+}
+
+master master {
+  from instrument.audio -> audio
+}

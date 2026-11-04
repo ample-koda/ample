@@ -1,0 +1,45 @@
+/** Two versions of one component: 1.0.0 repeats the notes, 2.0.0 renames copies to repeats and has a migration. */
+#[Tags("swing", "rhythm", "repeat")]
+component koda.notes.swingLine version 1.0.0 {
+  id "demo.koda.notes.swing-line"
+
+  input source: Notes
+
+  property copies: Int = 2
+
+  property spacing: Duration = 1bar
+
+  output notes: Notes
+
+  process {
+    for i in 0..copies {
+      emit source |> shift(i * spacing)
+    }
+  }
+}
+
+#[Tags("swing", "rhythm", "repeat")]
+component koda.notes.swingLine version 2.0.0 current {
+  id "demo.koda.notes.swing-line"
+
+  input source: Notes
+
+  property repeats: Int = 2
+
+  property gap: Duration = 2bars
+
+  output notes: Notes
+
+  migrate 1.0.0 -> 2.0.0 {
+    impact equivalent
+    message "copies is now repeats and spacing is now gap"
+    rename copies -> repeats
+    rename spacing -> gap
+  }
+
+  process {
+    for i in 0..repeats {
+      emit source |> shift(i * gap)
+    }
+  }
+}

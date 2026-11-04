@@ -1,0 +1,18 @@
+composition "audio-nested" { ample 1  tempo 100  master-seed 9 }
+
+# An Audio component that calls another Audio component: big room holds a dream echo and a gain.
+import "components/dream-echo.amplec"
+import "components/big-room.amplec"
+
+midi-clip melody at 1 for 2 {
+  notes 1:0:1:60:100 1:1:1:64:100 1:2:1:67:100 2:0:2:72:100
+}
+
+piano lead at 1 for 2 {
+  from melody.notes -> notes
+}
+
+koda.fx.bigRoom room {
+  echoFeedback 20%
+  from lead.audio -> audio
+}

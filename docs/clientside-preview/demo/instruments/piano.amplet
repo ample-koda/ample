@@ -1,0 +1,17 @@
+composition "Built-in piano preview" { ample 1  tempo 108  master-seed 20261017 }
+
+midi-clip melody {
+  notes "1:0:1:60:92 1:1:1:64:78 1:2:1:67:100 1:3:1:72:110"
+  bars 2
+}
+
+piano felt {
+  // To preview project samples locally, replace this value with a folder containing one mono C4.wav-style file per note.
+  set felt-piano
+  humanize 0
+  from melody.notes -> notes
+}
+
+master output {
+  from felt.audio -> audio
+}

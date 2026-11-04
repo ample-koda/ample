@@ -1,0 +1,21 @@
+composition "components-nested-notes" { ample 1  tempo 96  master-seed 12 }
+
+# A component that calls other components: the fanfare calls octave-layers and echo-notes like functions
+# (emit koda.notes.echoNotes(koda.notes.octaveLayers(source, layers=layers), plays=plays, interval=2)).
+# The first unnamed value is the first input, everything else is given by name. Components never call themselves,
+# directly or through each other: when A calls B and B calls A the check says so (AMP2247).
+import "components/fanfare.amplec"
+
+midi-clip theme at 1 for 2 {
+  notes 1:0:1:60:100 1:1:1:64:100 1:2:2:67:100
+}
+
+koda.notes.fanfare fanfare at 1 for 8 {
+  layers 2
+  plays 3
+  from theme.notes -> source
+}
+
+piano lead at 1 for 8 {
+  from fanfare.notes -> notes
+}

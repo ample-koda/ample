@@ -1,0 +1,25 @@
+composition "components-versions" { ample 1  tempo 110  master-seed 3 }
+
+# Two versions of one component side by side: 1.0.0 still has copies and spacing, 2.0.0 has repeats and gap.
+# Try: ample components migrate 03-versions.amplet oldWay 2.0.0
+import "components/swing-line.amplec"
+
+midi-clip riff at 1 for 1 {
+  notes 1:0:1:57:100 1:2:1:60:100
+}
+
+koda.notes.swingLine oldWay pinned@1.0 at 2 for 4 {
+  copies 3
+  spacing 1bar
+  from riff.notes -> source
+}
+
+koda.notes.swingLine newWay pinned@2.0 at 6 for 4 {
+  repeats 2
+  gap 2bars
+  from riff.notes -> source
+}
+
+piano lead at 2 for 8 {
+  from oldWay.notes -> notes
+}

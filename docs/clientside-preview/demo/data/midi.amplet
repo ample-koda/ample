@@ -1,0 +1,17 @@
+composition "MIDI file preview" { ample 1  tempo 120  master-seed 20261017 }
+
+midi performance {
+  file midi/input.mid
+  track all
+  bars 4
+}
+
+synth local {
+  wave triangle
+  gain -12 dB
+  from performance.notes -> notes
+}
+
+master master {
+  from local.audio -> audio
+}

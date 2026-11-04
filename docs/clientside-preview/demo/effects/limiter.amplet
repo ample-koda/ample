@@ -1,0 +1,23 @@
+composition "Limiter preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -3 dB
+  from phrase.notes -> notes
+}
+
+limiter safe {
+  ceiling -6 dB
+  lookahead 5 ms
+  release 100 ms
+  from source.audio -> audio
+}
+
+master master {
+  from safe.audio -> audio
+}

@@ -1,0 +1,31 @@
+composition "Compressor preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+synth key-source {
+  wave sine
+  gain -6 dB
+  from phrase.notes -> notes
+}
+
+compressor duck {
+  threshold -24 dB
+  ratio 5
+  attack 5 ms
+  release 100 ms
+  from source.audio -> audio
+  from key-source.audio -> key
+}
+
+master master {
+  from duck.audio -> audio
+}

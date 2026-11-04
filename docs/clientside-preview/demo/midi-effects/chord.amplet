@@ -1,0 +1,22 @@
+composition "Chord preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+chord triads {
+  type major
+  inversion 1
+  from phrase.notes -> notes
+}
+
+synth instrument {
+  wave triangle
+  gain -9 dB
+  from triads.notes -> notes
+}
+
+master master {
+  from instrument.audio -> audio
+}

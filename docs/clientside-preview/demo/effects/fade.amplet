@@ -1,0 +1,24 @@
+composition "Fade preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+fade fade_in {
+  direction in
+  start 1
+  length 1
+  shape equal
+  from source.audio -> audio
+}
+
+master master {
+  from fade_in.audio -> audio
+}

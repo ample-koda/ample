@@ -1,0 +1,23 @@
+composition "Denoise preview" { ample 1  tempo 96 master-seed 17 }
+
+midi-clip phrase {
+  melody C4:1/4 D4:1/4 E4:1/4 G4:1/4
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+denoise cleanup {
+  reduction 12 dB
+  sensitivity 50 %
+  noise auto
+  from source.audio -> audio
+}
+
+master master {
+  from cleanup.audio -> audio
+}

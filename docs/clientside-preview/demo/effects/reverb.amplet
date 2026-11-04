@@ -1,0 +1,23 @@
+composition "Reverb preview" { ample 1  tempo 96 master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+reverb room {
+  size 50%
+  decay 60%
+  mix 25%
+  from source.audio -> audio
+}
+
+master master {
+  from room.audio -> audio
+}

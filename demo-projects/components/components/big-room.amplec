@@ -1,0 +1,23 @@
+import "components/dream-echo.amplec"
+
+/** A component that calls another one: the dream echo is a processor here, followed by a gain. The nested code is part of its hash. */
+#[DisplayName("Big room")]
+#[Category("Audio effects")]
+#[Tags("space", "reverb", "nested")]
+component koda.fx.bigRoom version 1.0.0 current {
+  id "demo.koda.fx.big-room"
+
+  input audio: Audio
+
+  property echoFeedback: Percent = 25%
+
+  property level: Gain = -3dB
+
+  output audio: Audio
+
+  process {
+    emit audio
+      |> koda.fx.dreamEcho(feedback=echoFeedback)
+      |> gain(level)
+  }
+}

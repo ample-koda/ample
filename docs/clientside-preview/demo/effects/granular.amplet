@@ -1,0 +1,24 @@
+composition "Granular preview" { ample 1  tempo 96 master-seed 123456789 }
+
+midi-clip phrase {
+  melody C4:1/4 E4:1/4 G4:1/4 C5:1/4
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+granular texture {
+  grain 120 ms
+  density 40 /s
+  scatter 60 %
+  pitch 2 st
+  from source.audio -> audio
+}
+
+master master {
+  from texture.audio -> audio
+}

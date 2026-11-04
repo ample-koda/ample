@@ -1,0 +1,21 @@
+composition "Local playback with server score" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+scorer timing {
+  limit 120 ms
+  from source.audio -> audio
+}
+
+master output {
+  from source.audio -> audio
+}

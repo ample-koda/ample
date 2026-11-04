@@ -1,0 +1,23 @@
+composition "Normalize preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -15 dB
+  from phrase.notes -> notes
+}
+
+normalize peak {
+  mode peak
+  peak -3 dBFS
+  max_gain 24 dB
+  from source.audio -> audio
+}
+
+master master {
+  from peak.audio -> audio
+}

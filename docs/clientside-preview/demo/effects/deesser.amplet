@@ -1,0 +1,23 @@
+composition "De-esser preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  melody C5:1/8 D5:1/8 E5:1/8 G5:1/8
+  bars 1
+}
+
+synth source {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+deesser ess {
+  frequency 5000 Hz
+  threshold -30 dB
+  ratio 6
+  from source.audio -> audio
+}
+
+master master {
+  from ess.audio -> audio
+}

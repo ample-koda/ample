@@ -1,0 +1,12 @@
+composition "Ambience preview" { ample 1  tempo 92  master-seed 20261017 }
+
+ambience room at 1 for 4 {
+  file recordings/room-tone.wav
+  segment 8 s
+  crossfade 2 s
+  variation 30%
+}
+
+master master {
+  from room.audio -> audio
+}

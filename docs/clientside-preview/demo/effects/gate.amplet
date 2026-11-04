@@ -1,0 +1,24 @@
+composition "Gate preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+gate quiet {
+  threshold -30 dB
+  attack 5 ms
+  hold 80 ms
+  release 150 ms
+  from source.audio -> audio
+}
+
+master master {
+  from quiet.audio -> audio
+}

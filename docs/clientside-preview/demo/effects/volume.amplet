@@ -1,0 +1,26 @@
+composition "Volume preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+volume channels {
+  gain 3 dB
+  left_gain 0 dB
+  right_gain -3 dB
+  mono off
+  left on
+  right on
+  from source.audio -> audio
+}
+
+master master {
+  from channels.audio -> audio
+}

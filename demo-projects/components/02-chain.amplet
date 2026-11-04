@@ -1,0 +1,39 @@
+composition "components-chain" { ample 1  tempo 96  master-seed 2 }
+
+# Components chained: every instance reads the notes of the one before it.
+# intro -> triple -> echo -> octave layers -> mirror tail -> piano
+import "components/triple-notes.amplec"
+import "components/echo-notes.amplec"
+import "components/octave-layers.amplec"
+import "components/mirror-tail.amplec"
+
+midi-clip motif at 1 for 1 {
+  notes 1:0:1:60:100 1:1:0.5:64:90 1:2:0.5:67:90 1:3:1:72:100
+}
+
+koda.notes.tripleNotes triple at 2 for 3 {
+  copies 2
+  spacing 1bar
+  from motif.notes -> source
+}
+
+koda.notes.echoNotes echo at 2 for 8 {
+  plays 2
+  delay 2bars
+  interval 3
+  from triple.notes -> source
+}
+
+koda.notes.octaveLayers layers at 2 for 8 {
+  layers 2
+  from echo.notes -> source
+}
+
+koda.notes.mirrorTail mirror at 2 for 16 {
+  span 8bars
+  from layers.notes -> source
+}
+
+piano lead at 2 for 16 {
+  from mirror.notes -> notes
+}

@@ -1,0 +1,24 @@
+composition "Flanger preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+flanger sweep {
+  depth 2 ms
+  period 2000 ms
+  feedback 50 %
+  mix 50 %
+  from source.audio -> audio
+}
+
+master master {
+  from sweep.audio -> audio
+}

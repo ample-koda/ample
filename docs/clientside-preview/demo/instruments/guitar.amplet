@@ -1,0 +1,19 @@
+composition "Sampled guitar preview" { ample 1  tempo 112  master-seed 20261017 }
+
+midi-clip harmony {
+  chords Em C G D
+  bars 4
+}
+
+# Add one or more mono note-named WAVs such as e2.wav to samples/guitar for local preview.
+guitar strum at 1 for 4 {
+  set samples/guitar
+  voicing power
+  strum D...D.u.D...D.u.
+  humanize 0
+  from harmony.notes -> notes
+}
+
+master output {
+  from strum.audio -> audio
+}

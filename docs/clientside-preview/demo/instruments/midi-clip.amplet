@@ -1,0 +1,16 @@
+composition "MIDI clip preview" { ample 1  tempo 110  master-seed 20261017 }
+
+midi-clip melody {
+  melody c4:1:96 d4:1:80 e4:2:100 g4:2 a4:2
+  bars 2
+}
+
+synth audition {
+  wave sine
+  gain -12 dB
+  from melody.notes -> notes
+}
+
+master output {
+  from audition.audio -> audio
+}

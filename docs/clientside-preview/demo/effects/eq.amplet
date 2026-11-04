@@ -1,0 +1,25 @@
+composition "EQ preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+eq tone {
+  low 4 dB
+  mid -2 dB
+  high 3 dB
+  low_hz 250 Hz
+  high_hz 3000 Hz
+  from source.audio -> audio
+}
+
+master master {
+  from tone.audio -> audio
+}

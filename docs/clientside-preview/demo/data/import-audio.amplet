@@ -1,0 +1,13 @@
+composition "Imported audio preview" { ample 1  tempo 92  master-seed 20261017 }
+
+import-audio recording at 1 for 8 {
+  file recordings/preview.wav
+  start 0 s
+  end 30 s
+  loop on
+  crossfade 2 s
+}
+
+master master {
+  from recording.audio -> audio
+}

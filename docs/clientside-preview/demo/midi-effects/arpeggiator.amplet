@@ -1,0 +1,24 @@
+composition "Arpeggiator preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+arpeggiator run {
+  rate 1/16
+  pattern updown
+  octaves 2
+  gate 75
+  from phrase.notes -> notes
+}
+
+synth instrument {
+  wave triangle
+  gain -9 dB
+  from run.notes -> notes
+}
+
+master master {
+  from instrument.audio -> audio
+}

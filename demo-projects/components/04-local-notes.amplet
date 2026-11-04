@@ -1,0 +1,14 @@
+composition "components-local-notes" { ample 1  tempo 100  master-seed 4 }
+
+# Nothing is connected: the input uses the localNotes property (it opens in Jam) as its fallback.
+import "components/triple-notes.amplec"
+
+koda.notes.tripleNotes alone at 1 for 4 {
+  copies 3
+  spacing 1bar
+  localNotes 1:0:1:64:100 1:1:1:67:100
+}
+
+piano lead at 1 for 4 {
+  from alone.notes -> notes
+}
