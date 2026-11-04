@@ -17,6 +17,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Install the browser the server tests drive
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d tests/Ample.Server.Tests ]; then
+            dotnet build tests/Ample.Server.Tests -c Release --nologo
+            pwsh tests/Ample.Server.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
+          fi
       - name: Test every test project
         shell: bash
         run: |
