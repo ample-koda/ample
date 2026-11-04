@@ -78,6 +78,8 @@ public static partial class LiteBuilder
             BuildOptions options = new("bake", null, null, Parallelism: 2);
             if (log is not null) options = options with { Progress = ProgressLog(log, workspace.Root, doc.Blocks.Count), Detail = DetailLog(log, workspace.Root, doc.Blocks.Count) };
             BuildReport report = await new BuildEngine(bank, spec, open.Manifest.Id, workspace.Root).BuildAsync(doc, options, limit.Token).ConfigureAwait(false);
+            // the engine reports a block it had to stop as cancelled, without throwing: when the time limit is what stopped it, that is the answer (AMPL923), not a failed block
+            if (limit.IsCancellationRequested && !cancellationToken.IsCancellationRequested) throw new OperationCanceledException(limit.Token);
             log?.Invoke("All blocks are done. Reading the master.", 0.92);
             foreach (BlockResult block in report.Blocks.Where(b => b.Status is "failed" or "cancelled"))
                 found.Add(new LiteDiagnostic("AMPL920", "error", 0, 0, Clean($"The block \"{block.Block}\" {block.Status}{(block.Message is null ? string.Empty : ": " + block.Message)}", workspace.Root)));
