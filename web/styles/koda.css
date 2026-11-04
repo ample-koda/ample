@@ -1,0 +1,168 @@
+/* Koda, the pet of AMPLE (plan/pet): the eighth note of the logo with a flowing tail, their emotions and their bubbles. Every rule is under .koda so nothing leaks into the app; the neon colours are Koda's own and do not follow the theme. Generated from plan/pet/demo and kept by hand from here. */
+.koda{--k-cyan:#2de2ff;--k-pink:#ff4fd8;--k-teal:#19e3c8;--k-gold:#ffd166;--k-ink:#08201f;--k-text:#eef1ff;--k-dim:#9aa0c8;--k-line:#3a3f6b;--k-tile:#171a35;--k-tile2:#241a4a;--k-bg:#0c0e1d;font:13px/1.45 system-ui,Segoe UI,sans-serif;color:var(--k-text)}
+.koda .teal{fill:var(--k-teal)}
+.koda .tealline{fill:none;stroke:var(--k-teal);stroke-linecap:round;stroke-linejoin:round}
+.koda .glow{filter:drop-shadow(0 0 6px #19e3c8aa) drop-shadow(0 0 16px #19e3c855)}
+/* power (koda-power.mjs): the same Koda, softer with a small quick setting, radiant with a large model that thinks hard; the middle looks as before */
+.koda .pet{--pw:.5}
+.koda .pet .glow{filter:drop-shadow(0 0 calc(2px + var(--pw)*8px) rgba(25,227,200,calc(.35 + var(--pw)*.45))) drop-shadow(0 0 calc(var(--pw)*22px) rgba(25,227,200,calc(var(--pw)*.42)))}
+.koda .pet .gleam{fill:#fff;pointer-events:none;opacity:calc((var(--pw) - .3)*2.4)}
+.koda .pet .pwraura{fill:none;stroke:var(--k-cyan);stroke-width:2.2;opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center}
+.koda .pet[data-power="3"] .pwraura,.koda .pet[data-power="4"] .pwraura{opacity:calc((var(--pw) - .55)*1.3);animation:koda-pwraura calc(6s - var(--pw)*2.4s) ease-in-out infinite}
+.koda .pet[data-power="4"] .pwraura{stroke-dasharray:2 9;stroke-linecap:round}
+@keyframes koda-pwraura{0%,100%{transform:scale(.97)}50%{transform:scale(1.045)}}
+.koda .pet .pstar{fill:var(--k-gold);opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center}
+.koda .pet[data-power="4"] .pstar{animation:koda-pstar 2.8s ease-in-out infinite}
+@keyframes koda-pstar{0%,100%{transform:scale(.3);opacity:0}50%{transform:scale(1);opacity:.9}}
+.koda .pet[data-emo=neutral] .blush,.koda .pet[data-emo=think] .blush{opacity:calc((.5 - var(--pw))*.7)}
+.koda .tail{fill:var(--k-teal);stroke:var(--k-teal);stroke-width:1.5;stroke-linejoin:round}
+.koda .ink{fill:var(--k-ink)}
+.koda .inkline{fill:none;stroke:var(--k-ink);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.koda .eye{fill:#fff}
+.koda .pupil{fill:var(--k-ink)}
+.koda .eg,.koda .xg{display:none}
+.koda .pet[data-eyes=open] .e-open,.koda .pet[data-eyes=wide] .e-wide,.koda .pet[data-eyes=happy] .e-happy,.koda .pet[data-eyes=sleepy] .e-sleepy,.koda .pet[data-eyes=angry] .e-angry,.koda .pet[data-eyes=sad] .e-sad,.koda .pet[data-eyes=love] .e-love,.koda .pet[data-eyes=shy] .e-shy,.koda .pet[data-eyes=confused] .e-confused{display:block}
+.koda .eg{transform-box:fill-box;transform-origin:center}
+.koda .pet[data-eyes=open] .e-open,.koda .pet[data-eyes=sad] .e-sad{animation:koda-blink 3.8s infinite}
+@keyframes koda-blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.08)}}
+.koda .pet[data-emo=think] .e-open .pupil{animation:koda-look 1.4s infinite}
+@keyframes koda-look{0%,100%{transform:translate(-2.4px,-2.4px)}50%{transform:translate(2.4px,-3px)}}
+.koda .mouth{display:none}
+.koda .pet[data-mouth=talk] .m-talk{display:block;animation:koda-talk .3s infinite alternate;transform-box:fill-box;transform-origin:center}
+@keyframes koda-talk{from{transform:scaleY(.5)}to{transform:scaleY(3.6)}}
+.koda .blush{fill:var(--k-pink);opacity:0}
+.koda .pet[data-emo=shy] .blush{opacity:.65}
+.koda .pet[data-emo=love] .x-hearts,.koda .pet[data-emo=sleepy] .x-zzz,.koda .pet[data-emo=confused] .x-q,.koda .pet[data-emo=surprised] .x-bang,.koda .pet[data-emo=sad] .x-tear,.koda .pet[data-emo=angry] .x-anger,.koda .pet[data-emo=excited] .x-notes,.koda .pet[data-emo=happy] .x-sparks{display:block}
+.koda .heart{fill:var(--k-pink);transform-box:fill-box;transform-origin:center;animation:koda-rise 2s ease-out infinite}
+.koda .heart:nth-child(2){animation-delay:.6s}
+.koda .heart:nth-child(3){animation-delay:1.2s}
+@keyframes koda-rise{0%{transform:translateY(20px) scale(.4);opacity:0}25%{opacity:1}100%{transform:translateY(-54px) scale(1);opacity:0}}
+.koda .zz{fill:var(--k-cyan);font:800 22px system-ui;animation:koda-zz 3s ease-out infinite}
+.koda .zz:nth-child(2){animation-delay:1s;font-size:17px}
+.koda .zz:nth-child(3){animation-delay:2s;font-size:13px}
+@keyframes koda-zz{0%{transform:translate(0,16px);opacity:0}30%{opacity:1}100%{transform:translate(18px,-40px);opacity:0}}
+.koda .mark{font:800 40px system-ui;transform-box:fill-box;transform-origin:center bottom}
+.koda .x-q .mark{fill:var(--k-cyan);animation:koda-wob 1.4s ease-in-out infinite}
+.koda .x-bang .mark{fill:var(--k-gold);animation:koda-bang .7s cubic-bezier(.3,1.8,.5,1) both}
+@keyframes koda-wob{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg) translateY(-4px)}}
+@keyframes koda-bang{from{transform:scale(0) rotate(-30deg)}to{transform:none}}
+.koda .tear{fill:#6fd3ff;animation:koda-tear 2.4s ease-in infinite}
+@keyframes koda-tear{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(34px);opacity:0}}
+.koda .anger{stroke:#ff5d6c;stroke-width:4;stroke-linecap:round;fill:none;animation:koda-throb .6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+@keyframes koda-throb{from{transform:scale(.85)}to{transform:scale(1.15)}}
+.koda .spark{fill:var(--k-gold);transform-box:fill-box;transform-origin:center;animation:koda-tw .7s ease-in-out infinite alternate}
+.koda .spark:nth-child(2){fill:var(--k-pink);animation-delay:.3s}
+@keyframes koda-tw{from{transform:scale(.3) rotate(0);opacity:.3}to{transform:scale(1.1) rotate(25deg);opacity:1}}
+.koda .nt{transform-box:fill-box;transform-origin:center;opacity:0;animation:koda-fly 1.4s ease-out infinite}
+.koda .nt:nth-child(2){animation-delay:.45s}
+.koda .nt:nth-child(3){animation-delay:.9s}
+@keyframes koda-fly{0%{transform:translate(0,30px) scale(.3);opacity:0}25%{opacity:1}100%{transform:translate(var(--dx),-70px) scale(1) rotate(var(--rot));opacity:0}}
+.koda .all{transform-origin:130px 214px}
+.koda .pet[data-emo=neutral] .all{animation:koda-bob 2.4s cubic-bezier(.45,0,.55,1) infinite}
+.koda .pet[data-emo=happy] .all{animation:koda-bounce 1s cubic-bezier(.3,.9,.4,1) infinite}
+.koda .pet[data-emo=excited] .all{animation:koda-hop2 .55s cubic-bezier(.3,.9,.4,1) infinite}
+.koda .pet[data-emo=love] .all{animation:koda-sway 2.2s ease-in-out infinite}
+.koda .pet[data-emo=surprised] .all{animation:koda-startle 1.8s cubic-bezier(.3,1.5,.5,1) infinite}
+.koda .pet[data-emo=confused] .all,.koda .pet[data-emo=asking] .all{animation:koda-tilt 1.6s ease-in-out infinite}
+.koda .pet[data-emo=sad] .all{animation:koda-sink 3s ease-in-out infinite}
+.koda .pet[data-emo=sleepy] .all{animation:koda-nod 3.6s ease-in-out infinite}
+.koda .pet[data-emo=angry] .all{animation:koda-shake .14s linear infinite}
+.koda .pet[data-emo=shy] .all{animation:koda-shy 3s ease-in-out infinite}
+.koda .pet[data-emo=think] .all{animation:koda-bob 3s ease-in-out infinite}
+.koda .pet[data-emo=talk] .note1{animation:koda-beat .34s cubic-bezier(.3,1.5,.5,1) infinite alternate;transform-origin:110px 190px}
+.koda .pet[data-emo=talk] .all{animation:koda-bob 2.2s ease-in-out infinite}
+.koda .pet[data-emo=jump] .all{animation:koda-jump .95s cubic-bezier(.3,.9,.4,1) 2}
+@keyframes koda-bob{0%,100%{transform:translateY(0) scale(1.03,.97)}50%{transform:translateY(-9px) scale(.98,1.03)}}
+@keyframes koda-bounce{0%,100%{transform:scale(1.08,.92)}35%{transform:translateY(-22px) scale(.95,1.07)}70%{transform:translateY(0) scale(1.06,.94)}}
+@keyframes koda-hop2{0%,100%{transform:scale(1.1,.9)}40%{transform:translateY(-32px) scale(.93,1.1) rotate(-4deg)}}
+@keyframes koda-sway{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(5deg) translateY(-8px)}}
+@keyframes koda-startle{0%,100%{transform:scale(.98,1.02)}8%{transform:translateY(-34px) scale(.9,1.14)}22%{transform:translateY(0) scale(1.08,.92)}34%{transform:scale(1.02,.99)}}
+@keyframes koda-tilt{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg) translateY(-6px)}}
+@keyframes koda-sink{0%,100%{transform:translateY(2px) scale(1.03,.95)}50%{transform:translateY(8px) scale(1.05,.92)}}
+@keyframes koda-nod{0%,100%{transform:rotate(-3deg) translateY(2px)}45%{transform:rotate(7deg) translateY(8px)}55%{transform:rotate(7deg) translateY(8px)}}
+@keyframes koda-shake{0%,100%{transform:translateX(-1.6px)}50%{transform:translateX(1.6px)}}
+@keyframes koda-shy{0%,100%{transform:rotate(7deg) scale(.96)}50%{transform:rotate(11deg) scale(.95) translateY(2px)}}
+@keyframes koda-beat{from{transform:scale(1.04,.95)}to{transform:scale(.97,1.05)}}
+@keyframes koda-jump{0%{transform:scale(1.12,.86)}28%{transform:translateY(-58px) scale(.92,1.12) rotate(-4deg)}60%{transform:translateY(0) scale(1.12,.86)}78%{transform:scale(.97,1.04)}100%{transform:none}}
+.koda .shadow{fill:#000;opacity:.35;transform-origin:130px 222px}
+.koda .pet[data-emo=happy] .shadow{animation:koda-shadow 1s infinite}
+.koda .pet[data-emo=excited] .shadow{animation:koda-shadow .55s infinite}
+@keyframes koda-shadow{0%,100%{transform:scale(1)}40%{transform:scale(.65);opacity:.2}}
+.koda .wave{fill:none;stroke:#fff;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .3s;filter:drop-shadow(0 0 5px #ffffffaa)}
+.koda .pet[data-emo=talk] .wave{opacity:1}
+.koda .note2{opacity:0;transform:translateX(46px);transition:opacity .35s,transform .55s cubic-bezier(.3,1.6,.5,1)}
+.koda .beam{stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset .5s .25s ease-out}
+.koda .walkers{opacity:0;transition:opacity .3s .5s}
+.koda .pet[data-emo=think] .note2{opacity:1;transform:none}
+.koda .pet[data-emo=think] .beam{stroke-dashoffset:0}
+.koda .pet[data-emo=think] .walkers{opacity:1}
+.koda .pet[data-emo=think] .h1{animation:koda-hop .8s cubic-bezier(.3,1.4,.5,1) infinite}
+.koda .pet[data-emo=think] .h2{animation:koda-hop .8s cubic-bezier(.3,1.4,.5,1) .4s infinite}
+@keyframes koda-hop{0%,55%,100%{transform:translateY(0)}25%{transform:translateY(-16px)}}
+.koda .hop{animation:koda-walkhop .35s ease-out infinite alternate}
+@keyframes koda-walkhop{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+.koda .pet{display:block;width:100%;height:auto;overflow:visible}
+.koda .float{position:absolute;right:30px;bottom:18px;width:150px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.koda .float.drag{cursor:grabbing}
+.koda .float .pet{outline:none}
+body[data-kb] .koda .float .pet:focus-visible{outline:none;filter:drop-shadow(0 0 6px var(--k-cyan))}
+.koda .badge{position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:50%;background:var(--k-pink);box-shadow:0 0 0 3px #ff4fd844;animation:koda-ping 1.4s ease-out infinite;display:none}
+.koda .float.pending .badge{display:block}
+@keyframes koda-ping{0%{box-shadow:0 0 0 0 #ff4fd8aa}100%{box-shadow:0 0 0 14px #ff4fd800}}
+.koda .bub{--bc:var(--k-cyan);--tx:60px;position:absolute;left:0;top:0;width:min(330px,calc(100% - 16px));background:#10132bf5;border:1.5px solid var(--bc);border-radius:16px;padding:10px 34px 12px 12px;box-shadow:0 10px 30px #0009,0 0 18px color-mix(in srgb,var(--bc) 28%,transparent);will-change:transform;z-index:5}
+.koda .bub.pop{animation:koda-pop .32s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes koda-pop{from{opacity:0;scale:.6}to{opacity:1;scale:1}}
+.koda .bub::after{content:"";position:absolute;left:calc(var(--tx) - 8px);bottom:-9px;width:16px;height:16px;background:#10132b;border-right:1.5px solid var(--bc);border-bottom:1.5px solid var(--bc);transform:rotate(45deg);border-bottom-right-radius:4px;transition:left .15s}
+.koda .bub.below::after{bottom:auto;top:-9px;border:0;border-left:1.5px solid var(--bc);border-top:1.5px solid var(--bc);border-bottom-right-radius:0;border-top-left-radius:4px}
+.koda .bub .x{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:1px solid transparent;background:transparent;color:var(--k-dim);font:18px/1 system-ui;cursor:pointer;padding:0}
+.koda .bub .x:hover,.koda .bub .x:focus-visible{border-color:var(--k-line);color:var(--k-text);background:#1f2347}
+.koda .tag{display:inline-block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;border-radius:6px;padding:1px 7px;margin-bottom:6px;background:color-mix(in srgb,var(--bc) 18%,transparent);color:var(--bc)}
+.koda .bub p{margin:0 0 6px}
+.koda .bub .dim{color:var(--k-dim);font-size:12px}
+.koda .bub h3{margin:0 0 4px;font-size:14px}
+.koda .bub button:not(.x){font:inherit;color:var(--k-text);background:#1f2347;border:1px solid var(--k-line);border-radius:9px;padding:5px 11px;cursor:pointer}
+.koda .bub button:not(.x):hover{border-color:var(--k-cyan)}
+.koda .row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.koda .row .go{border-color:var(--k-teal);color:var(--k-teal)}
+.koda .row .no{color:var(--k-dim)}
+.koda .bub.k-menu{--bc:var(--k-cyan)}
+.koda .bub.k-choice{--bc:var(--k-teal)}
+.koda .bub.k-answer,.koda .bub.k-draft{--bc:var(--k-pink)}
+.koda .bub.k-toast{--bc:var(--k-cyan)}
+.koda .bub.k-warn{--bc:var(--k-gold)}
+.koda .bub.k-error{--bc:#ff5d6c}
+.koda .bub.k-toast{padding-top:9px}
+.koda .bub.k-thought{--bc:#c9ceff;border:1.5px solid #c9ceff88;background:#171a35f5;border-radius:46px 52px 48px 44px/40px 44px 42px 46px;padding:14px 40px 14px 22px;font-style:italic;color:#d7dbff}
+.koda .bub.k-thought::after{display:none}
+.koda .bub.k-thought .x{top:10px;right:16px}
+.koda .bub.k-thought .t1,.koda .bub.k-thought .t2{position:absolute;border:1.5px solid #c9ceff88;background:#171a35;border-radius:50%;transition:left .15s}
+.koda .bub.k-thought .t1{width:16px;height:16px;left:calc(var(--tx) - 8px);bottom:-24px}
+.koda .bub.k-thought .t2{width:9px;height:9px;left:calc(var(--tx) - 3px);bottom:-38px}
+.koda .bub.k-thought.below .t1{bottom:auto;top:-24px}
+.koda .bub.k-thought.below .t2{bottom:auto;top:-38px}
+.koda .dots span:not(.tline){display:inline-block;width:5px;height:5px;margin:8px 6px 0 0;border-radius:50%;background:var(--k-cyan);animation:koda-dot 1s infinite}
+.koda .dots{display:block}
+.koda .dots .tline{display:block}
+.koda .dots span:nth-child(3){animation-delay:.2s}
+.koda .dots span:nth-child(4){animation-delay:.4s}
+@keyframes koda-dot{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
+.koda .opts{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+.koda .opts button{display:flex;gap:9px;align-items:center;text-align:left;width:100%}
+.koda .opts kbd{font:11px ui-monospace,Consolas,monospace;background:#0c0e1d;border:1px solid var(--k-line);border-radius:5px;padding:0 6px;color:var(--k-teal)}
+.koda .other{margin-top:6px;display:flex;gap:6px}
+.koda .other input{flex:1;min-width:0;background:#0c0e1d;color:var(--k-text);border:1px solid var(--k-line);border-radius:9px;padding:5px 9px;font:inherit}
+.koda .other input:focus{outline:2px solid var(--k-cyan);outline-offset:1px}
+.koda .chg{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:12px}
+.koda .chg li{display:flex;gap:8px;align-items:baseline}
+.koda .chg b{flex:none;width:18px;height:18px;border-radius:5px;text-align:center;font-size:12px;line-height:18px}
+.koda .chg .add b{background:#46c28e33;color:#46c28e}
+.koda .chg .link b{background:#2de2ff33;color:var(--k-cyan)}
+.koda details{margin-top:6px;font-size:12px;color:var(--k-dim)}
+.koda summary{cursor:pointer;color:var(--k-cyan)}
+.koda .tether{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
+.koda .tether line{stroke:var(--k-pink);stroke-width:2;stroke-dasharray:3 6;stroke-linecap:round}
+@media (prefers-reduced-motion:reduce){.koda .bub.pop{animation:none}}
+
+.koda .other[hidden]{display:none}
+/* the thinking tempo follows the power (after the rule that sets the animation) */
+.koda .pet[data-emo=think] .all{animation-duration:calc(3.5s - var(--pw)*1.1s)}

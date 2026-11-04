@@ -1,0 +1,40 @@
+// The operators of the note pipelines as the editor offers them (completion, hover). Mirror of spec/note-ops.json (docs/language/12-note-pipelines.md): when an operator is added there, add it here. @ample:note-pipeline
+
+export const NOTE_OPS = [
+  { id: 'bars', insert: 'bars(1..5)', detail: 'Keep the bar range (half-open; 1..=4 includes bar 4) and move it to the start.' },
+  { id: 'beats', insert: 'beats(1..5)', detail: 'Like bars, on beats.' },
+  { id: 'time', insert: 'time(0s..4s)', detail: 'Like bars, on seconds or milliseconds (uses the song tempo).' },
+  { id: 'mask', insert: 'mask(bars(1..5))', detail: 'Keep the range but leave the notes where they are.' },
+  { id: 'remove', insert: 'remove(bars(1..2))', detail: 'Delete the notes in the range and leave a gap.' },
+  { id: 'cut', insert: 'cut(bars(1..2))', detail: 'Delete the range and close the gap.' },
+  { id: 'replace', insert: 'replace(bars(1..2), other.notes)', detail: 'Remove the range and put other notes there.' },
+  { id: 'transpose', insert: 'transpose(+12)', detail: 'Move every pitch by semitones.' },
+  { id: 'shift', insert: 'shift(+1beat)', detail: 'Move every note in time (bars, beats, s, ms or ticks).' },
+  { id: 'concat', insert: 'concat(other.notes)', detail: 'Put other notes after this one.' },
+  { id: 'merge', insert: 'merge(other.notes)', detail: 'Layer other notes on this one.' },
+  { id: 'reverse', insert: 'reverse()', detail: 'Mirror the notes in time.' },
+  { id: 'stretch', insert: 'stretch(2)', detail: 'Slower (2) or faster (0.5).' },
+  { id: 'legato', insert: 'legato()', detail: 'Each note lasts until the next one starts.' },
+  { id: 'quantize', insert: 'quantize(0.25beat)', detail: 'Snap the starts to a grid.' },
+  { id: 'humanize', insert: 'humanize(timing=20ms, velocity=4, seed=7)', detail: 'Small, seeded changes: the same result every time (a seed is required).' },
+  { id: 'repeat', insert: 'repeat(4)', detail: 'Copies one after the other (at most 1024).' },
+  { id: 'arp', insert: 'arp(0.5beat)', detail: 'Spread chords over their length.' },
+  { id: 'where', insert: 'where(pitch=48..72)', detail: 'Keep notes in a pitch and/or velocity range.' },
+  { id: 'set', insert: 'set(pitch="38 50 45", velocity="105 82 91")', detail: 'Put pitches, velocities or any other setting on the notes: one value, or a list that cycles over them in order.' },
+  { id: 'euclid', insert: 'euclid(5, 8, pitch=36, step=0.5beat)', detail: 'A Euclidean rhythm (start a pipeline with it).' },
+  { id: 'randomize', insert: 'randomize(velocity=70..=95, seed=stable("verse"))', detail: 'Random velocity and/or pitch in ranges, per note, from a seed.' },
+  { id: 'thin', insert: 'thin(0.25, seed=stable("verse"))', detail: 'Drop notes by chance (per=bar drops or keeps whole bars).' },
+  { id: 'scramble', insert: 'scramble(seed=stable("verse"))', detail: 'Move the pitches around among the notes.' },
+  { id: 'clamp', insert: 'clamp(48..=72)', detail: 'Cap the pitches at a floor and a ceiling.' },
+  { id: 'fold', insert: 'fold(48..=71)', detail: 'Move notes by octaves into a range (keeps the note name).' },
+  { id: 'snap', insert: 'snap(C, major)', detail: 'Move each note to the nearest tone of a scale.' },
+  { id: 'keep', insert: 'keep(C, major)', detail: 'Keep only the notes that are in the scale.' },
+  { id: 'avoid', insert: 'avoid(C, major)', detail: 'Drop the notes that are in the scale.' },
+  { id: 'walk', insert: 'walk(C, major, steps=16, seed=stable("melody"))', detail: 'A random melody on a scale (start a pipeline with it).' },
+  { id: 'chords', insert: 'chords("Am F C G")', detail: 'Chord symbols as notes (start a pipeline with it).' },
+  { id: 'scale', insert: 'scale(C, major, steps=8)', detail: 'A run up a scale (start a pipeline with it).' },
+  { id: 'bake', insert: 'bake name', detail: 'Store the notes up to here, signed. Bake it from the roll menu or: ample bake-notes.' },
+];
+
+/** The completion items for the place after a |> (the word typed so far filters them). */
+export const noteOpItems = () => NOTE_OPS.map((op) => ({ label: op.id, insertText: op.insert, detail: op.detail }));

@@ -1,0 +1,27 @@
+/* The mini layout of a component (app/component-ui.js): rows, columns and groups of studio widgets in the panel, on the card and in the popup. */
+.cui{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.cui-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.cui-column{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cui-group{border:1px solid var(--line);border-radius:8px;margin:0;padding:6px 10px 8px;min-width:0}
+.cui-group>legend{padding:0 6px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.cui-item{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.cui-item.cui-toggle{flex-direction:row;gap:6px}
+.cui-item.cui-slider,.cui-item.cui-field,.cui-item.cui-choice,.cui-item.cui-readout{align-items:stretch;min-width:120px}
+.cui-label{font-size:11px;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cui-item.cui-xy .studio-xy{display:flex;flex-direction:column;gap:4px}
+.cui-item.cui-meter canvas{width:14px;height:64px}
+.cui-card{margin:4px 0;gap:4px}
+.cui-card .cui-row{gap:6px}
+.cui-card-holder{position:relative;padding:4px 8px 6px;border-top:1px solid var(--line)}
+.cui-open{position:absolute;right:4px;top:2px;border:0;background:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 4px}
+.cui-open:hover{color:var(--acc)}
+.cui-popup-holder{min-width:320px;max-width:min(720px,90vw)}
+.cui-popup-holder .cui-item.cui-knob{min-width:96px}
+.cui-live{align-self:flex-start;border:1px solid var(--line);background:var(--panel2);color:var(--dim);border-radius:999px;padding:1px 10px;font-size:11px;cursor:pointer}
+.cui-live.on{color:var(--on-ok,#101820);background:var(--ok);border-color:var(--ok)}
+.cui-live:disabled{opacity:.5;cursor:not-allowed}
+.cui-item .studio-fader{accent-color:var(--cui-tint,var(--acc))}
+.cui-item .studio-curve .studio-curve-line,.cui-item .studio-curve polyline{stroke:var(--cui-tint,var(--acc))}
+.cui-group[style*="--cui-tint"]{border-color:var(--cui-tint)}
+.cui-group[style*="--cui-tint"]>legend{color:var(--cui-tint)}
+.cui-item[style*="--cui-tint"]>.cui-label{color:var(--cui-tint)}

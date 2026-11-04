@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="AMPLE song file">
+  <title>AMPLE song file (.amplet), small sizes</title>
+  <!-- for 16 to 32 px: thicker strokes, the note is a bold dot, no glow -->
+  <defs>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2de2ff"/>
+      <stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+  </defs>
+  <path d="M46 14 H158 L220 76 V242 H46Z" fill="#12162b"/>
+  <g fill="none" stroke="url(#neon)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M46 14 H158 L220 76 V242 H46Z"/>
+    <path d="M158 14 V76 H220"/>
+  </g>
+  <path d="M88 212 L133 104 L178 212" fill="none" stroke="url(#neon)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M104 176 q9 -26 19 0 t19 0 t19 0" fill="none" stroke="#ffffff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="92" cy="66" r="19" fill="#19e3c8"/>
+</svg>

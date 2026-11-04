@@ -1,0 +1,29 @@
+{
+  "name": "AMPLE",
+  "short_name": "AMPLE",
+  "description": "Assisted Music Programming Language Experience",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#161a1f",
+  "theme_color": "#161a1f",
+  "icons": [
+    {
+      "src": "assets/icon/ample-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon/ample-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon/ample-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
