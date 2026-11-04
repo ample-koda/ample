@@ -582,6 +582,23 @@ public static class Routes
         })];
     }
 
+    /// <summary>
+    /// Opens a song for a request that works from its text (a build) and first brings the working copy in line with its file on disk, like opening it in the page does:
+    /// a copy without unsaved changes follows the file (and the page is told through doc.changed), a copy with changes is merged when both sides changed different places;
+    /// a real conflict or a deleted file leaves the working copy as it is. Without this a song changed by a script, git or an agent was built as it was when it was first opened.
+    /// </summary>
+    private static async Task<DocSession> OpenFreshAsync(ProjectSession s, EventBus events, string path, CancellationToken cancellationToken)
+    {
+        DocSession d = await s.DocAsync(path, cancellationToken).ConfigureAwait(false);
+        ProjectSession.DiskSync sync = await s.SyncDiskAsync(d, cancellationToken).ConfigureAwait(false);
+        if (sync.State is "reloaded" or "merged")
+        {
+            events.Publish("doc.changed", new { d.Path, d.Version });
+        }
+
+        return d;
+    }
+
     private static void Declare(Action<string, string, string, string, bool, Delegate?> add, long maxProjectUploadBytes, WebApplication? app = null, ProjectSession? s = null, EventBus? events = null)
     {
         // --- project and health ---
@@ -2822,7 +2839,7 @@ public static class Routes
         {
             JsonElement b = await Body(c);
                         string? buildId = Opt(b, "buildId");   // the page names its build, so it can ignore the events of a build it stopped
-            DocSession d = await s.DocAsync(Str(b, "path"), c.RequestAborted);
+            DocSession d = await OpenFreshAsync(s, events!, Str(b, "path"), c.RequestAborted);
             AmpleDocument parsed = s.ParseExpanded(d);
             if (parsed.Diagnostics.Any(x => x.Severity == Severity.Error))
             {

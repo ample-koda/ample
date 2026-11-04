@@ -169,7 +169,7 @@ internal static class SampledInstruments
             if (program is < 0 or > 127 || bankNumber is < 0 or > 16383 || channel is < -1 or > 15) throw new AmpleException("AMP5311", "The GM program, bank or channel is outside its supported range.");
             int presetBank = channel == 9 && bankNumber == 0 ? 128 : bankNumber;
             int presetProgram = program;
-            int gainQ15 = FixedAudio.GainFromDbWide(Math.Clamp(IntParam(r, "gain", 0), -24, FixedAudio.WideMaxDb));
+            int gainQ15 = FixedAudio.GainFromDbWide(AudioEffects.ReadDb(Param(r, "gain", string.Empty), 0, -24, FixedAudio.WideMaxDb));
             Sf2Bank bank;
             IReadOnlyList<Sf2PlayableRegion> regions;
             List<string> warnings = [];
@@ -1399,7 +1399,7 @@ internal static class SampledInstruments
     public static ValueTask<IReadOnlyList<RenderOutput>> Keys(RenderRequest r, string folder)
     {
         Instrument notes = Pitched(Set(r, folder), folder);
-        int gain = FixedAudio.GainFromDbWide(Math.Clamp(IntParam(r, "gain", 0), -24, FixedAudio.WideMaxDb));
+        int gain = FixedAudio.GainFromDbWide(AudioEffects.ReadDb(Param(r, "gain", string.Empty), 0, -24, FixedAudio.WideMaxDb));
         short[] buf = new short[r.BarCount * r.SamplesPerBar];
         Dictionary<(string, int), short[]> shifted = [];
         RoundRobins robins = new(r.Seed);
@@ -1460,7 +1460,7 @@ internal static class SampledInstruments
     public static ValueTask<IReadOnlyList<RenderOutput>> Bass(RenderRequest r, string folder)
     {
         Instrument notes = Pitched(Set(r, folder), folder);
-        int gain = FixedAudio.GainFromDbWide(Math.Clamp(IntParam(r, "gain", 0), -24, FixedAudio.WideMaxDb));
+        int gain = FixedAudio.GainFromDbWide(AudioEffects.ReadDb(Param(r, "gain", string.Empty), 0, -24, FixedAudio.WideMaxDb));
         short[] buf = new short[r.BarCount * r.SamplesPerBar];
         Dictionary<(string, int), short[]> shifted = [];
         RoundRobins robins = new(r.Seed);
@@ -1570,7 +1570,7 @@ internal static class SampledInstruments
             }
 
             int staggerSamples = Math.Clamp(IntParam(r, "stagger", 22), 0, 80) * r.SampleRate / 1000;
-            int gainQ15 = FixedAudio.GainFromDbWide(Math.Clamp(IntParam(r, "gain", 0), -24, FixedAudio.WideMaxDb));
+            int gainQ15 = FixedAudio.GainFromDbWide(AudioEffects.ReadDb(Param(r, "gain", string.Empty), 0, -24, FixedAudio.WideMaxDb));
             int stepsPerBar = DrumSteps(r);   // the steps parameter, else four for every beat
             int stepLength = r.SamplesPerBar / stepsPerBar;
             short[] buf = new short[r.BarCount * r.SamplesPerBar];

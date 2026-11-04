@@ -437,6 +437,12 @@ public static class AudioEffects
         }
     }
 
+    /// <summary>
+    /// Reads a level in decibels the way it is written in a song: with its unit (<c>-12 dB</c>), without it (<c>6</c>), or in quotes. A decimal part is dropped.
+    /// The value is cut to the range of the parameter. A missing or unreadable value gives <paramref name="fallback"/>.
+    /// </summary>
+    internal static int ReadDb(string? text, int fallback, int min, int max) => Math.Clamp(Read((text ?? string.Empty).Trim().Trim('"').Trim(), fallback), min, max);
+
     /// <summary>Reads the leading whole number of a value like <c>-3 dB</c> or <c>40%</c>.</summary>
     internal static int Read(string text, int fallback)
     {

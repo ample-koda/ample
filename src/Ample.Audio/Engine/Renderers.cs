@@ -711,7 +711,7 @@ public static partial class BuiltInRenderers
                 warnings.AddRange(pairing.Warnings);
                 sourceNotes.AddRange(pairing.Notes.Select(n => (n.StartTick, n.EndTick, n.Pitch, n.Velocity, n.Channel, n.Bank, n.Program)));
             }
-            int gain = int.TryParse(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int parsedGain) ? Math.Clamp(parsedGain, -24, 12) : 0;
+            int gain = AudioEffects.ReadDb(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value, 0, -24, 12);
             string soundFont = r.Block.Parameters.FirstOrDefault(p => p.Name == "file")?.Value.Trim().Trim('"') ?? "pack:musescore-general";
             IReadOnlyList<(int Bar, int Pitch, long Beat, long Length, int Velocity, int Channel, int Bank, int Program)> notes = Midi.MapTempoNotes(r, file, sourceNotes, ppq, warnings);
             int? bankOverride = SourceOverride(r, "bank", 16_383), programOverride = SourceOverride(r, "program", 127);
@@ -1075,7 +1075,7 @@ public static partial class BuiltInRenderers
             long[]? rightSum = placed || r.Inputs.Values.Any(data => ChannelAudio.IsStereo(data)) ? new long[sum.Length] : null;
             // a bus has one more gain for the whole sum and a mute
             bool muted = blockType == "bus" && r.Block.Parameters.FirstOrDefault(p => p.Name == "mute")?.Value.Trim().Trim('"') == "on";
-            int busDb = blockType == "bus" && int.TryParse(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value.Trim().Trim('"'), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int bg) ? bg : 0;
+            int busDb = blockType == "bus" ? AudioEffects.ReadDb(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value, 0, -60, FixedAudio.WideMaxDb) : 0;
             int busGain = muted ? 0 : FixedAudio.GainFromDbWide(busDb);
             for (int k = 1; k <= 16; k++)
             {
