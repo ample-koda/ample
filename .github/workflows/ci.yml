@@ -25,8 +25,21 @@ jobs:
             dotnet build tests/Ample.Server.Tests -c Release --nologo
             pwsh tests/Ample.Server.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
           fi
+      - name: Cache the General MIDI SoundFont
+        # the tests that play General MIDI (the Lite demos, the SoundFont renderer) need it; it is fetched once and kept between runs
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ample-home/audio-packs
+          key: musescore-general-home-${{ hashFiles('tools/fetch-gm-soundfont.mjs') }}
+      - name: Fetch the General MIDI SoundFont
+        # into the library folder the tests use (AMPLE_HOME); the script checks the size and the pinned SHA-256 and does not download again when the file is there
+        env:
+          AMPLE_PACK_OUT: ${{ github.workspace }}/.ample-home/audio-packs
+        run: node tools/fetch-gm-soundfont.mjs --download
       - name: Test every test project
         shell: bash
+        env:
+          AMPLE_HOME: ${{ github.workspace }}/.ample-home
         run: |
           set -euo pipefail
           for project in tests/*.Tests/*.csproj; do
@@ -52,6 +65,16 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
+      - name: Cache the General MIDI SoundFont
+        # the tests that play General MIDI need it; it is fetched once and kept between runs
+        uses: actions/cache@v4
+        with:
+          path: audio-packs/licensed/musescore-general
+          key: musescore-general-${{ hashFiles('tools/fetch-gm-soundfont.mjs') }}
+      - name: Fetch the General MIDI SoundFont
+        # the script checks the size and the pinned SHA-256 of the SoundFont, and does not download again when the file is already there (from the cache)
+        run: node tools/fetch-gm-soundfont.mjs --download --into
       - name: Run the browser tests
-        # a test that is slow or timing sensitive gets a second and a third try before it counts as failed
-        run: npx playwright test --project=chromium --retries=2
+        # a test that failed gets one more try, with at most 10 seconds (a slow or timing sensitive test passes then; a broken one costs 10 seconds, not 45)
+        run: |
+          npx playwright test --project=chromium --workers=2 || npx playwright test --project=chromium --workers=2 --last-failed --timeout=10000

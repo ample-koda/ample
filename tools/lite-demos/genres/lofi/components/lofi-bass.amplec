@@ -1,0 +1,36 @@
+/** Notes in, a soft round bass out. */
+#[DisplayName("Warm bass")]
+#[Category("Lo-fi")]
+#[Tags("bass", "lofi", "instrument", "lofi")]
+component koda.lofi.lofiBass version 1.0.0 current {
+  id "demo.koda.lofi.lofi-bass"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(100), MaxValue(1500)]
+  property brightness: Int = 450
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -4dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="sine", attack="5 ms", decay="300 ms", sustain="70", release="150 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> gain(level)
+  }
+}

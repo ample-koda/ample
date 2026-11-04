@@ -1,0 +1,41 @@
+/** Notes in, a plucky square lead out: a phaser, a dotted echo and a bit of room. */
+#[DisplayName("Pluck lead")]
+#[Category("Techno")]
+#[Tags("lead", "arpeggio", "techno", "instrument", "phaser")]
+component koda.techno.lead version 1.0.0 current {
+  id "demo.koda.techno.lead"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(800), MaxValue(9000)]
+  property brightness: Int = 4200
+
+  #[DisplayName("Echo"), MinValue(0%), MaxValue(70%)]
+  property echo: Percent = 38%
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -9dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint pink
+      knob echo tint blue
+      knob level tint gray
+    }
+    card {
+      knob brightness size s tint pink
+      knob echo size s tint blue
+    }
+  }
+
+  process {
+    emit notes
+      |> synth(wave="square", attack="4 ms", decay="230 ms", sustain="35", release="220 ms", cutoff=brightness * 1Hz, detune="8")
+      |> phaser(stages=4, period=3000ms, mix=30)
+      |> delay(time=0.75beat, feedback=45%, mix=echo)
+      |> reverb(size=60%, decay=55%, mix=24%)
+      |> gain(level)
+  }
+}

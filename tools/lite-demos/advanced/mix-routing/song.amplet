@@ -1,0 +1,201 @@
+composition "mix routing" { ample 1  tempo 100  master-seed 41 }
+
+# MIX ROUTING: a 24-bar song at 100 BPM that is mostly about how the sound is wired, not about the notes (three short riffs of about sixty notes, repeated by a loop component).
+#
+#   instruments -> buses (drums, music) -> send blocks feed ONE shared reverb and ONE shared echo
+#   -> the master chain: eq, a compressor keyed by the kick (a real sidechain), width, a limiter, a meter -> master
+#
+#   bars  1- 8  keys and hats, then the bass
+#   bars  9-16  the full beat and the lead
+#   bars 17-24  the same, with the echo thrown wide on the lead and the kick pumping harder
+
+import "components/loop.amplec"
+
+# ------------------------------------------------------------------ the notes (a clip plays once; the loop component repeats it over a section)
+midi-clip changes at 1 for 8 {
+  # Am F C G Am F G E, one chord a bar
+  notes 1:0:4:57:78 1:0:4:60:78 1:0:4:64:78 2:0:4:53:78 2:0:4:57:78 2:0:4:60:78 3:0:4:55:78 3:0:4:60:78 3:0:4:64:78 4:0:4:55:78 4:0:4:59:78 4:0:4:62:78 5:0:4:57:78 5:0:4:60:78 5:0:4:64:78 6:0:4:53:78 6:0:4:57:78 6:0:4:60:78 7:0:4:55:78 7:0:4:59:78 7:0:4:62:78 8:0:4:52:78 8:0:4:56:78 8:0:4:59:78
+}
+
+midi-clip bassline at 1 for 4 {
+  notes 1:0:1.5:33:100 1:1.5:0.5:33:100 1:2:1:40:100 1:3:1:33:100 2:0:1.5:29:100 2:1.5:0.5:29:100 2:2:1:36:100 2:3:1:29:100 3:0:1.5:36:100 3:1.5:0.5:36:100 3:2:1:31:100 3:3:1:36:100 4:0:1.5:31:100 4:1.5:0.5:31:100 4:2:1:38:100 4:3:1:31:100
+}
+
+midi-clip tune at 1 for 8 {
+  notes 1:0:1.5:76:96 1:1.5:0.5:74:96 1:2:2:72:96 2:0:1:69:96 2:1:1:72:96 2:2:2:76:96 3:0:1.5:77:96 3:1.5:0.5:76:96 3:2:2:72:96 4:0:2:69:96 4:2:1:67:96 4:3:1:72:96 5:0:1.5:76:96 5:1.5:0.5:74:96 5:2:1:72:96 5:3:1:69:96 6:0:2:72:96 6:2:1:76:96 6:3:1:77:96 7:0:2:81:96 7:2:1:79:96 7:3:1:76:96 8:0:4:76:96
+}
+
+koda.demo.loop chordLoop at 1 for 24 {
+  times 3
+  from changes.notes -> source
+}
+
+koda.demo.loop padLoop at 9 for 16 {
+  times 2
+  from changes.notes -> source
+}
+
+koda.demo.loop bassLoop at 5 for 20 {
+  times 5
+  from bassline.notes -> source
+}
+
+koda.demo.loop leadLoop at 9 for 16 {
+  times 2
+  from tune.notes -> source
+}
+
+# ------------------------------------------------------------------ the instruments
+synth keys at 1 for 24 {
+  wave triangle
+  attack 20 ms
+  release 500 ms
+  detune 8
+  cutoff 3200 Hz
+  gain -10
+  from chordLoop.notes -> notes
+}
+
+synth pad at 9 for 16 {
+  wave saw
+  attack 600 ms
+  release 900 ms
+  detune 14
+  cutoff auto(9:900, 13:4200, 17:1200, 21:5200, 25:900)
+  gain -17
+  from padLoop.notes -> notes
+}
+
+synth bass at 5 for 20 {
+  wave sine
+  attack 5 ms
+  release 120 ms
+  gain -4
+  from bassLoop.notes -> notes
+}
+
+synth lead at 9 for 16 {
+  wave square
+  attack 8 ms
+  release 260 ms
+  cutoff 4800 Hz
+  gain -15
+  from leadLoop.notes -> notes
+}
+
+# ------------------------------------------------------------------ the drums, one block per voice so each one can be routed and mixed by itself
+drums kick at 9 for 16 {
+  kit samples/kit
+  pattern kick:x...x...x...x..x
+}
+
+drums snare at 9 for 16 {
+  kit samples/kit
+  pattern snare:....x.......x...
+  swing 8
+}
+
+drums hats at 1 for 24 {
+  kit samples/kit
+  pattern hat:x.x.x.x.x.x.x.x. open:..............x.
+  swing 12
+  humanize 25
+}
+
+# the drum bus: one fader for the whole kit, with its own gains per voice
+bus drumBus {
+  inputs 4
+  gains "-3 -5 -11 -14"
+  from kick.audio -> audio1
+  from snare.audio -> audio2
+  from hats.audio -> audio3
+}
+
+bus musicBus {
+  inputs 4
+  gains "-4 -7 -5 -2"
+  from keys.audio -> audio1
+  from pad.audio -> audio2
+  from bass.audio -> audio3
+  from lead.audio -> audio4
+}
+
+# ------------------------------------------------------------------ the shared effects, fed by sends
+# send passes the sound on unchanged (through) and sends a part of it (send) to an effect that several tracks share.
+send toRoom {
+  levels "-14 -9 -16 -60"
+  from keys.audio -> audio1
+  from lead.audio -> audio2
+  from snare.audio -> audio3
+}
+
+reverb room {
+  size 70%
+  decay 75%
+  mix 100%
+  from toRoom.send -> audio
+}
+
+send toEcho {
+  levels "-60 -10 -60 -60"
+  from lead.audio -> audio2
+}
+
+delay echo {
+  time 450 ms
+  feedback 45%
+  mix 100%
+  from toEcho.send -> audio
+}
+
+# the echo is thrown wide in the last eight bars only: a fader on the return that is automated
+volume echoReturn at 1 for 24 {
+  gain auto(1:-60, 17:-60, 18:-8, 25:-8)
+  from echo.audio -> audio
+}
+
+# ------------------------------------------------------------------ the master chain
+mixer sum {
+  inputs 8
+  gains "0 0 -3 -6 -12 0 0 0"
+  from musicBus.audio -> audio1
+  from drumBus.audio -> audio2
+  from room.audio -> audio3
+  from echoReturn.audio -> audio4
+}
+
+# a compressor whose key input is the KICK: every kick pulls the whole mix down a little (sidechain pumping)
+compressor pump {
+  threshold -24 dB
+  ratio 4
+  attack 5 ms
+  release 160 ms
+  makeup 2 dB
+  from sum.audio -> audio
+  from kick.audio -> key
+}
+
+eq tone {
+  low 1.5 dB
+  high 2 dB
+  high_hz 6000 Hz
+  from pump.audio -> audio
+}
+
+width wide {
+  width 125
+  from tone.audio -> audio
+}
+
+limiter safe {
+  ceiling -1 dB
+  from wide.audio -> audio
+}
+
+meter level {
+  from safe.audio -> audio
+}
+
+master out {
+  from level.audio -> audio
+}

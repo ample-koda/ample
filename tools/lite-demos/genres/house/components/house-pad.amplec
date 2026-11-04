@@ -1,0 +1,38 @@
+/** Notes in, a warm slow pad out. */
+#[DisplayName("House pad")]
+#[Category("House")]
+#[Tags("pad", "house", "instrument", "house")]
+component koda.house.housePad version 1.0.0 current {
+  id "demo.koda.house.house-pad"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(300), MaxValue(5000)]
+  property brightness: Int = 1800
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -10dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint purple
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint purple
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="600 ms", decay="400 ms", sustain="80", release="900 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> chorus(depth=5ms, period=2600ms, mix=45)
+      |> reverb(size=70%, decay=65%, mix=30%)
+      |> gain(level)
+  }
+}

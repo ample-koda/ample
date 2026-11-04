@@ -1,0 +1,194 @@
+composition "llama control room" { ample 1  tempo 100  master-seed 77 }
+
+# LLAMA CONTROL ROOM: 24 bars at 100 BPM (58 seconds) played by curves.
+#
+# Nobody writes a note here. Three CURVE blocks make slow and fast moves (a control is a number over time), a FIRE block turns each move that
+# crosses a level into a note, and the notes are sung by three llamas. The moves also open a filter, shape the mouth and vowel of the llamas
+# and bring in a beat. At the end a FOLLOW block listens to the llamas and ducks the pad whenever one of them sings.
+#
+#   slow    one long swell (bars 1 to 24): the pad opens, the reverb gets wetter, the hats come up, the mouths open
+#   swing   a triangle every 4 bars: the vowel of the llamas goes from u to a and back
+#   beatA   a triangle every 2 bars: fire plays a low note when it goes up, and a llama sings when it comes down
+#   beatB   a triangle every 6 bars: another llama answers (its own crossing, so the two never line up for long)
+#
+# Change a number (a period, a threshold, a note), press Build & play and hear what moved.
+
+# ------------------------------------------------------------------ the curves
+curve slow {
+  value auto(1:0, 13:1000, 19:1000, 25:0)
+}
+
+curve swing {
+  value lfo(4, 0, 1000)
+}
+
+curve beatA {
+  value lfo(2, 0, 1000)
+}
+
+curve beatB {
+  value lfo(6, 0, 1000)
+}
+
+# ------------------------------------------------------------------ from a curve to notes
+fire kickFire {
+  threshold 0.5
+  direction rising
+  note 36
+  length 300 ms
+  gap 1500 ms
+  from beatA.level -> input
+}
+
+fire callA {
+  threshold 0.5
+  direction falling
+  note 57
+  length 1600 ms
+  velocity level
+  gap 1500 ms
+  from beatA.level -> input
+}
+
+fire callB {
+  threshold 0.6
+  direction rising
+  note 64
+  length 1800 ms
+  velocity level
+  gap 2500 ms
+  from beatB.level -> input
+}
+
+fire callC {
+  threshold 0.4
+  direction falling
+  note 69
+  length 2200 ms
+  velocity level
+  gap 3000 ms
+  from beatB.level -> input
+}
+
+# ------------------------------------------------------------------ the llamas: the mouth and the vowel are steered
+delay-llama low {
+  vowel 100 * swing.level
+  mouth 25 + 65 * slow.level
+  voice 30
+  glide 120 ms
+  vibrato 35%
+  echo 25%
+  gain -6 dB
+  from callA.notes -> notes
+}
+
+delay-llama mid {
+  vowel 100 - 100 * swing.level
+  mouth 30 + 60 * slow.level
+  voice 55
+  glide 120 ms
+  vibrato 40%
+  unison 2
+  echo 35%
+  gain -7 dB
+  from callB.notes -> notes
+}
+
+delay-llama high {
+  vowel 20 + 60 * swing.level
+  mouth 40 + 50 * slow.level
+  voice 75
+  glide 100 ms
+  vibrato 45%
+  echo 40%
+  gain -9 dB
+  from callC.notes -> notes
+}
+
+mixer choir {
+  inputs 4
+  from low.audio -> audio1
+  from mid.audio -> audio2
+  from high.audio -> audio3
+}
+
+# ------------------------------------------------------------------ the beat and the pad
+synth thump at 1 for 24 {
+  wave sine
+  attack 5 ms
+  release 450 ms
+  gain -3 dB
+  from kickFire.notes -> notes
+}
+
+drums hats at 1 for 24 {
+  kit samples/kit
+  pattern hat:x.x.x.x.x.x.x.x. open:..............x.
+  swing 6
+}
+
+volume hatsUp {
+  gain -36 dB + 30 dB * slow.level
+  from hats.audio -> audio
+}
+
+midi-clip chords at 1 for 24 {
+  chords Am F C G Am F C G Am F C G Am F C G Am F C G Am F C G
+  bars 24
+}
+
+synth pad at 1 for 24 {
+  wave saw
+  attack 700 ms
+  release 1000 ms
+  gain -9 dB
+  from chords.notes -> notes
+}
+
+map open {
+  unit Hz
+  out_low 300
+  out_high 4500
+  smooth 400 ms
+  from slow.level -> input
+}
+
+filter padFilter {
+  type lowpass
+  from pad.audio -> audio
+  from open.level -> cutoff
+}
+
+# ------------------------------------------------------------------ the pad ducks for the llamas (a sidechain from any sound)
+follow listen {
+  band mid
+  baseline off
+  attack 60 ms
+  release 700 ms
+  curve soft
+  from choir.audio -> audio
+}
+
+volume padDuck {
+  gain -11 dB * listen.level
+  from padFilter.audio -> audio
+}
+
+reverb space {
+  size 75%
+  mix 12 + 45 * slow.level
+  from padDuck.audio -> audio
+}
+
+mixer room {
+  inputs 6
+  gains "0 0 -2 -1 0 0"
+  from space.audio -> audio1
+  from choir.audio -> audio2
+  from thump.audio -> audio3
+  from hatsUp.audio -> audio4
+}
+
+master out {
+  from room.audio -> audio
+}

@@ -1,0 +1,31 @@
+/** Notes in, offbeat piano chords out with a touch of room. */
+#[DisplayName("House keys")]
+#[Category("House")]
+#[Tags("keys", "chords", "house", "instrument", "house")]
+component koda.house.houseKeys version 1.0.0 current {
+  id "demo.koda.house.house-keys"
+
+  input notes: Notes
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -8dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob level size l tint gray
+    }
+    card {
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> piano()
+      |> reverb(size=45%, decay=40%, mix=18%)
+      |> gain(level)
+  }
+}

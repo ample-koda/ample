@@ -1,0 +1,123 @@
+composition "porch song" { ample 1  tempo 96  master-seed 60 }
+
+# PORCH SONG: a whole little song in exactly 60 seconds (24 bars at 96 BPM), with a strummed guitar, a bass, a light beat and a piano hook.
+#
+#   bars  1- 2  intro      the guitar alone, plucked softly
+#   bars  3-10  verse      G Em C D twice: a folk strum, the bass walks in, a light beat
+#   bars 11-18  chorus     C G D Em twice: a driving strum, a full beat, the piano sings the hook
+#   bars 19-24  outro      the guitar and the bass settle, the beat drops out, the last two bars fade away
+#
+# There are only 16 written notes in the whole song (the piano hook). Everything else comes from rules:
+#   - the chords are names, one a bar
+#   - ONE guitar block holds four named strums and a "song" that says which one plays for how many bars
+#   - the bass has no notes of its own: the chords go down two octaves and an arpeggiator walks through them (root, third, fifth)
+
+midi-clip changes at 1 for 24 {
+  chords G G G Em C D G Em C D C G D Em C G D D G Em C D G G
+  bars 24
+}
+
+# ------------------------------------------------------------------ the guitar: four strums, one block, an arrangement
+# D/d down, U/u up, x a muted chop, . lets it ring. 16 steps make a bar.
+guitar strum at 1 for 24 {
+  set samples/guitar
+  voicing open
+  stagger 26
+  humanize 40
+  gain -3
+  patterns "intro=D.......d....... / verse=D...D.u...u.D.u. / chorus=D.uuD.uuD.uuD.uu / outro=D.......D.u....."
+  song "intro*2 verse*8 chorus*8 outro*6"
+  from changes.notes -> notes
+}
+
+# ------------------------------------------------------------------ the bass: no notes written at all
+transpose bassDown {
+  semitones -24
+  from changes.notes -> notes
+}
+
+arpeggiator bassWalk {
+  rate 1/4
+  pattern up
+  octaves 1
+  gate 85
+  from bassDown.notes -> notes
+}
+
+bass low at 3 for 22 {
+  set samples/bass
+  gain -4
+  from bassWalk.notes -> notes
+}
+
+# ------------------------------------------------------------------ the beat, section by section
+drums verseBeat at 3 for 8 {
+  kit samples/kit
+  pattern kick:x.......x....x.. snare:....x.......x... hat:x.x.x.x.x.x.x.x.
+  swing 12
+  humanize 25
+}
+
+drums rollIn at 10 for 1 {
+  kit samples/kit
+  pattern snare:x.x.xxxxxxxxxxxx tom:..............x.
+  humanize 15
+}
+
+drums chorusBeat at 11 for 8 {
+  kit samples/kit
+  pattern kick:x...x...x..xx... snare:....x.......x... hat:xxxxxxxxxxxxxxxx open:..x.......x.....
+  swing 8
+  humanize 20
+}
+
+drums outroBeat at 19 for 2 {
+  kit samples/kit
+  pattern kick:x.......x....... hat:x.x.x.x.x.x.x.x.
+  humanize 25
+}
+
+# ------------------------------------------------------------------ the hook (the only written notes)
+midi-clip hook at 11 for 8 {
+  melody "e5:1.5 g5:0.5 e5:1 c5:1 d5:1.5 b4:0.5 d5:2 a4:1 d5:1 f#5:2 e5:3 r:1 e5:1.5 g5:0.5 c6:2 b5:1.5 g5:0.5 d5:2 a5:1.5 f#5:0.5 d5:1 a4:1 d5:4"
+  bars 8
+}
+
+piano melody at 11 for 8 {
+  gain -6
+  from hook.notes -> notes
+}
+
+reverb porch {
+  size 45%
+  decay 40%
+  mix 100%
+  from melody.audio -> audio
+}
+
+# ------------------------------------------------------------------ the mix and the fade
+mixer mix {
+  inputs 8
+  gains "4 0 4 0 3 2 -2 -3"
+  from strum.audio -> audio1
+  from low.audio -> audio2
+  from verseBeat.audio -> audio3
+  from chorusBeat.audio -> audio4
+  from outroBeat.audio -> audio5
+  from rollIn.audio -> audio6
+  from melody.audio -> audio7
+  from porch.audio -> audio8
+}
+
+# start and length are bars of the song: the last two bars fade away
+fade away at 23 for 2 {
+  direction out
+  start 23
+  length 2
+  shape equal
+  from mix.audio -> audio
+}
+
+master out {
+  from away.audio -> audio
+}

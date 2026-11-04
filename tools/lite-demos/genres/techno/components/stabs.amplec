@@ -1,0 +1,46 @@
+/** Notes in, off-beat chord stabs out: a detuned saw, a chorus, a dotted echo and a room. */
+#[DisplayName("Chord stabs")]
+#[Category("Techno")]
+#[Tags("stabs", "chords", "techno", "instrument", "echo")]
+component koda.techno.stabs version 1.0.0 current {
+  id "demo.koda.techno.stabs"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(600), MaxValue(8000)]
+  property brightness: Int = 2800
+
+  #[DisplayName("Echo"), MinValue(0%), MaxValue(70%)]
+  property echo: Percent = 35%
+
+  #[DisplayName("Room"), MinValue(0%), MaxValue(60%)]
+  property room: Percent = 22%
+
+  #[DisplayName("Level"), MinValue(-24dB), MaxValue(6dB)]
+  property level: Gain = -6dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint yellow
+      knob echo tint blue
+      knob room tint purple
+      knob level tint gray
+    }
+    card {
+      knob brightness size s tint yellow
+      knob echo size s tint blue
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="3 ms", decay="190 ms", sustain="20", release="120 ms", cutoff=brightness * 1Hz, detune="14")
+      |> chorus(depth=4ms, period=2200ms, mix=40)
+      |> delay(time=0.75beat, feedback=42%, mix=echo)
+      |> reverb(size=55%, decay=50%, mix=room)
+      |> gain(level)
+  }
+}

@@ -1,0 +1,25 @@
+/** Repeats a pattern again and again: a four-bar riff becomes a whole section without writing its notes twice. */
+#[DisplayName("Loop")]
+#[Category("Demo")]
+#[Tags("loop", "repeat", "arrangement")]
+component koda.demo.loop version 1.0.0 current {
+  id "demo.koda.demo.loop"
+
+  input source: Notes
+
+  #[DisplayName("Times"), MinValue(1), MaxValue(64), Step(1)]
+  property times: Int = 4
+
+  output notes: Notes
+
+  ui {
+    knob times tint teal
+    card {
+      knob times size s tint teal
+    }
+  }
+
+  process {
+    emit source |> repeat(times)
+  }
+}
