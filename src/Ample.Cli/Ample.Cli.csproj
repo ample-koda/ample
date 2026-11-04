@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>ample</ToolCommandName>
+    <PackageId>Ample.Cli</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <ProjectReference Include="../Ample.Engine/Ample.Engine.csproj" />
+    <ProjectReference Include="../Ample.Docs/Ample.Docs.csproj" />
+    <ProjectReference Include="../Ample.Lsp/Ample.Lsp.csproj" />
+    <ProjectReference Include="../Ample.Plugins/Ample.Plugins.csproj" />
+    <ProjectReference Include="../Ample.Server/Ample.Server.csproj" />
+  </ItemGroup>
+</Project>
