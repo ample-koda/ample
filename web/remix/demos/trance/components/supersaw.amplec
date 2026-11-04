@@ -1,0 +1,38 @@
+/** Notes in, a wide supersaw chord stab out. */
+#[DisplayName("Supersaw")]
+#[Category("Trance")]
+#[Tags("chords", "supersaw", "trance", "instrument", "trance")]
+component koda.trance.supersaw version 1.0.0 current {
+  id "demo.koda.trance.supersaw"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(800), MaxValue(8000)]
+  property brightness: Int = 3800
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -10dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="10 ms", decay="300 ms", sustain="70", release="400 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> chorus(depth=8ms, period=2400ms, mix=60)
+      |> reverb(size=60%, decay=55%, mix=24%)
+      |> gain(level)
+  }
+}

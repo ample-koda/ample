@@ -1,0 +1,19 @@
+composition "mixed-llama-choir" { ample 1  tempo 84  master-seed 11 }
+
+# A component with the Delay Llama inside it: notes go in, a choir of llamas comes out, the reverb is part of the component.
+# The instance has no "at ... for ...": it sings where the clip it reads plays.
+import "components/llama-choir.amplec"
+
+midi-clip melody at 1 for 2 {
+  notes 1:0:2:57:100 1:2:2:60:100 2:0:2:64:100 2:2:2:60:100
+}
+
+koda.fx.llamaChoir choir {
+  vowel 25
+  unison 4
+  from melody.notes -> notes
+}
+
+limiter safety {
+  from choir.audio -> audio
+}

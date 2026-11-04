@@ -1,0 +1,36 @@
+/** Notes in, a rolling eighth-note bass out. */
+#[DisplayName("Analog bass")]
+#[Category("Synthwave")]
+#[Tags("bass", "synthwave", "instrument", "synthwave")]
+component koda.synthwave.analogBass version 1.0.0 current {
+  id "demo.koda.synthwave.analog-bass"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(200), MaxValue(3500)]
+  property brightness: Int = 1100
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -4dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="3 ms", decay="120 ms", sustain="65", release="60 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> gain(level)
+  }
+}

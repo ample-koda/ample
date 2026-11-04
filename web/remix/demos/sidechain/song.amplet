@@ -1,0 +1,38 @@
+composition "pump" { ample 1  tempo 124  master-seed 15 }
+
+midi-clip chords at 1 for 4 {
+  chords Am F C G
+  bars 4
+}
+
+synth pad at 1 for 4 {
+  wave saw
+  attack 40 ms
+  release 400 ms
+  cutoff 2400 Hz
+  from chords.notes -> notes
+}
+
+# duck dips the sound for 160 ms at every x of the pattern, like the sidechain of a compressor keyed by the kick.
+duck pump {
+  depth 12 dB
+  release 220 ms
+  pattern x...x...x...x...
+  from pad.audio -> audio
+}
+
+drums beat at 1 for 4 {
+  kit samples/kit
+  pattern kick:x...x...x...x... hat:..x...x...x...x.
+}
+
+mixer mix {
+  inputs 4
+  gains "-5 0 0 0"
+  from pump.audio -> audio1
+  from beat.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

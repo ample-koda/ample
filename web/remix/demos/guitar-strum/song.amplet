@@ -1,0 +1,17 @@
+composition "guitar" { ample 1  tempo 100  master-seed 9 }
+
+midi-clip chords at 1 for 4 {
+  chords Am F C G
+  bars 4
+}
+
+guitar g at 1 for 4 {
+  set samples/guitar
+  strum D...D.u.D.u.D.u.
+  voicing open
+  from chords.notes -> notes
+}
+
+master out {
+  from g.audio -> audio
+}

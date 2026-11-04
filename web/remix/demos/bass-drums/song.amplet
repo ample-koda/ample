@@ -1,0 +1,28 @@
+composition "bass and drums" { ample 1  tempo 100  master-seed 4 }
+
+# melody "note:length ...": a note name and octave, then the length in beats (r:1 is a rest). Four beats make a bar.
+midi-clip line at 1 for 4 {
+  melody "e2:1 e2:1 g2:1 a2:1 e2:1 e2:1 b2:1 a2:1 c3:1 c3:1 b2:1 a2:1 g2:2 e2:2"
+  bars 4
+}
+
+bass b at 1 for 4 {
+  from line.notes -> notes
+}
+
+drums beat at 1 for 4 {
+  kit samples/kit
+  pattern kick:x...x...x...x... snare:....X.......X... hat:x.x.x.x.x.x.x.x.
+  humanize 15
+}
+
+mixer mix {
+  inputs 4
+  gains "-4 0 0 0"
+  from b.audio -> audio1
+  from beat.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

@@ -1,0 +1,42 @@
+/** Notes in, a wide dark pad out: slow attack, a low-pass you can open, chorus and a long reverb. */
+#[DisplayName("Dark pad")]
+#[Category("Techno")]
+#[Tags("pad", "ambient", "techno", "instrument", "reverb")]
+component koda.techno.pad version 1.0.0 current {
+  id "demo.koda.techno.pad"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(300), MaxValue(6000)]
+  property brightness: Int = 1500
+
+  #[DisplayName("Space"), MinValue(0%), MaxValue(80%)]
+  property space: Percent = 45%
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -12dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint teal
+      knob space size l tint purple
+      knob level tint gray
+    }
+    card {
+      knob brightness size s tint teal
+      knob space size s tint purple
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="700 ms", decay="900 ms", sustain="80", release="1100 ms", cutoff="3000 Hz", detune="20")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> chorus(depth=6ms, period=3200ms, mix=55)
+      |> reverb(size=85%, decay=80%, mix=space)
+      |> gain(level)
+  }
+}

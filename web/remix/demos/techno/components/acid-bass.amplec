@@ -1,0 +1,42 @@
+/** Notes in, a squelchy acid bass out: a saw synth, a filter that sweeps with the sixteenths, drive and a little weight in the low end. */
+#[DisplayName("Acid bass")]
+#[Category("Techno")]
+#[Tags("bass", "acid", "techno", "instrument", "filter")]
+component koda.techno.acidBass version 1.0.0 current {
+  id "demo.koda.techno.acid-bass"
+
+  input notes: Notes
+
+  #[DisplayName("Cutoff"), MinValue(200), MaxValue(5000)]
+  property cutoff: Int = 900
+
+  #[DisplayName("Drive"), MinValue(0dB), MaxValue(30dB)]
+  property drive: Gain = 14dB
+
+  #[DisplayName("Level"), MinValue(-24dB), MaxValue(6dB)]
+  property level: Gain = -4dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob cutoff size l tint orange
+      knob drive size l tint red
+      knob level tint gray
+    }
+    card {
+      knob cutoff size s tint orange
+      knob drive size s tint red
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="2 ms", decay="150 ms", sustain="35", release="70 ms", cutoff="6000 Hz")
+      |> filter(type="lowpass", cutoff=cutoff * 1Hz, lfo_rate="1/16", lfo_depth="1.5 oct", lfo_shape="saw")
+      |> distortion(drive=drive, mode="soft", tone=5000Hz, mix=75%)
+      |> eq(low=2dB, high=-3dB)
+      |> gain(level)
+  }
+}

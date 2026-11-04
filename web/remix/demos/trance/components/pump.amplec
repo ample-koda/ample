@@ -1,0 +1,33 @@
+/** The sidechain pump: what goes through it ducks on the beat. */
+#[DisplayName("Pump")]
+#[Category("Trance")]
+#[Tags("sidechain", "pump", "duck", "dynamics", "trance")]
+component koda.trance.pump version 1.0.0 current {
+  id "demo.koda.trance.pump"
+
+  input audio: Audio
+
+  #[DisplayName("Depth"), MinValue(0dB), MaxValue(24dB)]
+  property depth: Gain = 8dB
+
+  #[DisplayName("Release (ms)"), MinValue(40), MaxValue(500)]
+  property release: Int = 190
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob depth size l tint blue
+      knob release size l tint teal
+    }
+    card {
+      knob depth size s tint blue
+      knob release size s tint teal
+    }
+  }
+
+  process {
+    emit audio
+      |> duck(depth=depth, release=release * 1ms, pattern="x...x...x...x...")
+  }
+}

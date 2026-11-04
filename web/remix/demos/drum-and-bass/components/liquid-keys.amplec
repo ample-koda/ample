@@ -1,0 +1,32 @@
+/** Notes in, airy electric piano chords out. */
+#[DisplayName("Liquid keys")]
+#[Category("Drum and bass")]
+#[Tags("keys", "liquid", "instrument", "dnb")]
+component koda.dnb.liquidKeys version 1.0.0 current {
+  id "demo.koda.dnb.liquid-keys"
+
+  input notes: Notes
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -8dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob level size l tint gray
+    }
+    card {
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> piano()
+      |> chorus(depth=4ms, period=2400ms, mix=40)
+      |> reverb(size=60%, decay=55%, mix=24%)
+      |> gain(level)
+  }
+}

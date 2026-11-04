@@ -1,0 +1,38 @@
+/** Notes in, a slow chord bed under the walks out. */
+#[DisplayName("Garden pad")]
+#[Category("Generative ambient")]
+#[Tags("pad", "drone", "ambient", "instrument", "genambient")]
+component koda.genambient.gardenPad version 1.0.0 current {
+  id "demo.koda.genambient.garden-pad"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(300), MaxValue(4000)]
+  property brightness: Int = 1200
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -6dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint purple
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint purple
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="2200 ms", decay="800 ms", sustain="90", release="3000 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> chorus(depth=8ms, period=4800ms, mix=60)
+      |> reverb(size=95%, decay=90%, mix=45%)
+      |> gain(level)
+  }
+}

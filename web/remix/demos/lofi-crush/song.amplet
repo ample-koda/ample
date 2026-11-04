@@ -1,0 +1,43 @@
+composition "lofi crush" { ample 1  tempo 82  master-seed 16 }
+
+midi-clip chords at 1 for 4 {
+  chords Fmaj7 Em7 Dm7 G7
+  bars 4
+}
+
+piano keys at 1 for 4 {
+  gain -4
+  from chords.notes -> notes
+}
+
+chorus wobble {
+  depth 7 ms
+  period 2600 ms
+  mix 60
+  from keys.audio -> audio
+}
+
+drums beat at 1 for 4 {
+  kit samples/kit
+  pattern kick:x.....x...x..... snare:....x.......x... hat:x.x.x.x.x.x.x.x.
+  swing 18
+  humanize 25
+}
+
+bitcrusher dust {
+  bits 9
+  downsample 3
+  mix 70
+  from beat.audio -> audio
+}
+
+mixer mix {
+  inputs 4
+  gains "0 -3 0 0"
+  from wobble.audio -> audio1
+  from dust.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

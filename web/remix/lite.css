@@ -1,0 +1,299 @@
+/* AMPLE Remix: a small page. The colours are the design tokens of Studio (/styles/tokens.css); nothing else of Studio's stylesheets is used. */
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+body { display: grid; grid-template-rows: auto 1fr minmax(120px, 28vh); }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.lite-dim { color: var(--dim); }
+.lite-gap { flex: 1; }
+button, .button, select, input[type="search"], input[type="text"] { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 10px; cursor: pointer; text-decoration: none; display: inline-block; }
+button:hover, .button:hover { border-color: var(--line-strong); }
+button:focus-visible, .button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: none; box-shadow: var(--focus); }
+button:disabled, .button[aria-disabled="true"] { opacity: .45; cursor: default; }
+.primary { background: var(--acc); color: var(--on-accent); border-color: var(--acc); font-weight: 600; }
+.danger:hover { border-color: #f07178; color: #f07178; }
+
+#lite-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--head-grad); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.lite-brand { letter-spacing: .04em; } .lite-brand span { color: var(--acc); }
+#lite-notice { flex: 1 1 100%; background: #3a2f12; color: #f2d58a; border: 1px solid #6b5416; border-radius: var(--r-s); padding: 4px 8px; font-size: 12px; }
+#lite-status { color: var(--dim); font-size: 12px; min-width: 8em; text-align: right; }
+
+#lite-main { display: grid; grid-template-columns: minmax(180px, 250px) 1fr; min-height: 0; }
+#lite-files { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.lite-files-bar { display: flex; gap: 6px; padding: 8px; }
+#lite-tree { overflow: auto; flex: 1; padding: 0 4px 8px; }
+#lite-usage { margin: 0; padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--line); }
+.lite-row { display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: var(--r-s); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; }
+.lite-row:hover { background: var(--panel2); }
+.lite-row[aria-selected="true"] { background: color-mix(in srgb, var(--acc) 22%, transparent); }
+.lite-row .ic { width: 1.3em; text-align: center; color: var(--dim); }
+.lite-row.folder { color: var(--dim); }
+
+#lite-work { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#lite-filebar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--line); background: var(--panel); min-height: 2.2em; }
+#lite-filename { font-weight: 600; }
+#lite-editor { flex: 1; min-height: 0; position: relative; background: var(--panel3); }
+#lite-editor .cm-editor { height: 100%; }
+#lite-binary { padding: 20px; }
+.lite-empty { position: absolute; inset: 2.4em 0 0 0; display: grid; place-content: center; text-align: center; gap: 10px; background: var(--bg); }
+.lite-empty[hidden] { display: none; }
+
+.lite-complete { position: absolute; z-index: 20; max-height: 220px; min-width: 200px; max-width: 360px; overflow: auto; background: var(--panel2); border: 1px solid var(--line-strong); border-radius: var(--r-s); box-shadow: var(--shadow-2); }
+.lite-complete-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 8px; cursor: pointer; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.lite-complete-row small { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+.lite-complete-row.on { background: color-mix(in srgb, var(--acc) 30%, transparent); }
+.lite-tip { position: absolute; z-index: 20; max-width: 340px; padding: 6px 9px; background: var(--panel2); border: 1px solid var(--line-strong); border-radius: var(--r-s); box-shadow: var(--shadow-2); font-size: 12px; white-space: pre-wrap; pointer-events: none; }
+.lite-diag-error { text-decoration: underline wavy #f07178; text-underline-offset: 3px; }
+.lite-diag-warning { text-decoration: underline wavy #f5c542; text-underline-offset: 3px; }
+.lite-diag-info { text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
+.ag-error { color: #f07178; } .ag-warning { color: #f5c542; } .ag-info { color: var(--acc); }
+
+#lite-foot { display: grid; grid-template-columns: minmax(260px, 36%) 1fr; border-top: 1px solid var(--line); background: var(--panel); min-height: 0; }
+#lite-foot section { padding: 6px 10px; overflow: auto; min-height: 0; }
+#lite-foot h2 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+#lite-problems { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+#lite-problems li { padding: 2px 4px; border-radius: var(--r-s); cursor: pointer; }
+#lite-problems li:hover { background: var(--panel2); }
+#lite-problems li::before { content: "● "; } #lite-problems li.error::before { color: #f07178; } #lite-problems li.warning::before { content: "▲ "; color: #f5c542; } #lite-problems li.info::before { content: "ℹ "; color: var(--acc); }
+#lite-log { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--dim); white-space: pre-wrap; overflow: auto; max-height: 100%; } #lite-log div:last-child { color: var(--text); }
+#lite-progress { vertical-align: middle; width: 8em; margin-left: 8px; accent-color: var(--acc); }
+#lite-output { width: 100%; } #lite-output-info { margin: 4px 0 0; font-size: 12px; }
+
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: 16px; max-width: min(720px, 94vw); box-shadow: var(--shadow-2); }
+dialog::backdrop { background: var(--backdrop); }
+dialog h2 { margin: 0 0 10px; font-size: 16px; }
+dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 14px 0 0; }
+dialog input[type="text"] { width: 100%; box-sizing: border-box; }
+#lite-demo-dialog { width: min(820px, 94vw); max-height: 86vh; } #lite-demo-dialog[open] { display: flex; flex-direction: column; }
+.lite-demo-head { display: flex; gap: 10px; align-items: center; } .lite-demo-head h2 { margin: 0; } .lite-demo-head input { flex: 1; }
+.lite-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.lite-chips button[aria-pressed="true"] { background: var(--acc); color: var(--on-accent); border-color: var(--acc); }
+#lite-demo-list { list-style: none; margin: 0; padding: 0; overflow: auto; display: grid; gap: 8px; }
+#lite-demo-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-s); }
+#lite-demo-list h3 { margin: 0; font-size: 14px; } #lite-demo-list p { margin: 0; color: var(--dim); font-size: 13px; grid-column: 1; }
+#lite-demo-list .meta { grid-column: 1; font-size: 11px; color: var(--dim); } #lite-demo-list button { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+#lite-roll { width: min(1600px, 98vw); height: 94vh; max-width: none; max-height: none; padding: 14px 16px; box-sizing: border-box; } #lite-roll[open] { display: flex; flex-direction: column; gap: 10px; }
+.lite-roll-head, .lite-roll-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; } .lite-roll-head h2 { margin: 0 6px 0 0; font-size: 17px; }
+.lite-roll-field { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; } .lite-roll-field select, .lite-roll-field input { text-transform: none; letter-spacing: 0; font-size: 14px; }
+.lite-roll-field input[type="range"] { width: 110px; padding: 0; accent-color: var(--acc); }
+.lite-roll-tools { padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-s); gap: 6px; } .lite-roll-tools button { padding: 4px 9px; }
+.lite-roll-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; } .lite-roll-help { flex: 1 1 100%; font-size: 12px; margin-top: 2px; }
+#lite-roll-scroll { overflow: auto; flex: 1 1 auto; min-height: 220px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel3); }
+#lite-roll-velwrap { overflow: hidden; flex: 0 0 auto; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel3); }
+#lite-roll-canvas, #lite-roll-vel { display: block; touch-action: none; } #lite-roll-canvas { cursor: crosshair; } #lite-roll-vel { cursor: ns-resize; }
+#lite-toasts { position: fixed; right: 12px; bottom: 12px; display: grid; gap: 6px; z-index: 50; max-width: min(420px, 90vw); }
+#lite-toasts div { background: var(--panel2); border: 1px solid var(--line-strong); border-left: 4px solid var(--acc); padding: 8px 12px; border-radius: var(--r-s); box-shadow: var(--shadow-2); }
+#lite-toasts div.error { border-left-color: #f07178; }
+
+/* A phone: the page scrolls as a whole, the editor gets a real height, and Build & play floats at the bottom right where a thumb reaches it. */
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  body { display: block; font-size: 15px; }
+  body { padding-bottom: 84px; }
+  #lite-bar { gap: 6px; padding: 6px 8px; }
+  .lite-brand { order: 1; font-size: 15px; }
+  .lite-project { order: 3; flex: 1 1 calc(100% - 110px); min-width: 0; }
+  .lite-project select { width: 100%; }
+  #lite-build { position: fixed; right: 12px; bottom: 12px; z-index: 6; padding: 14px 22px; font-size: 17px; border-radius: 28px; box-shadow: 0 4px 16px rgba(0, 0, 0, .55); }
+  #lite-cancel { position: fixed; left: 12px; bottom: 12px; z-index: 6; padding: 14px 20px; font-size: 16px; border-radius: 28px; background: var(--panel2); box-shadow: 0 4px 16px rgba(0, 0, 0, .55); }
+  /* the bar reads in rows: the name with Export at its right; the project with New project; then Demos, Share, Stop and last Reset */
+  /* the buttons of the hamburger menu (Export as, New project, Share, Reset workspace) are not in the bar; the menu presses them */
+  #lite-export-btn, #lite-new-project, #lite-share, #lite-reset { display: none !important; }
+  #lite-export-wrap { order: 2; margin: 0; }
+  #lite-export-wrap .lite-export-menu { position: fixed; top: 54px; right: 8px; }
+  #lite-menu-wrap.lite-phone-only { display: inline-flex !important; order: 2; margin-left: auto; }
+  #lite-menu-btn { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+  #lite-menu { position: fixed; top: 54px; right: 8px; }
+  #lite-menu [role=menuitem] { min-height: 46px; font-size: 15px; }
+  /* Demos is the call to action beside the name */
+  #lite-demos-btn { order: 1; padding: 6px 16px; border-radius: 20px; border-color: var(--acc); color: var(--acc); font-weight: 600; background: color-mix(in srgb, var(--acc) 14%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 30%, transparent) inset; }
+  #lite-bar button, #lite-bar select { min-height: 40px; }
+  #lite-stop { order: 7; padding: 6px 12px; font-size: 13px; }
+  .lite-export-menu { min-width: min(260px, calc(100vw - 24px)); }
+  #lite-bar .lite-gap { display: none; }
+  #lite-status { order: 9; flex: 1 1 100%; min-width: 0; text-align: left; font-size: 12px; }
+  #lite-notice { order: 10; }
+  /* the round suggestions button sits at the top right of the text: Build and play floats over the bottom right */
+  .lite-suggest { top: 10px; bottom: auto; }
+  #lite-status:empty { display: none; }
+  #lite-main { display: block; }
+  #lite-files { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+  #lite-files #lite-tree { display: none; }
+  body.lite-files-open #lite-files { position: fixed; inset: 10px; z-index: 30; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .6); overflow: hidden; }
+  body.lite-files-open #lite-files #lite-tree { display: block; flex: 1; min-height: 0; overflow: auto; padding: 4px 6px 12px; }
+  body.lite-files-open #lite-files .lite-row { padding-top: 11px; padding-bottom: 11px; font-size: 16px; }
+  body.lite-files-open #lite-usage { display: block; padding: 0 12px 8px; }
+  body.lite-files-open #lite-files-close { margin: 4px 8px 8px; padding: 10px; font-size: 15px; }
+  #lite-usage { display: none; }
+  #lite-work { display: block; }
+  #lite-filebar { flex-wrap: wrap; gap: 6px; }
+  #lite-filename { flex: 1 1 100%; font-weight: 600; overflow-wrap: anywhere; }
+  #lite-filebar button { padding: 5px 9px; font-size: 13px; white-space: nowrap; }
+  #lite-filebar .lite-gap { display: none; }
+  #lite-editor { height: 58vh; min-height: 300px; flex: none; }
+  #lite-foot { display: block; }
+  #lite-foot section { max-height: 24vh; }
+  #lite-output-pane { max-height: none; }
+  #lite-output { width: 100%; }
+}
+
+/* the window of a shared link */
+#lite-tour { width: min(560px, 94vw); }
+#lite-tour-steps { list-style: none; margin: 0 0 10px; padding: 0; }
+#lite-tour-steps li { display: flex; align-items: center; gap: 10px; padding: 6px 0; color: var(--dim); }
+#lite-tour-steps li::before { content: "\25CB"; width: 1.2em; text-align: center; }
+#lite-tour-steps li[data-state="active"] { color: var(--text); font-weight: 600; }
+#lite-tour-steps li[data-state="active"]::before { content: ""; width: 1em; height: 1em; box-sizing: border-box; border: 2px solid var(--line-strong); border-top-color: var(--acc); border-radius: 50%; animation: lite-spin .8s linear infinite; }
+#lite-tour-steps li[data-state="done"] { color: var(--text); }
+#lite-tour-steps li[data-state="done"]::before { content: "\2713"; color: var(--acc); }
+#lite-tour-steps li[data-state="error"] { color: #f07178; font-weight: 600; }
+#lite-tour-steps li[data-state="error"]::before { content: "\2715"; }
+#lite-tour-progress { width: 100%; }
+#lite-tour-line { min-height: 1.4em; margin: 6px 0 0; color: var(--dim); font-size: 13px; overflow-wrap: anywhere; }
+#lite-tour-line[data-kind="error"] { color: #f07178; }
+#lite-tour-play { padding: 10px 22px; font-size: 16px; }
+@keyframes lite-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #lite-tour-steps li[data-state="active"]::before { animation: none; } }
+#lite-tour-files { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+#lite-tour-files:empty { display: none; }
+.lite-pill { border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--dim); }
+.lite-pill.cached { color: var(--acc); border-color: var(--acc); }
+
+/* the window of Share: the link, a copy button and a visible answer */
+#lite-share-dialog { width: min(560px, 94vw); }
+.lite-share-row { display: flex; gap: 8px; align-items: stretch; }
+.lite-share-row input { flex: 1; min-width: 0; }
+#lite-share-result { min-height: 1.4em; margin: 8px 0 0; font-size: 13px; }
+#lite-share-result[data-kind="ok"] { color: #7fd48a; }
+#lite-share-result[data-kind="error"] { color: #f07178; }
+#lite-share-copy[data-state="copied"] { background: #2f7d3a; border-color: #2f7d3a; color: #fff; }
+
+/* sharing your own song, and the little (i) buttons */
+#lite-publish-dialog { width: min(560px, 94vw); max-height: 92vh; overflow: auto; }
+.lite-field { display: block; margin: 10px 0 0; font-size: 13px; color: var(--dim); }
+.lite-field input, .lite-field textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-s); padding: 6px 8px; }
+.lite-field textarea { resize: vertical; }
+.lite-expiry { margin: 12px 0 0; border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 10px; }
+.lite-expiry legend { padding: 0 6px; font-size: 13px; color: var(--dim); }
+.lite-radio { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
+.lite-radio small, .lite-fine { color: var(--dim); font-size: 11px; font-weight: 400; }
+.lite-fine { margin: 6px 0 0; }
+.lite-check { display: flex; gap: 8px; align-items: center; margin: 12px 0 0; }
+#lite-publish-error { margin: 8px 0 0; color: #f07178; font-size: 13px; }
+#lite-publish-progress { width: 100%; margin-top: 6px; }
+.lite-copy-result { min-height: 1.3em; margin: 4px 0 8px; font-size: 13px; }
+.lite-copy-result[data-kind="ok"] { color: #7fd48a; }
+.lite-copy-result[data-kind="error"] { color: #f07178; }
+#lite-publish-code { font-size: 15px; letter-spacing: .08em; user-select: all; }
+.lite-share-row button[data-state="copied"] { background: #2f7d3a; border-color: #2f7d3a; color: #fff; }
+.lite-info-wrap { position: relative; display: inline-block; vertical-align: middle; font-weight: 400; }
+.lite-info { width: 1.5em; height: 1.5em; padding: 0; border-radius: 50%; font-size: 12px; font-weight: 700; line-height: 1; cursor: help; }
+.lite-pop { display: none; position: fixed; z-index: 60; left: 8px; top: 8px; width: min(340px, calc(100vw - 16px)); box-sizing: border-box; padding: 8px 10px; background: var(--panel2); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--r-s); box-shadow: var(--shadow-2); font-size: 12px; line-height: 1.4; text-transform: none; letter-spacing: 0; }
+.lite-info-wrap[data-open] .lite-pop { display: block; }
+
+/* the window of a shared link (who made it), and the management window */
+#lite-tour-about { margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--panel2); }
+#lite-tour-about p { margin: 3px 0; overflow-wrap: anywhere; }
+.lite-about-banner { color: var(--dim); font-size: 12px; }
+#lite-about-by { font-weight: 600; }
+#lite-about-desc { white-space: pre-wrap; font-size: 13px; }
+#lite-about-desc:empty { display: none; }
+#lite-manage-dialog { width: min(520px, 94vw); max-height: 92vh; overflow: auto; }
+#lite-manage-message { min-height: 1.3em; font-size: 13px; }
+#lite-manage-message[data-kind="ok"] { color: #7fd48a; }
+#lite-manage-message[data-kind="error"] { color: #f07178; }
+.lite-linkbutton { background: none; border: 0; padding: 0; color: var(--acc); text-decoration: underline; font: inherit; cursor: pointer; }
+
+/* the Share button looks switched off until the box is ticked, and a click on it shows what is missing */
+#lite-publish-go[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.lite-need-hint { display: none; color: #f07178; font-weight: 600; }
+[data-need="1"] .lite-need-hint { display: inline; }
+#lite-publish-rights-row[data-need="1"] { outline: 2px solid #f07178; outline-offset: 3px; border-radius: var(--r-s); animation: lite-shake .35s; }
+.lite-field input[aria-invalid="true"], .lite-field textarea[aria-invalid="true"] { border-color: #f07178; box-shadow: 0 0 0 2px rgba(240, 113, 120, .35); }
+@keyframes lite-shake { 20% { transform: translateX(-4px); } 60% { transform: translateX(4px); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { #lite-publish-rights-row[data-need="1"] { animation: none; } }
+
+/* dropping files on the page, and the windows of adding them */
+#lite-drop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(10, 14, 20, .78); border: 3px dashed var(--acc); margin: 10px; border-radius: var(--r-m); pointer-events: none; text-align: center; font-size: 18px; }
+#lite-drop[hidden] { display: none; }
+#lite-drop small { color: var(--dim); font-size: 13px; }
+#lite-import-dialog { width: min(440px, 92vw); }
+#lite-import-bar { width: 100%; }
+#lite-import-line { min-height: 1.4em; color: var(--dim); font-size: 13px; overflow-wrap: anywhere; }
+#lite-zip-dialog { width: min(480px, 92vw); }
+
+/* easter egg: the word "ample" in the composition line shimmers in neon pink and blue */
+.cm-ample-word { background: linear-gradient(100deg, #ff3dcb 0%, #8a5bff 35%, #27d3ff 65%, #ff3dcb 100%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-weight: 700; text-shadow: 0 0 10px rgba(255, 61, 203, .35); animation: ample-word-shimmer 6s linear infinite; }
+@keyframes ample-word-shimmer { to { background-position: -220% 0; } }
+@media (prefers-reduced-motion: reduce) { .cm-ample-word { animation: none; } }
+
+/* Export as: a button with a small menu (WAV, FLAC, MP3 after a build; AMPLET always) */
+.lite-export { position: relative; display: inline-flex; }
+#lite-export-btn span { margin-left: 4px; opacity: .8; }
+.lite-export-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 260px; padding: 6px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .45); display: flex; flex-direction: column; gap: 2px; }
+.lite-export-menu[hidden] { display: none; }
+.lite-export-menu [role=menuitem] { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; text-decoration: none; cursor: pointer; }
+.lite-export-menu [role=menuitem][hidden] { display: none; }
+.lite-export-menu [role=menuitem]:hover, .lite-export-menu [role=menuitem]:focus-visible { background: var(--panel2); outline: none; }
+.lite-export-menu b { font-size: 13px; letter-spacing: .04em; }
+.lite-export-menu small { font-size: 12px; color: var(--dim); }
+.lite-export-hint { margin: 4px 10px; font-size: 12px; color: var(--dim); }
+.lite-export-hint[hidden] { display: none; }
+.lite-export-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+
+/* the row under the head of the note editor: what this clip is, and the way to its code */
+.lite-roll-bar { display: flex; align-items: center; gap: 12px; margin: 8px 0; min-height: 34px; }
+.lite-roll-note { flex: 1; font-size: 13px; }
+.lite-roll-note.on { padding: 8px 12px; border-left: 4px solid var(--acc); background: color-mix(in srgb, var(--acc) 16%, transparent); border-radius: var(--r-s); color: var(--text); font-weight: 600; }
+.lite-roll-bar #lite-roll-code { margin-left: auto; padding: 8px 16px; font-weight: 700; white-space: nowrap; }
+
+/* the player of the Output pane (lite-player.js): round play button, waveform, time, volume */
+.lite-wp { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel2); }
+.lite-wp.playing { border-color: var(--acc); box-shadow: 0 0 18px color-mix(in srgb, var(--acc) 30%, transparent); }
+.lite-wp-play { flex: none; width: 42px; height: 42px; padding: 0; border-radius: 50%; border: 1px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--acc); font-size: 15px; line-height: 1; cursor: pointer; }
+.lite-wp-play:hover:not(:disabled) { box-shadow: 0 0 14px color-mix(in srgb, var(--acc) 50%, transparent); }
+.lite-wp-play:disabled { opacity: .4; cursor: default; }
+.lite-wp-wave { flex: 1; min-width: 0; height: 56px; cursor: pointer; touch-action: none; border-radius: 8px; }
+.lite-wp-wave:focus-visible { outline: 2px solid var(--acc); }
+.lite-wp-time { flex: none; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim); min-width: 84px; text-align: right; }
+.lite-wp-mute { flex: none; width: 30px; height: 30px; padding: 0; border: 0; background: transparent; cursor: pointer; font-size: 15px; }
+.lite-wp-vol { flex: none; width: 70px; accent-color: var(--acc); }
+@media (max-width: 640px) { .lite-wp-vol, .lite-wp-mute { display: none; } }
+
+/* icon buttons of the file bars (index.html): the picture says what it does, the title and the aria-label say it in words */
+.lite-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 32px; padding: 0 !important; line-height: 1; }
+.lite-icon svg { display: block; pointer-events: none; }
+.lite-icon:hover:not(:disabled) { border-color: var(--acc); color: var(--acc); }
+.lite-icon.lite-danger:hover:not(:disabled) { border-color: #ff5d6c; color: #ff5d6c; }
+label.lite-icon { cursor: pointer; box-sizing: border-box; }
+.lite-icon[hidden] { display: none; }
+
+.lite-wp-loop { flex: none; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; cursor: pointer; font-size: 14px; opacity: .6; }
+.lite-wp-loop:hover { opacity: 1; }
+.lite-wp-loop.on { opacity: 1; border-color: var(--acc); background: color-mix(in srgb, var(--acc) 18%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 40%, transparent); }
+
+/* the console (problems and build log as tabs) and the output player, which gets the rest of the width */
+#lite-console { display: flex; flex-direction: column; min-height: 0; padding: 0 !important; overflow: hidden !important; }
+.lite-tabs { display: flex; gap: 2px; padding: 4px 8px 0; border-bottom: 1px solid var(--line); flex: none; }
+.lite-tabs [role=tab] { padding: 5px 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; background: transparent; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+.lite-tabs [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--acc); }
+.lite-tabs [role=tab]:hover { color: var(--text); }
+#lite-console > [role=tabpanel] { flex: 1; min-height: 0; overflow: auto; padding: 6px 10px; }
+#lite-console > [role=tabpanel][hidden] { display: none; }
+#lite-output-pane { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+/* the player, in the style of the players of ample-koda.dev: a dark panel with a glowing round button and a tall waveform */
+.lite-wp { padding: 14px 18px; gap: 16px; border-radius: 16px; background: linear-gradient(160deg, color-mix(in srgb, var(--panel2) 92%, var(--acc)), var(--panel)); }
+.lite-wp-play { width: 52px; height: 52px; font-size: 18px; box-shadow: 0 0 14px color-mix(in srgb, var(--acc) 35%, transparent); }
+.lite-wp-wave { height: 84px; }
+.lite-wp-vol { width: 64px; }
+
+/* the controls that only a phone needs (the file browser opens as a screen of its own there) */
+.lite-phone-only { display: none !important; }
+@media (max-width: 760px) { #lite-files-toggle.lite-phone-only { display: inline-flex !important; } body.lite-files-open #lite-files-close.lite-phone-only { display: block !important; } }
+
+.lite-suggest { position: absolute; right: 14px; bottom: 12px; z-index: 5; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--dim); cursor: pointer; opacity: .85; }
+.lite-suggest[hidden] { display: none; }
+.lite-suggest:hover, .lite-suggest:focus-visible { color: var(--text); opacity: 1; }
+@media (pointer: coarse) { .lite-suggest { width: 44px; height: 44px; } }
+
+.lite-export-menu [role=menuitem].danger { color: #f07178; }
+#lite-menu [role=menuitem] { flex-direction: row; align-items: center; }

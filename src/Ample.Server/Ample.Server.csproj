@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ample.Server.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../Ample.Engine/Ample.Engine.csproj" />
+    <ProjectReference Include="../Ample.Language/Ample.Language.csproj" />
+    <ProjectReference Include="../Ample.Plugins/Ample.Plugins.csproj" />
+    <ProjectReference Include="../Ample.Docs/Ample.Docs.csproj" />
+    <ProjectReference Include="../Ample.Lsp/Ample.Lsp.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+</Project>
