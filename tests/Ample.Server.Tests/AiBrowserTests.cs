@@ -8,16 +8,6 @@ namespace Ample.Server.Tests;
 
 public sealed class AiBrowserTests
 {
-    [Theory]
-    [InlineData("Listen", "", true)]
-    [InlineData("Preview track", "", true)]
-    [InlineData("Play", "Preview", true)]
-    [InlineData("Buy preview", "", false)]
-    [InlineData("Confirm", "Listen", false)]
-    [InlineData("Search", "", false)]
-    public void AudioHero_preview_injection_accepts_only_non_purchase_preview_controls(string text, string ariaLabel, bool expected) =>
-        Assert.Equal(expected, BrowserSafety.IsAudioHeroPreviewControl(text, ariaLabel));
-
     [Fact]
     public async Task Browser_reader_falls_back_to_accessible_controls_missing_from_dom_heuristics()
     {
@@ -26,7 +16,7 @@ public sealed class AiBrowserTests
         IPage page = await browser.NewPageAsync();
         await page.SetContentAsync("<button style='display:none'>Responsive copy</button><div role='switch' aria-checked='false'>Enable filter</div>");
 
-        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page, false);
+        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page);
 
         Assert.Equal("Enable filter", await Assert.Single(elements).InnerTextAsync());
     }
@@ -37,9 +27,9 @@ public sealed class AiBrowserTests
         using IPlaywright playwright = await Playwright.CreateAsync();
         await using IBrowser browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         IPage page = await browser.NewPageAsync();
-        await page.SetContentAsync("<nav><div>Search library</div></nav><audio-hero-nav></audio-hero-nav><script>document.querySelector('audio-hero-nav').attachShadow({mode:'open'}).innerHTML='<a href=\"/library\">Search</a><input type=\"search\" placeholder=\"Search sounds\"><button>See results</button><div style=\"cursor:pointer\">Browse library</div>';</script>");
+        await page.SetContentAsync("<nav><div>Search library</div></nav><site-nav></site-nav><script>document.querySelector('site-nav').attachShadow({mode:'open'}).innerHTML='<a href=\"/library\">Search</a><input type=\"search\" placeholder=\"Search sounds\"><button>See results</button><div style=\"cursor:pointer\">Browse library</div>';</script>");
 
-        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page, false);
+        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page);
 
         // the text fields come first (the reader ranks them above the rest so the listing cap never hides a search box); the others keep their page order
         Assert.Equal(5, elements.Count);
@@ -62,61 +52,11 @@ public sealed class AiBrowserTests
         IFrame frame = page.Frames.Single(frame => !ReferenceEquals(frame, page.MainFrame));
         await frame.Locator("button").WaitForAsync();
 
-        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page, false);
+        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page);
 
         Assert.Equal(2, elements.Count);
         Assert.Equal("search", await elements[0].GetAttributeAsync("type"));   // the text field is ranked first
         Assert.Equal("Search sounds", await elements[1].InnerTextAsync());
-    }
-
-    [Fact]
-    public async Task Browser_reader_does_not_turn_static_AudioHero_footer_labels_into_click_targets()
-    {
-        using IPlaywright playwright = await Playwright.CreateAsync();
-        await using IBrowser browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
-        IPage page = await browser.NewPageAsync();
-        await page.SetContentAsync("<header><a href='/search'>Search</a><a href='/login'>Login</a></header><footer><span>Search Sound Effects</span><span>Search Music</span><span>Free Sounds</span></footer>");
-
-        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page, true);
-
-        string[] labels = await Task.WhenAll(elements.Select(element => element.EvaluateAsync<string>("e => (e.innerText || e.textContent || '').trim()")));
-        Assert.Contains("Search", labels);
-        Assert.Contains("Login", labels);
-        Assert.DoesNotContain("Search Sound Effects", labels);
-        Assert.DoesNotContain("Search Music", labels);
-        Assert.DoesNotContain("Free Sounds", labels);
-        Assert.True(BrowserSafety.IsAudioHeroPage("https://www.audiohero.com/"));
-        Assert.False(BrowserSafety.IsAudioHeroPage("https://audiohero.com.example.test/"));
-    }
-
-    [Fact]
-    public async Task AudioHero_fallback_clicks_the_visible_label_at_the_reader_viewport_hit_point()
-    {
-        using IPlaywright playwright = await Playwright.CreateAsync();
-        await using IBrowser browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
-        IPage page = await browser.NewPageAsync(new BrowserNewPageOptions { ViewportSize = new ViewportSize { Width = 400, Height = 300 } });
-        await page.SetContentAsync("<label style='display:inline-block;width:900px' onclick='window.clicked = true'>Search</label>");
-        IElementHandle handle = await page.GetByText("Search", new PageGetByTextOptions { Exact = true }).ElementHandleAsync() ?? throw new InvalidOperationException("Search label missing");
-
-        Assert.True(await BrowserSafety.ClickVisibleAudioHeroFallbackAsync(page, handle));
-        Assert.True(await page.EvaluateAsync<bool>("() => window.clicked === true"));
-    }
-
-    [Fact]
-    public async Task AudioHero_fallback_reacquires_a_replaced_numbered_label_before_clicking()
-    {
-        using IPlaywright playwright = await Playwright.CreateAsync();
-        await using IBrowser browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
-        IPage page = await browser.NewPageAsync();
-        await page.SetContentAsync("<nav><label onclick='window.clicked=true'>Search</label></nav>");
-        IElementHandle stale = await page.GetByText("Search", new PageGetByTextOptions { Exact = true }).ElementHandleAsync() ?? throw new InvalidOperationException("Search label missing");
-        await page.EvaluateAsync("() => { const replacement=document.createElement('label'); replacement.textContent='Search'; replacement.onclick=()=>window.clicked=true; replacement.style.cursor='pointer'; document.querySelector('label').replaceWith(replacement); }");
-
-        IElementHandle fresh = await BrowserSafety.FindAudioHeroFallbackAsync(page, "label", "Search") ?? throw new InvalidOperationException("Replaced Search label missing");
-
-        Assert.False(ReferenceEquals(stale, fresh));
-        Assert.True(await BrowserSafety.ClickVisibleAudioHeroFallbackAsync(page, fresh));
-        Assert.True(await page.EvaluateAsync<bool>("() => window.clicked === true"));
     }
 
     [Fact]
@@ -125,9 +65,9 @@ public sealed class AiBrowserTests
         using IPlaywright playwright = await Playwright.CreateAsync();
         await using IBrowser browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         IPage page = await browser.NewPageAsync();
-        await page.SetContentAsync("<audio-hero-nav></audio-hero-nav><script>document.querySelector('audio-hero-nav').attachShadow({mode:'closed'}).innerHTML='<button>Search</button>';</script>");
+        await page.SetContentAsync("<site-nav></site-nav><script>document.querySelector('site-nav').attachShadow({mode:'closed'}).innerHTML='<button>Search</button>';</script>");
 
-        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page, true);
+        IReadOnlyList<IElementHandle> elements = await BrowserSafety.FindInteractiveElementsAsync(page);
         int textLocatorCount = await page.GetByText("Search", new PageGetByTextOptions { Exact = true }).CountAsync();
 
         Assert.DoesNotContain("Search", await page.Locator("body").InnerTextAsync(), StringComparison.Ordinal);
@@ -152,7 +92,7 @@ public sealed class AiBrowserTests
     [InlineData("Afrekenen", true)]
     [InlineData("Toevoegen aan winkelwagen", true)]
     [InlineData("Listen to preview", false)]
-    [InlineData("Search AudioHero", false)]
+    [InlineData("Search the library", false)]
     [InlineData("PayPal help", false)]
     public void Purchase_blocklist_matches_actions_without_matching_unrelated_labels(string label, bool expected) =>
         Assert.Equal(expected, BrowserSafety.IsPurchaseAction(label));
@@ -312,7 +252,7 @@ public sealed class AiBrowserTests
         Assert.Equal(expected, AiService.IsPublicAddress(IPAddress.Parse(address)));
 
     [Theory]
-    [InlineData("https://audiohero.com", true)]
+    [InlineData("https://example.org", true)]
     [InlineData("http://example.com/search", true)]
     [InlineData("file:///C:/secret.txt", false)]
     [InlineData("javascript:alert(1)", false)]
@@ -320,13 +260,6 @@ public sealed class AiBrowserTests
     [InlineData("https://user:pass" + "@example.com", false)]
     public void Browser_actions_accept_only_credential_free_http_urls(string url, bool expected) =>
         Assert.Equal(expected, BrowserSafety.IsWebUrl(url));
-
-    [Theory]
-    [InlineData("audio/mpeg", "https://cdn.example.test/play?id=1", true)]
-    [InlineData("application/octet-stream", "https://cdn.example.test/preview.MP3?token=hidden", true)]
-    [InlineData("text/html", "https://cdn.example.test/search", false)]
-    public void Browser_network_diagnostics_identify_audio_responses(string contentType, string url, bool expected) =>
-        Assert.Equal(expected, BrowserSafety.IsAudioResponse(contentType, url));
 
     [RepoFact("src/Ample.Cli/McpCommands.cs", "web/app/ai.js")]
     public void Browser_tools_are_wired_as_non_read_only_and_excluded_from_batches()
@@ -353,7 +286,6 @@ public sealed class AiBrowserTests
         Assert.Contains(Routes.Catalog, route => route.Path == "/api/ai/tasks/{id}/answer" && route.Summary.Contains("acceptForProject", StringComparison.Ordinal));
         Assert.Contains(Routes.Catalog, route => route.Method == "POST" && route.Path == "/api/ai/context/browser-js" && route.Summary.Contains("bypass", StringComparison.Ordinal));
         Assert.Contains("name == \"ample_browser_js\" ? \"/api/ai/context/browser-js\"", mcp, StringComparison.Ordinal);
-        Assert.Contains("audioPreviewUrls", File.ReadAllText(Path.Combine(root, "src", "Ample.Server", "AiBrowser.cs")), StringComparison.Ordinal);
         Assert.DoesNotContain("browser-js?script=", mcp, StringComparison.Ordinal);
         Assert.Contains("Always allow in this project", ui, StringComparison.Ordinal);
         Assert.Contains("acceptForProject", ui, StringComparison.Ordinal);

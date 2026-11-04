@@ -9,7 +9,7 @@ public sealed class AiFileWindowTests
     public async Task File_windows_a_long_text_file_instead_of_silently_cutting_it()
     {
         string? ampleRoot = AppContext.BaseDirectory;
-        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "Ample.sln"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
+        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "global.json"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
         string root = ampleRoot ?? throw new InvalidOperationException("AMPLE root not found.");
         string folder = Path.Combine(Path.GetTempPath(), "ample-ai-filewindow-" + Guid.NewGuid().ToString("N"));
         string library = folder + "-library";

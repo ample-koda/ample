@@ -19,7 +19,7 @@ public sealed class AiAccessTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         string? root = AppContext.BaseDirectory;
-        while (root is not null && !File.Exists(Path.Combine(root, "Ample.sln"))) root = Path.GetDirectoryName(root);
+        while (root is not null && !File.Exists(Path.Combine(root, "global.json"))) root = Path.GetDirectoryName(root);
         folder = Path.Combine(Path.GetTempPath(), "ample-ai-access-" + Guid.NewGuid().ToString("N"));
         library = folder + "-library";
         outside = folder + "-outside";

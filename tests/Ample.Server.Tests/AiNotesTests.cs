@@ -31,7 +31,7 @@ public sealed class AiNotesTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         string? root = AppContext.BaseDirectory;
-        while (root is not null && !File.Exists(Path.Combine(root, "Ample.sln"))) root = Path.GetDirectoryName(root);
+        while (root is not null && !File.Exists(Path.Combine(root, "global.json"))) root = Path.GetDirectoryName(root);
         folder = Path.Combine(Path.GetTempPath(), "ample-ai-notes-" + Guid.NewGuid().ToString("N"));
         library = folder + "-library";
         using (OpenProject project = await ProjectStore.CreateAsync(new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), folder, "notes", null, CancellationToken.None)) { }

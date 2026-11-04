@@ -15,7 +15,7 @@ public sealed class AiInstallPackTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         string? ampleRoot = AppContext.BaseDirectory;
-        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "Ample.sln"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
+        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "global.json"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
         projectFolder = Path.Combine(Path.GetTempPath(), "ample-pack-project-" + Guid.NewGuid().ToString("N"));
         using (OpenProject project = await ProjectStore.CreateAsync(new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), projectFolder, "pack-project", null, CancellationToken.None)) { }
         await File.WriteAllTextAsync(Path.Combine(projectFolder, "song.amplet"), "project pack-project\n");

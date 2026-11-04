@@ -940,11 +940,11 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
     private static string FindAmpleRoot()
     {
         string? dir = AppContext.BaseDirectory;
-        while (dir is not null && !File.Exists(Path.Combine(dir, "Ample.sln")))
+        while (dir is not null && !File.Exists(Path.Combine(dir, "global.json")))
         {
             dir = Path.GetDirectoryName(dir);
         }
 
-        return dir ?? throw new InvalidOperationException("Ample.sln not found.");
+        return dir ?? throw new InvalidOperationException("global.json not found.");
     }
 }

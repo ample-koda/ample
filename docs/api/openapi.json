@@ -541,31 +541,6 @@
         }
       }
     },
-    "/api/ai/context/audio-previews": {
-      "post": {
-        "tags": [
-          "ai"
-        ],
-        "summary": "For an AI task: fetches 1-5 MP3 audio URLs observed by its visible browser with one batch approval and presents each as an independent output choice; each file is at most 10 MB and is not added to the project.",
-        "description": "Changes state: journaled in AMPLE Redux as a command.",
-        "security": [
-          {
-            "sessionToken": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (JSON, or the raw data for /api/data)."
-          },
-          "default": {
-            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
-            "content": {
-              "application/problem\u002Bjson": {}
-            }
-          }
-        }
-      }
-    },
     "/api/ai/context/beats": {
       "get": {
         "tags": [
@@ -641,37 +616,12 @@
         }
       }
     },
-    "/api/ai/context/browser-audiohero-preview": {
-      "get": {
-        "tags": [
-          "ai"
-        ],
-        "summary": "For an AI task: injects a click into one numbered AudioHero Listen/Preview control so the page itself handles download_auth; returns the resulting audio URL only.",
-        "description": "Read only.",
-        "security": [
-          {
-            "sessionToken": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (JSON, or the raw data for /api/data)."
-          },
-          "default": {
-            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
-            "content": {
-              "application/problem\u002Bjson": {}
-            }
-          }
-        }
-      }
-    },
     "/api/ai/context/browser-click": {
       "get": {
         "tags": [
           "ai"
         ],
-        "summary": "For an AI task: clicks a numbered element from the latest browser-read result; purchase actions are blocked and audio previews return a URL only.",
+        "summary": "For an AI task: clicks a numbered element from the latest browser-read result; purchase actions are blocked.",
         "description": "Read only.",
         "security": [
           {

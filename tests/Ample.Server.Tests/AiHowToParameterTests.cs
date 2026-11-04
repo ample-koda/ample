@@ -12,7 +12,7 @@ public sealed class AiHowToParameterTests
     public async Task Lookup_returns_matching_how_tos_and_search_results()
     {
         string? ampleRoot = AppContext.BaseDirectory;
-        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "Ample.sln"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
+        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "global.json"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
         string root = ampleRoot ?? throw new InvalidOperationException("AMPLE root not found.");
         string folder = Path.Combine(Path.GetTempPath(), "ample-ai-lookup-" + Guid.NewGuid().ToString("N"));
         string library = folder + "-library";

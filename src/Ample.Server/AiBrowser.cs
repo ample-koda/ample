@@ -13,11 +13,9 @@ internal sealed record BrowserElement(IElementHandle Handle, string Tag, string 
 internal static class BrowserSafety
 {
     private const string InteractiveSelector = "a[href],button,input:not([type=hidden]),textarea,select,[role=button],[role=link],[contenteditable=true],[onclick],[tabindex]:not([tabindex='-1'])";
-    private static readonly string[] AudioHeroFallbackLabels = ["Search", "Free Sounds", "Search Music", "Search Sound Effects", "See results", "See Results", "Login"];
     private static readonly string[] HumanInputPhrases = ["captcha", "verify you are human", "confirm you are not a robot", "checking your browser", "human verification", "sign in to continue", "log in to continue", "enter your password", "access denied"];
     private static readonly string[] PurchasePhrases = ["buy", "purchase", "checkout", "pay", "payment", "confirm", "place order", "place your order", "order now", "add to cart", "add item to cart", "add to basket", "buy now", "purchase now", "confirm order", "confirm payment", "confirm checkout", "confirm purchase", "complete order", "complete payment", "proceed to payment", "kopen", "koop", "koop nu", "bestel", "bestellen", "bestelling", "bevestig", "bevestigen", "bevestig bestelling", "bevestig betaling", "betaling", "betalen", "betaal", "betaal nu", "afrekenen", "winkelwagen", "winkelmand", "in winkelwagen", "toevoegen aan winkelwagen", "bestelling plaatsen"];
     private static readonly string[] CredentialWords = ["password", "username", "user name", "login", "account", "e-mail", "email"];
-    private static readonly string[] AudioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"];
 
     internal static bool IsPurchaseAction(string? text) => PurchasePhrases.Any(phrase => System.Text.RegularExpressions.Regex.IsMatch(text ?? string.Empty, $@"(?<!\p{{L}}){System.Text.RegularExpressions.Regex.Escape(phrase)}(?!\p{{L}})", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant));
 
@@ -52,12 +50,8 @@ internal static class BrowserSafety
 
     internal static bool IsWebUrl(string value) => Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) && uri.Scheme is "http" or "https" && string.IsNullOrEmpty(uri.UserInfo);
 
-    internal static bool IsAudioResponse(string contentType, string url) => contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) || Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) && AudioExtensions.Contains(Path.GetExtension(uri.AbsolutePath), StringComparer.OrdinalIgnoreCase);
 
-    internal static bool IsAudioHeroPage(string value) => Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) && (uri.Host.Equals("audiohero.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".audiohero.com", StringComparison.OrdinalIgnoreCase));
 
-    internal static bool IsAudioHeroPreviewControl(string text, string ariaLabel) =>
-        !IsPurchaseAction(text + " " + ariaLabel) && System.Text.RegularExpressions.Regex.IsMatch(text + " " + ariaLabel, @"(?<!\p{L})(listen|preview|play)(?!\p{L})", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     internal static void Grant(AiTask task, string decision, DateTimeOffset now)
     {
@@ -71,16 +65,16 @@ internal static class BrowserSafety
 
     internal static bool ShouldHideCredentialControl(bool canType, bool credential) => canType && credential;
 
-    internal static async Task<IReadOnlyList<IElementHandle>> FindInteractiveElementsAsync(IPage page, bool audioHeroFallback)
+    internal static async Task<IReadOnlyList<IElementHandle>> FindInteractiveElementsAsync(IPage page)
     {
         List<IElementHandle> all = [];
-        foreach (IFrame frame in page.Frames.ToArray()) all.AddRange(await FindInteractiveElementsInFrameAsync(frame, audioHeroFallback).ConfigureAwait(false));
+        foreach (IFrame frame in page.Frames.ToArray()) all.AddRange(await FindInteractiveElementsInFrameAsync(frame).ConfigureAwait(false));
         return all;
     }
 
-    private static async Task<IReadOnlyList<IElementHandle>> FindInteractiveElementsInFrameAsync(IFrame frame, bool audioHeroFallback)
+    private static async Task<IReadOnlyList<IElementHandle>> FindInteractiveElementsInFrameAsync(IFrame frame)
     {
-        IJSHandle result = await frame.EvaluateHandleAsync("""() => { const found=[]; const seen=new Set(); for (const p of document.querySelectorAll('.play_button')) { if (p.closest('.player_controls_container') || (p.innerText || p.getAttribute('aria-label') || p.title || '').trim()) continue; let row=p.parentElement; while (row.parentElement && row.parentElement.querySelectorAll('.play_button').length === 1) row=row.parentElement; const name=((row && row.innerText) || '').split('\n').map(x => x.trim()).filter(x => x.length > 2 && x.length <= 80 && !/^[\d:.\s]+$/.test(x)).slice(0, 3).join(' | ') || 'track'; p.setAttribute('aria-label', 'Play preview of ' + name); } const selector="a[href],button,input:not([type=hidden]),textarea,select,[role=button],[role=link],[contenteditable=true],[onclick],[tabindex]:not([tabindex='-1']),.play_button"; const hasInteractiveAncestor=e => { let p=e.parentElement || e.getRootNode().host; while (p) { const label=(p.innerText || p.getAttribute('aria-label') || p.title || '').trim(); if (p.matches(selector) || getComputedStyle(p).cursor === 'pointer' && label.length > 0) return true; p=p.parentElement || p.getRootNode().host; } return false; }; const inNavigation=e => { let p=e; while (p) { if (p.matches('nav,header,[role=navigation]')) return true; p=p.parentElement || p.getRootNode().host; } return false; }; const visit=root => { for (const e of root.querySelectorAll('*')) { const explicit=e.matches(selector); const label=(e.innerText || e.getAttribute('aria-label') || e.title || '').trim(); const pointer=e !== document.body && e !== document.documentElement && getComputedStyle(e).cursor === 'pointer' && label.length > 0; const navigationItem=inNavigation(e) && !explicit && !pointer && e.children.length === 0 && label.length > 0 && label.length <= 80 && !hasInteractiveAncestor(e); if ((explicit || pointer && !hasInteractiveAncestor(e) || navigationItem) && !seen.has(e) && e.getClientRects().length > 0) { seen.add(e); found.push(e); } if (e.shadowRoot) visit(e.shadowRoot); } }; visit(document); const rank=e => e.matches("input:not([type]),input[type=text],input[type=search],textarea,[contenteditable=true],.play_button") ? 0 : 1; return found.map((e, i) => [rank(e), i, e]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, 250).map(x => x[2]); }""").ConfigureAwait(false);
+        IJSHandle result = await frame.EvaluateHandleAsync("""() => { const found=[]; const seen=new Set(); const selector="a[href],button,input:not([type=hidden]),textarea,select,[role=button],[role=link],[contenteditable=true],[onclick],[tabindex]:not([tabindex='-1'])"; const hasInteractiveAncestor=e => { let p=e.parentElement || e.getRootNode().host; while (p) { const label=(p.innerText || p.getAttribute('aria-label') || p.title || '').trim(); if (p.matches(selector) || getComputedStyle(p).cursor === 'pointer' && label.length > 0) return true; p=p.parentElement || p.getRootNode().host; } return false; }; const inNavigation=e => { let p=e; while (p) { if (p.matches('nav,header,[role=navigation]')) return true; p=p.parentElement || p.getRootNode().host; } return false; }; const visit=root => { for (const e of root.querySelectorAll('*')) { const explicit=e.matches(selector); const label=(e.innerText || e.getAttribute('aria-label') || e.title || '').trim(); const pointer=e !== document.body && e !== document.documentElement && getComputedStyle(e).cursor === 'pointer' && label.length > 0; const navigationItem=inNavigation(e) && !explicit && !pointer && e.children.length === 0 && label.length > 0 && label.length <= 80 && !hasInteractiveAncestor(e); if ((explicit || pointer && !hasInteractiveAncestor(e) || navigationItem) && !seen.has(e) && e.getClientRects().length > 0) { seen.add(e); found.push(e); } if (e.shadowRoot) visit(e.shadowRoot); } }; visit(document); const rank=e => e.matches("input:not([type]),input[type=text],input[type=search],textarea,[contenteditable=true]") ? 0 : 1; return found.map((e, i) => [rank(e), i, e]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, 250).map(x => x[2]); }""").ConfigureAwait(false);
         IReadOnlyDictionary<string, IJSHandle> properties = await result.GetPropertiesAsync().ConfigureAwait(false);
         List<IElementHandle> elements = properties.OrderBy(pair => int.TryParse(pair.Key, out int index) ? index : int.MaxValue).Select(pair => pair.Value.AsElement()).OfType<IElementHandle>().ToList();
         await result.DisposeAsync().ConfigureAwait(false);
@@ -88,7 +82,6 @@ internal static class BrowserSafety
         foreach (IElementHandle element in elements)
         {
             if (!await element.IsVisibleAsync().ConfigureAwait(false)) continue;
-            if (audioHeroFallback && await IsAudioHeroFallbackAsync(element).ConfigureAwait(false) && !await IsVisibleAudioHeroFallbackAsync(element).ConfigureAwait(false)) continue;
             visible.Add(element);
         }
         elements = visible;
@@ -105,46 +98,11 @@ internal static class BrowserSafety
                 }
             }
         }
-        if (audioHeroFallback)
-        {
-            IJSHandle nav = await frame.EvaluateHandleAsync("""() => { const labels=new Set(['Search','Free Sounds','Search Music','Search Sound Effects','See results','See Results','Login']); const selector='a[href],button,[role=button],[role=link],[onclick]'; const found=[]; const seen=new Set(); const includes=(node,target) => { for (let e=node; e; e=e.parentElement || e.getRootNode().host) if (e === target) return true; return false; }; const actionable=e => { for (let p=e; p; p=p.parentElement || p.getRootNode().host) if (p.matches(selector) || p.tabIndex >= 0 || getComputedStyle(p).cursor==='pointer') return true; return false; }; const visit=root => { for (const e of root.querySelectorAll('*')) { const text=(e.innerText || e.getAttribute('aria-label') || e.title || e.textContent || '').trim(); const style=getComputedStyle(e); const rect=e.getBoundingClientRect(); const inViewport=rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight; const visible=e.getClientRects().length > 0 && style.visibility !== 'hidden' && style.display !== 'none' && inViewport; const hit=visible ? document.elementFromPoint(Math.min(innerWidth-1,Math.max(0,rect.left+rect.width/2)),Math.min(innerHeight-1,Math.max(0,rect.top+rect.height/2))) : null; const receivesHit=hit && (includes(hit,e) || includes(e,hit)); if (visible && receivesHit && actionable(e) && labels.has(text) && !seen.has(text)) { seen.add(text); found.push(e); } if (e.shadowRoot) visit(e.shadowRoot); } }; visit(document); return found; }""").ConfigureAwait(false);
-            IReadOnlyDictionary<string, IJSHandle> navProperties = await nav.GetPropertiesAsync().ConfigureAwait(false);
-            elements.AddRange(navProperties.OrderBy(pair => int.TryParse(pair.Key, out int index) ? index : int.MaxValue).Select(pair => pair.Value.AsElement()).OfType<IElementHandle>());
-            await nav.DisposeAsync().ConfigureAwait(false);
-        }
         return elements;
     }
 
     internal static Task<bool> IsNavigationFallbackAsync(IElementHandle handle) => handle.EvaluateAsync<bool>("e => { const selector=\"a[href],button,input:not([type=hidden]),textarea,select,[role=button],[role=link],[contenteditable=true],[onclick],[tabindex]:not([tabindex='-1'])\"; if (e.matches(selector) || getComputedStyle(e).cursor === 'pointer') return false; let p=e; while (p) { if (p.matches('nav,header,[role=navigation]')) return true; p=p.parentElement || p.getRootNode().host; } return false; }");
 
-    internal static bool IsAudioHeroFallbackLabel(string text) => AudioHeroFallbackLabels.Contains(text, StringComparer.OrdinalIgnoreCase);
-
-    internal static Task<bool> IsAudioHeroFallbackAsync(IElementHandle handle) => handle.EvaluateAsync<bool>("e => ['Search','Free Sounds','Search Music','Search Sound Effects','See results','See Results','Login'].includes((e.innerText || e.getAttribute('aria-label') || e.title || e.textContent || '').trim())");
-
-    internal static Task<bool> IsVisibleAudioHeroFallbackAsync(IElementHandle handle) => handle.EvaluateAsync<bool>("e => { const text=(e.innerText||e.getAttribute('aria-label')||e.title||e.textContent||'').trim(),r=e.getBoundingClientRect(),w=innerWidth,h=innerHeight,selector='a[href],button,[role=button],[role=link],[onclick]';if(!['Search','Free Sounds','Search Music','Search Sound Effects','See results','See Results','Login'].includes(text)||!e.isConnected||!e.getClientRects().length||getComputedStyle(e).visibility==='hidden'||getComputedStyle(e).display==='none'||r.right<=0||r.bottom<=0||r.left>=w||r.top>=h)return false;let actionable=false;for(let p=e;p;p=p.parentElement||p.getRootNode().host)if(p.matches(selector)||p.tabIndex>=0||getComputedStyle(p).cursor==='pointer'){actionable=true;break;}if(!actionable)return false;const x=Math.min(w-1,Math.max(0,r.left+r.width/2)),y=Math.min(h-1,Math.max(0,r.top+r.height/2)),hit=document.elementFromPoint(x,y),contains=(node,target)=>{for(let n=node;n;n=n.parentElement||n.getRootNode().host)if(n===target)return true;return false;};return !!hit&&(contains(hit,e)||contains(e,hit)); }");
-
-    internal static async Task<IElementHandle?> FindAudioHeroFallbackAsync(IPage page, string tag, string text)
-    {
-        if (!IsAudioHeroFallbackLabel(text)) return null;
-        IReadOnlyList<IElementHandle> handles = await FindInteractiveElementsAsync(page, true).ConfigureAwait(false);
-        foreach (IElementHandle handle in handles)
-        {
-            if (!await handle.IsVisibleAsync().ConfigureAwait(false) || !await IsVisibleAudioHeroFallbackAsync(handle).ConfigureAwait(false)) continue;
-            string currentTag = await handle.EvaluateAsync<string>("e => e.localName || ''").ConfigureAwait(false);
-            string currentText = await handle.EvaluateAsync<string>("e => (e.innerText || e.getAttribute('aria-label') || e.title || e.textContent || '').trim()").ConfigureAwait(false);
-            if (tag.Equals(currentTag, StringComparison.OrdinalIgnoreCase) && text.Equals(currentText, StringComparison.OrdinalIgnoreCase)) return handle;
-        }
-
-        return null;
-    }
-
-    internal static async Task<bool> ClickVisibleAudioHeroFallbackAsync(IPage page, IElementHandle handle)
-    {
-        double[] point = await handle.EvaluateAsync<double[]>("e => { const r=e.getBoundingClientRect(),w=innerWidth,h=innerHeight,s=getComputedStyle(e); if(!e.isConnected||!e.getClientRects().length||s.visibility==='hidden'||s.display==='none'||r.right<=0||r.bottom<=0||r.left>=w||r.top>=h)return [0,0,0]; return [Math.min(w-1,Math.max(0,r.left+r.width/2)),Math.min(h-1,Math.max(0,r.top+r.height/2)),1]; }").ConfigureAwait(false);
-        if (point.Length < 3 || point[2] == 0) return false;
-        await page.Mouse.ClickAsync((float)point[0], (float)point[1]).ConfigureAwait(false);
-        return true;
-    }
 }
 
 internal sealed partial class AiService
@@ -156,9 +114,7 @@ internal sealed partial class AiService
     private IBrowserContext? browserContext;
     private AiTask? browserDiagnosticsTask;
     private readonly HashSet<IPage> browserDiagnosticPages = [];
-    private string? lastAudioUrl;
     private bool browserHeaded;
-    private ICDPSession? browserCacheSession;   // kept referenced: the cache stays off only while the session lives
 
     internal bool BrowserAccessForProject() => sessionStore.BrowserAllowedForProject();
 
@@ -246,39 +202,6 @@ internal sealed partial class AiService
         finally { browserActionGate.Release(); }
     }
 
-    public async Task<JsonObject> BrowserAudioHeroPreviewAsync(string token, int index, CancellationToken ct)
-    {
-        AiTask task = await RequireBrowserAccessAsync(token, "Trigger one AudioHero preview through its visible page control.", ct).ConfigureAwait(false);
-        await browserActionGate.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
-            if (!BrowserSafety.IsAudioHeroPage(page.Url)) return new JsonObject { ["allowed"] = false, ["note"] = "Open an AudioHero page and read it before requesting a preview." };
-            BrowserElement element = BrowserElementAt(task, index);
-            if (!BrowserSafety.IsAudioHeroPreviewControl(element.Text, element.AriaLabel)) return new JsonObject { ["allowed"] = false, ["note"] = "That numbered element is not a Listen/Preview control, or it matches the purchase blocklist. Read the AudioHero results and choose a visible preview control." };
-            await page.BringToFrontAsync().ConfigureAwait(false);
-            await page.EvaluateAsync("() => document.querySelectorAll('audio').forEach(a => a.pause())").ConfigureAwait(false);   // a track still playing from the last click would answer before this one
-            await Task.Delay(500, ct).ConfigureAwait(false);
-            task.BrowserCapturedAudioUrl = null;
-            task.BrowserCaptureAudioPreview = true;
-            try
-            {
-                await element.Handle.EvaluateAsync("element => { element.click(); return true; }").ConfigureAwait(false);
-                for (int attempt = 0; attempt < 20 && task.BrowserCapturedAudioUrl is null; attempt++) await Task.Delay(250, ct).ConfigureAwait(false);
-            }
-            finally { task.BrowserCaptureAudioPreview = false; }
-            // the numbered list stays valid: the play buttons are still on the page, so the next preview needs no new read (a read took 14 s)
-            string? url = task.BrowserCapturedAudioUrl;
-            task.BrowserCapturedAudioUrl = null;
-            await page.EvaluateAsync("() => document.querySelectorAll('audio').forEach(a => a.pause())").ConfigureAwait(false);   // stop the page from playing on through the list
-            if (url is not null) task.BrowserChosenPreviews.Enqueue(new KeyValuePair<string, string>(url, element.Text.StartsWith("Play preview of ", StringComparison.Ordinal) ? element.Text["Play preview of ".Length..] : element.Text));
-            return url is null
-                ? new JsonObject { ["allowed"] = false, ["note"] = "AudioHero's page did not expose an audio response for that preview. No download_auth request was made by AMPLE." }
-                : new JsonObject { ["url"] = url, ["audioPreview"] = true, ["note"] = "AudioHero's own page JavaScript handled the preview request. Use ample_fetch_audio_previews to retrieve this URL as a separate, approved Output choice." };
-        }
-        finally { browserActionGate.Release(); }
-    }
-
     public async Task<JsonObject> BrowserReadAsync(string token, CancellationToken ct)
     {
         AiTask task = await RequireBrowserAccessAsync(token, "Read the current page and its visible controls.", ct).ConfigureAwait(false);
@@ -296,13 +219,12 @@ internal sealed partial class AiService
         try
         {
             await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 6000 }).ConfigureAwait(false);
-            if (BrowserSafety.IsAudioHeroPage(page.Url)) await page.WaitForSelectorAsync(page.Url.Contains("s=", StringComparison.Ordinal) ? ".track_art_wave_row_inner .play_button" : "#search_box", new PageWaitForSelectorOptions { State = WaitForSelectorState.Attached, Timeout = 30000 }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is PlaywrightException or TimeoutException) { }   // a page that never goes idle (streams, players) is read as it is
-        IReadOnlyList<IElementHandle> handles = await BrowserSafety.FindInteractiveElementsAsync(page, BrowserSafety.IsAudioHeroPage(page.Url)).ConfigureAwait(false);
+        IReadOnlyList<IElementHandle> handles = await BrowserSafety.FindInteractiveElementsAsync(page).ConfigureAwait(false);
         task.BrowserElements.Clear();
         JsonArray elements = [];
-        int skippedInvisible = 0, skippedCredential = 0, skippedNoLabel = 0, skippedDuplicate = 0;
+        int skippedInvisible = 0, skippedCredential = 0, skippedNoLabel = 0;
         foreach (IElementHandle handle in handles)
         {
             if (task.BrowserElements.Count >= 100) break;
@@ -312,21 +234,18 @@ internal sealed partial class AiService
             Dictionary<string, string> info = JsonSerializer.Deserialize<Dictionary<string, string>>(infoJson) ?? [];
             string Field(string key) => info.TryGetValue(key, out string? value) ? value : string.Empty;
             string elementText = Field("text"), aria = Field("aria"), type = Field("type"), href = Field("href");
-            bool audioHeroFallback = BrowserSafety.IsAudioHeroPage(page.Url) && await BrowserSafety.IsAudioHeroFallbackAsync(handle).ConfigureAwait(false);
-            if (elementText.Length == 0 && audioHeroFallback) elementText = await handle.EvaluateAsync<string>("e => (e.innerText || e.textContent || '').trim()").ConfigureAwait(false);
             bool canType = (tag == "input" && type is "text" or "search" or "url") || tag == "textarea" || Field("editable") == "true";
             bool credential = BrowserSafety.IsCredentialField(type, Field("name"), Field("autocomplete"), Field("label") + " " + aria + " " + elementText);
             if (BrowserSafety.ShouldHideCredentialControl(canType, credential)) { skippedCredential++; continue; }
             string text = elementText.Length > 300 ? elementText[..300] : elementText;
             if (text.Length == 0 && aria.Length == 0) { skippedNoLabel++; continue; }
-            if (audioHeroFallback && task.BrowserElements.Any(element => element.Text.Equals(text, StringComparison.OrdinalIgnoreCase))) { skippedDuplicate++; continue; }
             int index = task.BrowserElements.Count + 1;
             task.BrowserElements.Add(new BrowserElement(handle, tag, text, aria, href, canType && !credential));
-            string kind = canType ? "text field" : audioHeroFallback ? "AudioHero navigation item" : await BrowserSafety.IsNavigationFallbackAsync(handle).ConfigureAwait(false) ? "navigation item" : tag;
+            string kind = canType ? "text field" : await BrowserSafety.IsNavigationFallbackAsync(handle).ConfigureAwait(false) ? "navigation item" : tag;
             elements.Add(new JsonObject { ["index"] = index, ["kind"] = kind, ["tag"] = tag, ["text"] = text, ["ariaLabel"] = aria, ["href"] = href });
         }
         string body = await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 }).ConfigureAwait(false);
-        return new JsonObject { ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["elements"] = elements, ["elementsDiagnostic"] = $"{handles.Count} candidates, {elements.Count} listed (skipped: {skippedInvisible} not visible, {skippedCredential} credential field, {skippedNoLabel} without text, {skippedDuplicate} duplicate)", ["text"] = body.Length > 30000 ? body[..30000] + "\n… (truncated)" : body };   // the numbered controls come first: a long page text after them must never push them out of what the AI reads
+        return new JsonObject { ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["elements"] = elements, ["elementsDiagnostic"] = $"{handles.Count} candidates, {elements.Count} listed (skipped: {skippedInvisible} not visible, {skippedCredential} credential field, {skippedNoLabel} without text)", ["text"] = body.Length > 30000 ? body[..30000] + "\n… (truncated)" : body };   // the numbered controls come first: a long page text after them must never push them out of what the AI reads
         }
         finally { browserActionGate.Release(); }
     }
@@ -342,25 +261,12 @@ internal sealed partial class AiService
             return new JsonObject { ["allowed"] = false, ["note"] = "This purchase-related action is intentionally blocked. Please do it yourself in your own browser." };
         IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
         await page.BringToFrontAsync().ConfigureAwait(false);
-        bool audioHeroFallback = BrowserSafety.IsAudioHeroPage(page.Url) && BrowserSafety.IsAudioHeroFallbackLabel(element.Text);
-        IElementHandle clickHandle = element.Handle;
-        if (audioHeroFallback)
-        {
-            IElementHandle? fresh = await BrowserSafety.FindAudioHeroFallbackAsync(page, element.Tag, element.Text).ConfigureAwait(false);
-            if (fresh is null) return new JsonObject { ["allowed"] = false, ["note"] = "That numbered AudioHero control is no longer visible. Read the page again." };
-            clickHandle = fresh;
-        }
         if (element.Href.Length > 0 && (!BrowserSafety.IsWebUrl(element.Href) || !Uri.TryCreate(element.Href, UriKind.Absolute, out Uri? target) || !await IsPublicTargetAsync(target, ct).ConfigureAwait(false)))
             return new JsonObject { ["allowed"] = false, ["note"] = "This link is blocked because it does not point to a public http or https page." };
-        if (element.Href.Length > 0 && IsAudioUrl(element.Href))
-            return new JsonObject { ["url"] = element.Href, ["audioPreview"] = true, ["note"] = "Audio preview URL only; use ample_fetch_url to request its separate download approval." };
-        lastAudioUrl = null;
         bool clicked;
         try
         {
-            clicked = audioHeroFallback
-                ? await BrowserSafety.ClickVisibleAudioHeroFallbackAsync(page, clickHandle).ConfigureAwait(false)
-                : await ClickElementAsync(clickHandle).ConfigureAwait(false);
+            clicked = await ClickElementAsync(element.Handle).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -371,9 +277,6 @@ internal sealed partial class AiService
         await Task.Delay(750, ct).ConfigureAwait(false);
         if (browserContext is not null && browserContext.Pages.Count > 1) { task.BrowserPage = browserContext.Pages[^1]; AttachBrowserDiagnostics(task, task.BrowserPage); }
         task.BrowserElements.Clear();
-        string? audioUrl = lastAudioUrl;
-        lastAudioUrl = null;
-        if (audioUrl is not null) return new JsonObject { ["url"] = audioUrl, ["audioPreview"] = true, ["note"] = "Audio preview URL only; use ample_fetch_url to request its separate download approval." };
         return new JsonObject { ["url"] = task.BrowserPage?.Url, ["title"] = task.BrowserPage is null ? null : await task.BrowserPage.TitleAsync().ConfigureAwait(false), ["note"] = "Click registered. Run ample_browser_read to refresh the numbered element list." };
         }
         finally { browserActionGate.Release(); }
@@ -449,7 +352,7 @@ internal sealed partial class AiService
         {
             IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
             Dictionary<string, int> resources = await page.EvaluateAsync<Dictionary<string, int>>("() => performance.getEntriesByType('resource').reduce((counts,item) => { const kind=item.initiatorType || 'other'; counts[kind]=(counts[kind]||0)+1; return counts; }, {})").ConfigureAwait(false);
-            return new JsonObject { ["consoleErrorsSinceAttached"] = Volatile.Read(ref task.BrowserConsoleErrorCount), ["consoleMessages"] = new JsonArray(task.BrowserConsoleMessages.TakeLast(50).Select(message => (JsonNode?)JsonValue.Create(message)).ToArray()), ["requestsSinceAttached"] = Volatile.Read(ref task.BrowserRequestCount), ["responsesSinceAttached"] = Volatile.Read(ref task.BrowserResponseCount), ["statusCounts"] = System.Text.Json.JsonSerializer.SerializeToNode(task.BrowserStatusCounts), ["resourceTypes"] = System.Text.Json.JsonSerializer.SerializeToNode(resources), ["audioPreviewUrls"] = new JsonArray(task.BrowserAudioPreviewUrls.Distinct(StringComparer.Ordinal).Select(url => (JsonNode?)JsonValue.Create(url)).ToArray()), ["note"] = "Console messages are limited to 50 recent entries with common credential-like values redacted and URLs reduced to their origin. Only URLs for responses identified as audio are exposed, so an audio preview can be passed to ample_fetch_url for its separate approval. Other network URLs, headers and response bodies are omitted." };
+            return new JsonObject { ["consoleErrorsSinceAttached"] = Volatile.Read(ref task.BrowserConsoleErrorCount), ["consoleMessages"] = new JsonArray(task.BrowserConsoleMessages.TakeLast(50).Select(message => (JsonNode?)JsonValue.Create(message)).ToArray()), ["requestsSinceAttached"] = Volatile.Read(ref task.BrowserRequestCount), ["responsesSinceAttached"] = Volatile.Read(ref task.BrowserResponseCount), ["statusCounts"] = System.Text.Json.JsonSerializer.SerializeToNode(task.BrowserStatusCounts), ["resourceTypes"] = System.Text.Json.JsonSerializer.SerializeToNode(resources), ["note"] = "Console messages are limited to 50 recent entries with common credential-like values redacted and URLs reduced to their origin. Network URLs, headers and response bodies are omitted." };
         }
         finally { browserActionGate.Release(); }
     }
@@ -542,16 +445,6 @@ internal sealed partial class AiService
                     if (Uri.TryCreate(route.Request.Url, UriKind.Absolute, out Uri? requestUri) && await IsPublicTargetAsync(requestUri, CancellationToken.None).ConfigureAwait(false)) await route.ContinueAsync().ConfigureAwait(false);
                     else await route.AbortAsync().ConfigureAwait(false);
                 }).ConfigureAwait(false);
-                void Watch(IPage page)
-                {
-                    page.Response += (_, response) =>
-                    {
-                        if (response.Headers.TryGetValue("content-type", out string? type) && type.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)) lastAudioUrl = response.Url;
-                    };
-                    page.Download += (_, download) => lastAudioUrl = download.Url;
-                }
-                foreach (IPage page in browserContext.Pages) Watch(page);
-                browserContext.Page += (_, page) => Watch(page);
             }
             task.BrowserContext = browserContext;
             task.BrowserPage = browserContext.Pages.FirstOrDefault(p => !p.IsClosed) ?? await browserContext.NewPageAsync().ConfigureAwait(false);
@@ -568,7 +461,6 @@ internal sealed partial class AiService
     {
         Volatile.Write(ref browserDiagnosticsTask, task);
         if (!browserDiagnosticPages.Add(page)) return;
-        _ = DisableBrowserCacheAsync(page);
         page.Console += (_, message) =>
         {
             AiTask? active = Volatile.Read(ref browserDiagnosticsTask);
@@ -584,33 +476,11 @@ internal sealed partial class AiService
             if (active is null) return;
             Interlocked.Increment(ref active.BrowserResponseCount);
             active.BrowserStatusCounts.AddOrUpdate(response.Status, 1, static (_, count) => count + 1);
-            string contentType = response.Headers.TryGetValue("content-type", out string? type) ? type : string.Empty;
-            if (BrowserSafety.IsAudioHeroPage(page.Url) && BrowserSafety.IsAudioResponse(contentType, response.Url))
-            {
-                active.BrowserAudioPreviewUrls.Enqueue(response.Url);
-                while (active.BrowserAudioPreviewUrls.Count > 100) active.BrowserAudioPreviewUrls.TryDequeue(out string? _);
-                if (active.BrowserCaptureAudioPreview && active.BrowserCapturedAudioUrl is null) active.BrowserCapturedAudioUrl = response.Url;   // the first one is the clicked track; the page then goes on to the next tracks
-            }
         };
-    }
-
-    /// <summary>A preview that came from the browser cache makes no network request, so AMPLE could not see which file a click played. AudioHero also preloads the next tracks, which is how the cache fills. With the cache off every click is one visible request.</summary>
-    private async Task DisableBrowserCacheAsync(IPage page)
-    {
-        try
-        {
-            ICDPSession session = await page.Context.NewCDPSessionAsync(page).ConfigureAwait(false);
-            await session.SendAsync("Network.enable").ConfigureAwait(false);
-            await session.SendAsync("Network.setCacheDisabled", new Dictionary<string, object> { ["cacheDisabled"] = true }).ConfigureAwait(false);
-            browserCacheSession = session;
-        }
-        catch (Exception ex) when (ex is PlaywrightException or InvalidOperationException) { }   // not Chromium, or the page closed: previews then work as before
     }
 
     private static BrowserElement BrowserElementAt(AiTask task, int index) =>
         index > 0 && index <= task.BrowserElements.Count ? task.BrowserElements[index - 1] : throw new AmpleException("AMP5458", "That element number is not in the latest ample_browser_read result. Read the page again.");
-
-    private static bool IsAudioUrl(string url) => BrowserSafety.IsAudioResponse(string.Empty, url);
 
     private static async Task<bool> ClickElementAsync(IElementHandle handle)
     {
