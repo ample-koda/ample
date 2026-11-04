@@ -1,0 +1,23 @@
+composition "Duck preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+duck pump {
+  depth 12 dB
+  release 160 ms
+  pattern x...x...x...x...
+  from source.audio -> audio
+}
+
+master master {
+  from pump.audio -> audio
+}

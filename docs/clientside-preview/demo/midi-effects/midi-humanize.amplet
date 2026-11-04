@@ -1,0 +1,22 @@
+composition "Seeded humanize preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  bars 2
+  notes 1:0:0.5:60:96 1:0.5:0.5:64:96 1:1:0.5:67:96 1:1.5:0.5:72:96
+}
+
+midi-humanize loose {
+  velocity 12
+  timing 35
+  from phrase.notes -> notes
+}
+
+synth instrument {
+  wave triangle
+  gain -9 dB
+  from loose.notes -> notes
+}
+
+master master {
+  from instrument.audio -> audio
+}

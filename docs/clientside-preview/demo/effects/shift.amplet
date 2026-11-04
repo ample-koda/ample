@@ -1,0 +1,22 @@
+composition "Shift preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+shift delay {
+  seconds 0.15s
+  beats 0
+  from source.audio -> audio
+}
+
+master master {
+  from delay.audio -> audio
+}

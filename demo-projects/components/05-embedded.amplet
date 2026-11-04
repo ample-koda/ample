@@ -1,0 +1,48 @@
+composition "components-basic" { ample 1  tempo 100  master-seed 1 }
+
+# The same song as 01, with the component embedded in the song (an embedded module) instead of imported from a file.
+
+midi-clip intro at 1 for 1 {
+  notes 1:0:1:60:100 1:1:1:62:100
+}
+
+koda.notes.tripleNotes introTriple at 2 for 3 {
+  copies 3
+  spacing 1bar
+  from intro.notes -> source
+}
+
+piano lead at 2 for 3 {
+  from introTriple.notes -> notes
+}
+
+embedded module triple-notes {
+  #[DisplayName("Triple notes")]
+  #[Category("Notes")]
+  component koda.notes.tripleNotes version 1.0.0 current {
+    id "demo.koda.notes.triple-notes"
+
+    input source: Notes {
+      optional true
+      fallback localNotes
+    }
+
+    #[Editor(jam)]
+    property localNotes: Notes
+
+    #[MinValue(1), MaxValue(16), Step(1)]
+    property copies: Int = 3
+
+    property spacing: Duration = 1bar
+
+    output notes: Notes
+
+    process {
+      let n = connected(source) ? source : localNotes
+      for i in 0..copies {
+        emit n |> shift(i * spacing)
+      }
+    }
+  }
+
+}

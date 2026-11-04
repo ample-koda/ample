@@ -1,0 +1,28 @@
+# Schema/routing example only: the bundled ACE-Step plugin does not currently declare a choir renderer.
+composition "Choir preview boundary" { ample 1  tempo 96  master-seed 20261017 }
+
+settings { acestep.backend server }
+
+lyrics words {
+  lang en
+  timing per-line
+  file lyrics/preview.lyr
+}
+
+choir layer at 1 for 8 {
+  voices 4
+  spread 18 %
+  channels stereo
+  from words.words -> lyrics
+}
+
+chorus local_width {
+  depth 6 ms
+  period 1400 ms
+  mix 25 %
+  from layer.audio -> audio
+}
+
+master output {
+  from local_width.audio -> audio
+}

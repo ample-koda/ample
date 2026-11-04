@@ -1,0 +1,23 @@
+composition "Bus preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth part {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+bus group {
+  gain -3 dB
+  mute off
+  solo off
+  from part.audio -> audio1
+}
+
+master master {
+  from group.audio -> audio
+}

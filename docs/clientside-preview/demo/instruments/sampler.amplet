@@ -1,0 +1,18 @@
+composition "Local sampler preview" { ample 1  tempo 110  master-seed 20261017 }
+
+midi-clip phrase {
+  melody c4:1:96 e4:1:80 g4:2:100
+  bars 2
+}
+
+sampler sample_source {
+  file recordings/sampler-preview.wav
+  root 60
+  mode oneshot
+  gain -6 dB
+  from phrase.notes -> notes
+}
+
+master output {
+  from sample_source.audio -> audio
+}

@@ -1,0 +1,41 @@
+# ACE-Step generation stays on the configured server; effects after the existing take can preview locally.
+composition "ACE music hybrid preview" { ample 1  tempo 96  master-seed 20261017 }
+
+settings { acestep.backend server }
+
+lyrics words {
+  lang en
+  timing per-line
+  file lyrics/preview.lyr
+}
+
+mood-scene scene {
+  direction Warm, restrained singer-songwriter pop; felt piano, muted bass, soft strings, intimate vocal, steady 96 BPM.
+}
+
+ace-music song at 1 for 8 {
+  music_direction A complete warm pop ballad with gentle piano, muted bass, brushed percussion and soft strings; keep the lead intimate, maintain a steady pulse, and avoid abrupt arrangement changes.
+  steps 50
+  guidance 7
+  shift 1
+  solver euler
+  lm_temperature 0.85
+  lm_cfg_scale 2
+  lm_top_p 0.9
+  lm_top_k 0
+  lm_seed 2026101701
+  seed 2026101702
+  from words.words -> lyrics
+  from scene.style -> style
+}
+
+chorus local_width {
+  depth 5 ms
+  period 1500 ms
+  mix 25 %
+  from song.audio -> audio
+}
+
+master output {
+  from local_width.audio -> audio
+}

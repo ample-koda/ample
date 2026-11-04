@@ -1,0 +1,47 @@
+# ACE voice synthesis stays on the configured server; this demo makes the vocal-only and local post-effect path explicit.
+composition "AI voice hybrid preview" { ample 1  tempo 96  master-seed 20261017 }
+
+settings { acestep.backend server }
+
+lyrics words {
+  lang en
+  timing per-line
+  file lyrics/preview.lyr
+}
+
+mood-scene scene {
+  direction Intimate, warm, reassuring; a quiet close-mic lead that grows gently in the chorus.
+}
+
+midi-clip melody {
+  melody c4:1:82 d4:1:78 e4:2:86 g4:2:90 a4:2:84
+  bars 8
+}
+
+ai-voice vocal at 1 for 8 {
+  voice Warm intimate lead vocal, clear English diction, restrained phrasing and no backing music.
+  fit stretch
+  steps 50
+  guidance 7
+  shift 1
+  solver euler
+  lm_temperature 0.85
+  lm_cfg_scale 2
+  lm_top_p 0.9
+  lm_top_k 0
+  lm_seed 2026101703
+  seed 2026101704
+  from words.words -> lyrics
+  from melody.notes -> melody
+  from scene.style -> style
+}
+
+reverb local_space {
+  size 35 %
+  mix 18 %
+  from vocal.vocal -> audio
+}
+
+master output {
+  from local_space.audio -> audio
+}

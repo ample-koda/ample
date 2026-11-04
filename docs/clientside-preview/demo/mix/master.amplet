@@ -1,0 +1,19 @@
+composition "Master preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G C Am F G
+  bars 8
+}
+
+synth part {
+  wave triangle
+  gain -6 dB
+  from phrase.notes -> notes
+}
+
+master master {
+  limiter -3 dB
+  # Loudness reference for comparison; does not automatically change gain.
+  target -14 LUFS
+  from part.audio -> audio
+}

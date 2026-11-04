@@ -1,0 +1,12 @@
+composition "Built-in drum preview" { ample 1  tempo 104  master-seed 20261017 }
+
+# Built-in kick/snare/hat patterns need no sample pack and render locally from the exact block seed.
+drums groove at 1 for 8 {
+  kit builtin
+  pattern beat-B
+  humanize 0
+}
+
+master output {
+  from groove.audio -> audio
+}

@@ -1,0 +1,29 @@
+composition "Mixer preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth left_part {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+synth right_part {
+  wave saw
+  gain -15 dB
+  from phrase.notes -> notes
+}
+
+mixer blend {
+  gains 0 -3
+  pan l r
+  from left_part.audio -> audio1
+  from right_part.audio -> audio2
+}
+
+master master {
+  from blend.audio -> audio
+}

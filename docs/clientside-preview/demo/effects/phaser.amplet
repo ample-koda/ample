@@ -1,0 +1,23 @@
+composition "Phaser preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+phaser swirl {
+  stages 6
+  period 1800 ms
+  mix 65 %
+  from source.audio -> audio
+}
+
+master master {
+  from swirl.audio -> audio
+}

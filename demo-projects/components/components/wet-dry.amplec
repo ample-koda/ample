@@ -1,0 +1,47 @@
+/** Branching: the dry sound and an echo with a reverb, mixed with their own levels. */
+#[DisplayName("Wet and dry")]
+#[Category("Audio effects")]
+#[Tags("echo", "reverb", "mix", "parallel")]
+component koda.fx.wetDry version 1.0.0 current {
+  id "demo.koda.fx.wet-dry"
+
+  input audio: Audio
+
+  property echo: Duration = 0.5beat
+
+  #[MinValue(0%), MaxValue(90%)]
+  property feedback: Percent = 35%
+
+  property dryLevel: Gain = -3dB
+
+  property wetLevel: Gain = -8dB
+
+  output audio: Audio
+
+  ui {
+    group "Echo" {
+      field echo
+      knob feedback
+    }
+    group "Mix" {
+      slider dryLevel label "Dry"
+      slider wetLevel label "Wet"
+    }
+    card {
+      slider dryLevel label "Dry"
+      slider wetLevel label "Wet"
+    }
+    preview live
+  }
+
+  process {
+    let dry = audio
+    let wet = audio
+      |> delay(time=echo, feedback=feedback)
+      |> reverb(size=50%)
+    emit mix(
+      dry |> gain(dryLevel),
+      wet |> gain(wetLevel)
+    )
+  }
+}

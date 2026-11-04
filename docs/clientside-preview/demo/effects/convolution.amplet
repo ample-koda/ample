@@ -1,0 +1,26 @@
+composition "Convolution preview" { ample 1  tempo 96 master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+convolution room {
+  ir room
+  mix 30 %
+  predelay 20 ms
+  length 3 s
+  level 0 dB
+  normalize on
+  from source.audio -> audio
+}
+
+master master {
+  from room.audio -> audio
+}

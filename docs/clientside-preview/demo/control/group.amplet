@@ -1,0 +1,24 @@
+composition "Group pass-through preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  from phrase.notes -> notes
+}
+
+group wrapped {
+  from source.audio -> input
+}
+
+reverb space {
+  from wrapped.output -> audio
+  mix 25
+}
+
+master output {
+  from space.audio -> audio
+}

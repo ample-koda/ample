@@ -1,0 +1,8 @@
+# Timed lyric text is a data preview; this project deliberately has no singer or song generator.
+composition "Timed lyrics data preview" { ample 1  tempo 96  master-seed 17 }
+
+lyrics words {
+  lang en
+  timing per-line
+  file lyrics/preview.lyr
+}

@@ -1,0 +1,23 @@
+composition "Delay preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  melody C4:1/4 D4:1/4 E4:1/4 G4:1/4
+  bars 1
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+delay echo {
+  time 250 ms
+  feedback 45 %
+  mix 35 %
+  from source.audio -> audio
+}
+
+master master {
+  from echo.audio -> audio
+}

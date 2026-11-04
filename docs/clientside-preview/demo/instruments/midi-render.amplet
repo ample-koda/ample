@@ -1,0 +1,18 @@
+composition "MIDI sequence render preview" { ample 1  tempo 120  master-seed 20261017 }
+
+# Provide a Standard MIDI File at midi/input.mid before building.
+midi performance {
+  file midi/input.mid
+  track all
+  bars 4
+}
+
+midi-render soundfont {
+  file pack:musescore-general
+  track all
+  from performance.sequence -> sequence
+}
+
+master output {
+  from soundfont.audio -> audio
+}

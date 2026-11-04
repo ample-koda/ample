@@ -1,0 +1,25 @@
+composition "Filter preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+filter wobble {
+  type lowpass
+  cutoff 800 Hz
+  lfo_rate 1/8
+  lfo_depth 3 oct
+  lfo_shape triangle
+  from source.audio -> audio
+}
+
+master master {
+  from wobble.audio -> audio
+}

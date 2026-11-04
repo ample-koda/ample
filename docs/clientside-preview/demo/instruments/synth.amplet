@@ -1,0 +1,21 @@
+composition "Client synth preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth local_synth {
+  wave triangle
+  attack 20 ms
+  decay 180 ms
+  sustain 55
+  release 300 ms
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+master output {
+  limiter -1 dB
+  from local_synth.audio -> audio
+}

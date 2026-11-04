@@ -1,0 +1,6 @@
+# Data-only direction: this block gives downstream song-generation blocks style context; it does not generate audio.
+composition "Mood scene data preview" { ample 1  tempo 96  master-seed 17 }
+
+mood-scene scene {
+  direction A warm and intimate acoustic atmosphere that gradually grows hopeful; piano, gentle strings and soft hand percussion, with a clear lift into the chorus.
+}

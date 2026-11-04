@@ -1,0 +1,23 @@
+composition "Quantize preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip loose_phrase {
+  bars 2
+  notes 1:0.13:0.7:60:96 1:0.68:0.6:64:88 1:2.11:0.8:67:100 2:1.07:0.6:72:92
+}
+
+quantize grid {
+  grid 1/16
+  strength 100
+  lengths on
+  from loose_phrase.notes -> notes
+}
+
+synth instrument {
+  wave triangle
+  gain -9 dB
+  from grid.notes -> notes
+}
+
+master master {
+  from instrument.audio -> audio
+}

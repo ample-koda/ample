@@ -1,0 +1,40 @@
+composition "Send preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth part_a {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+synth part_b {
+  wave saw
+  gain -15 dB
+  from phrase.notes -> notes
+}
+
+send fx_send {
+  levels -6 -12
+  from part_a.audio -> audio1
+  from part_b.audio -> audio2
+}
+
+reverb room {
+  size 35%
+  decay 40%
+  mix 35%
+  from fx_send.send -> audio
+}
+
+mixer blend {
+  from fx_send.through -> audio1
+  from room.audio -> audio2
+}
+
+master master {
+  from blend.audio -> audio
+}

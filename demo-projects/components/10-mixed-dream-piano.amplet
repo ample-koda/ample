@@ -1,0 +1,17 @@
+composition "mixed-dream-piano" { ample 1  tempo 100  master-seed 10 }
+
+# A component with Notes in and Audio out: the piano is inside it. The melody goes in, sound comes out, and the next block reads that sound like any other.
+import "components/dream-piano.amplec"
+
+midi-clip melody at 1 for 2 {
+  notes 1:0:1:60:100 1:1:1:64:100 1:2:1:67:100 2:0:2:72:100
+}
+
+koda.fx.dreamPiano voice at 1 for 2 {
+  feedback 30%
+  from melody.notes -> notes
+}
+
+limiter safety {
+  from voice.audio -> in
+}

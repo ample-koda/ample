@@ -1,0 +1,30 @@
+composition "Crossfade preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth first {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+synth second {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+crossfade transition {
+  start 1
+  length 2
+  shape equal
+  from first.audio -> a
+  from second.audio -> b
+}
+
+master master {
+  from transition.audio -> audio
+}

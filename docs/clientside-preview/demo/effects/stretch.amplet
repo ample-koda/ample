@@ -1,0 +1,21 @@
+composition "Stretch preview" { ample 1  tempo 96 master-seed 31 }
+
+midi-clip phrase {
+  melody C4:1/2 E4:1/2 G4:1/2 C5:1/2
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+stretch faster at 1 for 4 {
+  speed 200
+  from source.audio -> audio
+}
+
+master master {
+  from faster.audio -> audio
+}

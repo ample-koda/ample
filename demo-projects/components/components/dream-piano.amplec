@@ -1,0 +1,36 @@
+/** Notes in, sound out: a piano with an echo and a room, one block with the notes of a melody going in. */
+#[DisplayName("Dream piano")]
+#[Category("Instruments")]
+#[Tags("piano", "instrument", "echo", "space")]
+component koda.fx.dreamPiano version 1.0.0 current {
+  id "demo.koda.fx.dream-piano"
+
+  input notes: Notes
+
+  #[MinValue(0%), MaxValue(90%)]
+  property feedback: Percent = 25%
+
+  #[MinValue(0%), MaxValue(100%)]
+  property room: Percent = 35%
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob feedback label "Echo" size l
+      knob room label "Room" size l
+    }
+    card {
+      knob feedback size s
+      knob room size s
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> piano()
+      |> delay(time=250ms, feedback=feedback)
+      |> reverb(size=room)
+  }
+}

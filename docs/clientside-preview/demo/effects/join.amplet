@@ -1,0 +1,29 @@
+composition "Join preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth first {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+synth second {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+join sequence {
+  seconds 0.25s
+  beats 1
+  from first.audio -> audio1
+  from second.audio -> audio2
+}
+
+master master {
+  from sequence.audio -> audio
+}

@@ -1,0 +1,25 @@
+composition "Distortion preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  melody C3:1/4 G3:1/4 C4:1/4 G3:1/4
+  bars 1
+}
+
+synth source {
+  wave saw
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+distortion drive {
+  drive 18
+  mode soft
+  tone 7000 Hz
+  level 0 dB
+  mix 60 %
+  from source.audio -> audio
+}
+
+master master {
+  from drive.audio -> audio
+}

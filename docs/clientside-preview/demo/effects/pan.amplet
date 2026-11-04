@@ -1,0 +1,21 @@
+composition "Pan preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+pan left {
+  pan -18
+  from source.audio -> audio
+}
+
+master master {
+  from left.audio -> audio
+}

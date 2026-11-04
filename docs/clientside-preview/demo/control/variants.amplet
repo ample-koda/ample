@@ -1,0 +1,21 @@
+composition "Existing variants preview" { ample 1  tempo 96  master-seed 20261017 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -12 dB
+  from phrase.notes -> notes
+}
+
+variants candidates {
+  count 3
+  from source.audio -> block
+}
+
+master output {
+  from candidates.pick -> audio
+}

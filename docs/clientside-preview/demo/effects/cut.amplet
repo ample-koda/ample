@@ -1,0 +1,22 @@
+composition "Cut preview" { ample 1  tempo 96  master-seed 17 }
+
+midi-clip phrase {
+  chords C Am F G
+  bars 4
+}
+
+synth source {
+  wave triangle
+  gain -9 dB
+  from phrase.notes -> notes
+}
+
+cut opening {
+  first 2s
+  loop on
+  from source.audio -> audio
+}
+
+master master {
+  from opening.audio -> audio
+}

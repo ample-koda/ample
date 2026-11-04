@@ -1,0 +1,18 @@
+composition "Built-in bass preview" { ample 1  tempo 100  master-seed 20261017 }
+
+midi-clip phrase {
+  chords Am F C G
+  bars 4
+}
+
+bass local_bass {
+  // To preview project samples locally, replace this value with a folder containing one mono C4.wav-style file per note.
+  set analog-808
+  pattern bass-A
+  humanize 0
+  from phrase.notes -> notes
+}
+
+master output {
+  from local_bass.audio -> audio
+}

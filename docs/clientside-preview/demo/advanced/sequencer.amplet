@@ -1,0 +1,33 @@
+composition "Local sequencer preview" { ample 1  tempo 104  master-seed 5 }
+
+sequencer sq at 1 for 8 {
+  lanes lane1=bass lane2=lead
+  sequence {
+    sequencer 1
+    channel bass bass vol=-6
+    channel lead notes wave=triangle vol=-10
+    pattern verse bars=2
+      bass 1:0:1:45:100 1:2:1:45:90 2:0:1:43:100 2:2:1:43:90
+      lead 1:0:1:69:96 1:1:1:72:96 1:2:2:76:96 2:0:2:74:96
+    pattern chorus bars=2
+      bass 1:0:2:41:100 2:0:2:48:100
+      lead 1:0:1:77:100 1:1:1:76:96 1:2:2:72:96 2:0:2:69:96
+    playlist
+      clip verse track=1 at=1 for=4
+      clip chorus track=1 at=5 for=4
+  }
+}
+
+reverb space {
+  from sq.lane2 -> audio
+  mix 25
+}
+
+mixer mix {
+  from sq.lane1 -> audio1
+  from space.audio -> audio2
+}
+
+master master bake {
+  from mix.audio -> audio
+}
