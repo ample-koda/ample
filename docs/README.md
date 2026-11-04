@@ -62,7 +62,7 @@ The original goal was a clean, standalone tool (C#) for writing songs as text: i
 | [Release](release.md) | Release criteria, measured baselines, packaging, the open items before v1.0. |
 | Open points 2026-10-10 | What is open after the long session of 2026-10-10: gaps, failures that were already there, voice clone and GPU, the AI assistant, and the design for moves proposed by Codex. |
 | [Security review](security-review.md) | The checklist of defences with the tests that prove them, the dependency audit, what is not verified. |
-| The guide | The learning help with pictures and a dictionary (open it with the Guide link in the app, or at /guide/); how it is made and kept up to date; the doc style holds the house style rules. |
+| [The guide](../guide/README.md) | The learning help with pictures and a dictionary (open it with the Guide link in the app, or at /guide/); how it is made and kept up to date; [the doc style](../guide/STYLE.md) holds the house style rules. |
 | Library bundles | Save blocks with their files, seeds and audio in the library and place them in another song under new names. |
 | [Sequencer](sequencer.md) | The advanced sequencer block: channels, patterns, a playlist and lanes in a .seq file, and its workspace. |
 | Assistant tools | The tools of the assistant that are not AI: the beats catalogue, audio analysis, arrangement lint, mix hints and pattern generators. |

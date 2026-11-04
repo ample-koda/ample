@@ -1,0 +1,36 @@
+{
+  "name": "ample-vscode",
+  "displayName": "AMPLE",
+  "description": "Language support for AMPLE songs (.amplet): diagnostics, completion, hover, rename, formatting and more from the AMPLE language server.",
+  "version": "0.1.0",
+  "publisher": "ample",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Snippets"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:amplet"],
+  "contributes": {
+    "languages": [{ "id": "amplet", "aliases": ["AMPLE", "amplet"], "extensions": [".amplet"], "configuration": "./language-configuration.json" }],
+    "grammars": [{ "language": "amplet", "scopeName": "source.amplet", "path": "./syntaxes/amplet.tmLanguage.json" }],
+    "snippets": [{ "language": "amplet", "path": "./snippets/amplet.code-snippets" }],
+    "configuration": {
+      "title": "AMPLE",
+      "properties": {
+        "ample.server.command": { "type": "string", "default": "ample", "description": "The command that starts the AMPLE command line tool." },
+        "ample.server.args": { "type": "array", "items": { "type": "string" }, "default": ["lsp"], "description": "Arguments that make the tool run the language server on stdio." },
+        "ample.help.base": { "type": "string", "default": "", "description": "Address or file of the generated help (diagnostic codes link to it). Empty uses the default of the server." },
+        "ample.trace.server": { "type": "string", "enum": ["off", "messages", "verbose"], "default": "off", "description": "Traces the messages between VS Code and the AMPLE language server." }
+      }
+    },
+    "commands": [
+      { "command": "ample.build", "title": "Ample: Build" },
+      { "command": "ample.openHelp", "title": "Ample: Open help" },
+      { "command": "ample.showHistory", "title": "Ample: Show history" },
+      { "command": "ample.restartServer", "title": "Ample: Restart language server" }
+    ]
+  },
+  "dependencies": { "vscode-languageclient": "^9.0.1" },
+  "scripts": { "package": "vsce package", "test": "node test/runTest.cjs" },
+  "devDependencies": { "@vscode/test-electron": "^3.1.0", "@vscode/vsce": "^3.0.0" }
+}
