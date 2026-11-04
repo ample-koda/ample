@@ -1,0 +1,38 @@
+/** Notes in, an uplifting melody out. */
+#[DisplayName("Anthem lead")]
+#[Category("Trance")]
+#[Tags("lead", "anthem", "trance", "instrument", "trance")]
+component koda.trance.tranceLead version 1.0.0 current {
+  id "demo.koda.trance.trance-lead"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(1000), MaxValue(8000)]
+  property brightness: Int = 4200
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -9dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="8 ms", decay="200 ms", sustain="80", release="300 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> delay(time=0.75beat, feedback=42%, mix=26%)
+      |> reverb(size=70%, decay=60%, mix=25%)
+      |> gain(level)
+  }
+}

@@ -1,0 +1,18 @@
+composition "audio-dream-echo" { ample 1  tempo 100  master-seed 6 }
+
+# An Audio component used like any effect block: piano -> dream echo (a delay and a reverb inside).
+import "components/dream-echo.amplec"
+
+midi-clip melody at 1 for 2 {
+  notes 1:0:1:60:100 1:1:1:64:100 1:2:1:67:100 2:0:2:72:100
+}
+
+piano lead at 1 for 2 {
+  from melody.notes -> notes
+}
+
+koda.fx.dreamEcho space {
+  feedback 28%
+  room 45%
+  from lead.audio -> audio
+}

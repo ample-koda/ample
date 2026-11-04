@@ -1,0 +1,40 @@
+/** The finishing touch: a gentle tilt, glue, a little width and a ceiling. */
+#[DisplayName("Techno master")]
+#[Category("Techno")]
+#[Tags("master", "limiter", "glue", "width", "techno")]
+component koda.techno.master version 1.0.0 current {
+  id "demo.koda.techno.master"
+
+  input audio: Audio
+
+  #[DisplayName("Glue"), MinValue(-30dB), MaxValue(0dB)]
+  property glue: Gain = -12dB
+
+  #[DisplayName("Width"), MinValue(50), MaxValue(150)]
+  property width: Int = 112
+
+  #[DisplayName("Ceiling"), MinValue(-6dB), MaxValue(0dB)]
+  property ceiling: Gain = -1dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob glue size l tint purple
+      knob width size l tint teal
+      knob ceiling tint red
+    }
+    card {
+      knob glue size s tint purple
+      knob width size s tint teal
+    }
+  }
+
+  process {
+    emit audio
+      |> eq(low=1.5dB, high=1dB, low_hz=70Hz, high_hz=6000Hz)
+      |> compressor(threshold=glue, ratio=2, attack=20ms, release=140ms)
+      |> width(width=width)
+      |> limiter(ceiling=ceiling)
+  }
+}

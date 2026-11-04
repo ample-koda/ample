@@ -1,0 +1,1109 @@
+[
+  {
+    "id": "hello-melody",
+    "name": "Hello melody",
+    "description": "A first tune on a synth: a clip of notes, a synth to play it, a master.",
+    "category": "Basics",
+    "level": "Beginner",
+    "tags": [
+      "synth",
+      "notes",
+      "first"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "chords-bass",
+    "name": "Chords and a bass",
+    "description": "Chords from names (Am F C G), a pad and a sine bass, mixed.",
+    "category": "Basics",
+    "level": "Beginner",
+    "tags": [
+      "chords",
+      "bass",
+      "mixer"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "basic-drums",
+    "name": "Basic drums",
+    "description": "A drum kit and a pattern: one grid per voice, sixteen steps to a bar, a little swing.",
+    "category": "Basics",
+    "level": "Beginner",
+    "tags": [
+      "drums",
+      "pattern",
+      "kit",
+      "swing"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "bass-drums",
+    "name": "Bass and drums",
+    "description": "A bass line from a melody text, played by the built-in 808 bass, over a beat.",
+    "category": "Basics",
+    "level": "Beginner",
+    "tags": [
+      "bass",
+      "drums",
+      "melody",
+      "mixer"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sections",
+    "name": "An arrangement in sections",
+    "description": "Blocks that start and stop: \"at 5 for 8\" puts a block on bars 5 to 12. Intro, verse and chorus out of the same few blocks.",
+    "category": "Basics",
+    "level": "Intermediate",
+    "tags": [
+      "arrangement",
+      "sections",
+      "at",
+      "for"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seeded",
+    "name": "Generative and seeded",
+    "description": "A melody that walks over a scale and a Euclidean rhythm, both made from a seed: the same seed gives the same music every time.",
+    "category": "Basics",
+    "level": "Intermediate",
+    "tags": [
+      "generative",
+      "seed",
+      "walk",
+      "euclid"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "sampled-bass",
+    "name": "A sampled bass",
+    "description": "The bass block with a folder of recorded notes: AMPLE picks the nearest sample and moves it to the note.",
+    "category": "Instruments",
+    "level": "Intermediate",
+    "tags": [
+      "bass",
+      "samples",
+      "set"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "bass-meat",
+        "to": "samples/bass",
+        "files": [
+          "a1.wav",
+          "c2.wav",
+          "eb1.wav",
+          "gb1.wav",
+          "a2.wav",
+          "c3.wav",
+          "gb2.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "guitar-strum",
+    "name": "A strummed guitar",
+    "description": "A guitar from recorded notes, strummed by a pattern (D down, u up, . rest): chords go in, a strum comes out.",
+    "category": "Instruments",
+    "level": "Intermediate",
+    "tags": [
+      "guitar",
+      "strum",
+      "chords",
+      "samples"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "guitar-emily",
+        "to": "samples/guitar",
+        "files": [
+          "a2.wav",
+          "c3.wav",
+          "e2.wav",
+          "eb3.wav",
+          "gb2.wav",
+          "a3.wav",
+          "c4.wav",
+          "gb3.wav",
+          "a4.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "piano",
+    "name": "The built-in piano",
+    "description": "The piano block needs no files: chords and a melody on top of each other.",
+    "category": "Instruments",
+    "level": "Beginner",
+    "tags": [
+      "piano",
+      "chords",
+      "melody"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "delay-llama",
+    "name": "Delay Llama",
+    "description": "A chant sung by a llama (a formant voice): the vowel and the mouth move over time with auto(...), notes can glide and bend.",
+    "category": "Instruments",
+    "level": "Intermediate",
+    "tags": [
+      "llama",
+      "voice",
+      "automation",
+      "formant"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "effects-chain",
+    "name": "An effects chain",
+    "description": "A synth through a filter, a little distortion, a delay and a reverb: each effect is a block that takes the sound of the one before.",
+    "category": "Effects",
+    "level": "Beginner",
+    "tags": [
+      "effects",
+      "chain",
+      "filter",
+      "delay",
+      "reverb",
+      "distortion"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "filters-lfo",
+    "name": "Filters and an LFO",
+    "description": "A filter that sweeps by itself (lfo_rate, lfo_depth) and another that opens over the song with auto(...).",
+    "category": "Effects",
+    "level": "Intermediate",
+    "tags": [
+      "filter",
+      "lfo",
+      "automation",
+      "sweep"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "delay-reverb",
+    "name": "Delay and reverb",
+    "description": "Two ways to make space: a delay that repeats, a reverb that surrounds. A parallel mix keeps the dry sound.",
+    "category": "Effects",
+    "level": "Beginner",
+    "tags": [
+      "delay",
+      "reverb",
+      "space",
+      "mixer"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "automation",
+    "name": "Automation",
+    "description": "Values that change over the song: auto(bar:value, ...) on a gain, a pan and a filter.",
+    "category": "Effects",
+    "level": "Intermediate",
+    "tags": [
+      "automation",
+      "auto",
+      "pan",
+      "gain",
+      "filter"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "sidechain",
+    "name": "Sidechain pump",
+    "description": "A pad that ducks on every kick: duck dips the sound on a pattern, so the beat stays in front.",
+    "category": "Effects",
+    "level": "Intermediate",
+    "tags": [
+      "duck",
+      "sidechain",
+      "pump",
+      "drums"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lofi-crush",
+    "name": "Lo-fi and a bit crusher",
+    "description": "Fewer bits and a lower sample rate on the whole beat, a little chorus on the keys: dust on purpose.",
+    "category": "Effects",
+    "level": "Beginner",
+    "tags": [
+      "lofi",
+      "bitcrusher",
+      "chorus",
+      "drums"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "comp-notes",
+    "name": "A reusable Notes component",
+    "description": "A component is a typed block you write once and use many times: notes in, notes out, properties as knobs.",
+    "category": "Components",
+    "level": "Intermediate",
+    "tags": [
+      "component",
+      "amplec",
+      "notes"
+    ],
+    "files": [
+      "song.amplet",
+      "components/triple-notes.amplec"
+    ],
+    "assets": []
+  },
+  {
+    "id": "comp-audio",
+    "name": "An audio component",
+    "description": "An echo and a reverb packed into one block with two knobs, and a layout for its panel.",
+    "category": "Components",
+    "level": "Intermediate",
+    "tags": [
+      "component",
+      "audio",
+      "echo",
+      "ui"
+    ],
+    "files": [
+      "song.amplet",
+      "components/dream-echo.amplec"
+    ],
+    "assets": []
+  },
+  {
+    "id": "comp-nesting",
+    "name": "Components that call components",
+    "description": "The fanfare calls two other components like functions: octave layers, then a rising echo.",
+    "category": "Components",
+    "level": "Advanced",
+    "tags": [
+      "component",
+      "nesting",
+      "call"
+    ],
+    "files": [
+      "song.amplet",
+      "components/fanfare.amplec",
+      "components/octave-layers.amplec",
+      "components/echo-notes.amplec"
+    ],
+    "assets": []
+  },
+  {
+    "id": "comp-mixed",
+    "name": "A component with an instrument inside",
+    "description": "Notes go in, a choir of llamas and a reverb come out: one block, an instrument inside it.",
+    "category": "Components",
+    "level": "Advanced",
+    "tags": [
+      "component",
+      "llama",
+      "instrument",
+      "mixed"
+    ],
+    "files": [
+      "song.amplet",
+      "components/llama-choir.amplec"
+    ],
+    "assets": []
+  },
+  {
+    "id": "comp-sidechain",
+    "name": "A pump as a component",
+    "description": "The sidechain pump of the Sidechain demo as a component with two knobs.",
+    "category": "Components",
+    "level": "Intermediate",
+    "tags": [
+      "component",
+      "duck",
+      "sidechain",
+      "audio"
+    ],
+    "files": [
+      "song.amplet",
+      "components/sidechain-pump.amplec"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gm-sf2",
+    "name": "A SoundFont of your own",
+    "description": "The gm block plays a project SoundFont (an .sf2 file). This small one is an upright piano made of nine CC0 recordings; drop in your own .sf2 to change the sound.",
+    "category": "Instruments",
+    "level": "Intermediate",
+    "tags": [
+      "soundfont",
+      "sf2",
+      "gm",
+      "piano"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "piano-sf2",
+        "to": "samples",
+        "files": [
+          "piano.sf2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "vocoder",
+    "name": "Vocoder: the llama talks through a synth",
+    "description": "A vocoder gives the spectrum of one sound (the voice, the modulator) to another (the carrier, a saw chord). The voice here is the built-in llama, so no recording is needed.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "vocoder",
+      "voice",
+      "llama",
+      "synth"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "autotune",
+    "name": "Autotune on a voice",
+    "description": "The llama sings slightly out of tune on purpose (a wide vibrato and glide); autotune pulls it to the scale. Switch it off with enabled off to hear the difference.",
+    "category": "Advanced",
+    "level": "Intermediate",
+    "tags": [
+      "autotune",
+      "voice",
+      "llama",
+      "pitch"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "chop-voice",
+    "name": "Chop a voice into slices",
+    "description": "chop cuts a sound into slices (here every bar of the chant; with slices auto it finds the words from the level) and plays them back in a new order. The pattern names slices (1 is the first), - is a rest and 3*2 plays slice 3 twice in one step.",
+    "category": "Advanced",
+    "level": "Intermediate",
+    "tags": [
+      "chop",
+      "slices",
+      "voice",
+      "llama"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "pitch-stretch",
+    "name": "Pitch and stretch: one voice, three",
+    "description": "The same voice a fifth up (pitch), at half speed (stretch) and the original: a small choir made of one sound with no extra recordings.",
+    "category": "Advanced",
+    "level": "Intermediate",
+    "tags": [
+      "pitch",
+      "stretch",
+      "voice",
+      "llama"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "house",
+    "name": "House",
+    "description": "Deep house at 124 BPM: bass, offbeat keys, a pad and a pluck, arranged in sections by components (loop, arrange), a kick duck and a master.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "house",
+      "components",
+      "arrangement",
+      "drums"
+    ],
+    "files": [
+      "components/arrange.amplec",
+      "components/drum-bus.amplec",
+      "components/house-bass.amplec",
+      "components/house-keys.amplec",
+      "components/house-pad.amplec",
+      "components/house-pluck.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/pump.amplec",
+      "sunday-groove.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "sunday-groove.amplet"
+  },
+  {
+    "id": "drum-and-bass",
+    "name": "Drum and bass",
+    "description": "Liquid drum and bass at 174 BPM: a reese bass, liquid keys and pad, the arrangement and the mix are components.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "dnb",
+      "components",
+      "bass",
+      "drums"
+    ],
+    "files": [
+      "components/arrange.amplec",
+      "components/dnb-lead.amplec",
+      "components/dnb-pad.amplec",
+      "components/drum-bus.amplec",
+      "components/liquid-keys.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/pump.amplec",
+      "components/reese-bass.amplec",
+      "rolling-lights.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "rolling-lights.amplet"
+  },
+  {
+    "id": "lofi",
+    "name": "Lo-fi",
+    "description": "A lo-fi chill beat at 80 BPM: a warm bass, tape keys, a hazy pad and a muted lead, with a swung kit.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "lofi",
+      "chill",
+      "components",
+      "drums"
+    ],
+    "files": [
+      "components/arrange.amplec",
+      "components/drum-bus.amplec",
+      "components/lofi-bass.amplec",
+      "components/lofi-keys.amplec",
+      "components/lofi-lead.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/vinyl-pad.amplec",
+      "rainy-window.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "rainy-window.amplet"
+  },
+  {
+    "id": "synthwave",
+    "name": "Synthwave",
+    "description": "Retro synthwave at 100 BPM: an analog bass, neon brass, a sparkling arpeggio and a lead.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "synthwave",
+      "retro",
+      "arpeggio",
+      "components"
+    ],
+    "files": [
+      "components/analog-bass.amplec",
+      "components/arrange.amplec",
+      "components/brass-pad.amplec",
+      "components/drum-bus.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/neon-arp.amplec",
+      "components/pump.amplec",
+      "components/retro-lead.amplec",
+      "night-drive.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "night-drive.amplet"
+  },
+  {
+    "id": "trance",
+    "name": "Trance",
+    "description": "Uplifting trance at 138 BPM: a rolling bass, a supersaw, a pad and an anthem lead, with a build and a breakdown.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "trance",
+      "supersaw",
+      "components",
+      "drums"
+    ],
+    "files": [
+      "components/arrange.amplec",
+      "components/drum-bus.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/pump.amplec",
+      "components/supersaw.amplec",
+      "components/trance-bass.amplec",
+      "components/trance-lead.amplec",
+      "components/trance-pad.amplec",
+      "skyline-ascent.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "skyline-ascent.amplet"
+  },
+  {
+    "id": "ambient",
+    "name": "Generative ambient",
+    "description": "Ambient with no written melody: two seeded random walks over a scale, a drone pad and a sub. Change a seed and it is another piece.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "ambient",
+      "generative",
+      "seed",
+      "walk"
+    ],
+    "files": [
+      "components/arrange.amplec",
+      "components/garden-pad.amplec",
+      "components/garden-sub.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/walk-bells.amplec",
+      "components/walk-lead.amplec",
+      "seed-garden.amplet"
+    ],
+    "assets": [],
+    "entry": "seed-garden.amplet"
+  },
+  {
+    "id": "techno",
+    "name": "Techno",
+    "description": "A modern techno track at 126 BPM from custom components: an acid bass, stabs, a pad, a lead, a drum bus and a kick pump, with the arrangement as properties.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "techno",
+      "components",
+      "ui",
+      "arrangement"
+    ],
+    "files": [
+      "components/acid-bass.amplec",
+      "components/arrange.amplec",
+      "components/drum-bus.amplec",
+      "components/lead.amplec",
+      "components/loop-bars.amplec",
+      "components/master.amplec",
+      "components/pad.amplec",
+      "components/pump.amplec",
+      "components/stabs.amplec",
+      "neon-pulse.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "neon-pulse.amplet"
+  },
+  {
+    "id": "mozart",
+    "name": "Mozart: Eine kleine Nachtmusik",
+    "description": "The exposition of Mozart K525, first movement (55 bars, 1:32), for string quintet. A sequencer block plays a .ampleseq score with one lane per voice; each voice has its own eq and seat, then a small room. Public domain score, MIT sounds.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "classical",
+      "strings",
+      "sequencer",
+      "ampleseq",
+      "mozart"
+    ],
+    "files": [
+      "mozart.ampleseq",
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "midi-chains",
+    "name": "MIDI effect chains",
+    "description": "One short clip of root notes (about ten) becomes a pad, an arpeggiated pluck, a bass and a random shimmer, by chains of MIDI effects: chord, arpeggiator, quantize, humanize and transpose, with a loop component.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "midi",
+      "arpeggiator",
+      "chord",
+      "quantize",
+      "humanize",
+      "transpose",
+      "seed"
+    ],
+    "files": [
+      "components/loop.amplec",
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "transitions",
+    "name": "Transitions",
+    "description": "The moves between sections as effects: a reversed reverb swell into a downbeat, a DJ rewind, a crossfade from a clean to a crushed lead, a granular break with an auto-pan and a fade-out.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "reverse",
+      "rewind",
+      "crossfade",
+      "granular",
+      "fade",
+      "bitcrusher"
+    ],
+    "files": [
+      "components/loop.amplec",
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "porch-song",
+    "name": "Porch song",
+    "description": "A whole little song in exactly 60 seconds: one guitar block with four named strums and a song order, a bass with no written notes (chords go down two octaves and an arpeggiator walks them), a beat per section, a 16-note piano hook and a fade-out.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "guitar",
+      "strum",
+      "song",
+      "arrangement",
+      "arpeggiator",
+      "fade"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      },
+      {
+        "pack": "guitar-emily",
+        "to": "samples/guitar",
+        "files": [
+          "a2.wav",
+          "c3.wav",
+          "e2.wav",
+          "eb3.wav",
+          "gb2.wav",
+          "a3.wav",
+          "c4.wav",
+          "gb3.wav",
+          "a4.wav"
+        ]
+      },
+      {
+        "pack": "bass-meat",
+        "to": "samples/bass",
+        "files": [
+          "a1.wav",
+          "c2.wav",
+          "eb1.wav",
+          "gb1.wav",
+          "a2.wav",
+          "c3.wav",
+          "gb2.wav"
+        ]
+      }
+    ],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "mix-routing",
+    "name": "Mix routing",
+    "description": "A 24-bar song about the wiring, not the notes: buses, send blocks into one shared reverb and echo, a compressor keyed by the kick, eq, width, a limiter and a meter.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "mixing",
+      "bus",
+      "send",
+      "sidechain",
+      "master"
+    ],
+    "files": [
+      "components/loop.amplec",
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "control-room",
+    "name": "Llama control room",
+    "description": "Played by curves: curve blocks make slow and fast moves, fire turns each crossing into a note, three llamas sing the notes with a mouth and a vowel that the curves steer, and a follow block listens to the llamas and ducks the pad whenever one sings.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "control",
+      "curve",
+      "fire",
+      "follow",
+      "map",
+      "llama",
+      "generative"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      }
+    ],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "cars-and-music",
+    "name": "Cars passing the music",
+    "description": "A street answers the music: a follow block listens to rain with a car that passes and makes a control, and that control brings in a beat, swings an arpeggio from left to right, opens a filter (through a map in Hz), makes a reverb wetter and plays a low note for every car.",
+    "category": "Advanced",
+    "level": "Advanced",
+    "tags": [
+      "control",
+      "follow",
+      "map",
+      "fire",
+      "pan",
+      "volume",
+      "rain",
+      "cars"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [
+      {
+        "pack": "drums-rusty",
+        "to": "samples/kit",
+        "files": [
+          "kick.wav",
+          "snare.wav",
+          "hat.wav",
+          "open.wav",
+          "tom.wav"
+        ]
+      },
+      {
+        "pack": "rainy-cars",
+        "to": "samples/street",
+        "files": [
+          "rain.wav",
+          "car.wav"
+        ]
+      }
+    ],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "fantasy-score",
+    "name": "Fantasy score: the mountain gate",
+    "description": "A two-minute orchestral score from a few small cells (chords, a theme, a ground, a drum call) played by the General MIDI orchestra: embers, rising banners, remembrance, the gate. Full of TRY lines to play with.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "orchestra",
+      "gm",
+      "cinematic",
+      "soundfont",
+      "strings",
+      "horns",
+      "timpani"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "library-sounds",
+    "name": "Sounds from the library",
+    "description": "Drums, a plucked bass and an upright piano that come with Remix: name them with pack: instead of uploading files. The comments list every kit, bass, piano and guitar of the library (all CC0).",
+    "category": "Instruments",
+    "level": "Beginner",
+    "tags": [
+      "pack",
+      "library",
+      "drums",
+      "bass",
+      "piano",
+      "samples"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  }
+]

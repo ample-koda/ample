@@ -1,0 +1,14 @@
+composition "basic drums" { ample 1  tempo 100  master-seed 3 }
+
+# A drums block plays a kit: a folder of samples named after the voices (kick.wav, snare.wav, ...).
+# One grid per voice, 16 steps make a bar: x a hit, X an accent, o a ghost note, a digit 1-9 the loudness of the hit.
+drums beat at 1 for 4 {
+  kit samples/kit
+  pattern kick:x...x...x...x... snare:....X.......X... hat:x.x.x.x.x.x.x.x. open:..............x.
+  swing 10
+  humanize 20
+}
+
+master out {
+  from beat.audio -> audio
+}

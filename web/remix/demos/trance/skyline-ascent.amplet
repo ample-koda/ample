@@ -1,0 +1,228 @@
+composition "trance" { ample 1  tempo 138  master-seed 138 }
+
+# TRANCE: uplifting trance, 72 bars at 138 BPM (2:05), made of custom components.
+#
+#   bars  1- 8  intro
+#   bars  9-16  build
+#   bars 17-32  drop
+#   bars 33-44  breakdown
+#   bars 45-64  drop2
+#   bars 65-72  outro
+#
+# Components (techno-style: Notes components arrange the riffs, instruments are Notes in / sound out, the rest are audio components): loopBars, arrange, tranceBass, supersaw, trancePad, tranceLead, drumBus, pump, master.
+# The drums need the kit in samples/kit (kick, snare, hat, open, tom).
+import "components/loop-bars.amplec"
+import "components/arrange.amplec"
+import "components/trance-bass.amplec"
+import "components/supersaw.amplec"
+import "components/trance-pad.amplec"
+import "components/trance-lead.amplec"
+import "components/drum-bus.amplec"
+import "components/pump.amplec"
+import "components/master.amplec"
+
+# ------------------------------------------------------------------ riffs, loops and the arrangement of every instrument
+midi-clip tranceBassRiff at 1 for 4 {
+  notes 1:0.5:0.3:29:95 1:1:0.3:29:95 1:1.5:0.3:29:95 1:2:0.3:29:95 1:2.5:0.3:29:95 1:3:0.3:29:95 1:3.5:0.3:29:95 2:0.5:0.3:25:95 2:1:0.3:25:95 2:1.5:0.3:25:95 2:2:0.3:25:95 2:2.5:0.3:25:95 2:3:0.3:25:95 2:3.5:0.3:25:95 3:0.5:0.3:32:95 3:1:0.3:32:95 3:1.5:0.3:32:95 3:2:0.3:32:95 3:2.5:0.3:32:95 3:3:0.3:32:95 3:3.5:0.3:32:95 4:0.5:0.3:27:95 4:1:0.3:27:95 4:1.5:0.3:27:95 4:2:0.3:27:95 4:2.5:0.3:27:95 4:3:0.3:27:95 4:3.5:0.3:27:95
+}
+
+koda.trance.loopBars tranceBassLoop1 at 1 for 24 {
+  times 6
+  from tranceBassRiff.notes -> source
+}
+
+koda.trance.loopBars tranceBassLoop2 at 1 for 20 {
+  times 5
+  from tranceBassRiff.notes -> source
+}
+
+koda.trance.arrange tranceBassPlan at 1 for 72 {
+  s1 8bar
+  s2 44bar
+  from tranceBassLoop1.notes -> p1
+  from tranceBassLoop2.notes -> p2
+}
+
+koda.trance.tranceBass tranceBass at 1 for 72 {
+  from tranceBassPlan.notes -> notes
+}
+
+midi-clip supersawRiff at 1 for 4 {
+  notes 1:0.5:0.5:53:88 1:0.5:0.5:56:88 1:0.5:0.5:60:88 1:1.5:0.5:53:88 1:1.5:0.5:56:88 1:1.5:0.5:60:88 1:2.5:0.5:53:88 1:2.5:0.5:56:88 1:2.5:0.5:60:88 1:3.5:0.5:53:88 1:3.5:0.5:56:88 1:3.5:0.5:60:88 2:0.5:0.5:49:88 2:0.5:0.5:53:88 2:0.5:0.5:56:88 2:1.5:0.5:49:88 2:1.5:0.5:53:88 2:1.5:0.5:56:88 2:2.5:0.5:49:88 2:2.5:0.5:53:88 2:2.5:0.5:56:88 2:3.5:0.5:49:88 2:3.5:0.5:53:88 2:3.5:0.5:56:88 3:0.5:0.5:56:88 3:0.5:0.5:60:88 3:0.5:0.5:63:88 3:1.5:0.5:56:88 3:1.5:0.5:60:88 3:1.5:0.5:63:88 3:2.5:0.5:56:88 3:2.5:0.5:60:88 3:2.5:0.5:63:88 3:3.5:0.5:56:88 3:3.5:0.5:60:88 3:3.5:0.5:63:88 4:0.5:0.5:51:88 4:0.5:0.5:55:88 4:0.5:0.5:58:88 4:1.5:0.5:51:88 4:1.5:0.5:55:88 4:1.5:0.5:58:88 4:2.5:0.5:51:88 4:2.5:0.5:55:88 4:2.5:0.5:58:88 4:3.5:0.5:51:88 4:3.5:0.5:55:88 4:3.5:0.5:58:88
+}
+
+koda.trance.loopBars supersawLoop1 at 1 for 16 {
+  times 4
+  from supersawRiff.notes -> source
+}
+
+koda.trance.loopBars supersawLoop2 at 1 for 20 {
+  times 5
+  from supersawRiff.notes -> source
+}
+
+koda.trance.arrange supersawPlan at 1 for 72 {
+  s1 16bar
+  s2 44bar
+  from supersawLoop1.notes -> p1
+  from supersawLoop2.notes -> p2
+}
+
+koda.trance.supersaw supersaw at 1 for 72 {
+  from supersawPlan.notes -> notes
+}
+
+midi-clip trancePadRiff at 1 for 4 {
+  notes 1:0:4:53:70 1:0:4:56:70 1:0:4:60:70 2:0:4:49:70 2:0:4:53:70 2:0:4:56:70 3:0:4:56:70 3:0:4:60:70 3:0:4:63:70 4:0:4:51:70 4:0:4:55:70 4:0:4:58:70
+}
+
+koda.trance.loopBars trancePadLoop1 at 1 for 8 {
+  times 2
+  from trancePadRiff.notes -> source
+}
+
+koda.trance.loopBars trancePadLoop2 at 1 for 40 {
+  times 10
+  from trancePadRiff.notes -> source
+}
+
+koda.trance.arrange trancePadPlan at 1 for 72 {
+  s1 8bar
+  s2 32bar
+  from trancePadLoop1.notes -> p1
+  from trancePadLoop2.notes -> p2
+}
+
+koda.trance.trancePad trancePad at 1 for 72 {
+  from trancePadPlan.notes -> notes
+}
+
+midi-clip tranceLeadRiff at 1 for 4 {
+  notes 1:0:1:84:98 1:1:1:80:92 1:2:2:77:96 2:0:1:85:98 2:1:1:80:92 2:2:2:77:96 3:0:1:87:98 3:1:1:84:92 3:2:2:80:96 4:0:4:79:98
+}
+
+koda.trance.loopBars tranceLeadLoop1 at 1 for 32 {
+  times 8
+  from tranceLeadRiff.notes -> source
+}
+
+koda.trance.arrange tranceLeadPlan at 1 for 72 {
+  s1 32bar
+  from tranceLeadLoop1.notes -> p1
+}
+
+koda.trance.tranceLead tranceLead at 1 for 72 {
+  from tranceLeadPlan.notes -> notes
+}
+
+# ------------------------------------------------------------------ the music
+mixer music {
+  inputs 4
+  gains "-5 -10 -11 -10"
+  from tranceBass.audio -> audio1
+  from supersaw.audio -> audio2
+  from trancePad.audio -> audio3
+  from tranceLead.audio -> audio4
+}
+
+koda.trance.pump pump {
+  from music.audio -> audio
+}
+
+# ------------------------------------------------------------------ the drums, voice by voice
+drums kick1 at 1 for 32 {
+  kit samples/kit
+  pattern kick:x...x...x...x...
+}
+
+drums kick2 at 45 for 28 {
+  kit samples/kit
+  pattern kick:x...x...x...x...
+}
+
+drums snare1 at 9 for 24 {
+  kit samples/kit
+  pattern snare:....x.......x...
+}
+
+drums snare2 at 45 for 20 {
+  kit samples/kit
+  pattern snare:....x.......x...
+}
+
+drums hat1 at 9 for 24 {
+  kit samples/kit
+  pattern hat:..x...x...x...x.
+}
+
+drums hat2 at 45 for 28 {
+  kit samples/kit
+  pattern hat:..x...x...x...x.
+}
+
+drums open1 at 17 for 16 {
+  kit samples/kit
+  pattern open:..x...x...x...x.
+}
+
+drums open2 at 45 for 20 {
+  kit samples/kit
+  pattern open:..x...x...x...x.
+}
+
+drums tom1 at 45 for 20 {
+  kit samples/kit
+  pattern tom:..............xx
+}
+
+mixer kicks {
+  inputs 4
+  gains "0 0 0 0"
+  from kick1.audio -> audio1
+  from kick2.audio -> audio2
+}
+
+mixer snares {
+  inputs 4
+  gains "-2 -2 0 0"
+  from snare1.audio -> audio1
+  from snare2.audio -> audio2
+}
+
+mixer hats {
+  inputs 4
+  gains "-2 -2 -5 -5"
+  from hat1.audio -> audio1
+  from hat2.audio -> audio2
+  from open1.audio -> audio3
+  from open2.audio -> audio4
+}
+
+mixer percs {
+  inputs 4
+  gains "-7 0 0 0"
+  from tom1.audio -> audio1
+}
+
+koda.trance.drumBus drumBus {
+  from kicks.audio -> kick
+  from snares.audio -> snare
+  from hats.audio -> hats
+  from percs.audio -> perc
+}
+
+# ------------------------------------------------------------------ the mix
+mixer final {
+  inputs 4
+  gains "14 13 0 0"
+  from drumBus.audio -> audio1
+  from pump.audio -> audio2
+}
+
+koda.trance.master finish {
+  from final.audio -> audio
+}
+
+master out {
+  from finish.audio -> audio
+}

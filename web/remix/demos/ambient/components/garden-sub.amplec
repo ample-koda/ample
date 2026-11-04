@@ -1,0 +1,36 @@
+/** Notes in, a low sine foundation out. */
+#[DisplayName("Garden sub")]
+#[Category("Generative ambient")]
+#[Tags("bass", "drone", "ambient", "instrument", "genambient")]
+component koda.genambient.gardenSub version 1.0.0 current {
+  id "demo.koda.genambient.garden-sub"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(80), MaxValue(600)]
+  property brightness: Int = 220
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -6dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="sine", attack="3000 ms", decay="500 ms", sustain="95", release="3500 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> gain(level)
+  }
+}

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMPLE Remix</title>
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/remix/lite.css">
+</head>
+<body>
+<header id="lite-bar">
+  <strong class="lite-brand">AMPLE <span>Remix</span></strong>
+  <label class="lite-project"><span class="sr">Project</span><select id="lite-projects" aria-label="Project"></select></label>
+  <button id="lite-new-project" type="button" title="A new, empty project">New project</button>
+  <button id="lite-demos-btn" type="button" title="Start from one of the built-in demos">Demos</button>
+  <span class="lite-gap"></span>
+  <span id="lite-status" role="status" aria-live="polite"></span>
+  <button id="lite-build" type="button" class="primary" title="Build the song and play it (Ctrl+Enter)">Build &amp; play</button>
+  <button id="lite-cancel" type="button" class="danger" title="Cancel the build that is running" hidden>Cancel build</button>
+  <button id="lite-stop" type="button" title="Stop the sound" disabled>Stop</button>
+  <div id="lite-export-wrap" class="lite-export">
+    <button id="lite-export-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="lite-export-menu" title="Export the song: the sound, or the song as AMPLE code">Export as <span aria-hidden="true">▾</span></button>
+    <div id="lite-export-menu" class="lite-export-menu" role="menu" hidden>
+      <a id="lite-download" role="menuitem" href="#" download="lite.wav" aria-disabled="true" hidden><b>WAV</b><small>lossless, exactly as it was built</small></a>
+      <button id="lite-download-flac" role="menuitem" type="button" hidden><b>FLAC</b><small>lossless and smaller</small></button>
+      <button id="lite-download-mp3" role="menuitem" type="button" hidden><b>MP3</b><small>192 kbit/s, plays everywhere</small></button>
+      <p id="lite-export-hint" class="lite-export-hint">Build the song to export its sound.</p>
+      <div class="lite-export-sep" role="separator"></div>
+      <button id="lite-download-amplet" role="menuitem" type="button"><b>AMPLET</b><small>the song as AMPLE code, to keep or share</small></button>
+    </div>
+  </div>
+  <button id="lite-share" type="button" hidden title="Share this song: a link that opens it for others">Share</button>
+  <button id="lite-reset" type="button" class="danger" title="Delete everything that Remix keeps on this browser">Reset workspace</button>
+  <div id="lite-menu-wrap" class="lite-export lite-phone-only">
+    <button id="lite-menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="lite-menu" aria-label="Menu" title="Menu"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div id="lite-menu" class="lite-export-menu" role="menu" hidden></div>
+  </div>
+  <span id="lite-notice" role="status" hidden></span>
+</header>
+<main id="lite-main">
+  <aside id="lite-files" aria-label="Files">
+    <div class="lite-files-bar">
+      <button id="lite-files-toggle" type="button" class="lite-icon lite-phone-only" title="Browse the files of the project" aria-label="Browse the files of the project" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+      <button id="lite-new-file" type="button" class="lite-icon" title="New file" aria-label="New file"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 12v6M9 15h6"/></svg></button>
+      <label class="button lite-icon" title="Upload files: (sounds, SoundFonts, songs) or a .zip from this device. You can also drop them on the page." aria-label="Upload files"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5"/><path d="m7 9 5-5 5 5"/><path d="M5 19h14"/></svg><input id="lite-upload" type="file" multiple accept=".wav,.flac,.sf2,.sfz,.mid,.midi,.amplet,.amplec,.ampleseq,.txt,.md,.json,.zip,application/zip" hidden></label>
+      <button id="lite-export" type="button" class="lite-icon" title="Download the whole project as a .zip file" aria-label="Download the project as a .zip file"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M4 8h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 11v5"/><path d="m9.5 13.5 2.5 2.5 2.5-2.5"/></svg></button>
+    </div>
+    <button id="lite-files-close" type="button" class="lite-phone-only" aria-label="Close the file browser">Close</button>
+    <div id="lite-tree" role="tree"></div>
+    <p id="lite-usage" class="lite-dim"></p>
+  </aside>
+  <section id="lite-work">
+    <div id="lite-filebar"><span id="lite-filename"></span><span id="lite-saved" class="lite-dim"></span><span class="lite-gap"></span>
+      <button id="lite-notes" type="button" class="lite-icon" hidden title="Edit the notes of a clip on a piano roll" aria-label="Edit the notes on a piano roll"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v14M12 5v14M16 5v14"/><path d="M6.5 5v8M9.5 5v8M13.5 5v8M17.5 5v8" stroke-width="3"/></svg></button><button id="lite-rename" type="button" class="lite-icon" hidden title="Rename this file" aria-label="Rename this file"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></button><button id="lite-delete" type="button" class="lite-icon lite-danger" hidden title="Delete this file" aria-label="Delete this file"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg></button><a id="lite-save-file" class="button lite-icon" href="#" hidden title="Save a copy of this file on this device" aria-label="Save a copy of this file"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg></a></div>
+    <div id="lite-editor" aria-label="Editor"></div>
+    <div id="lite-binary" hidden></div>
+    <div id="lite-empty" class="lite-empty"><p>Start from a demo, or make a new project.</p><button id="lite-empty-demos" type="button" class="primary">Open the demos</button></div>
+  </section>
+</main>
+<footer id="lite-foot">
+  <section id="lite-console">
+    <div class="lite-tabs" role="tablist" aria-label="Problems and build log">
+      <button type="button" role="tab" id="lite-tab-problems" aria-selected="false" aria-controls="lite-problems-pane">Problems <span id="lite-problem-count" class="lite-dim"></span></button>
+      <button type="button" role="tab" id="lite-tab-log" aria-selected="true" aria-controls="lite-log-pane">Build log <progress id="lite-progress" max="1" value="0" hidden></progress></button>
+    </div>
+    <div id="lite-problems-pane" role="tabpanel" aria-labelledby="lite-tab-problems" hidden><ul id="lite-problems" aria-label="Problems"></ul></div>
+    <div id="lite-log-pane" role="tabpanel" aria-labelledby="lite-tab-log"><div id="lite-log" role="log" aria-live="off" aria-label="Build log"></div></div>
+  </section>
+  <section id="lite-output-pane"><h2>Output</h2><audio id="lite-output" controls preload="auto"></audio><p id="lite-output-info" class="lite-dim">Nothing built yet.</p></section>
+</footer>
+
+<dialog id="lite-dialog"><form method="dialog" id="lite-dialog-form"><h2 id="lite-dialog-title"></h2><div id="lite-dialog-body"></div>
+  <menu><button id="lite-dialog-cancel" value="cancel" type="button">Cancel</button><button id="lite-dialog-ok" value="ok" class="primary">OK</button></menu></form></dialog>
+
+<div id="lite-drop" hidden><p>Drop files here to add them to this project<br><small>a .zip asks what to do with it</small></p></div>
+
+<dialog id="lite-import-dialog" aria-labelledby="lite-import-title">
+  <h2 id="lite-import-title">Adding files</h2>
+  <p id="lite-import-line" role="status" aria-live="polite"></p>
+  <progress id="lite-import-bar" max="1" value="0"></progress>
+  <menu><button type="button" id="lite-import-cancel">Cancel</button></menu>
+</dialog>
+
+<dialog id="lite-zip-dialog" aria-labelledby="lite-zip-title">
+  <h2 id="lite-zip-title">A .zip: what should happen?</h2>
+  <p><strong id="lite-zip-name"></strong></p>
+  <p id="lite-zip-summary" class="lite-dim"></p>
+  <label class="lite-radio"><input type="radio" name="lite-zip-mode" value="add"> <span id="lite-zip-add-text">Add its files to the open project</span></label>
+  <label class="lite-radio"><input type="radio" name="lite-zip-mode" value="project"> <span>Open it as a project of its own</span></label>
+  <p class="lite-fine">files that Remix cannot use are left out. a name that is taken gets a number. Cancel at any time: nothing changes.</p>
+  <menu><button type="button" id="lite-zip-cancel">Cancel</button><button type="button" id="lite-zip-go" class="primary">Go</button></menu>
+</dialog>
+
+<dialog id="lite-manage-dialog" aria-labelledby="lite-manage-title">
+  <h2 id="lite-manage-title">Your shared song</h2>
+  <p id="lite-manage-message" role="status"></p>
+  <div id="lite-manage-body" hidden>
+    <p id="lite-manage-info"></p>
+    <fieldset class="lite-expiry">
+      <legend>Change how long it stays (counted from now)</legend>
+      <label class="lite-radio"><input type="radio" name="lite-manage-expires" value="1h"> 1 hour <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-manage-expires" value="24h"> 24 hours <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-manage-expires" value="1w"> 1 week <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-manage-expires" value="1m"> 1 month <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-manage-expires" value="never"> no end date <small>may disappear earlier &middot; not permanent</small></label>
+      <p class="lite-fine">all options: it may disappear earlier than you ask, it is never permanent. keep your own copy.</p>
+      <p><button type="button" id="lite-manage-change" disabled>Change duration</button></p>
+    </fieldset>
+    <p><button type="button" id="lite-manage-zip">Download .zip</button> <small class="lite-fine">keep your own copy: the files of this share in one .zip</small></p>
+    <p><button type="button" id="lite-manage-delete" class="danger">Delete this share</button></p>
+    <p id="lite-manage-confirm" hidden>Are you sure you want to delete it? Nobody can open it any more. <button type="button" id="lite-manage-delete-yes" class="danger">Yes, delete it</button> <button type="button" id="lite-manage-delete-no">No</button></p>
+    <p class="lite-fine">this link is not meant to be shared with others: whoever has it can change or delete your share. only want the link to share? <button type="button" id="lite-manage-showlink" class="lite-linkbutton">click here</button></p>
+    <div id="lite-manage-linkbox" hidden>
+      <div class="lite-share-row"><input id="lite-manage-link" type="text" readonly aria-label="Link to share"><button type="button" id="lite-manage-copy" class="primary">Copy to clipboard</button></div>
+      <p id="lite-manage-copy-result" class="lite-copy-result" role="status"></p>
+    </div>
+  </div>
+  <menu><button type="button" id="lite-manage-close" class="primary">Close</button></menu>
+</dialog>
+
+<dialog id="lite-publish-dialog" aria-labelledby="lite-publish-title">
+  <form id="lite-publish-form" method="dialog">
+    <h2 id="lite-publish-title">Share my song <span class="lite-info-wrap"><button type="button" class="lite-info" aria-label="Information" aria-expanded="false">i</button><span class="lite-pop" role="tooltip">Shared songs are kept on a best-effort basis: a share can disappear earlier than you chose, so always keep your own copy (use Download .zip). You are responsible for what you share and need the rights to it. We keep technical data to prevent abuse. Reports or complaints: <span data-report-email>the operator of this site</span>, with the share ID.</span></span></h2>
+    <p class="lite-dim">Anyone with the link can open their own copy of your song.</p>
+    <label class="lite-field">Title <input id="lite-publish-name" type="text" maxlength="80" autocomplete="off"></label>
+    <label class="lite-field">Author <input id="lite-publish-author" type="text" maxlength="60" autocomplete="nickname"></label>
+    <label class="lite-field">Description (optional) <textarea id="lite-publish-desc" maxlength="500" rows="3"></textarea></label>
+    <fieldset class="lite-expiry">
+      <legend>How long should it stay? <span class="lite-info-wrap"><button type="button" class="lite-info" aria-label="Information" aria-expanded="false">i</button><span class="lite-pop" role="tooltip">How long the link should keep working. It can disappear earlier (space, abuse, a removal request) and is never permanent.</span></span></legend>
+      <label class="lite-radio"><input type="radio" name="lite-expires" value="1h"> 1 hour <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-expires" value="24h"> 24 hours <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-expires" value="1w" checked> 1 week <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-expires" value="1m"> 1 month <small>may disappear earlier &middot; not permanent</small></label>
+      <label class="lite-radio"><input type="radio" name="lite-expires" value="never"> no end date <small>may disappear earlier &middot; not permanent</small></label>
+      <p class="lite-fine">all options: it may disappear earlier than you ask, it is never permanent. we advise you to download a copy to your pc: <button type="button" id="lite-publish-zip">Download .zip</button></p>
+    </fieldset>
+    <label class="lite-check" id="lite-publish-rights-row"><input type="checkbox" id="lite-publish-rights"> <span>I made this, or I may share it. <strong class="lite-need-hint">You have to tick this to share.</strong></span></label>
+    <p id="lite-publish-files" class="lite-dim"></p>
+    <progress id="lite-publish-progress" max="1" value="0" hidden></progress>
+    <p id="lite-publish-error" data-kind="error" role="alert" hidden></p>
+    <menu><button type="button" id="lite-publish-cancel">Cancel</button><button type="submit" id="lite-publish-go" class="primary">Share</button></menu>
+  </form>
+  <section id="lite-publish-done" hidden>
+    <h2>Your song is shared</h2>
+    <p>The link to share:</p>
+    <div class="lite-share-row"><input id="lite-publish-link" type="text" readonly aria-label="Link to share"><button type="button" id="lite-publish-copy-link" class="primary">Copy to clipboard</button></div>
+    <p id="lite-publish-link-result" class="lite-copy-result" role="status"></p>
+    <p><strong>Save this code and link.</strong> It is the only way to change how long the share stays, or to take it down. We cannot tell who made a share, so nobody can get it back for you.</p>
+    <p>Your code: <code id="lite-publish-code"></code></p>
+    <div class="lite-share-row"><input id="lite-publish-manage" type="text" readonly aria-label="Link to manage the share"><button type="button" id="lite-publish-copy-manage">Copy to clipboard</button></div>
+    <p id="lite-publish-manage-result" class="lite-copy-result" role="status"></p>
+    <p class="lite-fine">this link is for you, not for others. whoever has it can change or take down your share.</p>
+    <menu><button type="button" id="lite-publish-zip2">Download .zip</button><button type="button" id="lite-publish-close" class="primary">Close</button></menu>
+  </section>
+</dialog>
+
+<dialog id="lite-share-dialog" aria-labelledby="lite-share-title">
+  <h2 id="lite-share-title">Share</h2>
+  <p id="lite-share-text">Whoever opens this link gets a fresh copy of the demo, which builds and plays by itself.</p>
+  <div class="lite-share-row">
+    <input id="lite-share-link" type="text" readonly aria-label="Link">
+    <button id="lite-share-copy" type="button" class="primary">Copy to clipboard</button>
+  </div>
+  <p id="lite-share-result" role="status" aria-live="polite"></p>
+  <menu><button id="lite-share-close" type="button">Close</button></menu>
+</dialog>
+
+<dialog id="lite-tour" aria-labelledby="lite-tour-title">
+  <h2 id="lite-tour-title">Opening the demo</h2>
+  <div id="lite-tour-about" hidden>
+    <p class="lite-about-banner">Shared by a third party &mdash; not checked by AMPLE. <span class="lite-info-wrap"><button type="button" class="lite-info" aria-label="Information" aria-expanded="false">i</button><span class="lite-pop" role="tooltip">Made by a third party and not checked by AMPLE. It can disappear at any time. Copyright claims or other complaints: <span data-report-email>the operator of this site</span>, with the ID of this share.</span></span></p>
+    <p id="lite-about-by"></p>
+    <p id="lite-about-desc"></p>
+    <p id="lite-about-dates" class="lite-fine"></p>
+    <p class="lite-fine"><a id="lite-about-report" href="#">Complaint? email <span data-report-email></span></a> <span id="lite-about-id"></span></p>
+  </div>
+  <ol id="lite-tour-steps">
+    <li data-step="open" data-state="pending">Open the demo</li>
+    <li data-step="send" data-state="pending">Send it to the server</li>
+    <li data-step="build" data-state="pending">Build the sound</li>
+    <li data-step="ready" data-state="pending">Ready to play</li>
+  </ol>
+  <div id="lite-tour-files" aria-label="Files"></div>
+  <progress id="lite-tour-progress" max="1" value="0" hidden></progress>
+  <p id="lite-tour-line" role="status" aria-live="polite"></p>
+  <menu>
+    <button id="lite-tour-skip" type="button" hidden title="Open the song without building it (a build that already runs just goes on)">Skip building</button>
+    <button id="lite-tour-cancel" type="button">Cancel</button>
+    <button id="lite-tour-retry" type="button" hidden>Try again</button>
+    <button id="lite-tour-close" type="button" hidden>Close</button>
+    <button id="lite-tour-play" type="button" class="primary" hidden>&#9654; Play</button>
+  </menu>
+</dialog>
+
+<dialog id="lite-demo-dialog"><div class="lite-demo-head"><h2>Demos</h2><input id="lite-demo-search" type="search" placeholder="Search: name, tag, level" aria-label="Search the demos"><button id="lite-demo-close" type="button">Close</button></div>
+  <div id="lite-demo-cats" class="lite-chips" role="group" aria-label="Category"></div><ul id="lite-demo-list"></ul></dialog>
+
+<dialog id="lite-roll" aria-label="Note editor">
+  <div class="lite-roll-head">
+    <h2>Notes</h2>
+    <label class="lite-roll-field">Clip <select id="lite-roll-clip"></select></label>
+    <label class="lite-roll-field">Snap <select id="lite-roll-snap"><option value="1">1/4</option><option value="0.5">1/8</option><option value="0.25" selected>1/16</option><option value="0.125">1/32</option></select></label>
+    <label class="lite-roll-field">Width <input id="lite-roll-zoom" type="range" min="30" max="200" value="80" aria-label="Width of a beat"></label>
+    <label class="lite-roll-field">Height <input id="lite-roll-height" type="range" min="12" max="30" value="20" aria-label="Height of a row"></label>
+    <button id="lite-roll-fit" type="button" title="Fit the roll to the notes">Fit</button>
+    <span class="lite-gap"></span>
+    <span id="lite-roll-info" class="lite-dim"></span>
+    <button id="lite-roll-close" type="button" class="primary">Done</button>
+  </div>
+  <div class="lite-roll-bar">
+    <span id="lite-roll-note" class="lite-roll-note"></span>
+    <button id="lite-roll-code" type="button" class="primary" title="Close the roll and go to this clip in the code">Show in code</button>
+  </div>
+  <div class="lite-roll-tools">
+    <button id="lite-roll-play" type="button" class="primary" title="Play (Space)">Play</button>
+    <span class="lite-roll-sep"></span>
+    <button id="lite-roll-undo" type="button" disabled title="Undo (Ctrl+Z)">Undo</button>
+    <button id="lite-roll-redo" type="button" disabled title="Redo (Ctrl+Y)">Redo</button>
+    <span class="lite-roll-sep"></span>
+    <button id="lite-roll-all" type="button" title="Select all (Ctrl+A)">Select all</button>
+    <button id="lite-roll-dup" type="button" disabled title="Duplicate the selection one bar on (Ctrl+D)">Duplicate</button>
+    <button id="lite-roll-quant" type="button" title="Snap the starts to the grid (Q): the selection, or all notes">Quantize</button>
+    <button id="lite-roll-loopclear" type="button" disabled title="Remove the looped region (drag in the ruler to make one)">Clear loop</button>
+    <button id="lite-roll-delete" type="button" class="danger" disabled title="Delete (Delete)">Delete</button>
+    <span class="lite-roll-sep"></span>
+    <button id="lite-roll-oct-down" type="button" disabled title="Octave down (Shift+Down)">−12</button>
+    <button id="lite-roll-down" type="button" disabled title="Semitone down (Down)">−1</button>
+    <button id="lite-roll-up" type="button" disabled title="Semitone up (Up)">+1</button>
+    <button id="lite-roll-oct-up" type="button" disabled title="Octave up (Shift+Up)">+12</button>
+    <span class="lite-dim lite-roll-help">Click adds a note, drag moves, the right end resizes, drag on empty space selects (Shift adds), arrows nudge, Ctrl+wheel zooms, click a key to hear it. Click the ruler to put the playhead there (drag its handle to move it) and drag in the ruler to loop a region. Play is a simple tone; Build &amp; play makes the real sound.</span>
+  </div>
+  <div id="lite-roll-scroll"><canvas id="lite-roll-canvas" width="400" height="200"></canvas></div>
+  <div id="lite-roll-velwrap"><canvas id="lite-roll-vel" width="400" height="86" aria-label="Velocity of the notes"></canvas></div>
+</dialog>
+
+<div id="lite-toasts" role="alert"></div>
+<script type="module" src="/remix/lite.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+composition "A SoundFont of your own" { ample 1  tempo 76  master-seed 31 }
+
+midi-clip chords at 1 for 8 {
+  chords Am F C G Am F G E
+  bars 8
+}
+
+midi-clip tune at 1 for 8 {
+  melody "e5:2 c5:1 d5:1 e5:2 g5:2 f5:2 e5:1 d5:1 c5:2 e5:2 d5:4 e5:2 c5:2 b4:2 c5:2 a4:4 c5:2 b4:1 a4:1 e5:4"
+  bars 8
+}
+
+# file is the SoundFont of this project; bank and program pick the preset inside it
+gm keys at 1 for 8 {
+  file samples/piano.sf2
+  bank 0
+  program 0
+  gain -6
+  from chords.notes -> notes
+}
+
+gm melody at 1 for 8 {
+  file samples/piano.sf2
+  from tune.notes -> notes
+}
+
+mixer mix {
+  inputs 4
+  gains "-4 0 0 0"
+  from keys.audio -> audio1
+  from melody.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

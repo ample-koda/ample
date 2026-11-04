@@ -1,0 +1,38 @@
+/** Puts up to six pieces on the timeline: every piece starts at its own bar, so the arrangement is text. */
+#[DisplayName("Arrange")]
+#[Category("Lo-fi")]
+#[Tags("arrangement", "sections", "timeline", "lofi")]
+component koda.lofi.arrange version 1.0.0 current {
+  id "demo.koda.lofi.arrange"
+
+  input p1: Notes { optional true }
+  input p2: Notes { optional true }
+  input p3: Notes { optional true }
+  input p4: Notes { optional true }
+  input p5: Notes { optional true }
+  input p6: Notes { optional true }
+
+  #[DisplayName("Start 1"), MinValue(0bar), MaxValue(160bar), Step(1)]
+  property s1: Duration = 0bar
+  #[DisplayName("Start 2"), MinValue(0bar), MaxValue(160bar), Step(1)]
+  property s2: Duration = 0bar
+  #[DisplayName("Start 3"), MinValue(0bar), MaxValue(160bar), Step(1)]
+  property s3: Duration = 0bar
+  #[DisplayName("Start 4"), MinValue(0bar), MaxValue(160bar), Step(1)]
+  property s4: Duration = 0bar
+  #[DisplayName("Start 5"), MinValue(0bar), MaxValue(160bar), Step(1)]
+  property s5: Duration = 0bar
+  #[DisplayName("Start 6"), MinValue(0bar), MaxValue(160bar), Step(1)]
+  property s6: Duration = 0bar
+
+  output notes: Notes
+
+  process {
+    emit (connected(p1) ? p1 : emptyNotes()) |> shift(s1)
+    emit (connected(p2) ? p2 : emptyNotes()) |> shift(s2)
+    emit (connected(p3) ? p3 : emptyNotes()) |> shift(s3)
+    emit (connected(p4) ? p4 : emptyNotes()) |> shift(s4)
+    emit (connected(p5) ? p5 : emptyNotes()) |> shift(s5)
+    emit (connected(p6) ? p6 : emptyNotes()) |> shift(s6)
+  }
+}

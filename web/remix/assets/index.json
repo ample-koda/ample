@@ -1,0 +1,138 @@
+[
+  {
+    "pack": "drums-rusty",
+    "what": "a drum kit: kick, snare, hat, open hat, tom",
+    "source": "https://github.com/sfzinstruments/karoryfer.big-rusty-drums",
+    "licence": "CC0 1.0 (public domain dedication)",
+    "files": [
+      {
+        "file": "kick.wav",
+        "bytes": 149892
+      },
+      {
+        "file": "snare.wav",
+        "bytes": 170084
+      },
+      {
+        "file": "hat.wav",
+        "bytes": 109654
+      },
+      {
+        "file": "open.wav",
+        "bytes": 334362
+      },
+      {
+        "file": "tom.wav",
+        "bytes": 220288
+      }
+    ]
+  },
+  {
+    "pack": "bass-meat",
+    "what": "a pizzicato bass, one recording per note",
+    "source": "https://github.com/sfzinstruments/karoryfer.meatbass",
+    "licence": "CC0 1.0 (public domain dedication)",
+    "files": [
+      {
+        "file": "a1.wav",
+        "bytes": 361698
+      },
+      {
+        "file": "c2.wav",
+        "bytes": 352878
+      },
+      {
+        "file": "eb1.wav",
+        "bytes": 405798
+      },
+      {
+        "file": "gb1.wav",
+        "bytes": 370518
+      },
+      {
+        "file": "a2.wav",
+        "bytes": 335238
+      },
+      {
+        "file": "c3.wav",
+        "bytes": 335238
+      },
+      {
+        "file": "gb2.wav",
+        "bytes": 352878
+      }
+    ]
+  },
+  {
+    "pack": "guitar-emily",
+    "what": "a guitar, one recording per note",
+    "source": "https://github.com/sfzinstruments/karoryfer.emilyguitar",
+    "licence": "CC0 1.0 (public domain dedication)",
+    "files": [
+      {
+        "file": "a2.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "c3.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "e2.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "eb3.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "gb2.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "a3.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "c4.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "gb3.wav",
+        "bytes": 372174
+      },
+      {
+        "file": "a4.wav",
+        "bytes": 372174
+      }
+    ]
+  },
+  {
+    "pack": "piano-sf2",
+    "what": "a small SoundFont: an upright piano from nine CC0 recordings",
+    "source": "https://github.com/sgossner/VSCO-2-CE",
+    "licence": "CC0 1.0",
+    "files": [
+      {
+        "file": "piano.sf2",
+        "bytes": 2383268
+      }
+    ]
+  },
+  {
+    "pack": "rainy-cars",
+    "what": "rain and a car that passes on a wet road (two public domain recordings)",
+    "source": "https://freesound.org/people/Breviceps/sounds/462862/",
+    "licence": "CC0 1.0 (public domain dedication)",
+    "files": [
+      {
+        "file": "rain.wav",
+        "bytes": 2116844
+      },
+      {
+        "file": "car.wav",
+        "bytes": 508062
+      }
+    ]
+  }
+]

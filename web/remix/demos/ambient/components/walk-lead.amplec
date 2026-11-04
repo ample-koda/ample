@@ -1,0 +1,38 @@
+/** Notes in, a slow voice from a second walk out. */
+#[DisplayName("Walking voice")]
+#[Category("Generative ambient")]
+#[Tags("lead", "generative", "ambient", "instrument", "genambient")]
+component koda.genambient.walkLead version 1.0.0 current {
+  id "demo.koda.genambient.walk-lead"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(500), MaxValue(5000)]
+  property brightness: Int = 2000
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -9dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="triangle", attack="500 ms", decay="400 ms", sustain="80", release="1800 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> delay(time=2beat, feedback=50%, mix=36%)
+      |> reverb(size=92%, decay=88%, mix=46%)
+      |> gain(level)
+  }
+}

@@ -1,0 +1,25 @@
+/** Plays the notes again and again, each time later and a few semitones higher. */
+#[DisplayName("Rising echo")]
+#[Category("Notes")]
+#[Tags("echo", "repeat", "rhythm")]
+component koda.notes.echoNotes version 1.0.0 current {
+  id "demo.koda.notes.echo-notes"
+
+  input source: Notes
+
+  #[MinValue(1), MaxValue(8), Step(1)]
+  property plays: Int = 3
+
+  property delay: Duration = 1bar
+
+  #[MinValue(-12), MaxValue(12), Step(1)]
+  property interval: Int = 2
+
+  output notes: Notes
+
+  process {
+    for i in 0..plays {
+      emit source |> shift(i * delay) |> transpose(i * interval)
+    }
+  }
+}
