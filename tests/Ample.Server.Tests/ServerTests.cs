@@ -380,7 +380,7 @@ public sealed class ServerTests : IAsyncLifetime, IDisposable
         }
     }
 
-    [Fact]
+    [RepoFact("web/index.html")]
     public async Task The_help_and_the_web_app_are_served()
     {
         HttpResponseMessage help = await http.GetAsync("/help", CancellationToken.None);

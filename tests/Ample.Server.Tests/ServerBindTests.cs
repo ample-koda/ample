@@ -47,7 +47,7 @@ public sealed class ServerBindTests : IDisposable
         Assert.Equal("AMP5940", refused.DiagnosticCode);
     }
 
-    [Fact]
+    [RepoFact("web/index.html")]
     public async Task The_default_address_is_the_loopback_and_an_explicit_loopback_works()
     {
         await MakeProjectAsync();

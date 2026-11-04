@@ -62,7 +62,7 @@ public sealed class LiteDemosTests : IDisposable
         LitePolicy.CheckFiles(entry, files, LiteLimits.Default);
         SpecData spec = Ample.Docs.SpecRoot.At(Root).LoadSpecData();
         string buildHome = home;
-        if (files.Any(f => f.Path.EndsWith(".ampleseq", StringComparison.Ordinal) && System.Text.Encoding.UTF8.GetString(f.Data).Contains(LitePolicy.SharedBank, StringComparison.Ordinal)))
+        if (files.Any(f => (f.Path.EndsWith(".ampleseq", StringComparison.Ordinal) || f.Path.EndsWith(".amplet", StringComparison.Ordinal) || f.Path.EndsWith(".amplec", StringComparison.Ordinal)) && System.Text.Encoding.UTF8.GetString(f.Data).Contains(LitePolicy.SharedBank, StringComparison.Ordinal)))
         {
             // a demo that plays the shared sound bank: it is built with the library of this machine, and skipped where the bank is not installed
             string real = Ample.Storage.Library.Library.DefaultHome();
