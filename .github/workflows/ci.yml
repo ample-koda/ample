@@ -32,3 +32,26 @@ jobs:
           for project in tests/*.Tests/*.csproj; do
             dotnet test "$project" -c Release --nologo
           done
+
+  studio:
+    # The browser tests of the studio (Playwright, Chromium): they start the built command line tool and drive its pages.
+    name: Studio browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build the command line tool
+        run: dotnet build src/Ample.Cli -c Release --nologo
+      - name: Install the test tools and Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run the browser tests
+        # a test that is slow or timing sensitive gets a second and a third try before it counts as failed
+        run: npx playwright test --project=chromium --retries=2

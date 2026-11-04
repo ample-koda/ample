@@ -1,0 +1,11 @@
+bin/
+obj/
+TestResults/
+*.received.*
+node_modules/
+test-results/
+playwright-report/
+.vs/
+*.user
+__pycache__/
+*.pyc
