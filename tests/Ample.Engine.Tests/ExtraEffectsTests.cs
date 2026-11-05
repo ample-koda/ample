@@ -66,7 +66,7 @@ public sealed class ExtraEffectsTests : IDisposable
     {
         short[] ramp = [.. Enumerable.Range(0, 1000).Select(i => (short)i)];
         short[] back = Samples(await RenderAsync("reverse", [], Wav.Encode(ramp, Rate)));
-        Assert.Equal(ramp.Reverse().ToArray(), back);
+        Assert.Equal(ramp.AsEnumerable().Reverse().ToArray(), back);
         IReadOnlyList<RenderOutput> metered = await RenderAsync("meter", [], Wav.Encode(ramp, Rate));
         Assert.Equal(ramp, Wav.Decode(metered.Single(o => o.Role == "out").Data).Samples);
         string report = Encoding.UTF8.GetString(metered.Single(o => o.Role == "report").Data);

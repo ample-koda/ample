@@ -15,7 +15,8 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 solution="$repository_root/ample/Ample.sln"
 source_revision="${GITHUB_SHA:-unknown}"
 
-cd "$repository_root"
+# dotnet picks its SDK from the folder it runs in: run inside the repository, where global.json pins the SDK (see check-all.ps1)
+cd "$repository_root/ample"
 dotnet restore "$solution"
 dotnet build "$solution" --no-restore -warnaserror -p:SourceRevisionId="$source_revision"
 if [[ "$full" -eq 1 ]]; then

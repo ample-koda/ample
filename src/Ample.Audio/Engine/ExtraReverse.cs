@@ -12,8 +12,8 @@ internal sealed class ReverseRenderer : ExtraEffect
     protected override IReadOnlyList<RenderOutput> Process(RenderRequest r, CancellationToken cancellationToken)
     {
         (short[] left, short[] right, int rate, bool stereo) = Input(r);
-        short[] l = [.. left.Reverse()];
-        short[] rr = stereo ? [.. right.Reverse()] : l;
+        short[] l = [.. Enumerable.Reverse(left)];
+        short[] rr = stereo ? [.. Enumerable.Reverse(right)] : l;
         return Out(Encode(l, rr, rate, stereo));
     }
 }

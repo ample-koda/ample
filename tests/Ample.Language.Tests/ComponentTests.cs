@@ -125,7 +125,7 @@ public sealed class ComponentTests
     {
         string two = Instance + "\nkoda.notes.tripleNotes second at 5 for 3 {\n  copies 2\n  from intro.notes -> source\n}\n";
         ExpandedSong expanded = ModuleExpander.Expand(Song(instances: two), Corpus.Spec, _ => null);
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(expanded.Text, @"notes __c_local_koda_notes_tripleNotes_1_0_0\(").Count);   // both instances call the one helper (the parser adds it once)
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Count(expanded.Text, @"notes __c_local_koda_notes_tripleNotes_1_0_0\("));   // both instances call the one helper (the parser adds it once)
         Assert.Contains("midi-clip introTriple at 2 for 3 {", expanded.Text, StringComparison.Ordinal);
         Assert.Contains("notes __c_local_koda_notes_tripleNotes_1_0_0(intro.notes, true, emptyNotes(), 3, 1bar)", expanded.Text, StringComparison.Ordinal);
         Assert.Equal(6, Notes(expanded.Text, "introTriple"));   // two notes, three copies
