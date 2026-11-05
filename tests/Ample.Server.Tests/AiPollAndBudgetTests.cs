@@ -79,7 +79,8 @@ public sealed class AiPollAndBudgetTests
 
         JsonObject entry = AiService.TaskJson(task, false, null, details: true)["log"]!.AsArray().Last()!.AsObject();
         Assert.Contains("ample_build", entry["text"]!.GetValue<string>(), StringComparison.Ordinal);
-        Assert.Contains("ms", entry["text"]!.GetValue<string>(), StringComparison.Ordinal);
+        // the unit depends on how long the first call took (a cold, slow machine reports seconds): what counts is that an elapsed time is named
+        Assert.Matches(@"\d+(\.\d+)? ?(ms|s)\b", entry["text"]!.GetValue<string>());
         Assert.True(entry["details"]!["ampleElapsedMs"]!.GetValue<long>() >= 1);
     }
 
