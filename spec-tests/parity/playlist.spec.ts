@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bottomTab, chooseMenu, dialog, openApp, state } from '../../web/tests/support';
+import { bottomTab, chooseMenu, dialog, launchUrl, openApp, state } from '../../web/tests/support';
 
 // The Playlist view is behind a setting; the tests turn it on the way a person does (the stored switch) before the page loads.
 async function openPlaylist(page: Page) {
@@ -174,8 +174,8 @@ test('playlist: the switch is in the help menu on a wide screen, and turns the t
 });
 
 const api = async (path: string, init?: { method?: string; body?: unknown }) => {
-  const origin = new URL(process.env.AMPLE_LAUNCH_URL!).origin;
-  const token = new URL(process.env.AMPLE_LAUNCH_URL!).hash.replace('#token=', '');
+  const origin = new URL(launchUrl()).origin;
+  const token = new URL(launchUrl()).hash.replace('#token=', '');
   const r = await fetch(origin + path, { method: init?.method, headers: { 'X-Ample-Token': token, 'Content-Type': 'application/json' }, body: init?.body ? JSON.stringify(init.body) : undefined });
   return r.json();
 };
@@ -200,7 +200,7 @@ test('playlist: the patterns of a drums song show as sections under the drums', 
   await openApp(page);
   const demo = process.env.AMPLE_DEMO_SONG!.replace('drums drums at 1 for 16 as "beat A" {\n}', 'drums drums at 1 for 16 as "beat A" {\n  patterns verse=x...x...x...x... / fill=xxxxxxxxxxxxxxxx\n  song verse*3 fill\n}');
   await setSong(demo);
-  await page.goto(process.env.AMPLE_LAUNCH_URL!);
+  await page.goto(launchUrl());
   await page.waitForSelector('body[data-ready="1"]');
   await page.locator('#btabs button[data-t="playlist"]').click();
   await page.locator('#b-playlist .pl-line', { hasText: 'drums' }).locator('.pl-fold').click();
@@ -235,7 +235,7 @@ test('playlist: the channels of a sequencer show as lanes with the clips of its 
   ].join('\n');
   const demo = process.env.AMPLE_DEMO_SONG!.replace('  from piano.audio -> audio3\n}', '  from piano.audio -> audio3\n  from perf-bus.audio -> audio4\n}') + '\n' + sequencer + '\n';
   await setSong(demo);
-  await page.goto(process.env.AMPLE_LAUNCH_URL!);
+  await page.goto(launchUrl());
   await page.waitForSelector('body[data-ready="1"]');
   await page.locator('#btabs button[data-t="playlist"]').click();
   await page.locator('#b-playlist .pl-line', { hasText: 'perf' }).locator('.pl-fold').click();
@@ -248,7 +248,7 @@ async function songWith(page: Page, text: string) {
   await page.addInitScript(() => localStorage.setItem('ample.playlist.on', '1'));
   await openApp(page);
   await setSong(text);
-  await page.goto(process.env.AMPLE_LAUNCH_URL!);
+  await page.goto(launchUrl());
   await page.waitForSelector('body[data-ready="1"]');
   await page.locator('#btabs button[data-t="playlist"]').click();
 }
@@ -404,4 +404,23 @@ test('playlist: the dock lists what the last edit changed, a rubber band picks s
   await page.keyboard.up('Shift');
   await expect(page.locator('#b-playlist .pl-clip.picked').first()).toBeVisible();
   expect(await page.locator('#b-playlist .pl-clip.picked').count()).toBeGreaterThan(1);
+});
+
+test('playlist: a clip is copied, cut and pasted as another part of its block', async ({ page }) => {
+  await openPlaylist(page);
+  const drums = page.locator('#b-playlist .pl-clip[data-key="drums:0"]');
+  await drums.focus();
+  await drums.press('Control+c');
+  await drums.press('Control+v');
+  await expect.poll(async () => (await state(page)).text).toMatch(/drums drums at 1 for 16 as "beat A", 17 for 16/);
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await state(page)).text).toMatch(/drums drums at 1 for 16 as "beat A" \{/);
+  // nothing is pasted when nothing was copied in a fresh page
+  await page.reload();
+  await page.waitForSelector('body[data-ready="1"]');
+  await page.locator('#btabs button[data-t="playlist"]').click();
+  const piano = page.locator('#b-playlist .pl-clip[data-key="piano:1"]');
+  await piano.focus();
+  await piano.press('Control+v');
+  await expect(page.locator('#toast, .toast').filter({ hasText: 'Nothing copied yet' }).first()).toBeVisible();
 });

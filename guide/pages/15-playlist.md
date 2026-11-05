@@ -23,6 +23,7 @@ Everything you can do here writes the same text you could write yourself in the 
 
 - **Move a clip** by dragging it. **Resize** it by its right edge. With the keyboard, the arrow keys move a selected clip by one step and Shift with the arrows resizes it. Choose the step in **Snap**.
 - **Draw a clip** by dragging over an empty stretch of a line.
+- **Copy a clip** with Ctrl+C (or Ctrl+X to cut it) and **paste** it with Ctrl+V: it becomes another part of the same block, at the bars you chose on the ruler or right after the clip that has the focus.
 - **Right-click a clip** to split it, repeat it after itself, copy it as a new block, move it to another line, or delete it. A second part of a block plays the block again from its start, so build and listen after a split.
 - **Open a line** with its arrow to see the chain. Right-click a block of the chain to put an effect in after it, take it out, move it a step, or switch it off.
 - **Right-click a line** to rename it, move it up or down, route it to another bus, add a send, group it with other lines, or remove it. **+ Line** adds a new sound on its own bus.

@@ -32,7 +32,7 @@ export function setPlaylistEnabled(on) {
   if (on) renderPlaylist();
 }
 
-const view = { bw: 24, open: new Set(), folded: new Set(), routing: false, snap: 1, picked: new Set(), focus: null };
+const view = { bw: 24, open: new Set(), folded: new Set(), routing: false, snap: 1, picked: new Set(), focus: null, clipboard: null };
 let model = null, songBars = 16, spb = 2, built = false, unlisten = null;
 const phone = () => matchMedia('(max-width: 700px)').matches;
 const editable = () => !readOnly() && !phone();
@@ -437,6 +437,7 @@ function lineKeys(e, line) {
   else if (e.key === 'ArrowRight') { view.open.add(line.id); renderPlaylist(); }
   else if (e.key === 'ArrowLeft') { view.open.delete(line.id); renderPlaylist(); }
   else if (e.key === 'F2') { e.preventDefault(); askName('Name of the line', line.name).then((v) => { if (v !== null) act.renameLine(line, v); }); }
+  else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteHere(1); }
 }
 
 /** One row of a block: a source, a chain step, a note step, a lane, the tail or the terminal bus. */
@@ -820,6 +821,9 @@ function clipKeys(e, clip, line, length) {
     if (target) act.moveClipToLine(clip, line, target, songBars);
   } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); act.deleteClip(clip, line, songBars); }
   else if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); act.repeatClip(clip, songBars); }
+  else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); copyClip(clip, length); }
+  else if ((e.key === 'x' || e.key === 'X') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); copyClip(clip, length); act.deleteClip(clip, line, songBars); }
+  else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteHere(clip.at + length); }
   else if (e.key === 's' || e.key === 'S') { e.preventDefault(); splitHere(clip); }
   else if ((e.key === 'Home' || e.key === 'End') && sectionAt(sectionsOf(), clip.at) >= 0) {
     e.preventDefault();
@@ -828,6 +832,17 @@ function clipKeys(e, clip, line, length) {
   }
   else if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.ondblclick?.(e); }
   else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); clipMenu({ clientX: r.left, clientY: r.bottom }, clip, line); }
+}
+
+/** Copy and paste of clips: the copied part is kept in the page (not in the song); a paste adds a part of the same block at the chosen bars, or after the clip that has the focus. */
+function copyClip(clip, length) {
+  view.clipboard = { block: clip.block, length };
+  toast('Copied ' + clip.block + ' (' + length + (length === 1 ? ' bar' : ' bars') + '). Ctrl+V pastes it at the chosen bars, or after the clip that has the focus.');
+}
+
+function pasteHere(fallbackBar) {
+  if (!view.clipboard) { toast('Nothing copied yet: pick a clip and press Ctrl+C.'); return; }
+  act.pasteClip(view.clipboard, S.range?.firstBar || fallbackBar, songBars);
 }
 
 function splitHere(clip) {
@@ -848,6 +863,8 @@ function clipMenu(e, clip, line) {
       { label: 'Split at the playhead or chosen bars', fn: () => splitHere(clip) },
       { label: 'Repeat: add another part after this one', fn: () => act.repeatClip(clip, songBars) },
       { label: 'Copy as a new block', fn: () => act.copyClipAsBlock(clip, line) },
+      { label: 'Copy the clip (Ctrl+C)', fn: () => copyClip(clip, clip.length || songBars - clip.at + 1) },
+      { label: 'Paste the copied clip (Ctrl+V)', fn: () => pasteHere(clip.at + (clip.length || 1)) },
       { label: 'Move to line', children: model.lines.filter((l) => l !== line).map((l) => ({ label: l.name, fn: () => act.moveClipToLine(clip, line, l, songBars) })) },
       { label: 'Delete this clip', danger: true, fn: () => act.deleteClip(clip, line, songBars) },
     );

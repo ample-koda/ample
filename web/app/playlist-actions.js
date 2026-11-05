@@ -87,6 +87,14 @@ export async function splitClip(clip, bar, songBars) {
   return ok;
 }
 
+/** Paste: a copied clip becomes another part of the same block at a bar (the part keeps its length; it is refused when it would overlap or end after bar 256). */
+export async function pasteClip(copied, bar, songBars) {
+  if (!guard()) return false;
+  if (!nodeOf(copied.block)) { toast('The block of the copied clip is not in the song any more.'); return false; }
+  const parts = take(addPart(partsOf(copied.block, songBars), bar, copied.length));
+  return parts ? writeParts(nodeOf(copied.block), parts, false) : false;
+}
+
 /** "Repeat": one more part right after this one. */
 export async function repeatClip(clip, songBars) {
   if (!guard()) return false;
