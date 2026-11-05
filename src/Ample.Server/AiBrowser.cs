@@ -437,6 +437,7 @@ internal sealed partial class AiService
         {
             if (browserContext is null)
             {
+                KodaBrowserPack.PrepareOrThrow(s.Library.Home);   // the driver is the optional pack koda-browser: point Playwright at it, or say that Koda has no browser
                 browserPlaywright = await Playwright.CreateAsync().ConfigureAwait(false);
                 string profile = Path.Combine(s.Library.Home, "browser-profile");
                 browserContext = await browserPlaywright.Chromium.LaunchPersistentContextAsync(profile, new BrowserTypeLaunchPersistentContextOptions { Headless = !browserHeaded, AcceptDownloads = false, ViewportSize = null, Args = browserHeaded ? ["--start-maximized"] : [] }).ConfigureAwait(false);

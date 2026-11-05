@@ -317,7 +317,7 @@ internal static class OpenCommands
         if (string.Equals(Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase))
         {
             start.FileName = processPath;
-            start.ArgumentList.Add(Assembly.GetEntryAssembly()?.Location ?? throw new InvalidOperationException("The CLI assembly path is unavailable."));
+            start.ArgumentList.Add(Assembly.GetEntryAssembly()?.GetName().Name is { } entryName ? Path.Combine(AppContext.BaseDirectory, entryName + ".dll") : throw new InvalidOperationException("The CLI assembly path is unavailable."));
         }
         else start.FileName = processPath;
 

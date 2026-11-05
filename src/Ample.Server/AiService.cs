@@ -2131,7 +2131,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     private static List<string> McpArguments(AiTask task)
     {
         string? exe = Environment.ProcessPath;
-        string? entry = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+        string? entry = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name is { } entryName ? Path.Combine(AppContext.BaseDirectory, entryName + ".dll") : null;
         if (exe is null || task.BaseUrl.Length == 0)
         {
             return [];

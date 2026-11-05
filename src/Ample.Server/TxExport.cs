@@ -830,10 +830,11 @@ internal static class TxExport
             return (JsonObject)executable.DeepClone();
         }
 
-        string? path = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+        // Assembly.Location is empty in a single-file program; the entry assembly name next to the program, else the program itself.
+        string? path = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name is { } entryName ? Path.Combine(AppContext.BaseDirectory, entryName + ".dll") : null;
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
         {
-            path = typeof(TxExport).Assembly.Location;
+            path = Environment.ProcessPath ?? throw new InvalidOperationException("The program file is unknown.");
         }
 
         using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);

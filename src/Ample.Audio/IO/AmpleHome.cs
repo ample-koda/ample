@@ -10,6 +10,14 @@ public static class AmpleHome
     /// <summary>Gets the user-level AMPLE folder.</summary>
     public static string DefaultPath() => Environment.GetEnvironmentVariable("AMPLE_HOME") is { Length: > 0 } value ? Path.GetFullPath(value) : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ample");
 
+    /// <summary>
+    /// Gets the machine-wide pack folder that a system install (the apt package or the system install script) fills: read-only for users,
+    /// searched after the person's own folder, so a person can always override it. <c>/usr/share/ample/packs</c> on Linux and <c>%ProgramData%AMPLEpacks</c> on Windows.
+    /// </summary>
+    public static string SystemPackFolder() => OperatingSystem.IsWindows()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AMPLE", "packs")
+        : "/usr/share/ample/packs";
+
     /// <summary>Gets the settings file inside a user-level AMPLE folder.</summary>
     public static string SettingsPath(string home) => Path.Combine(Path.GetFullPath(home), "settings.json");
 
@@ -36,6 +44,7 @@ public static class AmpleHome
         AmpleSettings settings = ReadSettings(home);
         if (!string.IsNullOrWhiteSpace(settings.PacksFolder)) Add(folders, settings.PacksFolder);
         Add(folders, Path.Combine(home, "audio-packs"));
+        Add(folders, SystemPackFolder());
         if (!string.IsNullOrWhiteSpace(ampleRoot)) Add(folders, Path.Combine(ampleRoot, "audio-packs"));
         foreach (string root in AncestorRoots(AppContext.BaseDirectory)) Add(folders, Path.Combine(root, "audio-packs"));
         foreach (string root in AncestorRoots(projectRoot)) Add(folders, Path.Combine(root, "audio-packs"));

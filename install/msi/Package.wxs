@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Windows installer of AMPLE, for ONE user: no administrator rights and no UAC prompt.
+  It installs the program (the zip's folder: ample.exe, web, spec, plugins, docs) into %LOCALAPPDATA%\Programs\AMPLE\msi
+  and adds that folder to the user's PATH (a feature the person can switch off).
+  Two more features have no files of their own: they let ample.exe fetch an extra at the end of the install
+  (the General MIDI SoundFont: on by default; the browser pack of the assistant, koda-browser: off by default).
+  A failure of such a download does not fail the install: the command "ample doctor" says what is missing.
+  The installer starts nothing: no service, no network port, no sign-in.
+  Build: install/msi/build-msi.ps1 (WiX 6). Variables: Version (a.b.c), SourceDir (the unpacked win-x64 folder).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="AMPLE" Manufacturer="AMPLE" Version="$(Version)" UpgradeCode="6f1d0a52-8a5e-4c43-9d1b-3c2f7e8b9a10"
+           Scope="perUser" Language="1033" Compressed="yes" InstallerVersion="500">
+    <SummaryInformation Description="AMPLE (beta): songs as reproducible text" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AMPLE is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="ample.ico" SourceFile="ample.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ample.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://ample-koda.dev" />
+    <Property Id="ARPHELPLINK" Value="https://get.ample-koda.dev/help.html" />
+    <Property Id="ARPCOMMENTS" Value="AMPLE is beta: it works, and anything may still change." />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="AmpleFolder" Name="AMPLE">
+          <Directory Id="INSTALLFOLDER" Name="msi" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Program" Title="AMPLE program and studio" Level="1" AllowAbsent="no" AllowAdvertise="no"
+             Description="The ample command, the studio, the documentation and the plug-ins that come with AMPLE.">
+      <Files Include="$(SourceDir)\**" />
+    </Feature>
+
+    <Feature Id="PathEntry" Title="Add ample to the PATH" Level="1" AllowAdvertise="no"
+             Description="Lets you type ample in any new terminal. Only your own PATH is changed.">
+      <Component Id="PathComponent" Directory="INSTALLFOLDER" Guid="a3b4c5d6-1e2f-4a5b-8c7d-9e0f1a2b3c4d">
+        <RegistryValue Root="HKCU" Key="Software\AMPLE\msi" Name="path" Type="integer" Value="1" KeyPath="yes" />
+        <Environment Id="AmplePath" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" System="no" Permanent="no" />
+      </Component>
+    </Feature>
+
+    <Feature Id="SoundFont" Title="General MIDI SoundFont (download)" Level="1" AllowAdvertise="no"
+             Description="The sound bank AMPLE uses to play and render MIDI. About 205 MB, fetched once at the end by ample itself and checked against a fixed SHA-256. Without it AMPLE starts, but cannot make sound from MIDI." />
+
+    <Feature Id="KodaBrowser" Title="koda-browser (optional, download)" Level="2" AllowAdvertise="no"
+             Description="Lets Koda, the assistant, use a web browser when a task needs one. Fetched at the end by ample itself (the browser driver and Chromium, a few hundred MB). Koda works without it." />
+
+    <Binary Id="AmpleCa" SourceFile="$(CaDll)" />
+    <!-- The extras are fetched by ample.exe itself at the end of the install, as the person who installs (deferred, impersonated). The managed custom action reads what ample reports and shows it in the wizard. AMPLEHOME (optional) is a different AMPLE home. -->
+    <CustomAction Id="FetchSoundFont" DllEntry="RunAmplePack" Execute="deferred" Impersonate="yes" Return="ignore" BinaryRef="AmpleCa" />
+    <CustomAction Id="FetchKodaBrowser" DllEntry="RunAmplePack" Execute="deferred" Impersonate="yes" Return="ignore" BinaryRef="AmpleCa" />
+    <SetProperty Id="FetchSoundFont" Value="[INSTALLFOLDER]ample.exe|soundfont|[AMPLEHOME]" Sequence="execute" Before="FetchSoundFont" Condition="NOT REMOVE AND &amp;SoundFont=3" />
+    <SetProperty Id="FetchKodaBrowser" Value="[INSTALLFOLDER]ample.exe|koda-browser|[AMPLEHOME]" Sequence="execute" Before="FetchKodaBrowser" Condition="NOT REMOVE AND &amp;KodaBrowser=3" />
+    <InstallExecuteSequence>
+      <Custom Action="FetchSoundFont" After="InstallFiles" Condition="NOT REMOVE AND &amp;SoundFont=3 AND NOT SKIPEXTRAS" />
+      <Custom Action="FetchKodaBrowser" After="FetchSoundFont" Condition="NOT REMOVE AND &amp;KodaBrowser=3 AND NOT SKIPEXTRAS" />
+    </InstallExecuteSequence>
+
+    <UI>
+      <ProgressText Action="FetchSoundFont" Message="Downloading the General MIDI SoundFont (about 205 MB)..." Template="[1]" />
+      <ProgressText Action="FetchKodaBrowser" Message="Downloading koda-browser (the browser driver and Chromium)..." Template="[1]" />
+    </UI>
+
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+    <ui:WixUI Id="WixUI_FeatureTree" />
+  </Package>
+</Wix>

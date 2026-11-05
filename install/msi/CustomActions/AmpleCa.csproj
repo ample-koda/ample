@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The custom action that runs "ample packs install" with the progress option during the MSI and shows its progress in the wizard.
+       It is a .NET Framework 4.7.2 library (the Windows Installer host loads those); WiX packs it as AmpleCa.CA.dll. -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <AssemblyName>AmpleCa</AssemblyName>
+    <RootNamespace>Ample.Msi</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="CustomAction.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Dtf.CustomAction" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

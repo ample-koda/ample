@@ -5,12 +5,13 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $ample = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $rid = if ($IsWindows) { 'win-x64' } elseif ($IsLinux) { 'linux-x64' } else { throw 'Only Windows and Linux packages are built.' }
-if (-not $Zip) { $Zip = (Get-ChildItem -LiteralPath (Join-Path $ample 'dist') -Filter "ample-*-$rid.zip" | Select-Object -First 1).FullName }
+if (-not $Zip) { $Zip = (Get-ChildItem -LiteralPath (Join-Path $ample 'dist') | Where-Object { $_.Name -match '^ample-[0-9]' -and $_.Name -like "*-$rid.zip" } | Select-Object -First 1).FullName }   # the program zip, not a pack such as ample-koda-browser-<rid>.zip
 $work = Join-Path ([IO.Path]::GetTempPath()) ('ample-smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
   Expand-Archive -LiteralPath $Zip -DestinationPath $work
   $root = (Get-ChildItem -LiteralPath $work -Directory | Select-Object -First 1).FullName
+  if (Test-Path -LiteralPath (Join-Path (Join-Path $root 'web') 'remix')) { throw 'the package contains web/remix (Remix is not part of the installers)' }
   $exe = Join-Path $root ($IsWindows ? 'ample.exe' : 'ample')
   if (-not $IsWindows) { chmod +x $exe }
   $env:AMPLE_HOME = Join-Path $work 'home'
@@ -21,7 +22,7 @@ try {
     Write-Host "version: $version"
     & $exe new (Join-Path $work 'song') | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'ample new failed' }
-    Set-Content -LiteralPath (Join-Path $work 'song\song.amplet') -Value "project `"smoke`" { tempo 120  master-seed 7 }`nmidi-clip chords stable@1.0 at 1 for 2 {`n  chords Am F`n}`nbass bass stable@1.1 at 1 for 2 {`n  from chords.notes -> notes`n}`n"
+    Set-Content -LiteralPath (Join-Path $work 'song\song.amplet') -Value "composition `"smoke`" { ample 1  tempo 120  master-seed 7 }`nmidi-clip chords at 1 for 2 {`n  chords Am F`n}`nbass bass at 1 for 2 {`n  from chords.notes -> notes`n}`n"
     & $exe check (Join-Path $work 'song\song.amplet')
     if ($LASTEXITCODE -ne 0) { throw 'ample check failed' }
     & $exe build (Join-Path $work 'song\song.amplet') --project (Join-Path $work 'song')
@@ -33,7 +34,7 @@ try {
       $url = $null
       for ($i = 0; $i -lt 60 -and -not $url; $i++) {
         Start-Sleep -Milliseconds 500
-        if (Test-Path (Join-Path $work 'serve.out')) { $m = [regex]::Match((Get-Content -LiteralPath (Join-Path $work 'serve.out') -Raw), 'Open: (\S+)'); if ($m.Success) { $url = $m.Groups[1].Value } }
+        if (Test-Path (Join-Path $work 'serve.out')) { $m = [regex]::Match("$(Get-Content -LiteralPath (Join-Path $work 'serve.out') -Raw)", 'Open: (\S+)'); if ($m.Success) { $url = $m.Groups[1].Value } }
       }
       if (-not $url) { throw 'ample serve did not start' }
       $base = $url -replace '\?.*$', ''

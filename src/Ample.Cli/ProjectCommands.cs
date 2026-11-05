@@ -16,6 +16,8 @@ internal static class ProjectCommands
 
     private static Argument<string> FolderArgument() => new("folder") { Description = "The project folder." };
 
+    private static Argument<string> OptionalFolderArgument() => new("folder") { Description = "The project folder (default: the current folder).", Arity = ArgumentArity.ZeroOrOne, DefaultValueFactory = _ => "." };
+
     private static Command New(TextWriter output)
     {
         Argument<string> folder = FolderArgument();
@@ -47,13 +49,14 @@ internal static class ProjectCommands
 
     private static Command Doctor(TextWriter output)
     {
-        Argument<string> folder = FolderArgument();
+        Argument<string> folder = OptionalFolderArgument();
         Option<bool> environment = new("--env") { Description = "Also check what the tools and the assistant need around the program (libraries, ffmpeg, Python, the sound font, disk space); what is missing goes to the project log with how to fix it." };
+        Option<bool> assistant = new("--assistant") { Description = "Check whether Codex is usable for Koda (optional; never a failure): installed, signed in, and what that means." };
         Option<string?> sound = new("--sound") { Description = "Build this song (a path in the project) and report the sound of its blocks: silent, very quiet, clipping, not heard, and the loudness of the master, with suggested gains." };
         Option<bool> soundJson = new("--json") { Description = "With --sound: write the findings as JSON." };
         Option<bool> soundFix = new("--fix") { Description = "With --sound: put the suggested effect blocks (normalize for a very quiet block, a lower volume for a clipping one) into the song; the journal keeps the old text." };
         Option<string?> soundRoot = new("--root") { Description = "The AMPLE folder with spec/ (default: found from the current folder upwards); used with --sound." };
-        Command command = new("doctor", "Checks a project folder without changing it; exit code 1 when there are errors.") { folder, environment, sound, soundRoot, soundJson, soundFix };
+        Command command = new("doctor", "Checks a project folder without changing it; exit code 1 when there are errors.") { folder, environment, assistant, sound, soundRoot, soundJson, soundFix };
         command.SetAction(async (parse, token) => await Run(output, async () =>
         {
             if (parse.GetValue(sound) is { Length: > 0 } soundSong)
@@ -61,16 +64,35 @@ internal static class ProjectCommands
                 return await SoundCheck.RunAsync(output, soundSong, Path.GetFullPath(parse.GetValue(folder)!), parse.GetValue(soundRoot), parse.GetValue(soundJson), parse.GetValue(soundFix), token);
             }
 
+            if (parse.GetValue(assistant))
+            {
+                (string level, string text, string fix) = AssistantCheck.Run();
+                output.WriteLine($"{level,-7} assistant: {text}");
+                if (fix.Length > 0) output.WriteLine($"        how to fix: {fix}");
+                (string browserLevel, string browserText, string browserFix) = AssistantCheck.Browser(AmpleHome.DefaultPath());
+                output.WriteLine($"{browserLevel,-7} assistant browser: {browserText}");
+                if (browserFix.Length > 0) output.WriteLine($"        how to fix: {browserFix}");
+                if (!parse.GetValue(environment)) return 0;
+            }
+
             if (parse.GetValue(environment))
             {
                 string project = Path.GetFullPath(parse.GetValue(folder)!);
-                IReadOnlyList<EnvironmentFinding> checks = EnvironmentCheck.Run(AppContext.BaseDirectory, project);
+                InstallEnvironment installEnvironment = InstallEnvironmentDetector.Detect();
+                IReadOnlyList<EnvironmentFinding> checks = EnvironmentCheck.Run(AppContext.BaseDirectory, project, installEnvironment);
                 foreach (EnvironmentFinding c in checks)
                 {
                     output.WriteLine($"{(c.Ok ? "ok     " : "MISSING")} {c.Name}: {c.Detail}");
                     if (!c.Ok)
                     {
-                        output.WriteLine($"        how to fix: {c.Hint}");
+                        // a tip is a sentence, then the commands of this machine (one per line, to copy and paste)
+                        string[] hintLines = c.Hint.Split('\n');
+                        output.WriteLine($"        how to fix: {hintLines[0]}");
+                        foreach (string command in hintLines.Skip(1))
+                        {
+                            output.WriteLine($"          {command}");
+                        }
+
                         if (Directory.Exists(Path.Combine(project, ".ample")))
                         {
                             ProjectLog.Append(project, "missing", c.Name, c.Hint);
@@ -83,6 +105,16 @@ internal static class ProjectCommands
                 }
 
                 output.WriteLine(checks.All(c => c.Ok) ? "environment: nothing is missing" : $"environment: {checks.Count(c => !c.Ok)} thing(s) missing (also in the project log of the project)");
+                if (EnvironmentCheck.InstallCommand(checks, installEnvironment) is { } oneCommand)
+                {
+                    output.WriteLine("to install what your package manager can supply in one go:");
+                    output.WriteLine($"  {oneCommand}");
+                }
+                if (!Directory.Exists(Path.Combine(project, ".ample")))
+                {
+                    // not a project: this was a check of the installation only; only the required pieces decide the exit code
+                    return checks.Any(c => !c.Ok && c.Name is "program libraries" or "General MIDI sound font") ? 1 : 0;
+                }
             }
 
             IReadOnlyList<DoctorFinding> findings = await ProjectDoctor.CheckAsync(Fs, Clock, Path.GetFullPath(parse.GetValue(folder)!), token);

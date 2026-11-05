@@ -30,7 +30,7 @@ public static class CliApplication
         });
         rootCommand.Subcommands.Add(DocsCommands.CreateDocs(output));
         rootCommand.Subcommands.Add(DocsCommands.CreateHelp(output));
-        foreach (Command command in CheckCommands.Create(output).Concat(ProjectCommands.Create(output)).Concat(AddCommands.Create(output)).Concat(TakeCommands.Create(output)).Concat(BlackboxCommands.Create(output)).Concat(HistoryCliCommands.Create(output)).Concat(BuildCommands.Create(output)).Concat(ControlCommands.Create(output)).Concat(PluginCommands.Create(output)).Concat(ServeCommands.Create(output)).Append(OpenCommands.Create(output)).Append(PackCommands.Create(output)).Concat(LspCommands.Create()).Concat(McpCommands.Create()).Concat(LibraryCommands.Create(output)).Concat(BackupCommands.Create(output)).Concat(SecurityCommands.Create(output)).Concat(ModuleCommands.Create(output)).Concat(ComponentCommands.Create(output)).Append(MidiCommands.Create(output)).Concat(QualityCreditsCommands.Create(output)).Concat(AnalyzeCommands.Create(output)).Append(InstanceCommands.Create(output)).Append(StorageCommands.Create(output)).Concat(NoteBakeCommands.Create(output)))
+        foreach (Command command in CheckCommands.Create(output).Concat(ProjectCommands.Create(output)).Concat(AddCommands.Create(output)).Concat(TakeCommands.Create(output)).Concat(BlackboxCommands.Create(output)).Concat(HistoryCliCommands.Create(output)).Concat(BuildCommands.Create(output)).Concat(ControlCommands.Create(output)).Concat(PluginCommands.Create(output)).Concat(ServeCommands.Create(output)).Append(OpenCommands.Create(output)).Append(PackCommands.Create(output)).Concat(LspCommands.Create()).Concat(McpCommands.Create()).Concat(LibraryCommands.Create(output)).Concat(BackupCommands.Create(output)).Concat(SecurityCommands.Create(output)).Concat(ModuleCommands.Create(output)).Concat(ComponentCommands.Create(output)).Append(MidiCommands.Create(output)).Concat(QualityCreditsCommands.Create(output)).Concat(AnalyzeCommands.Create(output)).Append(InstanceCommands.Create(output)).Append(StorageCommands.Create(output)).Concat(NoteBakeCommands.Create(output)).Concat(ReleaseCommands.Create(output)))
         {
             rootCommand.Subcommands.Add(command);
         }
@@ -60,8 +60,8 @@ internal sealed class AmpleVersionAction : SynchronousCommandLineAction
 /// <summary>Provides the display version for the AMPLE command-line interface.</summary>
 public static class CliVersionInfo
 {
-    /// <summary>Gets the version and source commit compiled into the CLI.</summary>
-    public static string Current => $"AMPLE {Version} (commit {Commit})";
+    /// <summary>Gets the version and source commit compiled into the CLI. AMPLE is beta, and the line says so.</summary>
+    public static string Current => $"AMPLE {Version} (beta, commit {Commit})";
 
     /// <summary>Gets the version without the commit.</summary>
     public static string Version

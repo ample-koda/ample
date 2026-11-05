@@ -21,6 +21,18 @@ public sealed class AmpleHomeTests
     }
 
     [Fact]
+    public void The_system_pack_folder_is_searched_after_the_person_s_own_folder()
+    {
+        using AmpleHomeTempFolder temp = new();
+
+        List<string> folders = [.. AmpleHome.PackFolders(temp.Path, null, Path.Combine(temp.Path, "project"))];
+
+        int own = folders.IndexOf(Path.Combine(temp.Path, "audio-packs"));
+        int system = folders.IndexOf(AmpleHome.SystemPackFolder());
+        Assert.True(own >= 0 && system > own, "the system folder must come after the person's own folder, so a person can override it");
+    }
+
+    [Fact]
     public void Lookup_finds_the_server_ample_root_when_the_project_is_elsewhere()
     {
         using AmpleHomeTempFolder temp = new();

@@ -187,12 +187,14 @@ internal static class SecurityCommands
         Option<string?> project = ProjectOption();
         Option<string?> file = new("--file") { Description = "Check the signature of this file (<file>.sig) instead of the project." };
         Option<string?> trust = new("--trust") { Description = "Only accept signatures of this key id." };
-        Command verify = new("verify", "Checks the hash chain of the black box and every signature of the project (or the signature of a file). Exit code 1 when anything is wrong.") { project, file, trust };
+        Option<bool> release = new("--release") { Description = "With --file: accept only the keys that are built into AMPLE (the release keys); the key written in the signature file is ignored." };
+        Command verify = new("verify", "Checks the hash chain of the black box and every signature of the project (or the signature of a file). Exit code 1 when anything is wrong.") { project, file, trust, release };
         verify.SetAction((parse, token) => Guard(output, async () =>
         {
             if (parse.GetValue(file) is { } f)
             {
-                output.WriteLine($"The file is intact and signed by key {Signatures.VerifyFile(Path.GetFullPath(f), parse.GetValue(trust))}.");
+                string signer = parse.GetValue(release) ? ReleaseTrust.VerifyFile(Path.GetFullPath(f)) : Signatures.VerifyFile(Path.GetFullPath(f), parse.GetValue(trust));
+                output.WriteLine($"The file is intact and signed by key {signer}{(parse.GetValue(release) ? " (a release key built into AMPLE)" : string.Empty)}.");
                 return 0;
             }
 

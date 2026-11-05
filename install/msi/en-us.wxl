@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The words of the wizard that are not the standard ones: the beta notice and what the installer does and does not do. -->
+<WixLocalization Culture="en-us" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="WelcomeDlgTitle" Value="Welcome to the AMPLE Setup Wizard" />
+  <String Id="WelcomeDlgDescription" Value="The wizard installs the ample command and the studio for you only (no administrator rights needed). It does not start AMPLE, open a network port, set up a sign-in or install a service. AMPLE is beta: it works, and anything may still change, including the file formats, the sign-in and the server set-up." />
+</WixLocalization>
