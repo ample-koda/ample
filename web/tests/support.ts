@@ -4,7 +4,13 @@ import { ServerOptions, startServer } from './server';
 
 let override: string | null = null;
 let current: { folder: string; home: string } | null = null;
-export const launchUrl = () => override ?? process.env.AMPLE_LAUNCH_URL!;
+/** The shared server of this worker: one for each worker (global-setup.ts), so that workers never rewrite each other's song. */
+const sharedUrl = () => {
+  const urls: string[] = JSON.parse(process.env.AMPLE_LAUNCH_URLS || '[]');
+  const index = Number(process.env.TEST_PARALLEL_INDEX ?? 0);
+  return urls[index] ?? urls[0] ?? process.env.AMPLE_LAUNCH_URL!;
+};
+export const launchUrl = () => override ?? sharedUrl();
 /** The folders of the server of this spec file (project and library home), when it has one of its own. */
 export const ownServer = () => current;
 
