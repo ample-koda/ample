@@ -1,6 +1,7 @@
 namespace Ample.Cli.Tests;
 
 [Trait("Category", "Vault")]
+[Collection("passphrase-environment")]   // these tests set AMPLE_VAULT_PASSPHRASE for the whole process: classes that do that share one collection and so never run at the same time
 public sealed class SecurityCommandTests : IDisposable
 {
     private const string Canary = "CANARY-cli-5d2b-do-not-leak";

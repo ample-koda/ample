@@ -74,3 +74,30 @@ The performance tests run **alone** (an xUnit collection that is not run in para
 3. Re-run the audits of [Security review](security-review.md).
 4. Tag `ample-v<version>`; the release workflow builds the artefacts on Windows, runs `tools/smoke-package.ps1`, and attaches the files and `SHA256SUMS.txt` to a **draft** release. Sign them with `pwsh ample/tools/package.ps1 -Sign` on the machine that has the signing key (`ample keys generate` once; the passphrase comes from `AMPLE_VAULT_PASSPHRASE`), and check with `ample verify --file <artefact>`.
 5. The owner reads the draft, then publishes it.
+
+## Versions, channels and beta status (installer plan, INS00)
+
+This section holds the rules a release follows.
+
+### Version numbers
+
+- **Program:** SemVer. `0.x` until the owner calls a release stable; that release is `1.0.0`. A pre-release suffix (`1.3.0-rc.1`) marks the `unstable` channel.
+- **Language:** the `ample N` of a song and the spec version are separate numbers (see `docs/language/11-versioning-and-compat.md`). The release notes say which languages a program reads.
+- **Renderer:** changing the SoundFont, a codec or the random generator is a minor or major change on purpose, and is named in the release notes.
+- **Packs and data:** pinned by SHA-256; a release lists them in its manifest. No unpinned downloads.
+- **Tags:** `ample-v<version>` in the public repository. A stable release is the unstable one that stayed good, re-tagged and rebuilt, never renamed.
+
+### Channels
+
+`stable` (everyone, by default) and `unstable` (opt-in). While everything is beta, `stable` means "published by the owner", not "finished".
+
+### Beta status (the whole program, until the owner ends it)
+
+AMPLE is beta: it works, and anything may still change, including the file formats, the sign-in (today one user and one password) and the server set-up. The install scripts print this sentence, and the notes of every release say it in the same words. The owner ends beta by announcing a release as no longer beta; the text is then removed everywhere in one change. Compatibility promise: we try to stay backwards compatible and say clearly when something will break; no guarantees and no fixed support window. Installers never switch on anything that opens AMPLE to a network or keeps it running without a plain "yes".
+
+### Releases and keys
+
+The product owner manages the releases and the relevant keys. A release is only ever published by the product owner.
+
+The release files are signed with a release key. Its public part is built into AMPLE and published in `keys/`, so a downloaded release can be checked with
+`ample verify --file <file> --release`, which accepts only those built-in keys and ignores any key written in the signature file.

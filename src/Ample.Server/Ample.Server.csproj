@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- No Playwright driver (a Node program for five platforms) comes with the server or anything that references it: Koda's browser is the optional pack koda-browser.
+         'none' is the switch of Microsoft.Playwright's build targets that copies no driver. The server tests reference Playwright themselves, to get a driver of their own. -->
+    <PlaywrightPlatform>none</PlaywrightPlatform>
+  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Ample.Server.Tests" />
   </ItemGroup>

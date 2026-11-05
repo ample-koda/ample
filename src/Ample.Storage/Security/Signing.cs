@@ -283,6 +283,46 @@ public static class Signatures
         return sig;
     }
 
+    /// <summary>
+    /// Checks a signed file against a table of trusted keys (key id to base64 SubjectPublicKeyInfo) and returns the key id. The public key
+    /// written in the <c>.sig</c> file is ignored: only a key the caller trusts counts.
+    /// </summary>
+    /// <exception cref="AmpleException">AMP5312 when the signature is missing, damaged, from an unknown key, wrong, or the file changed.</exception>
+    public static string VerifyFileWithKeys(string file, IReadOnlyDictionary<string, string> trusted)
+    {
+        ArgumentNullException.ThrowIfNull(trusted);
+        string sig = file + ".sig";
+        if (!File.Exists(sig))
+        {
+            throw new AmpleException("AMP5312", $"There is no signature file '{Path.GetFileName(sig)}' next to the file.");
+        }
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(sig));
+            JsonElement r = doc.RootElement;
+            string keyId = r.GetProperty("keyId").GetString()!;
+            if (!trusted.TryGetValue(keyId, out string? publicKey))
+            {
+                throw new AmpleException("AMP5312", $"The file was signed by key {keyId}, which AMPLE does not trust.");
+            }
+
+            string hash = FileHash(file);
+            if (r.GetProperty("sha256").GetString() != hash)
+            {
+                throw new AmpleException("AMP5312", "The file has changed since it was signed.");
+            }
+
+            return SigningKeys.Verify(publicKey, Encoding.UTF8.GetBytes($"ample-file-sig1|{hash}"), r.GetProperty("signature").GetString()!)
+                ? keyId
+                : throw new AmpleException("AMP5312", "The signature is not valid.");
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new AmpleException("AMP5312", "The signature file is damaged.");
+        }
+    }
+
     /// <summary>Checks a signed file; returns the key id of the signer, or throws.</summary>
     /// <exception cref="AmpleException">AMP5312 when the signature is missing, wrong or the file changed.</exception>
     public static string VerifyFile(string file, string? trustedKeyId = null)

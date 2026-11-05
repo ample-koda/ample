@@ -459,7 +459,7 @@ async function build() {
   try {
     const codeMirror = await import('../vendor/codemirror-ample.js');
     const made = codeMirror.createAmpleEditor(cmHost, ta, SE.text);
-    const { installTouchMenu, installKeyboardGuard } = await import('../remix/editor-touch-menu.js');
+    const { installTouchMenu, installKeyboardGuard } = await import('./editor-touch-menu.js');
     if (made?.view) { installTouchMenu(made.view); installKeyboardGuard(made.view, closeComp); }   // a long press on a phone: copy, cut, paste, select all; selecting text brings no keyboard and closes the suggestions
   } finally { editorMade(); }
   ta.oninput = () => { setTimeout(updateSig, 0); setTimeout(updateBakeCall, 0); SE.text = ta.value; saveSourceDraftSoon(); refreshSeqDiagnostics(); gutter(); overlay(); status(); refreshSaveControls(); if (isSong()) { S.sourceEditMessage = 'Checking source...'; scheduleSourceSync(); notifySelection(); } clearTimeout(SE.timer); SE.timer = setTimeout(() => { SE.timer = 0; if (isSong() && SE.offline) localDiagnostics(); else if (isSong() && SE.lsp) { SE.sentText = ta.value; SE.lsp.change(ta.value).catch(() => {}); } }, 250); };

@@ -19,7 +19,7 @@ const offsetAt = (view, { line, character }) => { const l = view.state.doc.line(
  * Makes an editor in `host`.
  * Callbacks: onChange(text), complete({line, character}, text) -> [{label, detail, insert?}], hover({line, character}) -> markdown|null, definition({line, character}) -> {path?, line, character}|null, openAt(target).
  */
-import { installKeyboardGuard, installTouchMenu } from './editor-touch-menu.js';
+import { installKeyboardGuard, installTouchMenu } from '../app/editor-touch-menu.js';
 
 export async function createLiteEditor(host, { text = '', readOnly = false, onChange = () => {}, complete = null, hover = null, definition = null, onOpenTarget = () => {} } = {}) {
   const { createAmpleEditor } = await loadBundle();

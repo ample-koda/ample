@@ -351,7 +351,7 @@ public static class AmpleServer
     {
         string value = path.Value ?? string.Empty;
         if (value.Contains("/test/", StringComparison.Ordinal) || value.Contains("..", StringComparison.Ordinal)) return false;
-        return value is "/remix" or "/lsp/remix" or "/styles/tokens.css" or "/app/api.js" or "/app/lsp.js" or "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/vendor/codemirror-ample.js"
+        return value is "/remix" or "/lsp/remix" or "/styles/tokens.css" or "/app/api.js" or "/app/lsp.js" or "/app/editor-touch-menu.js" or "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/vendor/codemirror-ample.js"
             || path.StartsWithSegments("/remix", StringComparison.Ordinal) || path.StartsWithSegments("/api/remix", StringComparison.Ordinal);
     }
 
