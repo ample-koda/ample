@@ -34,6 +34,7 @@ public sealed class DeleteFileCommand(string relativePath) : ICommand
     /// <inheritdoc />
     public ValueTask ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
+        if (Ample.Storage.Projects.DemoSongRules.IsDemo(relativePath)) throw new Ample.Core.Abstractions.AmpleException("AMP5285", Ample.Storage.Projects.DemoSongRules.Refusal);
         context.Fs.DeleteFile(ProjectPath.Resolve(context.ProjectRoot, relativePath));
         return ValueTask.CompletedTask;
     }
@@ -87,6 +88,7 @@ public sealed class MoveProjectPathCommand(string source, string destination, bo
     /// <inheritdoc />
     public ValueTask ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
+        if (!directory && Ample.Storage.Projects.DemoSongRules.IsDemo(source)) throw new Ample.Core.Abstractions.AmpleException("AMP5285", Ample.Storage.Projects.DemoSongRules.Refusal);
         string from = ProjectPath.Resolve(context.ProjectRoot, source), to = ProjectPath.Resolve(context.ProjectRoot, destination);
         string parent = Path.GetDirectoryName(to)!;
         if (!context.Fs.DirectoryExists(parent)) throw new DirectoryNotFoundException(parent);

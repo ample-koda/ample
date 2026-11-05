@@ -962,6 +962,7 @@ public static class Routes
         {
             string relative = c.Request.Query["path"].ToString().Replace('\\', '/').Trim('/');
             if (relative.Split('/').Any(part => part.Equals(".ample", StringComparison.OrdinalIgnoreCase))) throw new AmpleException("AMP5285", "Files cannot be deleted from the private project folder.");
+            if (Ample.Storage.Projects.DemoSongRules.IsDemo(relative)) throw new AmpleException("AMP5285", Ample.Storage.Projects.DemoSongRules.Refusal);
             string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
             if (!s.Fs.FileExists(full) || HasProjectLink(s.Fs, s.Root, relative)) throw new AmpleException("AMP5243", "The project file does not exist or cannot be changed.");
             await s.Bus.ExecuteAsync(new DeleteFileCommand(relative), c.RequestAborted).ConfigureAwait(false);
@@ -1793,6 +1794,7 @@ public static class Routes
             JsonElement b = await Body(c);
             string folder = Path.GetFullPath(Str(b, "folder"));
             using OpenProject created = await ProjectStore.CreateAsync(s.Fs, s.Clock, new Ample.Audio.IO.GuidV7Generator(), folder, Opt(b, "name") ?? Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar)), null, c.RequestAborted);
+            DemoSong.SeedNew(folder, s.AmpleRoot);   // every new project starts with the demo song
             Ample.Storage.Projects.RecentProjects.Touch(s.Library.Home, folder, created.Manifest.Name, created.Manifest.Id.ToString("D"), s.Clock, null);
             return Ok(new { folder, name = created.Manifest.Name, id = created.Manifest.Id });
         });
@@ -3524,7 +3526,7 @@ public static class Routes
         foreach (string file in session.Fs.GetFiles(folder))
         {
             string name = Path.GetFileName(file);
-            if ((!showHidden && name.StartsWith('.')) || session.Fs.GetLinkTarget(file) is not null) continue;
+            if ((!showHidden && (name.StartsWith('.') || (name.Equals("ample.lock", StringComparison.Ordinal) && Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(session.Root).TrimEnd(Path.DirectorySeparatorChar), StringComparison.Ordinal)))) || session.Fs.GetLinkTarget(file) is not null) continue;   // ample.lock is kept by the program: it is shown only with hidden=1
             string relative = Path.GetRelativePath(session.Root, file).Replace('\\', '/');
             string extension = Path.GetExtension(name).ToLowerInvariant();
             string kind = extension switch { ".amplet" => "song", ".module" => "module", ".wav" or ".mp3" or ".flac" or ".ogg" => "audio", ".mid" or ".midi" => "midi", ".lyr" or ".lrc" or ".srt" => "lyrics", _ => "file" };

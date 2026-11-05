@@ -133,5 +133,38 @@ export function activity(graph, bar) {
     }
   }
   const litLinks = new Set(links.filter((l) => lit.has(l.from) && lit.has(l.to)).map(linkKey));
+  // a clip used in the notes of another clip (notes a.notes |> shift(8bars) |> merge(b.notes ...)) is there in the bars where the pipeline uses it: it lights with the clip that uses it, and the dotted line between them
+  for (const ref of noteReferences(graph.nodes)) {
+    const consumer = byId.get(ref.to), source = byId.get(ref.from);
+    if (!consumer || !source || source.disabledBy || source.flags?.includes('disabled')) continue;
+    if (!placed(consumer) || !audible(consumer) || !inParts(consumer.parts, bar)) continue;
+    const start = consumer.parts?.length ? Math.min(...consumer.parts.map((p) => p.at)) : 1, local = Math.floor(bar) - start;
+    if (!ref.spans.some(([from, to]) => local >= from && local < to)) continue;
+    lit.add(ref.from);
+    litLinks.add(refKey(ref.from, ref.to));
+  }
   return { nodes: lit, links: litLinks };
+}
+
+/** The key of the dotted line from a clip to the clip that uses its notes (the same shape as a link key, so the lights treat it alike). */
+export const refKey = (from, to) => `${from}:ref>${to}:ref`;
+
+/** The note references of the song: for every clip with a note pipeline, the clips whose notes it uses and the bars (counted from its own first bar, from inclusive, to exclusive) where it uses them. */
+export function noteReferences(nodes) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const out = [];
+  for (const consumer of nodes) {
+    const text = consumer.tpl === 'midi-clip' ? String(consumer.params?.notes ?? '') : '';
+    if (!/^\s*[A-Za-z(]/.test(text.replace(/#[^\n]*/g, ''))) continue;
+    const per = new Map();
+    for (const m of text.matchAll(/([A-Za-z_][\w-]*)\.notes\b(?:\s*\|>\s*shift\(\s*(-?\d+(?:\.\d+)?)\s*bars?\s*\))?/g)) {
+      const source = byId.get(m[1]);
+      if (!source || source === consumer || source.tpl !== 'midi-clip') continue;
+      const length = Number(source.params?.bars) || (source.parts?.length ? source.parts.reduce((sum, p) => sum + p.length, 0) : Infinity);
+      const offset = Number(m[2]) || 0;
+      (per.get(source.id) || per.set(source.id, []).get(source.id)).push([offset, offset + length]);
+    }
+    for (const [from, spans] of per) out.push({ from, to: consumer.id, spans });
+  }
+  return out;
 }

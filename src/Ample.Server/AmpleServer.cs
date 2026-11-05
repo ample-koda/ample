@@ -106,6 +106,7 @@ public static class AmpleServer
         if (options.MaxProjectUploadBytes is < 1 or > 512L * 1024 * 1024) throw new ArgumentOutOfRangeException(nameof(options), "The project upload limit must be from 1 byte to 512 MiB.");
         EventBus events = new();
         ProjectSession session = await ProjectSession.OpenAsync(options, events, cancellationToken).ConfigureAwait(false);
+        if (options.SeedDemo && !options.LiteOnly) await DemoSong.EnsureAsync(session, options.AmpleRoot, cancellationToken).ConfigureAwait(false);
         if (!options.LiteOnly) StorageApi.Warm(session);
         string token = options.Token ?? Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(24));
         WebApplication? startedApp = null;

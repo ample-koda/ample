@@ -15,6 +15,7 @@ export function registerView(mode, render) { V.renderers[mode] = render; }
 /** Switches the view. Returns false when the switch was refused (the source editor has changes that do not compile). */
 export function setView(mode, force = false) {
   if (V.mode === 'src' && mode !== 'src' && !force && V.guard && !V.guard()) return false;
+  if (mode === 'src' && !S.path) { toast('Open a song first: there is no source to edit yet.'); return false; }   // no song loaded: nothing to show in the source editor
   V.mode = mode;
   document.dispatchEvent(new CustomEvent('ample:view', { detail: mode }));
   const wrap = $('#canvaswrap');

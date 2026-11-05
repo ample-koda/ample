@@ -36,6 +36,7 @@ export async function startServer(options: ServerOptions = {}): Promise<{ launch
   const home = `${folder}-home`;
   const made = spawnSync('dotnet', [dll, 'new', folder, '--name', 'demo'], { encoding: 'utf8' });
   if (made.status !== 0) throw new Error(`ample new failed (${made.error?.message ?? `exit ${made.status}`}): ${made.stdout}${made.stderr}`);
+  fs.rmSync(path.join(folder, 'demo.amplet'), { force: true });   // `ample new` gives every project the demo song; these specs bring their own song
   fs.writeFileSync(path.join(folder, 'song.amplet'), options.song ?? demoSong());
   for (const [rel, text] of Object.entries(options.files ?? {})) {
     fs.mkdirSync(path.dirname(path.join(folder, rel)), { recursive: true });
