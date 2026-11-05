@@ -626,7 +626,7 @@ async function closeCurrentSourceFile() {
 function buildSwitcher() {
   const input = el('input', { id: 'se-switch', type: 'search', placeholder: 'Open a file... (Ctrl+P)', 'aria-label': 'Open a file of the project', autocomplete: 'off', role: 'combobox', 'aria-expanded': 'false', 'aria-controls': 'se-switchlist' });
   const list = el('div', { id: 'se-switchlist', role: 'listbox', className: 'se-switchlist' });
-  let items = [], at = 0;
+  let items = [], at = 0, hideTimer = 0;   // hideTimer: the hide that a blur plans; a new focus or typing cancels it (else it hides the list that was just reopened)
   const hide = () => { list.style.display = 'none'; input.setAttribute('aria-expanded', 'false'); };
   const paint = () => {
     list.innerHTML = '';
@@ -641,10 +641,10 @@ function buildSwitcher() {
     input.setAttribute('aria-activedescendant', items.length ? 'se-switch-' + at : '');
   };
   const choose = (path) => { hide(); input.value = ''; input.blur(); openFileByName(path).catch((error) => toast(error.message || String(error))); };
-  const refresh = () => { items = rankFiles(SE.files.map((f) => f.path).filter((path) => isEditableSourceFile(path) || /\.amplet$/i.test(path)), input.value, recentFilePaths()); at = 0; paint(); };
+  const refresh = () => { clearTimeout(hideTimer); items = rankFiles(SE.files.map((f) => f.path).filter((path) => isEditableSourceFile(path) || /\.amplet$/i.test(path)), input.value, recentFilePaths()); at = 0; paint(); };
   input.onfocus = refresh;
   input.oninput = refresh;
-  input.onblur = () => setTimeout(hide, 120);
+  input.onblur = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 120); };
   input.onkeydown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); at = Math.min(items.length - 1, at + 1); paint(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); at = Math.max(0, at - 1); paint(); }

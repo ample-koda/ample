@@ -429,6 +429,27 @@ public static class Edits
         return EditResult.Of(InsertLineAfter(doc, after, $"  from {Quote(fromBlock)}.{Quote(PortNames.Public(o, ts.Outputs, true))} -> {Quote(PortNames.Public(i, td.Inputs, false))}"));
     }
 
+    /// <summary>Rewrites the source of an existing <c>from</c> line in place: the line keeps its place in the block, its input and what follows the arrow.</summary>
+    private static EditResult RewriteSource(AmpleDocument doc, string toBlock, string input, string newBlock, string newOutputPublic)
+    {
+        FromLine? f = Find(doc, toBlock)?.Froms.FirstOrDefault(x => x.Input == input);
+        if (f is null)
+        {
+            return EditResult.Refuse($"Input \"{input}\" of \"{toBlock}\" has no connection.");
+        }
+
+        string raw = doc.Lines[f.Line].TrimEnd('\r');
+        int from = raw.IndexOf("from", StringComparison.Ordinal);
+        int arrow = from < 0 ? -1 : raw.IndexOf("->", from, StringComparison.Ordinal);
+        if (arrow < 0)
+        {
+            return EditResult.Refuse("The connection line could not be read.");
+        }
+
+        string rewritten = raw[..(from + 4)] + " " + Quote(newBlock) + "." + Quote(newOutputPublic) + " " + raw[arrow..];
+        return EditResult.Of(new TextEdit(f.Line + 1, 1, f.Line + 1, raw.Length + 1, rewritten));
+    }
+
     /// <summary>
     /// Puts a new effect block after a block: the effect reads the block, and everything that read the block now reads the effect. Returns the new text,
     /// or null with the reason in <paramref name="error"/>.
@@ -481,19 +502,109 @@ public static class Edits
             done = done && Step(d => SetParameter(d, name, parameter, value));
         }
 
-        foreach ((string to, string input) in consumers)
-        {
-            done = done && Step(d => Disconnect(d, to, input));
-        }
-
         done = done && Step(d => Connect(d, spec, block, from.Name, name, effectIn.Name));
+        string effectOutPublic = PortNames.Public(effectOut, effectSpec.Outputs, true);
         foreach ((string to, string input) in consumers)
         {
-            done = done && Step(d => Connect(d, spec, name, effectOut.Name, to, input));
+            done = done && Step(d => RewriteSource(d, to, input, name, effectOutPublic));
         }
 
         error = failure;
         return done ? current : null;
+    }
+
+    /// <summary>
+    /// Takes an effect out of a chain, the mirror of <see cref="InsertEffectAfter"/>: everything that read the effect now reads what the effect read, and the
+    /// block goes. A sidechain key into the effect goes with it. Returns the new text, or null with the reason in <paramref name="error"/>.
+    /// </summary>
+    public static string? BypassEffect(string text, SpecData spec, string block, out string? error)
+    {
+        error = null;
+        AmpleDocument doc = Parser.Parse(text, spec);
+        BlockNode? effect = Find(doc, block);
+        if (effect is null || !(doc.Spec ?? spec).Templates.TryGetValue(effect.Type, out TemplateSpec? effectSpec))
+        {
+            error = $"There is no block \"{block}\".";
+            return null;
+        }
+
+        PortSpec? effectIn = effectSpec.Inputs.FirstOrDefault(p => p.Type == "audio" && p.Name != "key");
+        PortSpec? effectOut = effectSpec.Outputs.FirstOrDefault(p => p.Type == "audio");
+        FromLine? source = effectIn is null ? null : effect.Froms.FirstOrDefault(f => f.Input == effectIn.Name && !f.Disabled);
+        if (effectIn is null || effectOut is null || source is null)
+        {
+            error = $"\"{block}\" has no audio coming in, so there is nothing to connect its readers to.";
+            return null;
+        }
+
+        List<(string To, string Input)> consumers = [.. doc.Blocks.SelectMany(b => b.Froms.Where(f => f.Block == block && f.Output == effectOut.Name).Select(f => (b.Name, f.Input)))];
+        string current = text;
+        string? failure = null;
+        bool Step(Func<AmpleDocument, EditResult> make)
+        {
+            EditResult result = make(Parser.Parse(current, spec));
+            if (!result.Ok)
+            {
+                failure = result.Error;
+                return false;
+            }
+
+            current = Apply(current, result.Edits);
+            return true;
+        }
+
+        bool done = true;
+        foreach ((string to, string input) in consumers)
+        {
+            done = done && Step(d => RewriteSource(d, to, input, source.Block, Parser.Unquote(source.RawOutput)));
+        }
+
+        done = done && Step(d => RemoveBlock(d, block));
+        error = failure;
+        return done ? current : null;
+    }
+
+    /// <summary>
+    /// Copies a block under a new name, right after the original: the same header, parameters, notes and inputs (its `from` lines), and the same placement.
+    /// Nothing reads the copy yet. The layout line is not copied.
+    /// </summary>
+    public static EditResult CopyBlock(AmpleDocument doc, string block, string newName)
+    {
+        BlockNode? b = Find(doc, block);
+        if (b is null)
+        {
+            return EditResult.Refuse($"There is no block named \"{block}\".");
+        }
+
+        if (b.CloseLine < 0)
+        {
+            return EditResult.Refuse($"Block \"{block}\" is not closed.");
+        }
+
+        if (Find(doc, newName) is not null)
+        {
+            return EditResult.Refuse($"Two blocks would be called \"{newName}\".");
+        }
+
+        string header = doc.Lines[b.Line];
+        int typeEnd = header.IndexOf(b.Type, StringComparison.Ordinal) + b.Type.Length;
+        int at = header.IndexOf(b.RawName, typeEnd, StringComparison.Ordinal);
+        List<string> lines = [header[..at] + Quote(newName) + header[(at + b.RawName.Length)..]];
+        for (int i = b.Line + 1; i <= b.CloseLine; i++)
+        {
+            lines.Add(doc.Lines[i]);
+        }
+
+        int end = b.CloseLine + 1;   // 0-based line after the block
+        string insert = string.Join("\n", lines) + "\n";
+        return EditResult.Of(new TextEdit(end + 1, 1, end + 1, 1, insert));
+    }
+
+    /// <summary>Makes an edit that replaces the whole text of a document by another (the way an operation that works on text, such as an insert of an effect, reports its result).</summary>
+    public static EditResult ReplaceText(AmpleDocument doc, string newText)
+    {
+        string[] parts = doc.Text.Split('\n');
+        return EditResult.Of(new TextEdit(1, 1, parts.Length, parts[^1].Length + 1, newText));
     }
 
     /// <summary>Removes the connection into an input.</summary>
@@ -700,7 +811,46 @@ public static class Edits
             }
         }
 
+        RenameInView(doc, oldName, newName, edits);
+
         return new EditResult(edits, null);
+    }
+
+    /// <summary>The view block names blocks in <c>member</c>, <c>size</c> and <c>pin</c> lines; a rename follows them there, so a group does not lose its member.</summary>
+    private static void RenameInView(AmpleDocument doc, string oldName, string newName, List<TextEdit> edits)
+    {
+        bool inView = false;
+        for (int i = 0; i < doc.Lines.Count; i++)
+        {
+            string raw = doc.Lines[i], trimmed = raw.Trim();
+            if (!inView)
+            {
+                inView = trimmed == "view {" && doc.Blocks.All(b => i < b.Line || i > b.CloseLine);
+                continue;
+            }
+
+            if (raw == "}")
+            {
+                inView = false;
+                continue;
+            }
+
+            string[] words = [.. System.Text.RegularExpressions.Regex.Matches(trimmed, "\"(?:[^\"\\\\]|\\\\.)*\"|\\S+").Select(m => m.Value)];
+            // The words of a line that are block names: member/pin/size/line have one (the second word), order has all after the first.
+            int last = words.Length == 2 && words[0] is "member" or "pin" || words.Length == 3 && words[0] is "size" or "line" ? 1 : words.Length >= 2 && words[0] == "order" ? words.Length - 1 : 0;
+            int from = 0;
+            for (int k = 1; k <= last; k++)
+            {
+                if (Parser.Unquote(words[k]) != oldName)
+                {
+                    continue;
+                }
+
+                int p = raw.IndexOf(words[k], from > 0 ? from : raw.IndexOf(words[0], StringComparison.Ordinal) + words[0].Length, StringComparison.Ordinal);
+                edits.Add(new TextEdit(i + 1, p + 1, i + 1, p + 1 + words[k].Length, ViewBlock.Word(newName)));
+                from = p + words[k].Length;
+            }
+        }
     }
 
     /// <summary>Sets one plugin setting of the song (<c>plugin.name</c>) in the settings line, which is created after the project line when the song has none.</summary>

@@ -26,6 +26,12 @@ This is the quickest way to work on one place of a song: choose the bars, listen
 
 > **Tip** Chosen bars are only for listening. They never change the song or the build you keep.
 
+## Sections
+
+A **section** is a named stretch of bars, such as Intro, Verse or Drop. Right-click the ruler to make one (it takes the bars you chose, or eight bars from where you clicked), and right-click a section to rename it, set it to the bars you chose, or remove it. Sections show as coloured bands at the bottom of the ruler.
+
+> **Tip** Sections are only for finding your way. They are kept at the end of the song, in its `view` block, and never change how it sounds or what is built.
+
 ## Recording and importing audio
 
 Two buttons at the top of the tab bring sound in from outside:
@@ -33,4 +39,4 @@ Two buttons at the top of the tab bring sound in from outside:
 - **Record…** records from the microphone. You can listen to it first, and then add the take to the project as a file.
 - **Separate and transcribe audio…** takes a recording and tries to split it into parts and write down the notes in it. It uses a local analysis tool that has to be installed on your computer, and it stays on your machine.
 
-Next: the keys that make all this faster, in Keyboard shortcuts.
+Next: the same song as lines with clips, chains and cables, in The Playlist.

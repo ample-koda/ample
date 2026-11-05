@@ -148,6 +148,8 @@ function renderAll() {
   renderBranches();
   renderVariants();
   renderArrangement();
+  // the Playlist is a view behind a setting: while it is off nothing of it is loaded
+  if (localStorage.getItem('ample.playlist.on') === '1') import('./playlist.js').then((m) => { m.syncTab(); m.renderPlaylist(); }).catch((e) => console.error('playlist', e));
   if (V.mode === 'bm') renderBranchManager();
   if ($('#pane-struct').style.display !== 'none') renderStructure();
 }

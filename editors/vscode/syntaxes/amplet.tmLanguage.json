@@ -11,6 +11,9 @@
       "include": "#comment"
     },
     {
+      "include": "#view"
+    },
+    {
       "include": "#block"
     },
     {
@@ -79,6 +82,47 @@
     "inlineKeyword": {
       "name": "keyword.other.amplet",
       "match": "\\b(tempo|master\\-seed|on|off|diff|button|auto)\\b"
+    },
+    "view": {
+      "name": "meta.view.amplet",
+      "begin": "^(view)\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.amplet"
+        },
+        "2": {
+          "name": "punctuation.definition.block.begin.amplet"
+        }
+      },
+      "end": "^(\\})",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.block.end.amplet"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "match": "^\\s*(section|line|order|group|size|pin|member|title|label|x|y)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.amplet"
+            }
+          }
+        },
+        {
+          "match": "\\b(at|for)\\b",
+          "name": "keyword.other.amplet"
+        },
+        {
+          "include": "#string"
+        },
+        {
+          "include": "#number"
+        }
+      ]
     },
     "layout": {
       "match": "^(layout)\\s+(\"(?:[^\"\\\\]|\\\\.)*\"|[A-Za-z0-9_-]+)\\s+(-?[0-9]+)\\s+(-?[0-9]+)",

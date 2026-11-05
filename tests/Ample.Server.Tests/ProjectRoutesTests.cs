@@ -889,6 +889,29 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Contains("fx", rebuilt.RootElement.GetProperty("blocks").EnumerateArray().Select(b => b.GetProperty("block").GetString()));
     }
 
+    // The list of edits is all or nothing: a refused edit leaves the song as it was, and a good list is one step.
+    [Fact]
+    public async Task A_list_of_edits_is_applied_in_full_or_not_at_all()
+    {
+        const string song = "composition \"demo\" { ample 1  tempo 90 master-seed 1 }\nsynth pad at 1 for 2 {\n}\nbus mix {\n  from pad.audio -> audio1\n}\n";
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), song);
+        using JsonDocument opened = JsonDocument.Parse(await Text("/api/doc?path=song.amplet"));
+        using (HttpResponseMessage refused = await Post("/api/doc/edits", new { path = "song.amplet", baseVersion = opened.RootElement.GetProperty("version").GetInt32(), ops = new object[] { new { type = "addBlock", blockType = "reverb", name = "room" }, new { type = "connect", from = "pad", output = "audio", to = "mix", input = "audio1" } } }))
+        {
+            Assert.False(refused.IsSuccessStatusCode);
+            Assert.Contains("nothing changed", await refused.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        }
+
+        using JsonDocument same = JsonDocument.Parse(await Text("/api/doc?path=song.amplet"));
+        Assert.Equal(song, same.RootElement.GetProperty("text").GetString());
+        Assert.Equal(opened.RootElement.GetProperty("version").GetInt32(), same.RootElement.GetProperty("version").GetInt32());
+
+        using HttpResponseMessage good = await Post("/api/doc/edits", new { path = "song.amplet", baseVersion = same.RootElement.GetProperty("version").GetInt32(), ops = new object[] { new { type = "insertEffect", block = "pad", blockType = "reverb", name = "room" }, new { type = "bypassEffect", block = "room" } } });
+        Assert.True(good.IsSuccessStatusCode);
+        using JsonDocument after = JsonDocument.Parse(await good.Content.ReadAsStringAsync(CancellationToken.None));
+        Assert.Equal(song, after.RootElement.GetProperty("text").GetString());
+    }
+
     private const string DiskSong = "project demo { tempo 90 master-seed 1 }\n# one\n# two\n# three\n# four\n";
 
     private async Task<JsonDocument> OpenDisk(string name)

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1121",
+    "severity": "error",
+    "line": 3,
+    "col": 3,
+    "endCol": 28,
+    "message": "The section \"Drop\" is outside the bars 1 to 256."
+  }
+]

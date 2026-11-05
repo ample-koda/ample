@@ -4944,6 +4944,179 @@
         }
       }
     },
+    "/api/game/manifest": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "The manifest of a built game score (query id= the score name, variant= optional): tempo, loop, stems with hashes, states, transitions and provenance.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/game/score": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "The game score of the project: its checked definition in short (layers, states, variants), any problems, and which builds exist (query score= picks the file, default game/score.json).",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/game/score/build": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Builds the song of a game score (or one variant), cuts the loopable stems on whole bars and writes them with the manifest to renders/game/ (estimate and disk check first; one build at a time).",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/game/state": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "The latest state reports of the game (query count=, default 50) and the most recent one.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "A game reports a change of music state with the numbers behind it. Only remembered in memory and published as the event game.state; it never changes the project.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/game/stems/{file}": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "A built stem, stinger (WAV, range requests supported) or manifest file of a game score.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/game/variant": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Asks for a variant of the score to be built in the background (a body with score and variant). The result arrives as the event game.score.ready, or game.variant.failed with the reason.",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/gm/audition": {
       "post": {
         "tags": [

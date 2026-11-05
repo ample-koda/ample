@@ -777,9 +777,39 @@ public static partial class Parser
 
         private const string AmpleVersionHint = "The version is a whole number; leave it out to read the song as the current one.";
 
+        // The sections of the view block must stay inside bars 1 to 256, have a length and not overlap; two with one name is only a warning.
+        private void CheckSections(List<(int Line, string Name, int At, int Length)> sections)
+        {
+            foreach ((int line, string name, int at, int length) in sections)
+            {
+                if (at < 1 || length < 1 || at + length - 1 > ViewBlock.LastBar)
+                {
+                    Add(line, "AMP1121", Severity.Error, $"The section \"{name}\" is outside the bars 1 to {ViewBlock.LastBar}.", new Opts { Hint = "A section starts at bar 1 or later, lasts at least one bar and ends by bar 256." });
+                }
+            }
+
+            for (int a = 0; a < sections.Count; a++)
+            {
+                for (int b = a + 1; b < sections.Count; b++)
+                {
+                    (int Line, string Name, int At, int Length) x = sections[a], y = sections[b];
+                    if (x.Length >= 1 && y.Length >= 1 && x.At < y.At + y.Length && y.At < x.At + x.Length)
+                    {
+                        Add(y.Line, "AMP1122", Severity.Error, $"The sections \"{x.Name}\" and \"{y.Name}\" overlap.", new Opts { Hint = "Sections are stretches of bars one after the other; shorten one or move it." });
+                    }
+                }
+
+                if (sections.Take(a).Any(s => s.Name == sections[a].Name))
+                {
+                    Add(sections[a].Line, "AMP1123", Severity.Warning, $"Two sections are called \"{sections[a].Name}\".", new Opts { Hint = "Give each section its own name." });
+                }
+            }
+        }
+
         private int ViewBody(int open)
         {
             bool inGroup = false;
+            List<(int Line, string Name, int At, int Length)> sections = [];
             for (int i = open + 1; i < lines.Length; i++)
             {
                 string line = lines[i].Trim();
@@ -792,11 +822,17 @@ public static partial class Parser
                 {
                     if (!inGroup)
                     {
+                        CheckSections(sections);
                         return i;
                     }
 
                     inGroup = false;
                     continue;
+                }
+
+                if (!inGroup && ViewBlock.TryParseSection(line, out string sectionName, out int sectionAt, out int sectionLength))
+                {
+                    sections.Add((i, sectionName, sectionAt, sectionLength));
                 }
 
                 (bool opens, string error) = ViewBlock.CheckLine(line, inGroup);

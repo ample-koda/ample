@@ -36,6 +36,55 @@ public static class Routes
     private static long EffectPreviewCacheBytes;
     private static readonly string[] UploadExtensions = [".wav", ".mp3", ".flac", ".ogg", ".mid", ".midi", ".lyr", ".lrc", ".srt", ".txt", ".json", ".amplet", ".module", ".amplec", ".sf2", ".sf3", ".sfz"];
     /// <summary>The value of a file parameter as it is written in the song: a path with a space or another character that cannot stand bare is put in double quotes (with \" and \ escaped), so it stays one value.</summary>
+/// <summary>One graph edit of the document route, as an edit of the text. Shared by the single edit and by the atomic list of edits.</summary>
+    private static EditResult RunDocEdit(ProjectSession s, AmpleDocument parsed, JsonElement b, JsonElement op)
+    {
+        return Str(op, "type") switch
+        {
+            "setParameter" => Edits.SetParameter(parsed, Str(op, "block"), Str(op, "name"), FileParameterValue(s, parsed, Str(op, "block"), Str(op, "name"), Str(op, "value"))),
+            "bakeCallSite" => Edits.BakeCallSite(parsed, op.GetProperty("line").GetInt32(), op.GetProperty("col").GetInt32(), s.LastBuildAt.TryGetValue(Str(b, "path"), out DateTime callAt) ? callAt : parsed.ParsedAt),
+            "bakeDynamicHelpers" => Edits.BakeDynamicHelpers(parsed, s.LastBuildAt.TryGetValue(Str(b, "path"), out DateTime builtAt) ? builtAt : parsed.ParsedAt, op.TryGetProperty("block", out JsonElement bakeBlock) && bakeBlock.ValueKind == JsonValueKind.String ? bakeBlock.GetString() : null),
+            "setPropertyValue" => Edits.SetPropertyValue(parsed, Str(op, "block"), Str(op, "name"), op.TryGetProperty("value", out JsonElement pv) && pv.ValueKind == JsonValueKind.String ? pv.GetString()! : string.Empty, Str(op, "mode")),
+            "removeParameter" => Edits.RemoveParameter(parsed, Str(op, "block"), Str(op, "name")),
+            "setSetting" => Edits.SetSetting(parsed, Str(op, "key"), Str(op, "value")),
+            "removeSetting" => Edits.RemoveSetting(parsed, Str(op, "key")),
+            "addBlock" => Edits.AddBlock(parsed, s.Spec, Str(op, "blockType"), Str(op, "name"), Opt(op, "version")),
+            "removeBlock" => Edits.RemoveBlock(parsed, Str(op, "block")),
+            "connect" => Edits.Connect(parsed, s.Spec, Str(op, "from"), Str(op, "output"), Str(op, "to"), Str(op, "input")),
+            "disconnect" => Edits.Disconnect(parsed, Str(op, "to"), Str(op, "input")),
+            "setConnectionDisabled" => Edits.SetConnectionDisabled(parsed, Str(op, "to"), Str(op, "input"), op.GetProperty("disabled").GetBoolean()),
+            "rename" => Edits.RenameBlock(parsed, Str(op, "block"), Str(op, "newName")),
+            "addFlag" => Edits.AddFlag(parsed, Str(op, "block"), Str(op, "flag")),
+            "setFreeze" => Edits.SetFreeze(parsed, Str(op, "block"), Str(op, "level")),
+            "removeFlag" => Edits.RemoveFlag(parsed, Str(op, "block"), Str(op, "flag")),
+            "setLayout" => Edits.SetLayout(parsed, Str(op, "block"), op.GetProperty("x").GetInt32(), op.GetProperty("y").GetInt32()),
+            "setParts" => Edits.SetParts(parsed, Str(op, "block"), op.GetProperty("parts").EnumerateArray().Select(p => new Part(p.GetProperty("at").GetInt32(), p.GetProperty("length").GetInt32(), p.TryGetProperty("name", out JsonElement pn) ? pn.GetString() ?? string.Empty : string.Empty)).ToArray()),
+
+            "copyBlock" => Edits.CopyBlock(parsed, Str(op, "block"), Str(op, "newName")),
+            "insertEffect" => InsertEffectEdit(s, parsed, op),
+            "bypassEffect" => BypassEffectEdit(s, parsed, op),
+            _ => new EditResult([], "Unknown edit type."),
+        };
+    }
+
+    private static EditResult InsertEffectEdit(ProjectSession s, AmpleDocument parsed, JsonElement op)
+    {
+        List<(string Name, string Value)> parameters = [];
+        if (op.TryGetProperty("parameters", out JsonElement list) && list.ValueKind == JsonValueKind.Array)
+        {
+            parameters = [.. list.EnumerateArray().Select(p => (Str(p, "name"), Str(p, "value")))];
+        }
+
+        string? text = Edits.InsertEffectAfter(parsed.Text, s.Spec, Str(op, "block"), Str(op, "blockType"), Str(op, "name"), parameters, out string? error);
+        return text is null ? new EditResult([], error ?? "The effect could not be put in.") : Edits.ReplaceText(parsed, text);
+    }
+
+    private static EditResult BypassEffectEdit(ProjectSession s, AmpleDocument parsed, JsonElement op)
+    {
+        string? text = Edits.BypassEffect(parsed.Text, s.Spec, Str(op, "block"), out string? error);
+        return text is null ? new EditResult([], error ?? "The effect could not be taken out.") : Edits.ReplaceText(parsed, text);
+    }
+
     private static string FileParameterValue(ProjectSession s, AmpleDocument doc, string block, string name, string value)
     {
         string? type = doc.Blocks.FirstOrDefault(b => b.Name == block)?.Type;
@@ -313,7 +362,7 @@ public static class Routes
     }
 
     /// <summary>The data of a take that is WAV audio (the role is the output port name, so it is found by content).</summary>
-    private static string? AudioDataId(ProjectSession s, TakeRecord take)
+    internal static string? AudioDataId(ProjectSession s, TakeRecord take)
     {
         // The main output first (a sequencer block also carries lane outputs, which are not the mix and may be silent).
         string[] preferred = ["master", "mix", "audio", "out"];
@@ -2306,28 +2355,7 @@ public static class Routes
             Check(d, b);
             AmpleDocument parsed = s.Parse(d);
             JsonElement op = b.GetProperty("op");
-            EditResult result = Str(op, "type") switch
-            {
-                "setParameter" => Edits.SetParameter(parsed, Str(op, "block"), Str(op, "name"), FileParameterValue(s, parsed, Str(op, "block"), Str(op, "name"), Str(op, "value"))),
-                "bakeCallSite" => Edits.BakeCallSite(parsed, op.GetProperty("line").GetInt32(), op.GetProperty("col").GetInt32(), s.LastBuildAt.TryGetValue(Str(b, "path"), out DateTime callAt) ? callAt : parsed.ParsedAt),
-                "bakeDynamicHelpers" => Edits.BakeDynamicHelpers(parsed, s.LastBuildAt.TryGetValue(Str(b, "path"), out DateTime builtAt) ? builtAt : parsed.ParsedAt, op.TryGetProperty("block", out JsonElement bakeBlock) && bakeBlock.ValueKind == JsonValueKind.String ? bakeBlock.GetString() : null),
-                "setPropertyValue" => Edits.SetPropertyValue(parsed, Str(op, "block"), Str(op, "name"), op.TryGetProperty("value", out JsonElement pv) && pv.ValueKind == JsonValueKind.String ? pv.GetString()! : string.Empty, Str(op, "mode")),
-                "removeParameter" => Edits.RemoveParameter(parsed, Str(op, "block"), Str(op, "name")),
-                "setSetting" => Edits.SetSetting(parsed, Str(op, "key"), Str(op, "value")),
-                "removeSetting" => Edits.RemoveSetting(parsed, Str(op, "key")),
-                "addBlock" => Edits.AddBlock(parsed, s.Spec, Str(op, "blockType"), Str(op, "name"), Opt(op, "version")),
-                "removeBlock" => Edits.RemoveBlock(parsed, Str(op, "block")),
-                "connect" => Edits.Connect(parsed, s.Spec, Str(op, "from"), Str(op, "output"), Str(op, "to"), Str(op, "input")),
-                "disconnect" => Edits.Disconnect(parsed, Str(op, "to"), Str(op, "input")),
-                "setConnectionDisabled" => Edits.SetConnectionDisabled(parsed, Str(op, "to"), Str(op, "input"), op.GetProperty("disabled").GetBoolean()),
-                "rename" => Edits.RenameBlock(parsed, Str(op, "block"), Str(op, "newName")),
-                "addFlag" => Edits.AddFlag(parsed, Str(op, "block"), Str(op, "flag")),
-                "setFreeze" => Edits.SetFreeze(parsed, Str(op, "block"), Str(op, "level")),
-                "removeFlag" => Edits.RemoveFlag(parsed, Str(op, "block"), Str(op, "flag")),
-                "setLayout" => Edits.SetLayout(parsed, Str(op, "block"), op.GetProperty("x").GetInt32(), op.GetProperty("y").GetInt32()),
-                "setParts" => Edits.SetParts(parsed, Str(op, "block"), op.GetProperty("parts").EnumerateArray().Select(p => new Part(p.GetProperty("at").GetInt32(), p.GetProperty("length").GetInt32(), p.TryGetProperty("name", out JsonElement pn) ? pn.GetString() ?? string.Empty : string.Empty)).ToArray()),
-                _ => new EditResult([], "Unknown edit type."),
-            };
+            EditResult result = RunDocEdit(s, parsed, b, op);
             if (!result.Ok)
             {
                 throw new AmpleException("AMP5286", result.Error!);
@@ -2343,6 +2371,39 @@ public static class Routes
 
                 d.Text = Edits.Apply(d.Text, result.Edits);
                 d.Version++;
+            }
+
+            events!.Publish("doc.changed", new { d.Path, d.Version });
+            return Ok(DocView(d, s.Parse(d), s));
+        });
+        add("POST", "/api/doc/edits", "documents", "Applies a list of graph edits to one version of the text, all of them or none: when one is refused nothing changes. One version step.", true, s is null ? null : async (HttpContext c) =>
+        {
+            JsonElement b = await Body(c);
+            DocSession d = await s.DocAsync(Str(b, "path"), c.RequestAborted);
+            Check(d, b);
+            string text = d.Text;
+            int index = 0;
+            foreach (JsonElement op in b.GetProperty("ops").EnumerateArray())
+            {
+                index++;
+                AmpleDocument step = Parser.Parse(text, s.Spec);
+                EditResult result = RunDocEdit(s, step, b, op);
+                if (!result.Ok)
+                {
+                    throw new AmpleException("AMP5286", $"Edit {index} of the list was refused, so nothing changed: {result.Error}");
+                }
+
+                text = Edits.Apply(text, result.Edits);
+            }
+
+            lock (d)
+            {
+                Check(d, b);
+                if (!string.Equals(d.Text, text, StringComparison.Ordinal))
+                {
+                    d.Text = text;
+                    d.Version++;
+                }
             }
 
             events!.Publish("doc.changed", new { d.Path, d.Version });
@@ -3361,6 +3422,9 @@ public static class Routes
             events!.Publish("history.changed", new { kind = "act" });
             return Ok(new { done = true });
         });
+
+        // --- game score (adaptive music for a game) ---
+        GameRoutes.Declare(add, s, events);
 
         // --- events and shutdown ---
         add("GET", "/api/events", "events", "Server-sent events: build.progress, build.done, doc.changed, history.changed, files.changed.", false, s is null ? null : async (HttpContext c) =>

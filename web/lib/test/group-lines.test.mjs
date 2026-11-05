@@ -40,3 +40,12 @@ test('a line without a name of its own shows the name of the block behind it (bl
   assert.deepEqual(g(two).ins.map((i) => i[0]).sort(), ['fx · in', 'fx · render_in']);
   assert.deepEqual(g({ ...lines, labels: { 'bind:fx:in': 'Kick in' } }).ins.map((i) => i[0]), ['Kick in']);
 });
+
+test('a group without a place in the song sits at the middle of its members, never at NaN', () => {
+  const placed = { nodes: [{ ...node('a'), x: 100, y: 40 }, { ...node('b'), x: 300, y: 80 }, node('c')], links: [] };
+  const view = containerView(placed, { g: { id: 'g', title: 'g', members: ['a', 'b'] }, h: { id: 'h', title: 'h', members: ['c'], x: null, y: undefined }, k: { id: 'k', title: 'k', members: ['gone'] } }, 'root');
+  const at = (id) => { const n = view.nodes.find((x) => x.id === id); return [n.x, n.y]; };
+  assert.deepEqual(at('g'), [200, 60]);
+  assert.deepEqual(at('h'), [0, 0]);
+  assert.deepEqual(at('k'), [0, 0]);
+});

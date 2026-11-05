@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1123",
+    "severity": "warning",
+    "line": 4,
+    "col": 3,
+    "endCol": 25,
+    "message": "Two sections are called \"A\"."
+  }
+]

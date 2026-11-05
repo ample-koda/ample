@@ -35,7 +35,10 @@ public static partial class ViewBlock
                 "group" when words.Count == 3 && words[2] == "{" => (true, string.Empty),
                 "size" when words.Count == 3 && double.TryParse(words[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double scale) && scale > 0 => (false, string.Empty),
                 "pin" when words.Count == 2 => (false, string.Empty),
-                _ => (false, "Expected: group <id> {  |  size <block> <scale>  |  pin <block>  |  }"),
+                "section" when TryParseSection(trimmed, out _, out _, out _) => (false, string.Empty),
+                "line" when words.Count == 3 => (false, string.Empty),
+                "order" when words.Count >= 2 => (false, string.Empty),
+                _ => (false, "Expected: group <id> {  |  size <block> <scale>  |  pin <block>  |  section \"<name>\" at <bar> for <bars>  |  line <block> \"<name>\"  |  order <block> ...  |  }"),
             };
         }
 
@@ -48,6 +51,31 @@ public static partial class ViewBlock
             _ => (false, "Expected in a group: title <text>  |  member <block>  |  x <n>  |  y <n>  |  label <key> <text>  |  <name> <json value>  |  }"),
         };
     }
+
+    /// <summary>Reads a <c>section "Name" at 33 for 32</c> line of the view block.</summary>
+    /// <param name="trimmed">The trimmed line.</param>
+    /// <param name="name">The name of the section.</param>
+    /// <param name="at">The first bar.</param>
+    /// <param name="length">The number of bars.</param>
+    /// <returns>True when the line has that shape (the numbers may still be out of range; that is a diagnostic of its own).</returns>
+    internal static bool TryParseSection(string trimmed, out string name, out int at, out int length)
+    {
+        List<string> words = [.. Token().Matches(trimmed).Select(m => m.Value)];
+        name = string.Empty;
+        at = 0;
+        length = 0;
+        if (words.Count != 6 || words[0] != "section" || words[2] != "at" || words[4] != "for")
+        {
+            return false;
+        }
+
+        name = Parser.Unquote(words[1]);
+        return int.TryParse(words[3], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out at)
+            && int.TryParse(words[5], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out length);
+    }
+
+    /// <summary>The last bar a section may end on (the same limit as a part: <c>setParts</c>).</summary>
+    internal const int LastBar = 256;
 
     /// <summary>Turns the old comment lines of the view into a view block.</summary>
     /// <param name="legacy">The lines (trimmed or not): <c># view group {json}</c>, <c># view size &lt;block&gt; &lt;scale&gt;</c>, <c># view pin &lt;block&gt;</c> and the <c># view:</c> header.</param>

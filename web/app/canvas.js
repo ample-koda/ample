@@ -155,7 +155,7 @@ function groupStatOf(n) {
   return done ? { cls: 'idle', txt: `${done} of ${members.length} built`, st: '' } : { cls: 'idle', txt: 'not built', st: '' };
 }
 
-function statOf(n) {
+export function statOf(n) {
   if (n.isGroup) return groupStatOf(n);
   const end = flat().nodes.filter((node) => node.line > n.line).reduce((next, node) => Math.min(next, node.line), Infinity);
   const diagnostic = (S.songDiagnostics || []).find((item) => (item.severity === 'error' || item.severity === 1) && (item.range?.start.line ?? item.line - 1) >= n.line && (item.range?.start.line ?? item.line - 1) < end);
@@ -311,7 +311,7 @@ function growMixer(n, event, grip) {
   const clearGhosts = () => { ghosts.splice(0).forEach((ghost) => ghost.remove()); box.style.paddingBottom = ''; };
   const updateLanes = (move) => {
     if (move.pointerId !== pointerId) return;
-    lanes = Math.max(4, used, Math.min(16, lanes0 + Math.round((move.clientY - y0) / S.view.k / ROW)));
+    lanes = Math.max(2, used, Math.min(16, lanes0 + Math.round((move.clientY - y0) / S.view.k / ROW)));
     grip.title = `${lanes} input lanes${lanes === used && lanes > 4 ? ' (the lanes in use cannot be taken away)' : ''}`;
     // show the new lanes while dragging: the block grows and the lanes to come appear as dimmed ports
     clearGhosts();

@@ -26,5 +26,18 @@
     "verifyBackup64MiB": 650,
     "secondBackupUnchanged": 285
   },
-  "baselineMeasured": "2026-10-03, Windows 11, the development machine (not a CI runner), Release-like Debug build of the test project"
+  "baselineMeasured": "2026-10-03, Windows 11, the development machine (not a CI runner), Release-like Debug build of the test project",
+  "browserBudgetsMilliseconds": {
+    "playlistFirstDrawClosed": 1500,
+    "playlistFirstDrawOpen": 2500,
+    "playlistZoom": 2500,
+    "playlistMoveAClip": 4000
+  },
+  "browserBaselineMilliseconds": {
+    "playlistFirstDrawClosed": 45,
+    "playlistFirstDrawOpen": 59,
+    "playlistZoom": 60,
+    "playlistMoveAClip": 700
+  },
+  "browserNote": "Budgets of spec-tests/parity/playlist-perf.spec.ts: a song of 114 blocks over 200 bars (16 lines, 117 rows and 272 clips when every line is open). The first four are the time of a draw of the Playlist (data-render-ms), the last is a keyboard move of a clip until the text has changed. Measured 2026-11-05 on the development machine; raise a budget only with a note in docs/release.md."
 }

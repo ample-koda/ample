@@ -155,6 +155,18 @@ export function targetAt(x, y) {
       const m = /: bar (\d+) for (\d+)(?: \((.*)\))?$/.exec(bar.getAttribute('title') ?? '');
       return { kind: 'bar', block: bar.dataset.block, at: Number(m?.[1]) || 1, length: Number(m?.[2]) || 1, name: m?.[3] ?? '', selector: `#arr .bar[data-block="${esc(bar.dataset.block)}"][data-part="${esc(bar.dataset.part ?? '0')}"]` };
     }
+    const plClip = e.closest?.('#b-playlist .pl-clip[data-key]');
+    if (plClip) {
+      const m = /^(.*?)(?: · (.*))?: bars (\d+) to (\d+)/.exec(plClip.getAttribute('title') ?? '');
+      const block = plClip.dataset.key.slice(0, plClip.dataset.key.lastIndexOf(':'));
+      const at = Number(m?.[3]) || 1, to = Number(m?.[4]) || at;
+      return { kind: 'bar', block, at, length: to - at + 1, name: m?.[2] ?? '', selector: `#b-playlist .pl-clip[data-key="${esc(plClip.dataset.key)}"]` };
+    }
+    const plRuler = e.closest?.('#b-playlist .pl-ruler');
+    if (plRuler) {
+      const bw = parseFloat(plRuler.style.backgroundSize) || 0;
+      return { kind: 'arrangement', bar: bw ? Math.floor((x - plRuler.getBoundingClientRect().left) / bw) + 1 : 0, selector: '#b-playlist .pl-ruler' };
+    }
     const ruler = e.closest?.('#arr .ruler');
     if (ruler) {
       const bw = Number(document.getElementById('arr')?.dataset.barWidth) || 0;
