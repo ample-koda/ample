@@ -40,6 +40,8 @@ let lastTask = '', hanging = '', hangSince = 0, hooked = false, interrupted = fa
 const HANG_QUICK_MS = 5 * 60 * 1000;   // a next question within this time goes on without asking
 
 async function runTask(subject, text, mode, signal, onGlance, onThought, resume = false) {
+  // the server needs the file Koda looks at (path is required): with no song and no module open there is nothing to look at, so say so instead of failing with "The field 'path' is required"
+  if (!activePath()) throw new KodaUnavailable('Open a song first: Koda works on the song that is open in the editor.');
   let task;
   try {
     task = await api.post('/api/ai/tasks', {

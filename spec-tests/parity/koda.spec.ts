@@ -821,3 +821,25 @@ test('the note at the edge can be dragged along the edge, and pulled far from it
   await page.mouse.move(edgeLeft ? mx + 200 : mx - 200, my, { steps: 8 }); await page.mouse.up();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
 });
+
+test('asking Koda with no song open says "not yet" and asks nothing of the server, instead of failing with a missing path', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { S } = await import('/app/store.js');
+    const { serverBackend } = await import('/app/koda-server.js');
+    const { KodaUnavailable } = await import('/app/koda-backend.js');
+    S.path = ''; S.modulePath = ''; S.moduleStack = [];
+    let posted = 0;
+    const original = window.fetch;
+    window.fetch = (...args) => { if (String(args[0]).includes('/api/ai/tasks')) posted++; return original(...args); };
+    try {
+      await serverBackend.run({ kind: 'block', block: 'any' }, 'make it louder', {});
+      return { thrown: false, posted };
+    } catch (error) {
+      return { thrown: true, unavailable: error instanceof KodaUnavailable, message: String((error as Error).message), posted };
+    } finally { window.fetch = original; }
+  });
+  expect(result.thrown).toBe(true);
+  expect(result.unavailable).toBe(true);
+  expect(result.message).toContain('Open a song first');
+  expect(result.posted).toBe(0);
+});

@@ -5,7 +5,7 @@ import { api } from './api.js';
 import { onPlayer, peaksOf, playerState } from './player.js';
 import { S, flat } from './store.js';
 import { onGraphPainted } from './canvas.js';
-import { activity, fxKind, levelAt, linkKey, localBar, secondsPerBar, songBar, takeTime } from '../lib/block-activity.mjs';
+import { activity, fxKind, levelAt, linkKey, localBar, noteReferences, secondsPerBar, songBar, takeTime } from '../lib/block-activity.mjs';
 
 const STORE_KEY = 'ample.playfx';
 const SILENT = 0.012;   // a block whose own sound is quieter than this is not lit, even inside its parts
@@ -108,6 +108,8 @@ function compute(bar, target) {
   let { nodes, links } = activity(graph, bar);
   if (target !== 'master' && graph.nodes.some((n) => n.id === target)) {
     const chain = chainOf(target, graph);
+    // the clips whose notes a clip of the chain uses in a pipeline belong to the chain too (they are not joined by a cable)
+    for (let grew = true; grew;) { grew = false; for (const ref of noteReferences(graph.nodes)) if (chain.has(ref.to) && !chain.has(ref.from)) { chain.add(ref.from); grew = true; } }
     nodes = new Set([...nodes].filter((id) => chain.has(id)));
     links = new Set([...links].filter((key) => endsOf(key).every((id) => chain.has(id))));
   }
@@ -149,6 +151,7 @@ function apply(nodes, links, lvl = new Map()) {
     if (on && source !== undefined) path.style.setProperty('--fx-lvl', source.toFixed(2)); else path.style.removeProperty('--fx-lvl');
     if (on) lines.add(path.dataset.link);
   }
+  for (const path of linksSvg()?.querySelectorAll('path.vis.ref[data-ref]') || []) path.classList.toggle('fx-on', links.has(path.dataset.ref) && shownLit.has(path.dataset.from) && shownLit.has(path.dataset.to));
   applied = { nodes: shownLit, links: lines };
   w.classList.toggle('fx-playing', nodes.size > 0);
 }

@@ -46,3 +46,4 @@
 /* the scrubber of a lit block (app/play-fx.js scrub): the playhead in its own waveform glows in the colour of the block */
 #world .node.fx-on .player .plhead{background:var(--fx-c);box-shadow:0 0 8px var(--fx-c),0 0 2px #fff;width:2px}
 #world .node.fx-on .player .pl-played{background:color-mix(in srgb,var(--fx-c) 22%,transparent)}
+#links path.vis.ref.fx-on{stroke-width:1.6px;stroke-dasharray:2 5;opacity:.9}

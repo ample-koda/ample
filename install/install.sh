@@ -187,7 +187,33 @@ done
 
 say "Installed: $LINK -> $ROOT/current/ample"
 "$LINK" --version || die "The installed program does not start."
-case ":$PATH:" in *":$(dirname "$LINK"):"*) ;; *) say "Note: $(dirname "$LINK") is not on your PATH yet; add it to your shell profile." ;; esac
+case ":$PATH:" in *":$(dirname "$LINK"):"*) ;; *)
+  BIN_DIR="$(dirname "$LINK")"
+  PATH_MARK="# added by the AMPLE installer"
+  PATH_LINE="export PATH=\"$BIN_DIR:\$PATH\""
+  [ "$BIN_DIR" != "$HOME/.local/bin" ] || PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
+  PATH_DONE=0
+  case "$BIN_DIR" in *[\"\$\`\\]*) ;; *)
+    if [ "$SYSTEM" -eq 0 ]; then
+      # a person's own install makes the command work in every NEW terminal by itself: one marked line in the profile files that exist (or ~/.profile)
+      FOUND=0
+      for rc in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
+        [ -f "$rc" ] && [ ! -L "$rc" ] && [ -w "$rc" ] || continue
+        FOUND=1
+        grep -qF "$PATH_MARK" "$rc" 2>/dev/null || printf '\n%s\n%s\n' "$PATH_MARK" "$PATH_LINE" >> "$rc" || continue
+        PATH_DONE=1
+      done
+      if [ "$FOUND" -eq 0 ] && [ ! -e "$HOME/.profile" ]; then
+        printf '%s\n%s\n' "$PATH_MARK" "$PATH_LINE" > "$HOME/.profile" && PATH_DONE=1
+      fi
+    fi ;;
+  esac
+  if [ "$PATH_DONE" -eq 1 ]; then
+    say "Added $BIN_DIR to your PATH in your shell profile. In THIS terminal it is not active yet: open a new terminal, or type  exec \"\$SHELL\" -l  once."
+  else
+    say "Note: $BIN_DIR is not on your PATH, so typing 'ample' will not work. Add this line to your shell profile:   $PATH_LINE"
+  fi ;;
+esac
 
 # 6. the SoundFont (required). A person's own install fetches it with the program, as that person. A system install puts ONE
 # copy in the machine-wide folder, read-only for users and searched after each person's own folder (so anyone can still

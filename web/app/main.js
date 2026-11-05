@@ -115,6 +115,11 @@ function stopSomething() {
 }
 
 function renderHeader() {
+  const noSong = !S.path;   // no song loaded: the source editor is closed and the empty canvas gets its own pattern
+  $('#vs-source').disabled = noSong;
+  $('#vs-source').title = noSong ? 'Open a song first: there is no source to edit yet' : '';
+  $('#canvaswrap').classList.toggle('nosong', noSong);
+  if (noSong && V.mode === 'src') setView('blocks', true);
   $('#b-dirty').style.display = dirty() && !S.peek ? '' : 'none';
   $('#btn-undo').disabled = !S.undo.length || !!S.peek;
   $('#btn-redo').disabled = !S.redo.length || !!S.peek;
@@ -287,6 +292,18 @@ async function start() {
   applyView();
   notify();
   document.body.dataset.ready = '1';
+  autoPlayDemoFirstTime();
+}
+
+/** The first time a project is opened in this browser, its demo song starts building and playing by itself (once per project, never after the song was changed or the project has errors). */
+function autoPlayDemoFirstTime() {
+  try {
+    if (S.path !== 'demo.amplet' || errors().length || new URLSearchParams(location.search).has('noautoplay')) return;
+    const key = `ample.demo.autoplayed.${S.project?.id || S.project?.name || 'project'}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    playSong().catch((e) => { if (!e.toasted) toast(e.message); });
+  } catch { /* storage blocked: no autoplay */ }
 }
 
 start();

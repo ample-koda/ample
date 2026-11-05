@@ -28,6 +28,8 @@ details{border-top:1px solid var(--line)}details>summary{cursor:pointer;padding:
 @container (max-width:205px){.tpl-version{font-size:8px;padding-inline:2px;letter-spacing:-.2px}}
 .cls.stable{border-color:var(--ok);color:var(--ok)}.cls.pinned{border-color:var(--acc);color:var(--acc)}.cls.live{border-color:var(--warn);color:var(--warn)}
 #canvaswrap{position:relative;min-width:0;min-height:0;overflow:hidden}
+#canvaswrap.nosong #cv{background-image:repeating-linear-gradient(135deg,var(--grid) 0 2px,transparent 2px 22px)}
+#vs-source:disabled{opacity:.4;cursor:not-allowed}
 #cv{touch-action:none;position:absolute;inset:0;overflow:hidden;background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);cursor:default}
 #world{position:absolute;left:0;top:0;transform-origin:0 0}
 #links{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}

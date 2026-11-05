@@ -18,6 +18,27 @@ public sealed class ProjectCommandTests : IDisposable
     }
 
     [Fact]
+    public void A_new_project_starts_with_the_demo_song_which_checks_clean_and_is_not_overwritten_by_a_second_new()
+    {
+        string project = Path.Combine(folder, "with demo");
+        (int code, string text) = Run("new", project);
+        Assert.Equal(0, code);
+        Assert.Contains("Added the demo song demo.amplet", text, StringComparison.Ordinal);
+
+        string demo = Path.Combine(project, DemoSongRules.FileName);
+        Assert.True(File.Exists(demo));
+        (code, text) = Run("check", demo);
+        Assert.Equal(0, code);
+        Assert.Contains("no problems", text, StringComparison.Ordinal);
+
+        // a project that already is one is refused (AMP5208) and its demo, edited by the person, stays as it is
+        File.WriteAllText(demo, File.ReadAllText(demo) + "# my own line\n");
+        (code, _) = Run("new", project);
+        Assert.NotEqual(0, code);
+        Assert.EndsWith("# my own line\n", File.ReadAllText(demo), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void New_then_doctor_then_open_and_info_work_end_to_end()
     {
         string project = Path.Combine(folder, "song one");

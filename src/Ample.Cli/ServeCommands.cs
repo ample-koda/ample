@@ -84,7 +84,7 @@ internal static class ServeCommands
                 string ample = (p.GetValue(root) is string r ? SpecRoot.At(r) : SpecRoot.Find(Directory.GetCurrentDirectory())).Path;
                 InstanceAgent? agent = source == "agent" ? new InstanceAgent(name!, reason!, null) : null;
                 Ample.Engine.Engine.BuildParallelism.ConfigureServer(p.GetValue(parallelism) ?? (int.TryParse(Environment.GetEnvironmentVariable("AMPLE_PARALLELISM"), out int fromEnvironment) ? fromEnvironment : null));
-                ServerOptions options = new(Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory()), ample, p.GetValue(port), null, p.GetValue(allowLan), p.GetValue(home) ?? Library.DefaultHome(), maxUploadMegabytes * 1024L * 1024) { StartedBy = source, Agent = agent, Login = p.GetValue(login), AllowAll = p.GetValue(allowAll), BindAddress = p.GetValue(bind), LiteOnly = p.GetValue(liteOnly) };
+                ServerOptions options = new(Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory()), ample, p.GetValue(port), null, p.GetValue(allowLan), p.GetValue(home) ?? Library.DefaultHome(), maxUploadMegabytes * 1024L * 1024) { StartedBy = source, Agent = agent, Login = p.GetValue(login), AllowAll = p.GetValue(allowAll), BindAddress = p.GetValue(bind), LiteOnly = p.GetValue(liteOnly), SeedDemo = true };
                 await using RunningServer server = await AmpleServer.StartAsync(options, t);
                 output.WriteLine($"AMPLE is running at {server.Url}");
                 output.WriteLine(p.GetValue(noTokenOutput) ? "Open: private launch URL is in the instance registry." : $"Open: {server.LaunchUrl}");

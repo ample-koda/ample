@@ -20,6 +20,7 @@ import { openVariants } from './variants.js';
 import { openLyrics } from './lyrics.js';
 import { api } from './api.js';
 import { isExpression, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
+import { refKey } from '../lib/block-activity.mjs';
 import { createRecentFilesToggle } from './recent-files.js';
 import { openMidiCompare } from './midi-compare-view.js';
 import { setView } from './views.js';
@@ -820,6 +821,23 @@ export function drawLinks() {
       showMenu(e.clientX, e.clientY, [{ head: `${type} link${l[4]?.disabled ? ' · disabled' : ''}` }, { label: l[4]?.disabled ? 'Enable connection' : 'Disable connection', fn: () => l[4] && edit([{ type: 'setConnectionDisabled', to: l[4].to, input: l[4].inName, disabled: !l[4].disabled }]) }, { label: 'Delete link', danger: true, fn: () => deleteLink(l) }]);
     };
     linksSvg.append(vis, hit);
+  });
+  // references in a note pipeline (notes a.notes |> shift(8bars) |> merge(b.notes ...)) are not cables, but they are data flow: a thin dotted line from each clip used to the clip that uses it, drawn by itself from the text
+  const byName = new Map(v.nodes.map((n) => [n.name || n.id, n]));
+  v.nodes.forEach((B) => {
+    if (B.tpl !== 'midi-clip' || !isExpression(B.params.notes ?? '')) return;
+    const used = new Set([...String(B.params.notes).matchAll(/(?:^|[^\w.-])([A-Za-z_][\w-]*)\.notes\b/g)].map((m) => m[1]));
+    used.forEach((name) => {
+      const A = byName.get(name);
+      if (!A || A === B || !A.outs?.length) return;
+      const from = portPos(A, 'out', 0), to = { x: B.x, y: B.y + (HEAD + ROW / 2) * (sizes[B.id] || 1) };
+      const ref = document.createElementNS(SVG, 'path');
+      ref.setAttribute('d', linkPath(from, to));
+      ref.setAttribute('class', 'vis ref'); ref.dataset.from = A.id; ref.dataset.to = B.id; ref.dataset.ref = refKey(A.id, B.id);
+      ref.setAttribute('fill', 'none'); ref.setAttribute('stroke', 'var(--midi, #8fa6c9)'); ref.setAttribute('stroke-width', 1); ref.setAttribute('stroke-dasharray', '2 5'); ref.setAttribute('opacity', '0.55'); ref.style.pointerEvents = 'none';
+      const label = document.createElementNS(SVG, 'title'); label.textContent = `${name} is used in the notes of ${B.name || B.id}`; ref.append(label);
+      linksSvg.append(ref);
+    });
   });
   if (tmp) {
     const p = document.createElementNS(SVG, 'path');

@@ -30,6 +30,9 @@ public sealed record ServerOptions(string ProjectRoot, string AmpleRoot, int Por
     /// <summary>Gets whether this is the public Lite (<c>--lite-only</c>): only the Lite routes and files exist (everything else is a 404), no sign-in or token is asked, the limits of the public profile hold and builds run in a process of their own.</summary>
     public bool LiteOnly { get; init; }
 
+    /// <summary>Gets whether a project that has no song at all gets the demo song when this server opens it (<c>ample serve</c> and <c>ample open</c> turn it on; tests and helper servers do not).</summary>
+    public bool SeedDemo { get; init; }
+
     /// <summary>Gets the self-reported agent when an agent started this server.</summary>
     public Ample.Storage.Projects.InstanceAgent? Agent { get; init; }
 }

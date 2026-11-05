@@ -29,6 +29,16 @@ internal static class ProjectCommands
             string path = Path.GetFullPath(parse.GetValue(folder)!);
             using OpenProject project = await ProjectStore.CreateAsync(Fs, Clock, new GuidV7Generator(), path, parse.GetValue(name) ?? Path.GetFileName(path), parse.GetValue(seed), token);
             output.WriteLine($"Created project '{project.Manifest.Name}' ({project.Manifest.Id}) at {path}");
+            // every new project starts with the demo song (the AMPLE folder is found like for check and build; without one there is no demo, and that is not an error)
+            try
+            {
+                if (Ample.Server.DemoSong.SeedNew(path, Ample.Docs.SpecRoot.Find(Directory.GetCurrentDirectory()).Path)) output.WriteLine($"Added the demo song {Ample.Storage.Projects.DemoSongRules.FileName} (edit it as you like; it is not deleted for now).");
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // no AMPLE folder with spec/ near the program: no demo
+            }
+
             return 0;
         }));
         return command;
