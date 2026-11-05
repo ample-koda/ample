@@ -8,7 +8,7 @@ The grammar below is the same text as `../../spec/grammar.ebnf` (a test compares
    The prose in docs/language/03-syntax.md contains the same grammar; validate-spec checks they are equal. *)
 
 file        = { line } ;
-line        = blank | comment | composition | features | settings | lint | layout | use | block ;
+line        = blank | comment | composition | features | settings | lint | layout | view | use | block ;
 blank       = eol ;
 comment     = "#" , { any-char } , eol ;
 ignore      = "#" , "ample-ignore" , rule-code , { [ "," ] , rule-code } , eol ;
@@ -25,6 +25,15 @@ lint        = "lint" , "{" , { rule-code , level } , "}" , eol ;
 level       = "off" | "info" | "warning" | "error" ;
 rule-code   = "L" , digit , digit , digit ;
 layout      = "layout" , name , integer , integer , eol ;
+
+view        = "view" , "{" , eol , { view-line } , "}" , eol ;   (* what the editors remember besides the sound; the song does not depend on it *)
+view-line   = blank | comment | view-group | view-size | view-pin | view-section | view-line-name | view-order ;
+view-group  = "group" , name , "{" , eol , { blank | comment | identifier , value-text , eol } , "}" , eol ;   (* title, member, x, y, label and other fields of the group *)
+view-size   = "size" , name , number , eol ;
+view-pin    = "pin" , name , eol ;
+view-section = "section" , string , "at" , integer , "for" , integer , eol ;   (* bars 1 to 256, no two overlap *)
+view-line-name = "line" , name , string , eol ;   (* a name for the line that holds this block *)
+view-order  = "order" , name , { name } , eol ;   (* the order of the lines, by one block of each *)
 
 use         = "use" , module-ref , "as" , name , "{" , eol , { use-line } , "}" , eol ;
 module-ref  = ( identifier , { "/" , identifier } | string ) , [ "@" , version ] ;
@@ -76,6 +85,7 @@ output-decl = "output" , identifier , name , "." , name , eol ;
 | lint | `lint { L004 error  L005 info }` | only entries that differ from the default; levels `off info warning error` |
 | settings | `settings { acestep.synthModel sft  acestep.vocalIsolation ace }` | plugin settings of this song, pairs of `plugin.name` and a value (text with spaces in quotes); part of the plan of the blocks of that plugin, so changing one makes a new take; at most one line; malformed is `AMP1112`. Project-level settings are only the starting point for new songs |
 | layout | `layout "name" 280 20` | node editor position; no meaning for the sound |
+| view | `view {` … `}` at the end of the song | what the editors remember besides the sound: `group` (title, members, place), `size`, `pin`, `section "Drop" at 33 for 32` (a named stretch of bars, 1 to 256, no overlap), `line kick "Kick stack"` (a name for the line that holds the block) and `order kick snare` (the order of the lines). The song does not depend on it: it changes no plan, take or sound. Error AMP1114 for any other line; AMP1121 to AMP1123 for sections. Since spec 1.1 |
 | block | `type name [pinned@version] [at ...] [flags] [freeze ...] {` ... `}` | see below |
 | comment | `# text` | `# ample-ignore L001` silences rules for the next block |
 

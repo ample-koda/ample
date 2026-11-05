@@ -18,6 +18,8 @@ The original goal was a clean, standalone tool (C#) for writing songs as text: i
 | [Takebank and plans (as built)](takebank.md) | Immutable takes and the plans they were made from: the Always rule enforced in the API, the database and the files, canonical plan ids, content-addressed data, attempts, verification, orphans. |
 | [Storage: overview, protection and clean-up](storage.md) | What the takebank uses, which takes are never removed, the clean-up with dry run, impact and progress, the soft limit and the per-project options. |
 | [Finals](finals.md) | Several deliverables of one song (full, edit, teaser), each rendered on purpose with an estimate first and exported with its own cut and fades. |
+| Game score | Layers and music states of a song as loopable stems plus a manifest, so a game can mix adaptive music live. |
+| Game score: live audio server | Design note: what AMPLE would need to produce the game's music live instead of as stems, and what stays stable on the game side. |
 | [Score import](score-import.md) | Turning a MIDI or MusicXML score into a sequence (parts, patterns, playlist, tempo) with ample_import_score. |
 | [Access outside the project](ai-access.md) | How the assistant asks to write outside the project (what, why, how long), the pass-through commands, the emergency stop and the project log. |
 | [The language server (as built)](lsp.md) | `ample lsp` and the `/lsp` WebSocket: capabilities, transports, measured budgets, decisions and what is not done; the VS Code extension and the generated grammar. |

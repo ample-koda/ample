@@ -196,9 +196,15 @@ export function containerView(flat, groups, cid = 'root') {
     if (!block) return p.name;
     return ports.get(g.id)[side].filter((q) => q.bound?.block === block).length > 1 ? `${block} · ${p.name}` : block;
   };
+  // a group that has no place of its own in the song (written by hand, by a script or by another tool) sits at the middle of its members; a place that is not a number never reaches the canvas
+  const placeOf = (g, axis) => {
+    if (Number.isFinite(g[axis])) return g[axis];
+    const at = flat.nodes.filter((n) => g.members.includes(n.id) && Number.isFinite(n[axis])).map((n) => n[axis]);
+    return at.length ? Math.round(at.reduce((s, v) => s + v, 0) / at.length) : 0;
+  };
   const groupNode = (g) => ({
     id: g.id, title: g.title, tpl: 'group', cls: 'stable', ver: '1.0', dyn: false, params: {}, flags: [], isGroup: true, expanded: !!g.expanded,
-    x: g.x, y: g.y, ins: ports.get(g.id).ins.map((p) => [labelOf(g, p, 'ins'), p.type]), outs: ports.get(g.id).outs.map((p) => [labelOf(g, p, 'outs'), p.type]),
+    x: placeOf(g, 'x'), y: placeOf(g, 'y'), ins: ports.get(g.id).ins.map((p) => [labelOf(g, p, 'ins'), p.type]), outs: ports.get(g.id).outs.map((p) => [labelOf(g, p, 'outs'), p.type]),
     outKeys: ports.get(g.id).outs.map((p) => p.key), inKeys: ports.get(g.id).ins.map((p) => p.key), inBound: ports.get(g.id).ins.map((p) => p.bound || null),
   });
   if (cid === 'root') {
@@ -257,7 +263,7 @@ export function pruneGroups(groups, flat) {
   return out;
 }
 
-/** The inputs a block shows: all of them, except a mixer, which shows as many lanes as its `inputs` says (4 to 16), and never fewer than the highest one in use. */
+/** The inputs a block shows: all of them, except a mixer, which shows as many lanes as its `inputs` says (2 to 16), and never fewer than the highest one in use. */
 export function visibleInputs(block, template) {
   if (block.type !== 'mixer' && block.type !== 'bus') {
     const steered = (template.controlInputs || []).filter((q) => regionReveal.control || (block.froms || []).some((f) => f.input === q.name) || (block.controlRefs || []).some((c) => c.parameter === q.name));
@@ -265,5 +271,5 @@ export function visibleInputs(block, template) {
   }
   const used = Math.max(0, ...(block.froms || []).map((f) => Number(/^in(\d+)$/.exec(f.input)?.[1]) || 0));
   const asked = Number((block.parameters || []).find((p) => p.name === 'inputs')?.value) || 4;
-  return template.inputs.slice(0, Math.max(4, Math.min(16, Math.max(asked, used))));
+  return template.inputs.slice(0, Math.max(2, Math.min(16, Math.max(asked, used))));
 }

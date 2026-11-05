@@ -8,7 +8,7 @@ import { ask, toast } from './ui.js';
 import { signatureOf, staleBlocks, staleByFiles } from '../lib/build-stale.mjs';
 import { buildSummary } from '../lib/transport-model.mjs';
 import { collectBuildErrors } from '../lib/build-errors.mjs';
-import { parseView, writeView } from '../lib/view-lines.mjs';
+import { parseView, withoutViewText, writeView } from '../lib/view-lines.mjs';
 import { sizes } from './geometry.js';
 import { setBarBeats } from '../lib/meter.mjs';
 import { consumeRecoveryAcceptance, decide, listWorkRecords, parseRecord, workRecord } from '../lib/work-state.mjs';
@@ -113,6 +113,8 @@ function rootFlat() {
   return cache.graph;
 }
 
+/** The document the views show: the module that is open, else the song. */
+export const activeDoc = () => (S.moduleStack.length && S.moduleDoc ? S.moduleDoc : S.doc);
 export function flat() { return S.moduleStack.length && S.moduleFlat ? S.moduleFlat : rootFlat(); }
 
 export const container = () => S.stack[S.stack.length - 1];
@@ -128,9 +130,10 @@ let viewTimer = 0;
 let viewWrite = Promise.resolve();
 async function persistView() {
   if (!S.doc || S.moduleStack.length || S.peek || readOnly()) return;
-  const wants = Object.keys(S.groups).length > 0 || S.pins.size > 0 || Object.values(sizes).some((scale) => scale && scale !== 1);
-  if (!wants && !parseView(S.doc.text).found) return;
-  const next = writeView(S.doc.text, S.groups, sizes, [...S.pins]);
+  const kept = parseView(S.doc.text);
+  const wants = Object.keys(S.groups).length > 0 || S.pins.size > 0 || Object.values(sizes).some((scale) => scale && scale !== 1) || kept.sections.length > 0 || Object.keys(kept.lineNames).length > 0 || kept.order.length > 0 || kept.unread.length > 0;
+  if (!wants && !kept.found) return;
+  const next = writeView(S.doc.text, S.groups, sizes, [...S.pins], kept);
   if (next !== S.doc.text) await applyText(next);
 }
 /** Writes the groups and the block sizes into the song file (a step that can be undone), a moment after the last change. */
@@ -139,6 +142,50 @@ export function saveViewSoon() {
   viewTimer = setTimeout(() => { viewTimer = 0; viewWrite = viewWrite.then(persistView); }, 150);
 }
 async function flushViewSave() { clearTimeout(viewTimer); viewTimer = 0; viewWrite = viewWrite.then(persistView); await viewWrite; }
+
+/** The sections of the song, as the view block holds them. */
+export const sectionsOf = () => (S.doc ? parseView(S.doc.text).sections : []);
+
+/** What the view block holds besides the groups: { sections, lineNames, order }, read from the song text. */
+export const viewOf = () => (S.doc ? parseView(S.doc.text) : { sections: [], lineNames: {}, order: [], groups: {}, unread: [] });
+
+/** Writes new view data (any of sections, lineNames, order) into the view block as one undo step. Returns false when the song cannot be edited now. */
+export async function saveViewData(patch) {
+  if (!S.doc || S.moduleStack.length || S.peek || readOnly()) { toast('The song cannot be edited now.'); return false; }
+  const kept = parseView(S.doc.text);
+  const next = writeView(S.doc.text, S.groups, sizes, [...S.pins], { ...kept, ...patch });
+  return next === S.doc.text ? true : !!(await applyText(next));
+}
+export const saveSections = (sections) => saveViewData({ sections });
+
+/**
+ * Applies a list of graph edits to the song, all of them or none (the server refuses the whole list when one edit is refused), as one undo step.
+ * Inside a module the list goes one by one, as `edit` does.
+ */
+export function editAll(ops) {
+  const p = chain.then(() => runAll(ops));
+  chain = p.catch(() => {});
+  return p;
+}
+
+async function runAll(ops) {
+  if (!S.doc || readOnly()) { toast('The song has errors: it is read-only until they are fixed.'); return false; }
+  if (S.moduleStack.length) return run(ops);
+  stopBuild();
+  quiet.edits++;
+  const prev = S.doc.text;
+  try {
+    const doc = await api.post('/api/doc/edits', { path: S.path, baseVersion: S.doc.version, ops });
+    if (doc.text !== prev) { S.undo.push(prev); S.redo.length = 0; }
+    setDoc(doc);
+    return true;
+  } catch (e) {
+    fail(e);
+    return false;
+  } finally {
+    quiet.edits--;
+  }
+}
 
 /** Fixes the place of these blocks (or lets them move again). */
 export function setPinned(ids, on) {
@@ -561,7 +608,7 @@ export async function applyText(text) {
   const inModule = S.moduleStack.length > 0 && S.modulePath;
   const active = inModule ? S.moduleDoc : S.doc;
   const prev = active.text;
-  if (text !== prev) stopBuild();
+  if (text !== prev && withoutViewText(text) !== withoutViewText(prev)) stopBuild();   // a change of only the view block (sections, names, groups) changes no sound, so a running build goes on
   try {
     const doc = inModule
       ? await api.put('/api/module/doc', { path: S.modulePath, text, baseVersion: active.version })

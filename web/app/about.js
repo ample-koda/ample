@@ -58,4 +58,15 @@ export function initHelpMenu() {
   button.parentElement.addEventListener('keydown', (event) => { if (event.key === 'Escape') { close(); button.focus(); } });
   menu.addEventListener('click', (event) => { if (event.target.closest('[role="menuitem"]')) close(); });   // the switch for text selection stays open: it shows its state
   $('#btn-about').onclick = () => { showAbout(); };
+  const playlist = $('#btn-playlist-view');
+  if (playlist) {
+    const sync = () => document.querySelectorAll('[data-playlist-view-state]').forEach((item) => item.setAttribute('aria-checked', String(localStorage.getItem('ample.playlist.on') === '1')));
+    sync();
+    playlist.onclick = () => {
+      const on = localStorage.getItem('ample.playlist.on') !== '1';
+      try { localStorage.setItem('ample.playlist.on', on ? '1' : '0'); } catch { /* storage may be blocked */ }
+      sync();
+      import('./playlist.js').then((m) => m.setPlaylistEnabled(on));
+    };
+  }
 }

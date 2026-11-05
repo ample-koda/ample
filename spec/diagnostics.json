@@ -268,7 +268,7 @@
       "code": "AMP1114",
       "severity": "error",
       "title": "View block line",
-      "explanation": "The view block keeps the canvas arrangement: group <id> { title, member, x, y, label lines }, size <block> <scale> and pin <block>. The song does not depend on it.",
+      "explanation": "The view block keeps what the editors remember of the song besides its sound: group <id> { title, member, x, y, label lines }, size <block> <scale>, pin <block>, section \"<name>\" at <bar> for <bars>, line <block> \"<name>\" and order <block> .... The song does not depend on it.",
       "wrongExample": "view {\n  colour red\n}",
       "rightExample": "view {\n  pin kick\n}",
       "since": "1.0",
@@ -3904,6 +3904,39 @@
       "since": "1.0",
       "retired": false,
       "stage": "runtime"
+    },
+    {
+      "code": "AMP1121",
+      "severity": "error",
+      "since": "1.1",
+      "retired": false,
+      "stage": "static",
+      "title": "Section outside the bars",
+      "explanation": "A section of the view block starts at bar 1 or later, lasts at least one bar and ends by bar 256 (the same limit as a part of a block).",
+      "wrongExample": "view {\n  section \"Drop\" at 0 for 8\n}",
+      "rightExample": "view {\n  section \"Drop\" at 1 for 8\n}"
+    },
+    {
+      "code": "AMP1122",
+      "severity": "error",
+      "since": "1.1",
+      "retired": false,
+      "stage": "static",
+      "title": "Sections overlap",
+      "explanation": "Two sections of the view block cover the same bar. Sections lie one after the other.",
+      "wrongExample": "view {\n  section \"A\" at 1 for 8\n  section \"B\" at 5 for 8\n}",
+      "rightExample": "view {\n  section \"A\" at 1 for 8\n  section \"B\" at 9 for 8\n}"
+    },
+    {
+      "code": "AMP1123",
+      "severity": "warning",
+      "since": "1.1",
+      "retired": false,
+      "stage": "static",
+      "title": "Two sections with one name",
+      "explanation": "Two sections of the view block have the same name. It does no harm, but they are hard to tell apart.",
+      "wrongExample": "view {\n  section \"A\" at 1 for 8\n  section \"A\" at 9 for 8\n}",
+      "rightExample": "view {\n  section \"A\" at 1 for 8\n  section \"B\" at 9 for 8\n}"
     }
   ]
 }

@@ -711,7 +711,7 @@ public static partial class BuiltInRenderers
                 warnings.AddRange(pairing.Warnings);
                 sourceNotes.AddRange(pairing.Notes.Select(n => (n.StartTick, n.EndTick, n.Pitch, n.Velocity, n.Channel, n.Bank, n.Program)));
             }
-            int gain = AudioEffects.ReadDb(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value, 0, -24, 12);
+            int gain = AudioEffects.ReadDb(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value, 0, -24, FixedAudio.WideMaxDb);
             string soundFont = r.Block.Parameters.FirstOrDefault(p => p.Name == "file")?.Value.Trim().Trim('"') ?? "pack:musescore-general";
             IReadOnlyList<(int Bar, int Pitch, long Beat, long Length, int Velocity, int Channel, int Bank, int Program)> notes = Midi.MapTempoNotes(r, file, sourceNotes, ppq, warnings);
             int? bankOverride = SourceOverride(r, "bank", 16_383), programOverride = SourceOverride(r, "program", 127);

@@ -369,6 +369,11 @@ public static class Queries
         }
 
         BlockNode? owner = doc.Blocks.FirstOrDefault(b => b.Line < line - 1 && (b.CloseLine < 0 || b.CloseLine >= line - 1));
+        if (owner is null && InViewBlock(doc, line - 1) is { } viewState)
+        {
+            return ViewBlockCompletions(doc, trimmed, before.EndsWith(' '), viewState.InGroup);
+        }
+
         if (owner is null)
         {
             if (trimmed.StartsWith('#'))
@@ -600,6 +605,71 @@ public static class Queries
         }
 
         return (words, quoted, false);
+    }
+
+    /// <summary>Says whether a line (0-based) is inside the <c>view { }</c> block at the end of the song, and whether inside one of its groups.</summary>
+    private static (bool InGroup, bool Unused)? InViewBlock(AmpleDocument doc, int index)
+    {
+        bool inView = false, inGroup = false;
+        for (int i = 0; i < doc.Lines.Count && i < index; i++)
+        {
+            string t = doc.Lines[i].Trim();
+            if (!inView)
+            {
+                inView = t == "view {" && doc.Blocks.All(b => i < b.Line || i > b.CloseLine);
+            }
+            else if (t == "}")
+            {
+                if (inGroup)
+                {
+                    inGroup = false;
+                }
+                else
+                {
+                    inView = false;
+                }
+            }
+            else if (!inGroup && t.StartsWith("group ", StringComparison.Ordinal) && t.EndsWith('{'))
+            {
+                inGroup = true;
+            }
+        }
+
+        return inView ? (inGroup, false) : null;
+    }
+
+    private static IReadOnlyList<CompletionItem> ViewBlockCompletions(AmpleDocument doc, string trimmed, bool space, bool inGroup)
+    {
+        string[] words = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        IReadOnlyList<CompletionItem> blocks = [.. doc.Blocks.Where(b => !b.Skipped).Select(b => new CompletionItem(Edits.Quote(b.Name), "block", b.Type))];
+        if (words.Length == 0 || (words.Length == 1 && !space))
+        {
+            return inGroup
+                ? [new("title", "keyword", "The name shown on the group."), new("member", "keyword", "A block in the group: member <block>"), new("x", "keyword", "The place of the group."), new("y", "keyword", "The place of the group."), new("label", "keyword", "label <key> <text>")]
+                :
+                [
+                    new("section", "keyword", "A named stretch of bars: section \"Drop\" at 33 for 32 (bars 1 to 256, no overlap)."),
+                    new("line", "keyword", "A name for the line that holds a block: line <block> \"Name\""),
+                    new("order", "keyword", "The order of the lines, by a block of each: order <block> ..."),
+                    new("group", "keyword", "A group of blocks: group <id> {"),
+                    new("size", "keyword", "The scale of a block: size <block> <scale>"),
+                    new("pin", "keyword", "Keeps a block in place: pin <block>"),
+                ];
+        }
+
+        if (inGroup)
+        {
+            return words[0] == "member" && (words.Length == 1 || (words.Length == 2 && !space)) ? blocks : [];
+        }
+
+        return words[0] switch
+        {
+            "line" or "size" or "pin" when words.Length == 1 || (words.Length == 2 && !space) => blocks,
+            "order" => blocks,
+            "section" when words.Length == 2 && space => [new("at", "keyword", "The first bar of the section.")],
+            "section" when words.Length == 4 && space => [new("for", "keyword", "How many bars the section lasts.")],
+            _ => [],
+        };
     }
 
     /// <summary>The comment lines the studio keeps in the song: <c># view group</c>, <c># view size</c> and <c># view pin</c>.</summary>

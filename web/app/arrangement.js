@@ -4,6 +4,9 @@
 import { $, activatable, ask, el, showMenu, toast } from './ui.js';
 import { api } from './api.js';
 import { S, build, edit, flat, notify, readOnly, select } from './store.js';
+import { drawSections, sectionMenu } from './view-sections.js';
+import { sectionAt } from '../lib/view-sections.mjs';
+import { sectionsOf } from './store.js';
 import { seamSpans, seamText } from '../lib/seam-spans.mjs';
 import { drawControl } from './control-lane.js';
 import { download, drawPeaks, onPlayer, peaksOf, play, playerState, seekFraction, setLoop, stop, toggle } from './player.js';
@@ -27,12 +30,12 @@ const masterTake = () => {
   return last ? t[last.id] : null;
 };
 
-const writeParts = (node, parts, trimBars) => edit([
+export const writeParts = (node, parts, trimBars) => edit([
   { type: 'setParts', block: node.id, parts: parts.map((p) => ({ at: p.at, length: p.length, name: p.name || '' })) },
   ...(trimBars ? [{ type: 'setParameter', block: node.id, name: 'bars', value: String(Math.max(...parts.map((p) => p.length))) }] : []),
 ]);
 
-async function commitParts(node, parts, originalLength, nextLength) {
+export async function commitParts(node, parts, originalLength, nextLength) {
   const configuredBars = Number(node.params.bars);
   let trimBars = false;
   if (nextLength < originalLength && Number.isFinite(configuredBars) && configuredBars > nextLength) {
@@ -161,6 +164,10 @@ export function renderArrangement() {
   arr.append(wave);
   const ruler = el('div', { className: 'ruler', style: `width:${W}px;cursor:col-resize;background-size:${bw}px 100%` });
   for (let i = 0; i < bars; i += bw < 28 ? 4 : 2) ruler.append(Object.assign(el('span', { textContent: `bar ${i + 1} | ${Math.round((i * barBeats() * 60) / tempo)}s` }), { style: `left:${i * bw}px;width:${2 * bw}px` }));
+  const strip = el('div', { className: 'arr-sections', 'aria-label': 'Sections of the song' });
+  drawSections(strip, bw);
+  ruler.append(strip);
+  ruler.oncontextmenu = (e) => { e.preventDefault(); const bar = Math.floor((e.clientX - ruler.getBoundingClientRect().left) / bw) + 1; sectionMenu(e, bar, sectionAt(sectionsOf(), bar)); };
   const sel = el('div', { id: 'arr-range', style: `position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--acc) 20%,transparent);border-left:2px solid var(--acc);border-right:2px solid var(--acc);pointer-events:none;display:${S.range ? 'block' : 'none'}` });
   if (S.range) { sel.style.left = `${(S.range.firstBar - 1) * bw}px`; sel.style.width = `${S.range.bars * bw}px`; }
   ruler.append(sel);

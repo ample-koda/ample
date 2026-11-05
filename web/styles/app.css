@@ -245,3 +245,123 @@ dialog.recorder{background:var(--panel);color:var(--fg,inherit);border:1px solid
 /* no accidental text selection (selection-guard.js): the chrome is not selectable, what is meant to be read or copied is */
 body.no-select{-webkit-user-select:none;user-select:none}
 body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditable=""],.cm-editor,.cm-editor *,#se-ta,#se-hl,pre,code,kbd,samp,.selectable,#toast,#b-log,#b-log *,.ai-log,.ai-log *,.ai-line,.ai-line *,#sq-error,.error,.err,.note.bad,.tc-hunk,.project-file-detail,.project-file-detail *,.about-facts dd,.about-facts dd *,.recovery-diff-dialog pre,.soundcheck pre,[role="log"],[role="alert"],[role="status"],[data-selectable],[data-selectable] *){-webkit-user-select:text;user-select:text}
+
+.arr-sections{position:absolute;left:0;right:0;bottom:0;height:14px;pointer-events:none}
+.arr-section{position:absolute;bottom:0;height:14px;box-sizing:border-box;padding:0 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:10px;line-height:14px;color:var(--text);background:color-mix(in srgb,var(--section) 38%,var(--panel2));border-bottom:2px solid var(--section);border-radius:3px 3px 0 0;cursor:pointer;pointer-events:auto}
+.arr-section:hover,.arr-section:focus-visible{background:color-mix(in srgb,var(--section) 60%,var(--panel2));outline:none}
+.arr-section:focus-visible{box-shadow:0 0 0 2px var(--acc)}
+
+/* The Playlist view (web/app/playlist.js) */
+#b-playlist{display:none;flex-direction:column;min-height:0}
+#b-playlist.on{display:flex}
+.pl-toolbar{flex-wrap:wrap;gap:6px;align-items:center;padding:4px 6px;border-bottom:1px solid var(--line)}
+.pl-toolbar button,.pl-toolbar select{font-size:12px}
+.pl-banner{display:flex;gap:8px;align-items:center;flex:1 1 100%;padding:3px 8px;border-radius:4px;background:color-mix(in srgb,#d9a441 22%,var(--panel2));font-size:12px}
+.pl-scroll{flex:1 1 auto;min-height:0;overflow:auto;position:relative}
+.pl-rows{position:relative;min-width:100%}
+.pl-row{display:flex;align-items:stretch;min-height:30px;border-bottom:1px solid var(--line)}
+.pl-sub{min-height:24px}
+.pl-label{flex:0 0 210px;width:210px;position:sticky;left:0;z-index:4;display:flex;align-items:center;gap:6px;padding:0 6px;box-sizing:border-box;background:var(--panel);border-right:1px solid var(--line);overflow:hidden;white-space:nowrap;font-size:12px;cursor:pointer}
+.pl-label:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.pl-name{overflow:hidden;text-overflow:ellipsis;flex:1 1 auto}
+.pl-type,.pl-count,.pl-reason{color:var(--dim);font-size:10px}
+.pl-indent{display:inline-block;width:14px;flex:0 0 14px}
+.pl-fold{border:0;background:transparent;color:var(--text);cursor:pointer;padding:0 2px}
+.pl-badge{font-size:9px;padding:0 4px;border-radius:3px;background:var(--panel2);color:var(--dim)}
+.pl-badge.st-failed{background:#8a2c2c;color:#fff}
+.pl-badge.st-built,.pl-badge.st-cache-hit{background:#27553f;color:#cfe}
+.pl-ms{min-width:18px;padding:0 3px;font-size:10px;border:1px solid var(--line);border-radius:3px;background:var(--panel2);color:var(--text);cursor:pointer}
+.pl-ms.on{background:var(--acc);color:#000}
+.pl-group .pl-label{background:var(--panel2);font-weight:600}
+.pl-corner{cursor:default;color:var(--dim)}
+.pl-gutter{flex:0 0 150px;width:150px;position:sticky;left:210px;z-index:3;display:flex;align-items:center;gap:6px;padding:0 6px;box-sizing:border-box;background:var(--panel);border-right:1px solid var(--line);font-size:10px;color:var(--dim)}
+.pl-port{width:12px;height:12px;border-radius:50%;border:2px solid var(--acc);background:var(--panel);padding:0;cursor:grab}
+.pl-port:focus-visible{outline:2px solid var(--acc)}
+.pl-track{position:relative;flex:0 0 auto;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px)}
+.pl-ruler-row{position:sticky;top:0;z-index:6;background:var(--panel)}
+.pl-ruler{position:relative;height:36px;flex:0 0 auto;cursor:col-resize;background-color:var(--panel2);background-image:linear-gradient(to right,var(--line) 1px,transparent 1px)}
+.pl-ruler span{position:absolute;top:0;font-size:10px;color:var(--dim);border-left:1px solid var(--line);padding-left:2px;height:100%}
+.pl-range{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--acc) 20%,transparent);border-left:2px solid var(--acc);border-right:2px solid var(--acc);pointer-events:none}
+.pl-loop{display:none;position:absolute;top:0;height:6px;background:var(--acc);opacity:.8;pointer-events:none}
+.pl-playhead{display:none;position:absolute;top:0;bottom:-9999px;width:2px;background:#ff5a5a;pointer-events:none;z-index:5}
+.pl-clip{position:absolute;top:3px;bottom:3px;box-sizing:border-box;min-width:6px;overflow:hidden;padding:0 4px;text-align:left;font-size:11px;color:var(--text);background:color-mix(in srgb,var(--acc) 35%,var(--panel2));border:1px solid color-mix(in srgb,var(--acc) 70%,transparent);border-radius:3px;cursor:grab}
+.pl-clip.picked{outline:2px solid var(--acc);outline-offset:1px}
+.pl-clip:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.pl-clip.auto{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.12) 6px 12px)}
+.pl-clip.ghost{opacity:.5;border-style:dashed;pointer-events:none}
+.pl-clip.lane{background:color-mix(in srgb,#d9a441 30%,var(--panel2));border-color:#d9a441}
+.pl-clip.st-failed{border-color:#d95f5f;border-style:dashed}
+.pl-clip.st-not-built{opacity:.8}
+.pl-clip-name{position:relative;pointer-events:none}
+.pl-grip{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:ew-resize;background:rgba(255,255,255,.18)}
+.pl-notes{position:absolute;left:0;top:2px;opacity:.9;pointer-events:none}
+.pl-span{position:absolute;top:8px;bottom:8px;border-radius:3px;background:color-mix(in srgb,var(--acc) 22%,var(--panel2));opacity:.8}
+.pl-span.st-failed{background:#8a2c2c}
+.pl-line.muted .pl-track{opacity:.4}
+.pl-line.sel .pl-label,.pl-sub.sel .pl-label{background:color-mix(in srgb,var(--acc) 22%,var(--panel))}
+.pl-label.off .pl-name{text-decoration:line-through;opacity:.6}
+.pl-wave canvas{display:block}
+.pl-wave.dim canvas{opacity:.35}
+.pl-cables{position:absolute;top:0;left:0;z-index:6;pointer-events:none}
+.pl-cables .cable{fill:none;stroke-width:2}
+.pl-cables .cable.c0{stroke:#5b8def}.pl-cables .cable.c1{stroke:#e0833a}.pl-cables .cable.c2{stroke:#4fae8b}.pl-cables .cable.c3{stroke:#b565d9}.pl-cables .cable.c4{stroke:#d9a441}.pl-cables .cable.c5{stroke:#d95f7a}
+.pl-cables .cable.key,.pl-cables .cable.send{stroke-dasharray:5 4;stroke:var(--dim)}
+.pl-cables .cable.off{fill:var(--dim)}
+.pl-rail{position:absolute;top:40px;z-index:7;display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--panel2);border:1px solid var(--acc);border-radius:4px}
+.pl-bus{font-size:11px;padding:2px 8px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--text);cursor:pointer}
+.pl-bus:hover{background:var(--acc);color:#000}
+.pl-dock{flex:0 0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 8px;border-top:1px solid var(--line);font-size:12px}
+@media (prefers-reduced-motion:reduce){.pl-clip{transition:none}}
+
+.pl-level{flex:0 0 36px;height:6px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.pl-level span{display:block;height:100%;background:var(--acc)}
+.pl-line.state-off .pl-track{opacity:.25}
+.pl-states{padding:4px 8px;border-bottom:1px solid var(--line);max-height:220px;overflow:auto;font-size:12px}
+.pl-states table{border-collapse:collapse}
+.pl-states th,.pl-states td{padding:1px 6px;text-align:left;white-space:nowrap}
+.pl-cell{position:relative;width:56px;height:20px;padding:0;border:1px solid var(--line);border-radius:3px;background:var(--panel2);color:var(--text);cursor:pointer;overflow:hidden}
+.pl-cellbar{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--acc) 55%,transparent)}
+.pl-cellval{position:relative;font-size:10px}
+.pl-warn{color:#d9a441}
+
+.pl-pattern{position:absolute;top:4px;bottom:4px;box-sizing:border-box;overflow:hidden;padding:0 4px;font-size:10px;line-height:16px;white-space:nowrap;border-radius:3px;border:1px solid var(--pattern,var(--acc));background:color-mix(in srgb,var(--pattern,var(--acc)) 35%,var(--panel2))}
+.pl-graph{flex:0 0 auto;max-width:100%;overflow:visible}
+.pl-edge{fill:none;stroke:var(--dim);stroke-width:1.5}
+.pl-edge.dashed{stroke-dasharray:4 3}
+.pl-gnode rect{fill:var(--panel2);stroke:var(--line)}
+.pl-gnode.source rect{stroke:var(--acc)}
+.pl-gnode.note rect{stroke:#d9a441}
+.pl-gnode.key rect{stroke-dasharray:3 2;stroke:var(--dim)}
+.pl-gnode text{fill:var(--text);font-size:10px;pointer-events:none}
+.pl-gnode{cursor:pointer}
+.pl-gnode:hover rect,.pl-gnode:focus-visible rect{fill:color-mix(in srgb,var(--acc) 25%,var(--panel2));outline:none}
+
+.pl-pattern.editable{cursor:grab}
+.pl-pattern.editable:hover{outline:1px solid var(--pattern,var(--acc))}
+.pl-curve svg{display:block}
+.pl-curve{cursor:pointer}
+.pl-curve-line{fill:none;stroke:var(--acc);stroke-width:2}
+.pl-curve-text{fill:var(--dim);font-size:11px}
+
+.pl-minimap{flex:0 0 auto;position:relative;height:34px;border-bottom:1px solid var(--line);cursor:pointer;overflow:hidden}
+.pl-minimap canvas{display:block;height:34px}
+.pl-minimap:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+/* the Playlist on a phone: the buttons of the bottom panel are 44 px, which left no room for the name of a line */
+@media (max-width:700px){
+  #bbody .pl-label{flex-basis:230px;width:230px}
+  #bbody .pl-ms,#bbody .pl-fold{min-width:30px;min-height:30px}
+  #b-playlist .pl-label .pl-badge{display:none}
+  #bbody .pl-gutter{left:230px}
+  #bbody .pl-toolbar button,#bbody .pl-toolbar select{min-height:36px}
+}
+
+#b-playlist :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+#b-playlist .pl-pattern:focus-visible{outline-color:#fff}
+@media (prefers-reduced-motion:reduce){#b-playlist *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media (forced-colors:active){.pl-clip,.pl-pattern,.pl-port,.pl-ms{border:1px solid CanvasText}.pl-clip.picked{outline:2px solid Highlight}}
+
+.pl-lasso{position:absolute;z-index:8;border:1px dashed var(--acc);background:color-mix(in srgb,var(--acc) 15%,transparent);pointer-events:none}
+.pl-edits{flex:1 1 100%;font-size:11px}
+.pl-edits pre{margin:2px 0 0;max-height:110px;overflow:auto;white-space:pre-wrap;font-size:11px;background:var(--panel2);padding:4px 6px;border-radius:3px}
+
+.pl-snap{display:inline-flex;align-items:center;gap:4px;font-size:12px}

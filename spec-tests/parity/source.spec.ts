@@ -11,6 +11,14 @@ test('the file switcher finds the song, the text files the blocks refer to and t
   }
 });
 
+test('the file switcher opened again right after a file was chosen stays open: the hide that the blur planned must not close it', async ({ page }) => {
+  await openSourceFile(page, 'lyrics/chorus.lyr');
+  await page.locator('#se-switch').fill('ample.lock');
+  await page.waitForTimeout(400);   // longer than the 120 ms of the planned hide
+  await expect(page.locator('#se-switchlist')).toBeVisible();
+  await expect(page.locator('#se-switchlist [role="option"]', { hasText: 'ample.lock' }).first()).toBeVisible();
+});
+
 test('a plain text file opens, applying it writes it, and the generated lock is read-only', async ({ page }) => {
   await openSourceFile(page, 'lyrics/chorus.lyr');
   await expect(page.locator('#se-title')).toHaveText('lyrics/chorus.lyr');

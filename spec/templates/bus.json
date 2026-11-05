@@ -142,9 +142,9 @@
       "type": "text",
       "default": "4",
       "kind": "number",
-      "min": 4,
+      "min": 2,
       "max": 16,
-      "doc": "How many input lanes the block shows (4 to 16). Dragging the grip of the block changes it."
+      "doc": "How many input lanes the block shows (2 to 16). Dragging the grip of the block changes it."
     },
     {
       "name": "gain",

@@ -87,6 +87,7 @@ function initMoreMenu() {
     menuItem('Properties', proxy('#tg-right')),
     menuItem('Panel', proxy('#tg-bottom')),
     menuItem('Hide top bar', proxy('#lip-top')),
+    menuItem('Playlist view (beta)', () => { const on = localStorage.getItem('ample.playlist.on') !== '1'; try { localStorage.setItem('ample.playlist.on', on ? '1' : '0'); } catch { /* storage may be blocked */ } document.querySelectorAll('[data-playlist-view-state]').forEach((item) => item.setAttribute('aria-checked', String(on))); import('./playlist.js').then((m) => m.setPlaylistEnabled(on)); }, { check: true, state: 'playlist-view' }),
     menuItem('Koda: show or hide', () => import('./koda.js').then((m) => m.toggleKoda())),
     menuItem('Koda: look at something', () => import('./koda.js').then((m) => m.pickLook())),
     menuItem('Koda: mute or unmute', () => import('./koda.js').then((m) => m.muteKoda())),
@@ -99,6 +100,7 @@ function initMoreMenu() {
     menuItem('About AMPLE', proxy('#btn-about'), { wide: true }),
   );
   import('./selection-guard.js').then((m) => m.setSelectionGuard(m.selectionGuardOn()));   // the state of the selection switch in this menu
+  document.querySelectorAll('[data-playlist-view-state]').forEach((item) => item.setAttribute('aria-checked', String(localStorage.getItem('ample.playlist.on') === '1')));
   const loop = menu.querySelector('[role="menuitemcheckbox"]');
   const syncLoop = () => loop.setAttribute('aria-checked', $('#btn-loop')?.getAttribute('aria-checked') || 'false');
   button.addEventListener('click', syncLoop);

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP1122",
+    "severity": "error",
+    "line": 4,
+    "col": 3,
+    "endCol": 25,
+    "message": "The sections \"A\" and \"B\" overlap."
+  }
+]

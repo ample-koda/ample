@@ -3,7 +3,7 @@
    The prose in docs/language/03-syntax.md contains the same grammar; validate-spec checks they are equal. *)
 
 file        = { line } ;
-line        = blank | comment | composition | features | settings | lint | layout | use | block ;
+line        = blank | comment | composition | features | settings | lint | layout | view | use | block ;
 blank       = eol ;
 comment     = "#" , { any-char } , eol ;
 ignore      = "#" , "ample-ignore" , rule-code , { [ "," ] , rule-code } , eol ;
@@ -20,6 +20,15 @@ lint        = "lint" , "{" , { rule-code , level } , "}" , eol ;
 level       = "off" | "info" | "warning" | "error" ;
 rule-code   = "L" , digit , digit , digit ;
 layout      = "layout" , name , integer , integer , eol ;
+
+view        = "view" , "{" , eol , { view-line } , "}" , eol ;   (* what the editors remember besides the sound; the song does not depend on it *)
+view-line   = blank | comment | view-group | view-size | view-pin | view-section | view-line-name | view-order ;
+view-group  = "group" , name , "{" , eol , { blank | comment | identifier , value-text , eol } , "}" , eol ;   (* title, member, x, y, label and other fields of the group *)
+view-size   = "size" , name , number , eol ;
+view-pin    = "pin" , name , eol ;
+view-section = "section" , string , "at" , integer , "for" , integer , eol ;   (* bars 1 to 256, no two overlap *)
+view-line-name = "line" , name , string , eol ;   (* a name for the line that holds this block *)
+view-order  = "order" , name , { name } , eol ;   (* the order of the lines, by one block of each *)
 
 use         = "use" , module-ref , "as" , name , "{" , eol , { use-line } , "}" , eol ;
 module-ref  = ( identifier , { "/" , identifier } | string ) , [ "@" , version ] ;

@@ -41,6 +41,9 @@ test('a song is tokenised into the scopes of each token class', { skip: !textmat
     '  from chords.notes -> trigger',
     '}',
     'layout beats 120 -40',
+    'view {',
+    '  section "Drop" at 33 for 32',
+    '}',
   ];
   const t = await tokenize(lines);
   assert.ok(has(t[0], '# a comment', 'comment.line'));
@@ -62,6 +65,10 @@ test('a song is tokenised into the scopes of each token class', { skip: !textmat
   assert.ok(has(t[4], 'trigger', 'variable.parameter'));
   assert.ok(has(t[5], '}', 'punctuation.definition.block.end'));
   assert.ok(has(t[6], 'layout', 'keyword.control.directive'));
+  assert.ok(has(t[7], 'view', 'keyword.control.directive'));
+  assert.ok(has(t[8], 'section', 'keyword.control.directive'));
+  assert.ok(has(t[8], '"Drop"', 'string.quoted'));
+  assert.ok(has(t[8], '33', 'constant.numeric'));
   assert.ok(has(t[6], '-40', 'constant.numeric'));
 });
 

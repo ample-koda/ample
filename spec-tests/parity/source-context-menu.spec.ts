@@ -1,5 +1,7 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { test, expect } from '@playwright/test';
-import { freshServer, openApp, srcText } from '../../web/tests/support';
+import { freshServer, openApp, ownServer, srcText } from '../../web/tests/support';
 
 // The right-click menu of the code editor: the usual text actions and the AI actions, with the selection kept.
 freshServer();
@@ -37,6 +39,8 @@ test('the selection is still the selection when an AI action is chosen from the 
 });
 
 test('with an assistant chosen, "Modify selection" starts on the selected lines instead of the whole file', async ({ page }) => {
+  // the stand-in for Codex (as the other assistant specs): without it the test needs a real Codex on the machine, which a clean checkout does not have
+  fs.writeFileSync(path.join(ownServer()!.home, 'ai-policy.json'), JSON.stringify({ codexPath: path.resolve('web/tests/fixtures/fake-codex.js') }));
   await page.evaluate(() => fetch('/api/ai/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ample-Token': sessionStorage.getItem('ample.token') || '' }, body: JSON.stringify({ assistant: 'codex-server', mode: 'manual', acknowledgeRisk: true }) }));
   await page.reload();
   await page.waitForSelector('body[data-ready="1"]');

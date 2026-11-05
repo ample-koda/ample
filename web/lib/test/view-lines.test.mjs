@@ -43,3 +43,24 @@ test('the older comment lines are still read, and the next write turns them into
   assert.doesNotMatch(upgraded, /# view/);
   assert.deepEqual(parseView(upgraded), back);
 });
+
+test('sections, line names and the order are read and written in a fixed place, sections by bar', () => {
+  const more = { sections: [{ name: 'Drop', at: 33, length: 32 }, { name: 'Intro', at: 1, length: 8 }], lineNames: { kick: 'Kick stack', 'b c': 'Two words' }, order: ['kick', 'b c', 'snare'] };
+  const text = writeView(song, groups, {}, [], more);
+  assert.ok(text.includes('view {\n  section "Intro" at 1 for 8\n  section "Drop" at 33 for 32\n  line kick "Kick stack"\n  line "b c" "Two words"\n  order kick "b c" snare\n  group g1 {'));
+  const back = parseView(text);
+  assert.deepEqual(back.sections, [{ name: 'Intro', at: 1, length: 8 }, { name: 'Drop', at: 33, length: 32 }]);
+  assert.deepEqual(back.lineNames, more.lineNames);
+  assert.deepEqual(back.order, more.order);
+  assert.deepEqual(back.groups, groups);
+  assert.equal(writeView(text, back.groups, back.sizes, back.pins, back), text);
+});
+
+test('a line this file cannot read, and a comment, in the view block survive a save', () => {
+  const text = `${song}\nview {\n  # my note\n  colour red\n  section "Drop" at 33 for 32\n  pin kick\n}\n`;
+  const back = parseView(text);
+  assert.deepEqual(back.unread, ['# my note', 'colour red']);
+  const again = writeView(text, back.groups, back.sizes, back.pins, back);
+  assert.ok(again.includes('  # my note\n') && again.includes('  colour red\n') && again.includes('  section "Drop" at 33 for 32\n') && again.includes('  pin kick\n'));
+  assert.equal(writeView(again, back.groups, back.sizes, back.pins, parseView(again)), again);
+});
