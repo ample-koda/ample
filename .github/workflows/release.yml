@@ -30,6 +30,11 @@ jobs:
           node-version: '22'
       - name: Install the test dependencies
         run: npm ci
+      - name: Install the browser the server tests drive (the same step as the public CI)
+        run: |
+          set -euo pipefail
+          dotnet build tests/Ample.Server.Tests -c Release --nologo
+          pwsh tests/Ample.Server.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
       - name: Fetch the General MIDI SoundFont (the tests that play General MIDI need it; the script checks the size and the pinned SHA-256)
         env:
           AMPLE_PACK_OUT: ${{ github.workspace }}/.ample-home/audio-packs
