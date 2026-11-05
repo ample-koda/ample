@@ -7,7 +7,9 @@ $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).
 $solution = Join-Path $repositoryRoot 'ample\Ample.sln'
 $sourceRevision = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { 'unknown' }
 
-Push-Location -LiteralPath $repositoryRoot
+# dotnet picks its SDK from the folder it runs in: run it inside the repository, where global.json pins the SDK. From the folder above (no global.json)
+# a machine with a newer SDK, such as a GitHub runner, builds with that one (newer compiler and analyzers than the ones this repository is written for).
+Push-Location -LiteralPath (Join-Path $repositoryRoot 'ample')
 try {
   dotnet restore $solution
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

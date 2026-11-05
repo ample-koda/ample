@@ -64,7 +64,7 @@ public sealed class PlanTests
     {
         string id = PlanCanonical.PlanId(TakeFixtures.Plan());
         Assert.Equal(id, PlanCanonical.PlanId(TakeFixtures.Plan(settings: " { \"style\" : \"airy\", \"steps\" : 8 } ")));
-        PlanRecord reordered = TakeFixtures.Plan() with { Seeds = [.. TakeFixtures.Plan().Seeds.Reverse()] };
+        PlanRecord reordered = TakeFixtures.Plan() with { Seeds = [.. TakeFixtures.Plan().Seeds.AsEnumerable().Reverse()] };
         Assert.Equal(id, PlanCanonical.PlanId(reordered));
 
         Assert.NotEqual(id, PlanCanonical.PlanId(TakeFixtures.Plan(seed: 43)));
