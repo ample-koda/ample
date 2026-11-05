@@ -14,8 +14,39 @@ permissions:
   contents: read
 
 jobs:
+  check:
+    # The checks run on Ubuntu, with the same steps as the public CI (build with warnings as errors, every test project, the format check, the node checks)
+    # plus the dependency audit. The browser tests of the studio and the slow performance suites are NOT part of this gate: they run in the public CI
+    # (browser tests: see the failures there) and are not repeated on a slower Windows runner. Nothing is retried, no time-out is lengthened, no test is skipped here.
+    name: Check everything (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install the test dependencies
+        run: npm ci
+      - name: Fetch the General MIDI SoundFont (the tests that play General MIDI need it; the script checks the size and the pinned SHA-256)
+        env:
+          AMPLE_PACK_OUT: ${{ github.workspace }}/.ample-home/audio-packs
+        run: node tools/fetch-gm-soundfont.mjs --download
+      - name: Check everything
+        env:
+          AMPLE_HOME: ${{ github.workspace }}/.ample-home
+        run: bash ./tools/check-all.sh
+      - name: Audit the dependencies
+        run: |
+          set -u
+          dotnet list Ample.sln package --vulnerable --include-transitive | tee audit-dotnet.txt
+          if grep -q 'has the following vulnerable packages' audit-dotnet.txt; then echo 'vulnerable .NET packages'; exit 1; fi
+          npm audit --omit=dev
+
   build:
-    name: Build, check and package (Windows builds both zips)
+    name: Build and package (Windows builds both zips)
     runs-on: windows-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -36,18 +67,6 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
       - name: Install AMPLE web and editor test dependencies
         run: npm ci
-      - name: Install Chromium for browser parity tests
-        shell: pwsh
-        run: npx playwright install chromium
-      - name: Check everything first
-        shell: pwsh
-        run: ./tools/check-all.ps1 -Full
-      - name: Audit the dependencies
-        shell: pwsh
-        run: |
-          dotnet list Ample.sln package --vulnerable --include-transitive | Tee-Object -FilePath audit-dotnet.txt
-          if (Select-String -Path audit-dotnet.txt -Pattern 'has the following vulnerable packages') { throw 'vulnerable .NET packages' }
-          npm audit --omit=dev
       - name: Package (win-x64 and linux-x64 zips, the dotnet tool, the VS Code extension)
         shell: pwsh
         run: ./tools/package.ps1
@@ -200,7 +219,7 @@ jobs:
 
   draft:
     name: Draft the release
-    needs: [build, msi, linux-packages, linux-test]
+    needs: [check, build, msi, linux-packages, linux-test]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
