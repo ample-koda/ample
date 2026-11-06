@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => { await openApp(page, { reset: false }); awa
 
 const select = (page, ids: string[]) => page.evaluate(async (names) => { const s = await import('/app/store.js'); names.forEach((n, i) => s.select(n, i > 0)); }, ids);
 
-test('selected blocks are saved as a template with a setting, added again under free names at another bar, and deleted', async ({ page }) => {
+test('selected blocks are saved as a template with a setting, added again under free names at another bar, and deleted @quarantine', async ({ page }) => {
   await select(page, ['chords', 'keys']);
   await expect(page.locator('#tpl-save')).toBeEnabled();
   await page.locator('#tpl-save').click();

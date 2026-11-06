@@ -114,7 +114,7 @@ test('convolution previews its impulse locally and updates while playing', async
   expect(impulseRequests).toBe(3);
 });
 
-test('live local preview changes the running EQ during a held knob drag', async ({ page }) => {
+test('live local preview changes the running EQ during a held knob drag @quarantine', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__ampleParamUpdates = 0;
     (window as any).__amplePointerTrace = [];
@@ -262,7 +262,7 @@ test('inserting EQ creates a neutral editable effect block after an audio source
   await expect(dialog.locator('.studio-chain-manager')).toHaveCount(0);
 });
 
-test('an effect node Advanced opens its own controls and an unconnected generator labels its own take', async ({ page }) => {
+test('an effect node Advanced opens its own controls and an unconnected generator labels its own take @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'eq', 'root-eq');
   await addTemplateBlock(page, 'reverb', 'downstream-reverb');

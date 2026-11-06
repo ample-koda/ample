@@ -83,6 +83,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.count.outputs.matrix }}
+      playwright: ${{ steps.version.outputs.playwright }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,6 +92,11 @@ jobs:
           cache: npm
       - name: Install the test tools
         run: npm ci
+      - name: Read the version of Playwright
+        id: version
+        run: |
+          version=$(node -p "require('@playwright/test/package.json').version")
+          echo "playwright=$version" >> "$GITHUB_OUTPUT"
       - name: Count the tests and build the list of jobs
         id: count
         shell: bash
@@ -119,6 +125,12 @@ jobs:
     name: Studio browser tests (${{ matrix.kind }} ${{ matrix.shard }}/${{ matrix.total }})
     needs: studio-plan
     runs-on: ubuntu-24.04
+    # Chromium and the system libraries it needs are part of the official Playwright image (installing them with apt took about 7 minutes in every shard); the version is the one of the tests
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.studio-plan.outputs.playwright }}-noble
+    env:
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
     # the quarantined tests are reported, but a failure of theirs does not fail the run
     continue-on-error: ${{ matrix.kind == 'quarantine' }}
     strategy:
@@ -144,18 +156,6 @@ jobs:
         run: dotnet build src/Ample.Cli -c Release --nologo
       - name: Install the test tools
         run: npm ci
-      - name: Keep Chromium between runs
-        # the browser is downloaded once for a version of Playwright and kept; only the system libraries it needs are installed on every run
-        id: chromium
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Install Chromium
-        if: steps.chromium.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
-      - name: Install the system libraries of Chromium
-        run: npx playwright install-deps chromium
       - name: Cache the General MIDI SoundFont
         # the tests that play General MIDI need it; it is fetched once and kept between runs
         uses: actions/cache@v4
@@ -186,3 +186,56 @@ jobs:
             test-results/
             report-*.json
           retention-days: 7
+
+  quarantine-proposal:
+    # After a failed run of the normal browser tests on a push to the main branch (or a run started by hand), the failed tests are tagged @quarantine on a branch of their own and
+    # a pull request is opened, so that one failing test never keeps the others red. Nothing is merged by itself. A pull request made with the workflow's own token starts no
+    # workflow runs; if the repository does not allow the workflow to open pull requests, the branch is still pushed and the summary of the run holds the link to open it.
+    if: ${{ always() && needs.studio.result == 'failure' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'ample-koda/ample' }}
+    name: Propose quarantine for the failed browser tests
+    needs: studio
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: studio-test-failures-normal-*
+          path: failures
+          merge-multiple: true
+      - name: Tag the failed tests and propose the change
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          reports=$(ls failures/report-normal-*.json 2>/dev/null || true)
+          if [ -z "$reports" ]; then echo "No report of a failed normal part."; exit 0; fi
+          node tools/quarantine-failed.mjs $reports | tee tagged.txt
+          if git diff --quiet; then echo "Nothing new to put in quarantine."; exit 0; fi
+          branch="quarantine/run-$RUN_ID"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add spec-tests
+          git commit -m "Browser tests: put the tests that failed in run $RUN_ID in quarantine"
+          git push origin "$branch"
+          {
+            echo "These tests failed in run $RUN_ID (on $BASE) and are tagged @quarantine: they run apart, 10 to a job with one worker, and do not fail the run. See docs/testing-parallelism.md."
+            echo
+            echo "Each one needs a real fix; then take the tag off with: node tools/quarantine-failed.mjs --release \"part of the title\""
+            echo
+            sed 's/^/- /' tagged.txt
+          } > body.md
+          if gh pr create --base "$BASE" --head "$branch" --title "Browser tests: quarantine the tests that failed in run $RUN_ID" --body-file body.md; then
+            echo "A pull request was opened for $branch." >> "$GITHUB_STEP_SUMMARY"
+          else
+            { echo "The failed tests are tagged on the branch \`$branch\`, but a pull request could not be opened (the repository does not allow the workflow to open one)."; echo "Open it here: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$BASE...$branch?expand=1"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
