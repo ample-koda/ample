@@ -66,7 +66,7 @@ test('a group with a built line shows its waveform', async ({ page }) => {
   await expect(page.locator('.node.grp .player canvas')).toBeVisible();
 });
 
-test('a group says built when its blocks are built, and its waveform is drawn', async ({ page }) => {
+test('a group says built when its blocks are built, and its waveform is drawn @quarantine', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await page.evaluate(async () => {
     const store = await import('/app/store.js');

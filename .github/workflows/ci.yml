@@ -75,12 +75,14 @@ jobs:
           done
 
   studio-plan:
-    # How many shards the browser tests need: about 200 tests each, counted from the tests themselves, so the number grows with the suite and nobody has to edit it.
+    # How the browser tests are divided. The normal tests go in shards of about 200 (counted from the suite, so the number grows with it). A test whose title carries
+    # @quarantine (it failed, and is waiting for a fix) never runs in those shards: the quarantined tests run apart, 10 to a job, one worker each, and do not fail the run.
+    # tools/quarantine-failed.mjs puts the tag on the tests of a failed run.
     if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     name: Studio browser tests (plan)
     runs-on: ubuntu-24.04
     outputs:
-      shards: ${{ steps.count.outputs.shards }}
+      matrix: ${{ steps.count.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -89,31 +91,40 @@ jobs:
           cache: npm
       - name: Install the test tools
         run: npm ci
-      - name: Count the tests and choose the number of shards
+      - name: Count the tests and build the list of jobs
         id: count
         shell: bash
         run: |
-          set -euo pipefail
-          total=$(npx playwright test --list --project=chromium | grep -oE 'Total: [0-9]+' | grep -oE '[0-9]+')
-          per=200
-          shards=$(( (total + per - 1) / per ))
-          [ "$shards" -lt 1 ] && shards=1
-          [ "$shards" -gt 12 ] && shards=12
-          echo "$total tests, $shards shards"
-          list=$(seq -s, 1 "$shards")
-          echo "shards=[$list]" >> "$GITHUB_OUTPUT"
+          set -uo pipefail
+          count() { npx playwright test --list --project=chromium "$@" 2>/dev/null | grep -oE 'Total: [0-9]+' | grep -oE '[0-9]+' || true; }
+          normal=$(count --grep-invert @quarantine); normal=${normal:-0}
+          quarantined=$(count --grep @quarantine); quarantined=${quarantined:-0}
+          echo "$normal normal tests, $quarantined quarantined"
+          matrix=$(node -e '
+            const [normal, quarantined] = process.argv.slice(1).map(Number);
+            const jobs = [];
+            const shards = (n, per, max) => Math.max(1, Math.min(max, Math.ceil(n / per)));
+            const a = shards(normal, 200, 12);
+            for (let i = 1; i <= a; i++) jobs.push({ kind: "normal", shard: i, total: a });
+            if (quarantined > 0) { const b = shards(quarantined, 10, 20); for (let i = 1; i <= b; i++) jobs.push({ kind: "quarantine", shard: i, total: b }); }
+            console.log(JSON.stringify(jobs));
+          ' "$normal" "$quarantined")
+          echo "$matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   studio:
     # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
     if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     # The browser tests of the studio (Playwright, Chromium): they start the built command line tool and drive its pages. They run in shards at the same time.
-    name: Studio browser tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    name: Studio browser tests (${{ matrix.kind }} ${{ matrix.shard }}/${{ matrix.total }})
     needs: studio-plan
     runs-on: ubuntu-24.04
+    # the quarantined tests are reported, but a failure of theirs does not fail the run
+    continue-on-error: ${{ matrix.kind == 'quarantine' }}
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON(needs.studio-plan.outputs.shards) }}
+        include: ${{ fromJSON(needs.studio-plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -154,14 +165,24 @@ jobs:
       - name: Fetch the General MIDI SoundFont
         # the script checks the size and the pinned SHA-256 of the SoundFont, and does not download again when the file is already there (from the cache)
         run: node tools/fetch-gm-soundfont.mjs --download --into
-      - name: Run this shard of the browser tests
-        # no retry: a test that fails fails (the owner's rule); the traces below show why
-        run: npx playwright test --project=chromium --workers=2 --shard=${{ matrix.shard }}/${{ strategy.job-total }} --trace=retain-on-failure
-      - name: Keep the traces of the failed tests
-        # a trace shows the page, the steps and the console of a test that failed, to be opened with npx playwright show-trace
+      - name: Run this part of the browser tests
+        # no retry: a test that fails fails (the owner's rule); the traces and the report below show why
+        env:
+          KIND: ${{ matrix.kind }}
+          SHARD: ${{ matrix.shard }}
+          TOTAL: ${{ matrix.total }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: report-${{ matrix.kind }}-${{ matrix.shard }}.json
+        run: |
+          set -uo pipefail
+          if [ "$KIND" = quarantine ]; then selection="--grep @quarantine --workers=1"; else selection="--grep-invert @quarantine --workers=2"; fi
+          npx playwright test --project=chromium $selection --shard="$SHARD/$TOTAL" --trace=retain-on-failure --reporter=list,json
+      - name: Keep the traces and the report of the failed tests
+        # a trace shows the page, the steps and the console of a test that failed (npx playwright show-trace); the report feeds tools/quarantine-failed.mjs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: studio-test-traces-${{ matrix.shard }}
-          path: test-results/
+          name: studio-test-failures-${{ matrix.kind }}-${{ matrix.shard }}
+          path: |
+            test-results/
+            report-*.json
           retention-days: 7

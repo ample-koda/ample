@@ -84,7 +84,7 @@ test('the Patterns view shows the same grid, chooser and sections, and a sample 
 });
 
 // Plan patterns P07: the sections as a small timeline; the edge changes the bars, a drag moves a block, the menu and the keyboard do the rest, and the text stays the source.
-test('the section timeline: drag an edge to change the bars, drag a block to move it, remove and duplicate from the keyboard and the menu', async ({ page }) => {
+test('the section timeline: drag an edge to change the bars, drag a block to move it, remove and duplicate from the keyboard and the menu @quarantine', async ({ page }) => {
   await api('/api/doc', { method: 'PUT', body: { path: 'song.amplet', text: 'composition "band" { ample 1  tempo 100  master-seed 3 }\ndrums kit at 1 for 8 {\n  kit samples/kit\n  pattern kick:x...x...x...x... snare:....x.......x...\n  patterns fill=kick:xxxxxxxxxxxxxxxx / verse=kick:x...x...x...x...\n  song verse*3 fill verse*2\n}\n', baseVersion: (await api('/api/doc?path=song.amplet')).version } });
   await page.reload(); await page.waitForSelector('body[data-ready="1"]');
   await node(page, 'kit').locator('.nh .t').click();

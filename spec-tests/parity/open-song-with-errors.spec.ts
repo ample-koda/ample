@@ -26,11 +26,10 @@ master master {
   from talk.audio -> audio
 }
 `;
+// a block that is never closed: the text cannot be read into blocks, so the song opens in the source editor (a block with only an error in it, such as an unknown type, goes red and stays in the Blocks view)
 const BROKEN = `composition "broken" { ample 1  tempo 120  master-seed 1 }
-nonsense thing {
-}
-master master {
-}
+synth pad at 1 for 2 {
+  wave saw
 `;
 freshServer({ song: GOOD, prepare: (_cli, folder) => fs.writeFileSync(path.join(folder, 'zz-broken.amplet'), BROKEN) });
 

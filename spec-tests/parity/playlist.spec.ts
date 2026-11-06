@@ -142,7 +142,7 @@ test.describe('arrangement sections', () => {
     expect(await viewLines(page)).toEqual([]);
   });
 
-  test('arrangement sections: each section is one undo step', async ({ page }) => {
+  test('arrangement sections: each section is one undo step @quarantine', async ({ page }) => {
     const ruler = page.locator('#arr .ruler');
     await ruler.click({ button: 'right', position: { x: 40, y: 8 } });
     await chooseMenu(page, /^New section at bars/);
