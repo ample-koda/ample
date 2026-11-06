@@ -3,7 +3,7 @@
 // @ample:layout @ample:source-editor
 
 import { $, ask } from './ui.js';
-import { errors, S, unsupportedFeatures } from './store.js';
+import { errors, graphBroken, S, unsupportedFeatures } from './store.js';
 import { toast } from './ui.js';
 
 export const V = { mode: 'blocks', renderers: {}, guard: null };
@@ -35,13 +35,14 @@ export function updateBanner() {
   const features = unsupportedFeatures();
   // the module source stays one click away for modules that carry retained MIDI events; the warning (info icon) only shows what the node view cannot display
   const retained = V.mode === 'blocks' && (features.length > 0 || (S.moduleStack.length > 0 && /^\s*# source-event /m.test(S.moduleDoc?.text || '')));
-  $('#robanner').style.display = V.mode === 'blocks' && (n || retained) ? 'flex' : 'none';
+  const broken = graphBroken();
+  $('#robanner').style.display = V.mode === 'blocks' && (broken || retained) ? 'flex' : 'none';
   $('#ro-midi-info').style.display = features.length ? '' : 'none';
   $('#ro-n').textContent = String(n);
   $('#ro-file').textContent = S.modulePath || S.path || 'the song';
-  $('#ro-errors').style.display = n ? 'inline' : 'none';
+  $('#ro-errors').style.display = broken ? 'inline' : 'none';
   $('#midi-gate').style.display = retained ? 'inline-flex' : 'none';
-  $('#ro-back').style.display = n ? '' : 'none';
+  $('#ro-back').style.display = broken ? '' : 'none';
 }
 
 export function initViews() {

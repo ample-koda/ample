@@ -49,6 +49,7 @@
   <span class="help-menu"><button id="btn-help" class="help-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="help-popup" aria-label="Guide, help and about" title="Guide, help and about">?</button><span id="help-popup" class="transport-popup help-popup" role="menu" hidden><a role="menuitem" href="/guide/" target="_blank" title="The guide: explains how AMPLE works, with pictures and a dictionary">Guide</a><a role="menuitem" href="/help" target="_blank">Help</a><button id="btn-select-guard" data-select-guard type="button" role="menuitemcheckbox" aria-checked="true" title="On: the text of labels and buttons cannot be selected by accident (fields, editors, logs and errors still can). Off: text can be selected everywhere.">Stop accidental text selection</button><button id="btn-playlist-view" data-playlist-view-state type="button" role="menuitemcheckbox" aria-checked="false" title="Turns on the Playlist tab next to the Arrangement: the song as lines with clips, chains and cables. It changes nothing in the song.">Playlist view (beta)</button><button id="btn-about" type="button" role="menuitem">About AMPLE</button></span></span>
 </header>
 <div id="banner" class="banner"></div>
+<div id="tabbar" role="presentation" hidden></div>
 
 <div id="work">
   <aside id="left">
@@ -74,7 +75,7 @@
     <div id="pt"></div>
     <div id="sq"></div>
     <div id="lb"></div>
-    <div id="robanner"><span id="ro-errors" style="display:none">Read-only: <span id="ro-file">the song</span> has <b id="ro-n">0</b> error(s). Fix them in the source editor. <button id="ro-back" class="primary">Back to the editor</button></span><span id="midi-gate" style="display:none"><button id="ro-source" class="primary">Edit MIDI event source</button><button id="ro-midi-info" type="button" aria-label="MIDI source information" title="MIDI source information">i</button></span></div>
+    <div id="robanner"><span id="ro-errors" style="display:none">The text of <span id="ro-file">the song</span> has <b id="ro-n">0</b> error(s) that stop the blocks from being read: fix them first. <button id="ro-back" class="primary">Fix in the code view</button></span><span id="midi-gate" style="display:none"><button id="ro-source" class="primary">Edit MIDI event source</button><button id="ro-midi-info" type="button" aria-label="MIDI source information" title="MIDI source information">i</button></span></div>
     <div id="se-tip"></div>
     <div id="cv"><div id="world"><svg id="links"></svg></div></div>
     <div id="crumbs"></div>

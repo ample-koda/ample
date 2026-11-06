@@ -1117,3 +1117,52 @@ dialog.ask-dialog:has(textarea.notes-editor) #dlg-extra{max-width:100%}
 #fr #fr-message:empty{display:none}
 #toast{z-index:60}
 @media (max-width:700px){#fr{grid-template-columns:1fr;grid-template-rows:auto 1fr}#fr .fr-side{border-right:0;border-bottom:1px solid var(--line)}#fr .fr-steps{flex-direction:row;flex-wrap:wrap}}
+
+/* the tabs: one row of open files between the banner and the work area (plan/editor-tabs.md) */
+body{grid-template-rows:auto auto auto 1fr auto}
+#tabbar{grid-row:3;display:flex;align-items:stretch;gap:4px;min-width:0;padding:3px 8px 0;background:var(--panel);border-bottom:1px solid var(--line)}
+#tabbar[hidden]{display:none}
+#work{grid-row:4}
+.tabs-list{display:flex;flex:1;min-width:0;overflow:hidden;gap:2px}
+.tab{display:flex;align-items:center;gap:6px;max-width:220px;min-width:0;padding:4px 8px;border:1px solid var(--line);border-bottom:0;border-radius:7px 7px 0 0;background:var(--panel2);color:var(--dim);cursor:pointer;white-space:nowrap;font-size:12px}
+.tab:hover{color:var(--text)}
+.tab.on{background:var(--bg);color:var(--text);border-color:var(--acc);box-shadow:inset 0 2px 0 var(--acc)}
+.tab-name{overflow:hidden;text-overflow:ellipsis}
+.tab.preview .tab-name{font-style:italic}
+.tab.remote{opacity:.6;border-style:dashed}
+.tab.remote .tab-name::after{content:" ↗"}
+/* a tab in a window of its own: only the file and the header */
+body.detached #left,body.detached #right,body.detached #tabbar,body.detached #banner{display:none}
+body.detached #work{grid-template-columns:0 1fr 0}
+.tab-kind{opacity:.7;font-size:11px}
+.tab-dot{color:var(--warn);font-style:normal;font-size:10px}
+.tab-err,.tab-bad{color:#fff;background:#ff5d6c;border-radius:9px;padding:0 5px;font-style:normal;font-size:10px;line-height:15px}
+.tab-warn{color:#101820;background:var(--warn);border-radius:9px;padding:0 5px;font-style:normal;font-size:10px;line-height:15px}
+.tab-x{border:0;background:transparent;color:inherit;padding:0 2px;font-size:14px;line-height:1;cursor:pointer;opacity:.6}
+.tab-x:hover{opacity:1}
+.tabs-more,.tabs-saveall{align-self:center;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:7px;padding:3px 9px;font-size:12px;cursor:pointer}
+.tabs-more.some{border-color:var(--acc);color:var(--acc)}
+.tabs-saveall{border-color:var(--warn)}
+.tabs-popup{position:fixed;z-index:70;width:min(460px,calc(100vw - 16px));max-height:min(60vh,420px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 40px #000a;padding:8px}
+.tabs-popup input{margin-bottom:6px}
+.tabs-rows{overflow:auto}
+.tabs-row{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:center;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px}
+.tabs-row:hover,.tabs-row.on{background:var(--panel2)}
+.tabs-folder,.tabs-facts{color:var(--dim);font-size:11px}
+.tabs-facts{grid-column:1 / -1}
+.saveall-cp{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px}
+@media (max-width:700px){
+  .tab:not(.on){display:none}
+  .tab{max-width:none;flex:1}
+  .tabs-list{overflow:hidden}
+  .tabs-popup{left:8px;right:8px!important;top:auto!important;bottom:8px;width:auto;max-height:70vh}
+  .tabs-row{padding:12px 8px;font-size:14px}
+}
+
+/* a block with an error is red; the Blocks view is greyed out only when the text cannot be read into blocks (plan/editor-tabs.md, part 4) */
+#canvaswrap.broken #cv{filter:grayscale(1) opacity(.4);pointer-events:none}
+.node.err{border-color:#ff5d6c;box-shadow:0 0 0 2px #ff5d6c88}
+.node .node-errmark{position:absolute;top:-9px;right:-9px;width:20px;height:20px;border-radius:50%;background:#ff5d6c;color:#fff;font:700 13px/20px sans-serif;text-align:center;cursor:help;z-index:3}
+.node.warn{border-color:var(--warn)}
+.prop.prop-err input,.prop.prop-err select,.prop.prop-err textarea{border-color:#ff5d6c;box-shadow:0 0 0 1px #ff5d6c}
+.prop.prop-err>label{color:#ff5d6c}

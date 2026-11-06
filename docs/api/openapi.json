@@ -4648,6 +4648,31 @@
         }
       }
     },
+    "/api/doc/saved": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "The saved text of a song (the last text written to its file or read from it), next to the working copy that GET /api/doc gives: what a person or Koda needs to see what changed without saving.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/doc/symbols": {
       "get": {
         "tags": [
@@ -8197,6 +8222,31 @@
         }
       }
     },
+    "/api/tabs/state": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "The state of open files for the tab row (paths, comma separated): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/takes": {
       "get": {
         "tags": [
@@ -8629,6 +8679,104 @@
         ],
         "summary": "Streams the master preview of a package (taken out of it into a temporary file, nothing is built).",
         "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/wc": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "The working copy of a text file that is not a song (path): its text, the saved text, the version and whether it has unsaved changes. Without a path: the files with unsaved changes. A build, check or play of a song reads these working copies instead of the disk for the components and modules it uses.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Sets the working copy of a text file that is not a song (path, text): it is not saved, but builds of songs that use the file read it.",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/wc/revert": {
+      "post": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Throws the unsaved changes of a text file away (path): the working copy is the file again.",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/wc/save": {
+      "post": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Writes the working copy of a text file to the file through the command bus (path).",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
         "security": [
           {
             "sessionToken": []

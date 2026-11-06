@@ -15,6 +15,11 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
 {
     private Ample.Storage.Library.Library? opened;
 
+    /// <summary>The readers of unsaved text, by full project folder: a host that keeps working copies of files (the studio server) puts one here, and a module or a component file that has unsaved changes is read from it instead of from the disk (plan/editor-tabs.md, part 1).</summary>
+    public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Func<string, string?>> WorkingTextReaders = new(StringComparer.OrdinalIgnoreCase);
+
+    private string? Working(string relative) => WorkingTextReaders.TryGetValue(Path.GetFullPath(projectRoot), out Func<string, string?>? read) ? read(relative.Replace('\\', '/')) : null;
+
     /// <summary>Creates a service that opens the user's library (AMPLE_HOME or the default folder) only when a module is not in the project, and closes it with the service.</summary>
     public static ModuleService WithUserLibrary(string projectRoot, IClock clock)
     {
@@ -39,7 +44,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     public ModuleSource? Find(string name)
     {
         string? path = FindPath(name, out string origin);
-        return path is null ? null : new ModuleSource(name, File.ReadAllText(path), origin);
+        return path is null ? null : new ModuleSource(name, Working(Path.GetRelativePath(projectRoot, path)) ?? File.ReadAllText(path), origin);
     }
 
     /// <summary>The extension of a file of components.</summary>
@@ -57,6 +62,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
             try
             {
                 string full = ProjectPath.Resolve(projectRoot, candidate);
+                if (Working(candidate) is { } working) return working;   // the unsaved text of an open file
                 if (File.Exists(full)) return File.ReadAllText(full);
             }
             catch (AmpleException)

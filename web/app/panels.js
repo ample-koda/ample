@@ -7,7 +7,7 @@ const MAX_SEED = 18446744073709551615n;
 
 import { $, activatable, el, showMenu, ask, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
-import { S, applyText, build, editsDone, current, edit, flat, notify, readOnly, saveNotes, select, container } from './store.js';
+import { S, applyText, build, editsDone, current, edit, flat, notify, readOnly, paramProblem, saveNotes, select, container } from './store.js';
 import { noteAbove, withNoteAbove } from '../lib/block-notes.mjs';
 import { addBlock, alignSelected, deleteSelected, distributeSelected, enter, fit, focusNode, groupSelected, selectAll, toggleFlag, ungroupNode, up } from './canvas.js';
 import { W } from './geometry.js';
@@ -289,6 +289,8 @@ export function renderProps() {
   const row = (label, node, param) => {
     const d = el('div', { className: 'prop' });
     if (param && n) { d.dataset.kodaBlock = n.id; d.dataset.kodaParam = param; }
+    const bad = param && n ? paramProblem(n.id, param) : null;
+    if (bad) { d.classList.add('prop-err'); d.title = `${bad.code} ${bad.message}`; }
     const lab = el('label', { textContent: label });
     // a small note next to the label of a field: ask Koda what it does (shown on hover and focus)
     if (param && n) lab.append(el('button', { type: 'button', className: 'koda-ask', textContent: '♪', title: `Ask Koda about ${label}`, 'aria-label': `Ask Koda about ${label}`, onclick: (e) => { e.preventDefault(); e.stopPropagation(); import('./koda.js').then((m) => m.ask(m.subjectOfField(n.id, param), 'explain')); } }));

@@ -37,17 +37,17 @@ test('the editor shows the song and live diagnostics come from the language serv
   await expect(page.locator('.cm-content .sq.error').first()).toBeAttached();
 });
 
-test('apply is refused while there are errors and updates the working copy, not a revision, when the song compiles', async ({ page }) => {
+test('apply also works while there are errors (the block goes red) and updates the working copy, not a revision', async ({ page }) => {
   const good = await text(page);
   await type(page, good.replace('from chords.notes -> notes', 'from chordz.notes -> notes'));
   await expect(page.locator('#se-prob .seerr.error').first()).toBeVisible();
   await page.click('#se-apply');
-  await expect(page.locator('#toast')).toContainText('Not applied');
+  await expect(page.locator('#toast')).toContainText('Applied to the working copy with');
   await type(page, good.replace('bars 8', 'bars 12'));
   await expect(page.locator('#se-status')).toContainText('0 error(s)');
   await page.click('#se-apply');
   await expect(page.locator('#toast')).toContainText('Applied to the working copy');
-  expect((await state(page)).text).toContain('bars 12');
+  await expect.poll(async () => (await state(page)).text).toContain('bars 12');
   await expect(page.locator('#b-dirty')).toBeVisible();
   await page.click('#vs-blocks');
   await expect(node(page, 'chords')).toBeVisible();
@@ -56,18 +56,13 @@ test('apply is refused while there are errors and updates the working copy, not 
   expect((await api('/api/doc?path=song.amplet')).dirty).toBe(false);
 });
 
-test('leaving the editor needs a song that compiles; revert brings the text back', async ({ page }) => {
+test('leaving the editor never refuses: the text goes into the working copy, errors or not', async ({ page }) => {
   const good = await text(page);
   await type(page, good.replace('from chords.notes -> notes', 'from chordz.notes -> notes'));
   await expect(page.locator('#se-prob .seerr.error').first()).toBeVisible();
   await page.click('#vs-blocks');
-  await expect(page.locator('#toast')).toContainText('fix them');
-  await expect(page.locator('#se')).toBeVisible();
-  await page.click('#se-revert');
-  await page.locator('#dlg-btns button', { hasText: 'Revert' }).click();   // Revert asks first
-  await expect.poll(() => text(page)).toBe(good);
-  await page.click('#vs-blocks');
   await expect(page.locator('#se')).toBeHidden();
+  await expect.poll(async () => (await state(page)).text).toContain('chordz');   // the Blocks view shows what the editor showed
 });
 
 test('format and fix all use the code of the language library', async ({ page }) => {
