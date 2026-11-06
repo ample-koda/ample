@@ -125,6 +125,9 @@ jobs:
     name: Studio browser tests (${{ matrix.kind }} ${{ matrix.shard }}/${{ matrix.total }})
     needs: studio-plan
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash   # in a container the default shell is sh, which has no pipefail
     # Chromium and the system libraries it needs are part of the official Playwright image (installing them with apt took about 7 minutes in every shard); the version is the one of the tests
     container:
       image: mcr.microsoft.com/playwright:v${{ needs.studio-plan.outputs.playwright }}-noble
