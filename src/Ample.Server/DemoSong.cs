@@ -6,7 +6,7 @@ namespace Ample.Server;
 
 /// <summary>
 /// The demo song that every project starts with: <c>spec/demo/demo.amplet</c> of the AMPLE folder, put in the project folder as <c>demo.amplet</c>.
-/// It can be edited but, for now, never deleted or moved (<see cref="DemoSongRules"/>), so a project always has a song to open.
+/// It can be edited always, and deleted or moved once the first-time setup of the project is done (<see cref="DemoSongRules"/>), so a project always has a song to open at its start.
 /// </summary>
 public static class DemoSong
 {
@@ -42,7 +42,7 @@ public static class DemoSong
     internal static async Task<bool> EnsureAsync(ProjectSession session, string ampleRoot, CancellationToken cancellationToken)
     {
         string? text = Text(ampleRoot);
-        if (text is null || !HasNoSong(session.Root)) return false;
+        if (text is null || !HasNoSong(session.Root) || !DemoSongRules.IsProtected(session.Root)) return false;   // only while the first-time setup is pending: a demo that was deleted afterwards does not come back
         await session.Bus.ExecuteAsync(new WriteFileCommand(DemoSongRules.FileName, text), cancellationToken).ConfigureAwait(false);
         return true;
     }

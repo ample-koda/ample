@@ -88,6 +88,32 @@ public sealed record FaerRoutes(string Song, string Voice, string Separation)
     public string VoiceModel { get; init; } = string.Empty;
 }
 
+/// <summary>The first-time setup wizard of a project (plan/first-run-wizard.md). The wizard shows while <see cref="DoneVersion"/> is lower than <see cref="WizardVersion"/>,
+/// so a later AMPLE can raise the version and every project shows the wizard again (with only the pages that are new since the version it has done).</summary>
+/// <param name="Origin"><c>new</c> for a project made by AMPLE since the wizard exists, <c>existing</c> for a project that was there before (and for a file without the field).</param>
+/// <param name="DoneVersion">The number of the last wizard that was walked through; 0 is never.</param>
+/// <param name="DoneAt">When it was walked through (UTC), or null.</param>
+public sealed record FirstRunSettings(string Origin, int DoneVersion, DateTimeOffset? DoneAt)
+{
+    /// <summary>The number of the wizard that is current in this program.</summary>
+    public const int WizardVersion = 1;
+
+    /// <summary>A project that was there before the wizard, or whose file has no such field: the wizard has not been done.</summary>
+    public static FirstRunSettings Default { get; } = new("existing", 0, null);
+
+    /// <summary>A project that is made now: its wizard is still to be done and ends with the demo song.</summary>
+    public static FirstRunSettings NewProject { get; } = new("new", 0, null);
+
+    /// <summary>Gets whether the wizard still has to be walked through.</summary>
+    public bool Pending => DoneVersion < WizardVersion;
+
+    /// <summary>Gets whether a text is an origin of a project.</summary>
+    public static bool IsKnownOrigin(string? origin) => origin is "new" or "existing";
+
+    /// <summary>Gets this state after the wizard was walked through at a moment.</summary>
+    public FirstRunSettings Completed(DateTimeOffset now) => this with { DoneVersion = WizardVersion, DoneAt = now };
+}
+
 /// <summary>Project settings stored in <c>project.json</c>.</summary>
 /// <param name="BlackBox">Black box journal settings.</param>
 /// <param name="Cleanup">Cleanup policies.</param>
@@ -106,6 +132,8 @@ public sealed record ProjectSettings(BlackBoxSettings BlackBox, CleanupSettings 
     public IReadOnlyDictionary<string, string> Capabilities { get; init; } = new Dictionary<string, string>();
     /// <summary>The helper Koda: its language.</summary>
     public KodaSettings Koda { get; init; } = KodaSettings.Default;
+    /// <summary>The first-time setup wizard of the project: where the project came from and which wizard version was walked through. A project file without it has never done the wizard.</summary>
+    public FirstRunSettings FirstRun { get; init; } = FirstRunSettings.Default;
     /// <summary>Gets the default settings (10 GiB budget, 90 days full detail, a year thinned, no automatic cleanup).</summary>
     public static ProjectSettings Default { get; } = new(new BlackBoxSettings(10L * 1024 * 1024 * 1024, 90, 365), new CleanupSettings(null), [], null, ProjectPanelSettings.Default, AutoCheckpointSettings.Default, AiAssistantSettings.Default);
 }
@@ -243,6 +271,15 @@ public static class ProjectFile
                 w.WriteEndObject();
             }
 
+            if (m.Settings.FirstRun != FirstRunSettings.Default)
+            {
+                w.WriteStartObject("firstRun");
+                w.WriteString("origin", m.Settings.FirstRun.Origin);
+                w.WriteNumber("doneVersion", m.Settings.FirstRun.DoneVersion);
+                if (m.Settings.FirstRun.DoneAt is DateTimeOffset doneAt) w.WriteString("doneAt", doneAt.ToString("O", CultureInfo.InvariantCulture));
+                w.WriteEndObject();
+            }
+
             w.WriteEndObject();
             w.WriteEndObject();
         }
@@ -313,6 +350,12 @@ public static class ProjectFile
             KodaSettings koda = settings.TryGetProperty("koda", out JsonElement kodaJson) && kodaJson.TryGetProperty("language", out JsonElement kodaLanguage) && KodaSettings.IsKnown(kodaLanguage.GetString())
                 ? new KodaSettings(kodaLanguage.GetString()!, kodaJson.TryGetProperty("model", out JsonElement kodaModel) && kodaModel.ValueKind == JsonValueKind.String ? kodaModel.GetString() ?? string.Empty : string.Empty, kodaJson.TryGetProperty("effort", out JsonElement kodaEffort) && kodaEffort.ValueKind == JsonValueKind.String ? kodaEffort.GetString() ?? string.Empty : string.Empty)
                 : KodaSettings.Default;
+            FirstRunSettings firstRun = settings.TryGetProperty("firstRun", out JsonElement firstRunJson) && firstRunJson.ValueKind == JsonValueKind.Object
+                ? new FirstRunSettings(
+                    firstRunJson.TryGetProperty("origin", out JsonElement originJson) && FirstRunSettings.IsKnownOrigin(originJson.GetString()) ? originJson.GetString()! : "existing",
+                    firstRunJson.TryGetProperty("doneVersion", out JsonElement doneVersionJson) && doneVersionJson.ValueKind == JsonValueKind.Number && doneVersionJson.TryGetInt32(out int doneVersion) && doneVersion > 0 ? doneVersion : 0,
+                    firstRunJson.TryGetProperty("doneAt", out JsonElement doneAtJson) && doneAtJson.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(doneAtJson.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset doneAt) ? doneAt : null)
+                : FirstRunSettings.Default;
             string name = root.GetProperty("name").GetString() ?? throw new FormatException("name");
             return new ProjectManifest(
                 Guid.Parse(root.GetProperty("id").GetString()!),
@@ -327,7 +370,7 @@ public static class ProjectFile
                     engine.ValueKind == JsonValueKind.Null ? null : engine.GetString(),
                     projectPanel,
                     autoCheckpoint,
-                    ai) { Faer = faer, Koda = koda, BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null });
+                    ai) { Faer = faer, Koda = koda, FirstRun = firstRun, BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null });
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or FormatException or InvalidOperationException or OverflowException)
         {
@@ -337,5 +380,5 @@ public static class ProjectFile
 
     /// <summary>Creates the manifest of a new project with a master seed derived from the id when none is given.</summary>
     public static ProjectManifest CreateNew(Guid id, string name, DateTimeOffset created, ulong? masterSeed) =>
-        new(id, name, created, ProjectLayout.CurrentFormatVersion, masterSeed ?? SeedDeriver.Derive(0, "project", id.ToString("D")) & 0xFFFFFFFFUL, ProjectSettings.Default);
+        new(id, name, created, ProjectLayout.CurrentFormatVersion, masterSeed ?? SeedDeriver.Derive(0, "project", id.ToString("D")) & 0xFFFFFFFFUL, ProjectSettings.Default with { FirstRun = FirstRunSettings.NewProject });
 }

@@ -292,18 +292,19 @@ async function start() {
   applyView();
   notify();
   document.body.dataset.ready = '1';
-  autoPlayDemoFirstTime();
+  await runFirstTimeWizard();
 }
 
-/** The first time a project is opened in this browser, its demo song starts building and playing by itself (once per project, never after the song was changed or the project has errors). */
-function autoPlayDemoFirstTime() {
+/** The first-time setup wizard (plan/first-run-wizard.md): while the project still has to do it, nothing opens by itself; at Finish a new project opens the demo song, builds it and plays it. */
+async function runFirstTimeWizard() {
   try {
-    if (S.path !== 'demo.amplet' || errors().length || new URLSearchParams(location.search).has('noautoplay')) return;
-    const key = `ample.demo.autoplayed.${S.project?.id || S.project?.name || 'project'}`;
-    if (localStorage.getItem(key)) return;
-    localStorage.setItem(key, '1');
-    playSong().catch((e) => { if (!e.toasted) toast(e.message); });
-  } catch { /* storage blocked: no autoplay */ }
+    const { firstRunState, runFirstRunWizard } = await import('./first-run.js');
+    const state = await firstRunState();
+    if (!state?.pending) return;
+    const result = await runFirstRunWizard(state, S.project?.name || '');
+    if (result.open) await openDoc(result.open);
+    if (result.play) playSong().catch((e) => { if (!e.toasted) toast(e.message); });
+  } catch (e) { console.error('first-run', e); }
 }
 
 start();

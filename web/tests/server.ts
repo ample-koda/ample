@@ -28,15 +28,17 @@ export interface ServerOptions {
   prepare?: (cli: (...args: string[]) => void, folder: string) => void;
   /** Extra environment variables of this server only (never set them on process.env of the test run: other files would inherit them). */
   env?: Record<string, string>;
+  /** Keep the first-time setup wizard of the project pending (the specs of the wizard); every other spec starts with it done. */
+  firstRun?: boolean;
 }
 
 export async function startServer(options: ServerOptions = {}): Promise<{ launch: string; folder: string; home: string; stop: () => Promise<void> }> {
   const dll = cliDll();
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ample-web-'));
   const home = `${folder}-home`;
-  const made = spawnSync('dotnet', [dll, 'new', folder, '--name', 'demo'], { encoding: 'utf8' });
+  const made = spawnSync('dotnet', [dll, 'new', folder, '--name', 'demo', ...(options.firstRun ? [] : ['--no-first-run'])], { encoding: 'utf8' });
   if (made.status !== 0) throw new Error(`ample new failed (${made.error?.message ?? `exit ${made.status}`}): ${made.stdout}${made.stderr}`);
-  fs.rmSync(path.join(folder, 'demo.amplet'), { force: true });   // `ample new` gives every project the demo song; these specs bring their own song
+  if (!options.firstRun) fs.rmSync(path.join(folder, 'demo.amplet'), { force: true });   // `ample new` gives every project the demo song; these specs bring their own song
   fs.writeFileSync(path.join(folder, 'song.amplet'), options.song ?? demoSong());
   for (const [rel, text] of Object.entries(options.files ?? {})) {
     fs.mkdirSync(path.dirname(path.join(folder, rel)), { recursive: true });
