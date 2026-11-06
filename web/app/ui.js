@@ -4,9 +4,10 @@ export const $ = (s) => document.querySelector(s);
 
 const sessionWarning = $('#session-warning');
 document.addEventListener('ample:session-lost', () => {
-  if (!sessionWarning.open) sessionWarning.showModal();
-  // a server started with --login has a sign-in page; offer it (a server without it answers 404 and the link stays hidden)
-  fetch('/login', { cache: 'no-store' }).then((r) => { if (r.ok) { $('#session-login').hidden = false; $('#session-plain').hidden = true; } }).catch(() => {});
+  document.getElementById('boot')?.remove();   // the loading overlay has nothing left to wait for
+  const info = () => { if (!sessionWarning.open) sessionWarning.showModal(); };
+  // a server with a sign-in (--login): go there at once, no dialog and no toast. A server without one: one information box, nothing else.
+  fetch('/login', { cache: 'no-store' }).then((r) => { if (r.ok) location.replace(location.pathname.startsWith('/remix') ? '/login?next=/remix/' : '/login'); else info(); }).catch(info);
 });
 sessionWarning.addEventListener('cancel', (event) => event.preventDefault());
 

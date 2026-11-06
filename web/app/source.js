@@ -309,11 +309,9 @@ async function recoverSourceDraft(path, savedText) {
   const accepted = consumeRecoveryAcceptance(localStorage, S.project?.id || '', path, 'source', draft?.updated, savedText);
   if (!draft || typeof draft.text !== 'string' || draft.text === savedText) { if (draft) clearSourceDraft(path); return savedText; }
   if (accepted) return draft.text;
-  const when = new Date(draft.updated).toLocaleString();
-  const choice = await showRecoveryDiff(path, savedText, draft.text, when, 'source');
-  if (choice === 'restore') return draft.text;
-  if (choice === 'saved') clearSourceDraft(path);
-  return savedText;   // 'cancel' (Esc): the saved file opens and the draft stays where it is
+  // no question: the unsaved text of this browser is what opens (marked unsaved); save it, or close the tab to discard it
+  toast(`Your unsaved changes in ${path.split('/').pop()} (${new Date(draft.updated).toLocaleString()}) are back. Save them, or close the tab to discard them.`);
+  return draft.text;
 }
 export function showRecoveryDiff(path, savedText, draftText, when, kind) {
   return new Promise((resolve) => {

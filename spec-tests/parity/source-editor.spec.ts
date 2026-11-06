@@ -6,24 +6,14 @@ test.beforeEach(async ({ page }) => { await openApp(page); await page.click('#vs
 const text = (page) => srcText(page);
 const type = async (page, t: string) => { await setSrc(page, t); };
 
-test('song recovery opens the full diff before choosing saved or recovered work', async ({ page }) => {
+test('the unsaved work of a song in this browser comes back without a dialog', async ({ page }) => {
   const project = await api('/api/project'), id = project.id ?? project.Id, saved = await text(page), recovered = saved.replace('bars 8', 'bars 12');
   expect(id).toBeTruthy(); expect(saved).toContain('bars 8');
   const recoveryPage = await page.context().newPage(), key = `ample.work:${id}:song.amplet`;
   await recoveryPage.addInitScript(({ storageKey, record }) => localStorage.setItem(storageKey, record), { storageKey: key, record: JSON.stringify({ v: 1, project: id, path: 'song.amplet', text: recovered, undo: [], redo: [], updated: Date.now() - 60_000 }) });
   await page.close(); await recoveryPage.goto(launchUrl());
-  const viewer = recoveryPage.locator('.recovery-diff-dialog');
-  await expect(viewer).toBeVisible();
-  const box = await viewer.boundingBox(), viewport = recoveryPage.viewportSize();
-  expect(box!.width).toBeGreaterThan(viewport!.width * 0.9); expect(box!.height).toBeGreaterThan(viewport!.height * 0.8);
-  await expect(recoveryPage.locator('.recovery-diff-head')).toContainText('saved');
-  await expect(recoveryPage.locator('.recovery-diff-head')).toContainText('recovered');
-  await expect(recoveryPage.locator('.recovery-diff-summary')).toContainText('+1 lines');
-  await expect(recoveryPage.locator('.recovery-diff-panes')).toContainText('bars 8');
-  await expect(recoveryPage.locator('.recovery-diff-panes')).toContainText('bars 12');
-  await expect(recoveryPage.locator('.recovery-diff-line.removed').first()).toContainText('bars 8');
-  await expect(recoveryPage.locator('.recovery-diff-line.added').first()).toContainText('bars 12');
-  await recoveryPage.locator('.recovery-diff-actions button', { hasText: 'Restore recovered work' }).click();
+  await expect(recoveryPage.locator('.recovery-diff-dialog')).toHaveCount(0);   // no question: the changes are simply back, to save or to discard by closing the tab
+  await expect.poll(async () => (await api('/api/doc?path=song.amplet')).text).toContain('bars 12');
   expect((await api('/api/doc?path=song.amplet')).text).toContain('bars 12');
 });
 
@@ -123,7 +113,7 @@ test('"Edit in source" on a block returns to the song even when another file is 
   await expect.poll(() => text(page)).toContain('master master');
 });
 
-test('unsaved source files can switch into independent drafts and recover through a full-screen comparison', async ({ page }) => {
+test('unsaved source files can switch into independent drafts, and a draft comes back without a dialog', async ({ page }) => {
   await api('/api/file', { method: 'PUT', body: { path: 'notes.txt', text: 'saved notes' } });
   await api('/api/file', { method: 'PUT', body: { path: 'other.txt', text: 'other file' } });
   await page.reload();
@@ -151,11 +141,7 @@ test('unsaved source files can switch into independent drafts and recover throug
   await page.waitForSelector('body[data-ready="1"]');
   await page.click('#vs-source');
   await openSourceFile(page, 'notes.txt');
-  await expect(page.locator('.recovery-diff-dialog')).toBeVisible();
-  await expect(page.locator('.recovery-draft-list')).toHaveCount(0);   // only the file that is being opened is shown, not a list of every file
-  await expect(page.locator('.recovery-diff-panes')).toContainText('saved notes');
-  await expect(page.locator('.recovery-diff-panes')).toContainText('recovered notes');
-  await page.locator('.recovery-diff-actions button', { hasText: 'Restore recovered work' }).click();
+  await expect(page.locator('.recovery-diff-dialog')).toHaveCount(0);
   await expect.poll(() => text(page)).toContain('recovered notes');
 });
 
@@ -233,8 +219,8 @@ test('checkpoint leaves conflicting drafts recoverable and does not create a par
   await page.click('#btn-cp'); await page.locator('#dlg-btns button', { hasText: 'Save all work and checkpoint' }).click();
   await expect(page.locator('#toast')).toContainText('changed since its recovery draft');
   expect((await api('/api/history')).log).toHaveLength(before); await page.reload(); await page.waitForSelector('body[data-ready="1"]'); await page.click('#vs-source'); await openSourceFile(page, 'notes.txt');
-  await expect(page.locator('.recovery-diff-dialog')).toBeVisible();
-  await expect(page.locator('.recovery-diff-dialog')).toContainText('Recover unsaved work?');
+  await expect(page.locator('.recovery-diff-dialog')).toHaveCount(0);
+  await expect.poll(() => text(page)).toContain('draft notes');
 });
 
 test('closing a dirty source file can save it before returning to the song', async ({ page }) => {

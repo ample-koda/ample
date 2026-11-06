@@ -85,3 +85,36 @@ test('a file open in another window can be taken back: that window closes and th
   await expect(page.locator('#tabbar .tab.on[data-path="again.txt"]')).toBeVisible();
   expect(detached.isClosed() || await detached.evaluate(() => true).catch(() => true)).toBeTruthy();
 });
+
+test('on a phone the row is the active tab and one list button; Save all and the recent files are in the list', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await makeFile('phone.txt'); await open(page, 'phone.txt');
+  await api('/api/wc', { method: 'PUT', body: { path: 'phone.txt', text: 'unsaved\n' } });
+  await expect(page.locator('#tabbar .tab[data-path="phone.txt"].dirty')).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('#tabbar .tab:visible')).toHaveCount(1);   // only the active tab
+  await expect(page.locator('#tabs-saveall')).toBeHidden();
+  await expect(page.locator('#tabbar .recent-files-control')).toBeHidden();
+  await page.locator('#tabs-more').click();
+  await expect(page.locator('.tabs-sheet-save')).toBeVisible();
+  const box = await page.locator('#tabs-popup').boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);   // the sheet fits the screen
+});
+
+test('closing the last tab opens a new blank song; opening another song removes it again; its first save asks where it goes', async ({ page }) => {
+  await page.locator('#tabbar .tab .tab-x').first().click();
+  await expect(page.locator('#tabbar .tab[data-path="Untitled.amplet"].on')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#tabbar .tab')).toHaveCount(1);   // there is always one editor
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('ample:open', { detail: 'song.amplet' })));
+  await expect(page.locator('#tabbar .tab[data-path="Untitled.amplet"]')).toHaveCount(0, { timeout: 10000 });   // blank, so it went away
+  expect(((await api('/api/docs')) as string[]).includes('Untitled.amplet')).toBe(false);
+  await page.locator('#tabbar .tab .tab-x').first().click();
+  await expect(page.locator('#tabbar .tab[data-path="Untitled.amplet"].on')).toBeVisible({ timeout: 10000 });
+  await page.evaluate(async () => { const s = await import('/app/store.js'); await s.applyText(`${s.S.doc.text}# my first change\n`); });
+  await page.keyboard.press('Control+s');
+  await expect(page.locator('#untitled-name')).toBeVisible();
+  await page.locator('#untitled-name').fill('my-first');
+  await page.getByRole('button', { name: 'Save', exact: true }).last().click();
+  await expect(page.locator('#tabbar .tab[data-path="my-first.amplet"].on')).toBeVisible({ timeout: 10000 });
+  expect(((await api('/api/docs')) as string[]).includes('Untitled.amplet')).toBe(false);
+});

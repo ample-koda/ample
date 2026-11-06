@@ -289,7 +289,7 @@ async function start() {
     setTimeout(() => import('./browser-view.js').then((m) => m.watchBrowserView()), 3000);   // the browser of the assistant shows here when it waits for a person (sign-in, a human check)
     api.get('/api/health').then((h) => { if ((h.pendingRegens || []).length || h.pendingRegens > 0) toast('A regeneration is waiting for your decision: select the block and look at its controls. The previous take is still the one in use.'); }).catch(() => {});
   } catch (e) {
-    toast(`${e.code ? `${e.code}: ` : ''}${e.message}. Open the address that "ample serve" printed.`);
+    if (e.status !== 401 && e.code !== 'AMP5284') toast(`${e.code ? `${e.code}: ` : ''}${e.message}. Open the address that "ample serve" printed.`);   // a lost session has its own page or box: no second message
   }
   applyView();
   notify();

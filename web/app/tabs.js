@@ -5,7 +5,7 @@
 import { api, getToken } from './api.js';
 import { S, notify, select, subscribe } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
-import { createRecentFilesToggle } from './recent-files.js';
+import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
 
 const KIND = [
   ['song', /\.amplet$/i], ['module', /\.module$/i], ['component', /\.amplec$/i],
@@ -14,6 +14,13 @@ const KIND = [
 export const kindOf = (path) => KIND.find(([, pattern]) => pattern.test(path))?.[0] ?? 'text';
 const SHARED = new Set(['audio', 'image']);   // one tab each: the next audio file takes the place of the one in the audio tab
 
+// There is always one editor: closing the last tab opens a new, blank, unsaved song ("Untitled"). It is a real file of the project while it is open, marked in this browser; when another song is opened while
+// it is still blank it is deleted again, and the first save asks where it should go.
+const untitledKey = () => `ample.untitled:${S.project?.id || ''}`;
+// the map keeps the text each new song started with: a song is still blank while it has that text
+const untitledMap = () => { try { return JSON.parse(localStorage.getItem(untitledKey()) || '{}') || {}; } catch { return {}; } };
+const rememberUntitled = (map) => { try { localStorage.setItem(untitledKey(), JSON.stringify(map)); } catch { /* storage may be blocked */ } };
+const isUntitled = (path) => Object.prototype.hasOwnProperty.call(untitledMap(), path);
 const T = { tabs: [], active: '', state: {}, hidden: 0, bar: null, popup: null, internal: false, remote: new Map(), channel: null, windowId: Math.random().toString(36).slice(2) };
 const post = (message) => { try { T.channel?.postMessage({ ...message, from: T.windowId }); } catch { /* a closed channel */ } };
 const detachedPath = () => new URLSearchParams(location.search).get('tab');
@@ -69,6 +76,56 @@ async function refreshState() {
   } catch { /* the marks are a help: the next poll tries again */ }
 }
 
+async function openUntitled() {
+  try {
+    const files = await api.get('/api/docs');
+    let n = 1, base, path;
+    do { base = n === 1 ? 'Untitled' : `Untitled-${n}`; path = `${base}.amplet`; n++; } while (files.includes(path));
+    const made = await api.post('/api/songs', { name: base });
+    path = made.path || path;
+    const doc = await api.get(`/api/doc?path=${encodeURIComponent(path)}`);
+    const map = untitledMap(); map[path] = doc.text; rememberUntitled(map);
+    add(path); T.active = path; save();
+    document.dispatchEvent(new CustomEvent('ample:open', { detail: path }));
+  } catch (error) { toast(error.message || String(error)); }
+}
+
+/** A blank new song that nothing was done to goes away when another song is opened (the file, the tab and the mark). */
+async function dropBlankUntitled(except) {
+  const map = untitledMap();
+  for (const name of Object.keys(map)) {
+    if (name === except) continue;
+    try {
+      const saved = await api.get(`/api/doc/saved?path=${encodeURIComponent(name)}`);
+      const current = S.path === name && S.doc ? S.doc.text : saved.saved;
+      if (!saved.dirty && saved.saved === map[name] && current === map[name]) { await api.delete(`/api/project/file?path=${encodeURIComponent(name)}`); delete map[name]; T.tabs = T.tabs.filter((t) => t.path !== name); }
+      else if (saved.saved !== map[name] && !saved.dirty) delete map[name];   // it was saved over by someone else: it is an ordinary song now
+    } catch { delete map[name]; }
+  }
+  rememberUntitled(map); render();
+}
+
+/** The first save of a new song: where should it go? The song is written to the chosen place, the blank file goes away and the song opens from its new place. */
+async function placeUntitled(path) {
+  const name = el('input', { id: 'untitled-name', type: 'text', value: 'my-song', 'aria-label': 'Song name' });
+  const folder = el('input', { id: 'untitled-folder', type: 'text', placeholder: 'folder (empty: the project folder)', 'aria-label': 'Folder' });
+  const choice = await ask('Save the new song', 'Where should this song be saved? A name is letters, digits, _ and -.', [{ label: 'Cancel', value: false }, { label: 'Save', value: true, primary: true }],
+    [el('label', { className: 'untitled-row' }, ['name ', name]), el('label', { className: 'untitled-row' }, ['folder ', folder])]);
+  if (!choice) return false;
+  try {
+    if (S.path === path && S.doc?.dirty) await api.put('/api/doc', { path, text: S.doc.text, baseVersion: S.doc.version }).catch(() => {});
+    const made = await api.post('/api/doc/save-as', { path, name: name.value.trim(), folder: folder.value.trim() });
+    await api.post('/api/doc/revert', { path }).catch(() => {});
+    await api.delete(`/api/project/file?path=${encodeURIComponent(path)}`).catch(() => {});
+    const map = untitledMap(); delete map[path]; rememberUntitled(map);
+    T.tabs = T.tabs.filter((t) => t.path !== path);
+    add(made.path); T.active = made.path; save();
+    document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
+    toast(`Saved as ${made.path}.`);
+    return true;
+  } catch (error) { toast(error.message || String(error)); return false; }
+}
+
 async function closeTab(path) {
   const tab = T.tabs.find((t) => t.path === path);
   if (!tab) return;
@@ -85,7 +142,7 @@ async function closeTab(path) {
   T.tabs.splice(index, 1);
   if (T.active === path) {
     const next = T.tabs[Math.min(index, T.tabs.length - 1)];
-    if (next) activate(next.path); else if (S.path) { add(S.path); T.active = S.path; }
+    if (next) activate(next.path); else { await openUntitled(); return; }   // there is always one editor
   }
   save(); refreshState(); render();
 }
@@ -246,6 +303,9 @@ function render() {
 function togglePopup(anchor) {
   if (T.popup) { closePopup(); return; }
   const box = el('div', { id: 'tabs-popup', className: 'tabs-popup', role: 'listbox' });
+  const phone = window.matchMedia('(max-width: 700px)').matches;
+  const dirtyCount = T.tabs.filter((t) => factsOf(t.path).dirty).length;
+  if (phone && dirtyCount) box.append(el('button', { type: 'button', className: 'tabs-sheet-save', textContent: `Save all (${dirtyCount})`, onclick: () => { closePopup(); saveAll(); } }));
   const filter = el('input', { type: 'search', placeholder: 'Filter open files', 'aria-label': 'Filter open files' });
   const rows = el('div', { className: 'tabs-rows' });
   const paint = () => {
@@ -260,6 +320,16 @@ function togglePopup(anchor) {
       row.onclick = () => { closePopup(); activate(tab.path); };
       row.onkeydown = (e) => { if (e.key === 'Enter') row.click(); };
       rows.append(row);
+    }
+    if (phone) {
+      const open = new Set(T.tabs.map((t) => t.path));
+      const recent = (recentFilePaths() || []).map((x) => (typeof x === 'string' ? x : x?.path)).filter((p) => p && !open.has(p) && (!q || p.toLowerCase().includes(q))).slice(0, 8);
+      if (recent.length) rows.append(el('div', { className: 'tabs-head', textContent: 'Recent files' }));
+      for (const path of recent) {
+        const row = el('div', { className: 'tabs-row recent', role: 'option', tabIndex: 0 }, [el('span', { className: 'tab-name', textContent: baseName(path) }), el('span', { className: 'tabs-folder', textContent: folderOf(path) })]);
+        row.onclick = () => { closePopup(); document.dispatchEvent(new CustomEvent(/\.amplet$/i.test(path) ? 'ample:open' : /\.module$/i.test(path) ? 'ample:open-source-file' : 'ample:open-file', { detail: path })); };
+        rows.append(row);
+      }
     }
   };
   filter.oninput = paint;
@@ -289,7 +359,7 @@ export async function saveAll() {
   if (!targets.length) { toast('The active file has no unsaved changes.'); return; }
   try {
     if (checkbox.checked) { try { await api.post('/api/history/checkpoint', { label: 'Before Save all' }); } catch (error) { toast(`No checkpoint was made: ${error.message || error}`); } }
-    for (const path of targets) await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path });
+    for (const path of targets) { if (isUntitled(path)) { await placeUntitled(path); continue; } await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); }
     toast(`Saved ${targets.length} file${targets.length === 1 ? '' : 's'}.`);
   } catch (error) { toast(error.message || String(error)); }
   await refreshState();
@@ -334,7 +404,11 @@ export function initTabs() {
     if (old) old.path = path; else T.tabs.push({ path, preview: true });
     T.active = path; save(); render(); openFile(path);
   });
-  document.addEventListener('ample:song-opened', () => { add(S.path); T.active = S.path; save(); render(); refreshState(); });
+  document.addEventListener('ample:song-opened', () => { add(S.path); T.active = S.path; save(); render(); refreshState(); setTimeout(() => dropBlankUntitled(S.path), 600); });
+  // the first save of a new song asks where it goes
+  const intercept = (event) => { if (T.active && isUntitled(T.active) && factsOf(T.active).dirty) { event.preventDefault(); event.stopImmediatePropagation(); placeUntitled(T.active); } };
+  $('#btn-save')?.addEventListener('click', intercept, true);
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 's' || e.key === 'S')) intercept(e); }, true);
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) { e.preventDefault(); saveAll(); }
     else if (e.ctrlKey && e.key === 'Tab' && T.tabs.length > 1) { e.preventDefault(); const i = T.tabs.findIndex((t) => t.path === T.active); activate(T.tabs[(i + (e.shiftKey ? -1 : 1) + T.tabs.length) % T.tabs.length].path); }

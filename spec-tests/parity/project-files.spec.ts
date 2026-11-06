@@ -178,8 +178,7 @@ test('recent and open files are in the tab row, in the Source view and in the Bl
   await expect(canvasMenu).toBeVisible();
   await expect(canvasMenu.locator('.recent-file-row[data-file="notes/readme.md"]')).toBeVisible();
   await canvasMenu.locator('.recent-file-row[data-file="notes/readme.md"]').click();
-  await expect(page.locator('.recovery-diff-dialog')).toBeVisible();
-  await page.locator('.recovery-diff-actions button', { hasText: 'Restore recovered work' }).click();
+  await expect(page.locator('.recovery-diff-dialog')).toHaveCount(0);
   await expect(page.locator('#se-title')).toHaveText('notes/readme.md');
   await expect(page.locator('#se-cm .cm-content')).toContainText('# recovered');
 });

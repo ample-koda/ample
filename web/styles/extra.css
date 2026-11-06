@@ -1118,6 +1118,18 @@ dialog.ask-dialog:has(textarea.notes-editor) #dlg-extra{max-width:100%}
 #toast{z-index:60}
 @media (max-width:700px){#fr{grid-template-columns:1fr;grid-template-rows:auto 1fr}#fr .fr-side{border-right:0;border-bottom:1px solid var(--line)}#fr .fr-steps{flex-direction:row;flex-wrap:wrap}}
 
+.untitled-row{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px}
+.untitled-row input{flex:1}
+
+/* the llama resize frame: four corners, a label, Reset and Done */
+.llama-resize{position:fixed;box-sizing:border-box;border:1px dashed #2de2ff;pointer-events:none;z-index:90}
+.llama-resize-handle{position:absolute;width:20px;height:20px;border-radius:50%;background:#2de2ff;border:2px solid #0b0d1a;pointer-events:auto;touch-action:none}
+.llama-resize-handle.tl{left:-10px;top:-10px;cursor:nwse-resize}.llama-resize-handle.br{right:-10px;bottom:-10px;cursor:nwse-resize}
+.llama-resize-handle.tr{right:-10px;top:-10px;cursor:nesw-resize}.llama-resize-handle.bl{left:-10px;bottom:-10px;cursor:nesw-resize}
+.llama-resize-label,.llama-resize-btn{position:absolute;top:calc(100% + 8px);pointer-events:auto;font:600 12px system-ui,sans-serif;color:#fff;background:#14183a;border:1px solid #3a3f6b;border-radius:8px;padding:3px 9px;white-space:nowrap}
+.llama-resize-label{left:50%;transform:translateX(-50%);top:calc(100% + 34px);pointer-events:none}
+.llama-resize-btn.reset{left:0}.llama-resize-btn.done{right:0;background:#2de2ff;color:#0b0d1a;border-color:transparent}
+
 /* the tabs: one row of open files between the banner and the work area (plan/editor-tabs.md) */
 body{grid-template-rows:auto auto auto 1fr auto}
 #tabbar{grid-row:3;display:flex;align-items:stretch;gap:4px;min-width:0;padding:3px 8px 0;background:var(--panel);border-bottom:1px solid var(--line)}
@@ -1151,7 +1163,15 @@ body.detached #work{grid-template-columns:0 1fr 0}
 .tabs-folder,.tabs-facts{color:var(--dim);font-size:11px}
 .tabs-facts{grid-column:1 / -1}
 .saveall-cp{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px}
+#tabbar .recent-files-menu{left:auto;right:0;max-width:min(520px,calc(100vw - 16px))}
+.tabs-head{margin:8px 8px 2px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.tabs-sheet-save{width:100%;margin-bottom:8px;padding:12px;border:1px solid var(--warn);border-radius:8px;background:var(--panel2);color:var(--text);font-size:14px}
 @media (max-width:700px){
+  #tabbar .recent-files-control,.tabs-saveall{display:none}
+  #tabbar{padding:4px 8px}
+  .tab{min-height:38px;padding:0 10px;font-size:14px}
+  .tab-x{padding:0 6px;font-size:20px}
+  .tabs-more{min-height:38px;min-width:56px;font-size:14px;border-color:var(--acc)}
   .tab:not(.on){display:none}
   .tab{max-width:none;flex:1}
   .tabs-list{overflow:hidden}

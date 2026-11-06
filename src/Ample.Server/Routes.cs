@@ -2930,7 +2930,7 @@ public static class Routes
                 throw new AmpleException("AMP5285", "A song name is letters, digits, _ and - only.");
             }
 
-            string folder = System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;
+            string folder = Opt(b, "folder") is { Length: > 0 } chosen ? WorkingPath(chosen) : System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;   // a folder the person chose (the first save of a new song), or the folder of the song
             string rel = (folder.Length == 0 ? name : folder + "/" + name) + ".amplet";
             if (File.Exists(ProjectPath.Resolve(s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
             await s.Bus.ExecuteAsync(new WriteFileCommand(rel, d.Text), c.RequestAborted);

@@ -31,7 +31,7 @@ const DICT = {
     'inline.accept': 'Accept', 'inline.acceptTitle': 'Keep it (Tab)', 'inline.reject': 'Reject', 'inline.rejectTitle': 'Throw it away (Esc)', 'inline.placeholder': 'Say what to change…',
     'inline.action1': '1 action', 'inline.actions': '{n} actions', 'inline.change1': '1 change', 'inline.changes': '{n} changes', 'inline.group': 'Suggestion of Koda',
     'look.pick': 'Tap what Koda should look at (Esc cancels).',
-    'close': 'Close the bubble', 'closeTitle': 'Close (Esc)', 'ctx.ask': 'Ask about the selection', 'ctx.login': "Koda's own login…", 'ctx.hide': 'Hide Koda',
+    'close': 'Close the bubble', 'closeTitle': 'Close (Esc)', 'ctx.ask': 'Ask about the selection', 'ctx.login': "Koda's own login…", 'ctx.hide': 'Hide Koda', 'ctx.resize': 'Resize…',
   },
   nl: {
     'menu.tag': 'Vraag Koda', 'menu.looking': 'Ik kijk naar', 'menu.none': 'Selecteer een blok of wat code, of gebruik het nootje bij een veld, en vraag opnieuw.',
@@ -61,7 +61,7 @@ const DICT = {
     'inline.accept': 'Accepteren', 'inline.acceptTitle': 'Houden (Tab)', 'inline.reject': 'Afwijzen', 'inline.rejectTitle': 'Weggooien (Esc)', 'inline.placeholder': 'Zeg wat anders moet…',
     'inline.action1': '1 actie', 'inline.actions': '{n} acties', 'inline.change1': '1 wijziging', 'inline.changes': '{n} wijzigingen', 'inline.group': 'Voorstel van Koda',
     'look.pick': 'Tik op wat Koda moet bekijken (Esc annuleert).',
-    'close': 'Sluit de ballon', 'closeTitle': 'Sluiten (Esc)', 'ctx.ask': 'Vraag over de selectie', 'ctx.login': 'Eigen login van Koda…', 'ctx.hide': 'Verberg Koda',
+    'close': 'Sluit de ballon', 'closeTitle': 'Sluiten (Esc)', 'ctx.ask': 'Vraag over de selectie', 'ctx.login': 'Eigen login van Koda…', 'ctx.hide': 'Verberg Koda', 'ctx.resize': 'Formaat aanpassen…',
   },
 };
 

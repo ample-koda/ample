@@ -505,13 +505,11 @@ async function resumeWork(stored, doc) {
     S.undo.splice(0, S.undo.length, ...stored.undo); S.redo.splice(0, S.redo.length, ...stored.redo);
     return true;
   }
-  const when = new Date(stored.updated).toLocaleString();
-  const choice = await (await import('./source.js')).showRecoveryDiff(doc.path, doc.text, stored.text, when, 'work');
-  if (choice === 'saved') { dropWork(doc.path); return true; }
-  if (choice !== 'restore') return false;
+  // no question: the unsaved changes of this browser simply come back, and the person saves them or closes the tab and discards them
   const applied = await applyText(stored.text);
   if (!applied) return false;
   S.undo.splice(0, S.undo.length, ...stored.undo); S.redo.splice(0, S.redo.length, ...stored.redo);
+  toast(`Your unsaved changes from this browser (${new Date(stored.updated).toLocaleString()}) are back. Save them, or close the tab to discard them.`);
   return true;
 }
 
@@ -528,9 +526,6 @@ async function resumeModuleWork() {
     S.undo.splice(0, S.undo.length, ...stored.undo); S.redo.splice(0, S.redo.length, ...stored.redo);
     return;
   }
-  const choice = await (await import('./source.js')).showRecoveryDiff(S.modulePath, S.moduleDoc.text, stored.text, new Date(stored.updated).toLocaleString(), 'work');
-  if (choice === 'saved') { dropWork(S.modulePath); return; }
-  if (choice !== 'restore') return;
   S.moduleDoc = await api.put('/api/module/doc', { path: S.modulePath, text: stored.text, baseVersion: S.moduleDoc.version });
   S.moduleFlat = flatGraph(S.moduleDoc, S.tpl);
   S.undo.splice(0, S.undo.length, ...stored.undo);
