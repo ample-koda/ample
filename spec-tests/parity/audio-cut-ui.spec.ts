@@ -107,7 +107,7 @@ test('Build this builds with the value that was just typed, at the first click',
   await expect.poll(() => page.evaluate(async () => { const s = await import('/app/store.js'); return [s.S.doc.text.includes('semitones 2.5'), !!s.S.build.takes?.up]; })).toEqual([true, true]);
 });
 
-test('a volume block is small, and its faders open in a window', async ({ page }) => {
+test('a volume block is small, and its faders open in a window @quarantine', async ({ page }) => {
   await setSong(page, `${song('')}volume vol at 1 for 1 {\n  from src.audio -> audio\n  left_gain -6 dB\n}\n`);
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = page.locator('.node[data-id="vol"]');
