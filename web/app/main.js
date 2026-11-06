@@ -2,7 +2,7 @@
 
 import { $, showMenu, toast } from './ui.js';
 import { api, connectEvents, initToken } from './api.js';
-import { S, bakeDynamicHelpers, quiet, redo, build, dirty, flat, loadHistory, loadProject, notify, onBlockProgress, onBuildProgress, openDoc, readOnly, refreshInputs, reloadDoc, save, select, stopBuild, subscribe, subscribeSelection, undo, errors } from './store.js';
+import { S, bakeDynamicHelpers, quiet, redo, build, dirty, flat, graphBroken, loadHistory, loadProject, notify, onBlockProgress, onBuildProgress, openDoc, readOnly, refreshInputs, reloadDoc, save, select, stopBuild, subscribe, subscribeSelection, undo, errors } from './store.js';
 import { applyView, initCanvas, paintSelection, renderGraph } from './canvas.js';
 import { refreshMounts, renderBottom, renderFiles, renderLib, renderPlugins, renderProps, renderStructure, setBottomTab } from './panels.js';
 import { initLayout } from './layout.js';
@@ -12,6 +12,7 @@ import { initArrangement, previewSong, renderArrangement } from './arrangement.j
 import { initPlayLights } from './play-fx.js';
 import { stopTranscription } from './transcription.js';
 import { V, initViews, setView, updateBanner } from './views.js';
+import { initTabs } from './tabs.js';
 import { initSource, openProjectTextFile } from './source.js';
 import { initProjectPanel, refreshProjectPanel, revealInProject } from './projectpanel.js';
 import { createSaveControl } from './savecontrol.js';
@@ -280,20 +281,31 @@ async function start() {
     loadHistory().catch(() => {});   // the history graph is the slowest answer of the start (seconds on a big project) and nothing on the first screen needs it: it fills in when it arrives
     await loadProject();
     initProjectPanel();
+    initTabs();
     renderLib();
     refreshMounts();
-    if (errors().length) { setView('src', true); toast('This project opened with errors, so it starts in the source editor. Fix them to use the node editor.'); }
+    if (graphBroken()) { setView('src', true); toast('This project opened with errors that stop the blocks from being read, so it starts in the code view. Fix them to use the Blocks view.'); }
     setTimeout(() => import('./storage.js').then((m) => m.storageHint()), 4000);
     setTimeout(() => import('./browser-view.js').then((m) => m.watchBrowserView()), 3000);   // the browser of the assistant shows here when it waits for a person (sign-in, a human check)
     api.get('/api/health').then((h) => { if ((h.pendingRegens || []).length || h.pendingRegens > 0) toast('A regeneration is waiting for your decision: select the block and look at its controls. The previous take is still the one in use.'); }).catch(() => {});
   } catch (e) {
-    toast(`${e.code ? `${e.code}: ` : ''}${e.message}. Open the address that "ample serve" printed.`);
+    if (e.status !== 401 && e.code !== 'AMP5284') toast(`${e.code ? `${e.code}: ` : ''}${e.message}. Open the address that "ample serve" printed.`);   // a lost session has its own page or box: no second message
   }
   applyView();
   notify();
   document.body.dataset.ready = '1';
+  hideBoot();
   await runFirstTimeWizard();
 }
+
+/** The loading overlay (plain HTML at the top of the page) fades away once the studio is ready for use; a failed start never leaves it standing. */
+function hideBoot() {
+  const boot = document.getElementById('boot');
+  if (!boot || boot.classList.contains('done')) return;
+  boot.classList.add('done');
+  setTimeout(() => boot.remove(), 500);
+}
+setTimeout(hideBoot, 20000);
 
 /** The first-time setup wizard (plan/first-run-wizard.md): while the project still has to do it, nothing opens by itself; at Finish a new project opens the demo song, builds it and plays it. */
 async function runFirstTimeWizard() {

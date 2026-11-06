@@ -39,6 +39,11 @@ public static class Routes
 /// <summary>One graph edit of the document route, as an edit of the text. Shared by the single edit and by the atomic list of edits.</summary>
     private static EditResult RunDocEdit(ProjectSession s, AmpleDocument parsed, JsonElement b, JsonElement op)
     {
+        if (s.PreviewBuilds.TryGetValue(Str(b, "path"), out bool previewBuild) && previewBuild && (Str(op, "type") == "setFreeze" || (Str(op, "type") == "addFlag" && Str(op, "flag") == "lock") || Str(op, "type") == "bakeCallSite" || Str(op, "type") == "bakeDynamicHelpers"))
+        {
+            return new EditResult([], "The last build of this song used unsaved text or left out blocks with errors, so its takes are preview takes: save and fix, build again, then freeze or lock.");
+        }
+
         return Str(op, "type") switch
         {
             "setParameter" => Edits.SetParameter(parsed, Str(op, "block"), Str(op, "name"), FileParameterValue(s, parsed, Str(op, "block"), Str(op, "name"), Str(op, "value"))),
@@ -590,9 +595,20 @@ public static class Routes
         return new { kind = "midi", midi.TicksPerQuarter, tracks = midi.Tracks.Count, bars = Math.Max(1, (endTick + barTicks - 1) / barTicks), noteCount = totalNotes, truncated = totalNotes > notes.Count, notes };
     }
 
-    private static object Diags(AmpleDocument d) => d.Diagnostics.Select(x => new { x.Code, severity = x.Severity.ToString().ToLowerInvariant(), x.Line, x.Col, x.EndCol, x.Message, x.Hint });
+    /// <summary>A project path for a working copy: relative, inside the project, never in the private .ample folder.</summary>
+    private static string WorkingPath(string path)
+    {
+        string clean = path.Replace('\\', '/').Trim('/');
+        if (clean.Length == 0 || clean.Split('/').Any(part => part.Equals(".ample", StringComparison.OrdinalIgnoreCase) || part == "..")) throw new AmpleException("AMP5285", "That path cannot have a working copy.");
+        return clean;
+    }
 
-    private static object DocView(DocSession d, AmpleDocument parsed, ProjectSession session, IReadOnlyList<string>? unsupported = null) => new { d.Path, d.Version, d.Text, dirty = d.Text != d.Saved, diagnostics = Diags(parsed), blocks = parsed.Blocks.Where(b => !b.Skipped).Select(b => new { b.Name, b.Type, b.Class, b.Version, b.Line, flags = b.Flags, b.Freeze, parts = b.Parts, parameters = b.Parameters.Select(p => new { p.Name, p.Value, p.Line }), froms = b.Froms.Select(f => new { f.Block, f.Output, f.Input, f.Disabled }), controlRefs = b.ControlRefs.Select(c => new { c.Block, c.Output, c.Parameter }), layout = parsed.Layout.TryGetValue(b.Name, out (int X, int Y) pos) ? new { x = pos.X, y = pos.Y } : null }), uses = ModuleUsesView(parsed, session), project = parsed.Project is null ? null : new { parsed.Project.Name, parsed.Project.Tempo, parsed.Project.MasterSeed, parsed.Project.MeterNumerator, parsed.Project.MeterDenominator, parsed.Project.BeatsPerBar }, settings = parsed.Settings, helpers = parsed.Helpers.Select(h => new { h.Name, h.Kind, h.Dynamic, h.Baked, h.Effect, h.Returns, h.Line, parameters = h.Params, dependencies = h.Dependencies }), properties = parsed.Properties, stability = parsed.Stability, stabilityNotes = parsed.StabilityNotes, capabilities = parsed.Capabilities, clockAt = (session.LastBuildAt.TryGetValue(d.Path, out DateTime builtClock) ? builtClock : parsed.ParsedAt).ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture), builtClock = session.LastBuildAt.ContainsKey(d.Path), bakeableClock = parsed.Stability == "dynamic" && Edits.BakeDynamicHelpers(parsed, parsed.ParsedAt).Ok, environmentAllow = parsed.CapabilityPolicy.AllowLists("environment"), limits = parsed.Limits.Select(l => new { l.Key, l.Effective, l.Source, l.Cap }), unsupported = unsupported ?? [] };
+    /// <summary>The note that goes with a build error when files with unsaved changes were used: the error may be in them (plan/editor-tabs.md, decision 1).</summary>
+    private static string UnsavedNote(ProjectSession s) => s.Texts.Dirty() is { Count: > 0 } dirty ? $" (Built with the unsaved changes of {string.Join(", ", dirty)}, so the error may be in there.)" : string.Empty;
+
+    private static object Diags(AmpleDocument d) => d.Diagnostics.Select(x => new { x.Code, severity = x.Severity.ToString().ToLowerInvariant(), x.Line, x.Col, x.EndCol, x.Message, x.Hint, breaksGraph = DiagnosticKinds.BreaksGraph(x.Code), block = DiagnosticKinds.BlockOf(d, x) });
+
+    private static object DocView(DocSession d, AmpleDocument parsed, ProjectSession session, IReadOnlyList<string>? unsupported = null) => new { d.Path, d.Version, d.Text, dirty = d.Text != d.Saved, diagnostics = Diags(parsed), graphBroken = DiagnosticKinds.GraphBroken(parsed), blocks = parsed.Blocks.Where(b => !b.Skipped).Select(b => new { b.Name, b.Type, b.Class, b.Version, b.Line, flags = b.Flags, b.Freeze, parts = b.Parts, parameters = b.Parameters.Select(p => new { p.Name, p.Value, p.Line }), froms = b.Froms.Select(f => new { f.Block, f.Output, f.Input, f.Disabled }), controlRefs = b.ControlRefs.Select(c => new { c.Block, c.Output, c.Parameter }), layout = parsed.Layout.TryGetValue(b.Name, out (int X, int Y) pos) ? new { x = pos.X, y = pos.Y } : null }), uses = ModuleUsesView(parsed, session), project = parsed.Project is null ? null : new { parsed.Project.Name, parsed.Project.Tempo, parsed.Project.MasterSeed, parsed.Project.MeterNumerator, parsed.Project.MeterDenominator, parsed.Project.BeatsPerBar }, settings = parsed.Settings, helpers = parsed.Helpers.Select(h => new { h.Name, h.Kind, h.Dynamic, h.Baked, h.Effect, h.Returns, h.Line, parameters = h.Params, dependencies = h.Dependencies }), properties = parsed.Properties, stability = parsed.Stability, stabilityNotes = parsed.StabilityNotes, capabilities = parsed.Capabilities, clockAt = (session.LastBuildAt.TryGetValue(d.Path, out DateTime builtClock) ? builtClock : parsed.ParsedAt).ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture), builtClock = session.LastBuildAt.ContainsKey(d.Path), bakeableClock = parsed.Stability == "dynamic" && Edits.BakeDynamicHelpers(parsed, parsed.ParsedAt).Ok, environmentAllow = parsed.CapabilityPolicy.AllowLists("environment"), limits = parsed.Limits.Select(l => new { l.Key, l.Effective, l.Source, l.Cap }), unsupported = unsupported ?? [] };
 
     private static object ModuleDocView(ModuleDocState state, ProjectSession session) => DocView(state.Document, session.ParseModule(state.Document), session, Ample.Audio.Midi.MidiModuleFacts.FromSource(state.Source).UnsupportedFeatures);
 
@@ -2237,6 +2253,56 @@ public static class Routes
 
             return Ok(DocView(d, s.Parse(d), s));
         });
+        add("GET", "/api/wc", "documents", "The working copy of a text file that is not a song (path): its text, the saved text, the version and whether it has unsaved changes. Without a path: the files with unsaved changes. A build, check or play of a song reads these working copies instead of the disk for the components and modules it uses.", false, s is null ? null : async (HttpContext c) =>
+        {
+            string path = c.Request.Query["path"].ToString();
+            if (path.Length == 0) return Ok(new { dirty = s.Texts.Dirty() });
+            (string text, string saved, long version, bool dirty) = s.Texts.Get(WorkingPath(path));
+            return await Task.FromResult(Ok(new { path, text, saved, version, dirty }));
+        });
+        add("PUT", "/api/wc", "documents", "Sets the working copy of a text file that is not a song (path, text): it is not saved, but builds of songs that use the file read it.", true, s is null ? null : async (HttpContext c) =>
+        {
+            JsonElement b = await Body(c);
+            string path = WorkingPath(Str(b, "path"));
+            (long version, bool dirty, string saved) = s.Texts.Set(path, Str(b, "text"));
+            return await Task.FromResult(Ok(new { path, version, dirty, saved }));
+        });
+        add("POST", "/api/wc/save", "documents", "Writes the working copy of a text file to the file through the command bus (path).", true, s is null ? null : async (HttpContext c) =>
+        {
+            string path = WorkingPath(Str(await Body(c), "path"));
+            await s.Texts.SaveAsync(path, c.RequestAborted);
+            (string text, string saved, long version, bool dirty) = s.Texts.Get(path);
+            return Ok(new { path, version, dirty, saved });
+        });
+        add("POST", "/api/wc/revert", "documents", "Throws the unsaved changes of a text file away (path): the working copy is the file again.", true, s is null ? null : async (HttpContext c) =>
+        {
+            string path = WorkingPath(Str(await Body(c), "path"));
+            (string text, long version) = s.Texts.Revert(path);
+            return await Task.FromResult(Ok(new { path, text, version, dirty = false }));
+        });
+        add("GET", "/api/tabs/state", "documents", "The state of open files for the tab row (paths, comma separated): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.", false, s is null ? null : async (HttpContext c) =>
+        {
+            List<object> items = [];
+            foreach (string raw in c.Request.Query["paths"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(200))
+            {
+                string path = WorkingPath(raw);
+                bool exists = File.Exists(ProjectPath.Resolve(s.Fs, s.Root, path));
+                if (path.EndsWith(".amplet", StringComparison.OrdinalIgnoreCase) && exists)
+                {
+                    DocSession d = await s.DocAsync(path, c.RequestAborted);
+                    AmpleDocument parsed = s.Parse(d);
+                    items.Add(new { path, exists, dirty = d.Text != d.Saved, errors = parsed.Diagnostics.Count(x => x.Severity == Severity.Error), warnings = parsed.Diagnostics.Count(x => x.Severity == Severity.Warning), graphBroken = DiagnosticKinds.GraphBroken(parsed) });
+                }
+                else items.Add(new { path, exists, dirty = s.Texts.Read(path) is not null, errors = 0, warnings = 0, graphBroken = false });
+            }
+
+            return Ok(new { items });
+        });
+        add("GET", "/api/doc/saved", "documents", "The saved text of a song (the last text written to its file or read from it), next to the working copy that GET /api/doc gives: what a person or Koda needs to see what changed without saving.", false, s is null ? null : async (HttpContext c) =>
+        {
+            DocSession d = await s.DocAsync(WorkingPath(c.Request.Query["path"].ToString()), c.RequestAborted);
+            return Ok(new { path = d.Path, saved = d.Saved, dirty = d.Text != d.Saved });
+        });
         add("GET", "/api/doc/disk", "documents", "Compares the working copy of a song with its file on disk. state: same, reloaded or merged (already dealt with), conflict (regions lists the stretches both sides share and the ones to choose from: base, mine, theirs = the file) or gone.", false, s is null ? null : async (HttpContext c) =>
         {
             DocSession d = await s.DocAsync(c.Request.Query["path"].ToString(), c.RequestAborted);
@@ -2764,7 +2830,7 @@ public static class Routes
                 string[] titleWords = Str(b, "prompt").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6).ToArray();
                 sessionId = s.Ai.CreateAssistantSession(titleWords.Length == 0 ? "Assistant session" : string.Join(' ', titleWords), archiveConversation: false).Id;
             }
-            AiTaskRequest request = new(Opt(b, "kind") ?? "custom", Opt(b, "scope") ?? "file", Str(b, "prompt"), path, Opt(b, "song") ?? path, b.TryGetProperty("fromLine", out JsonElement fl) && fl.ValueKind == JsonValueKind.Number ? fl.GetInt32() : null, b.TryGetProperty("toLine", out JsonElement tl) && tl.ValueKind == JsonValueKind.Number ? tl.GetInt32() : null, Opt(b, "block"), Opt(b, "model"), b.TryGetProperty("hums", out JsonElement hm) && hm.ValueKind == JsonValueKind.Array ? [.. hm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("offered", out JsonElement of) && of.ValueKind == JsonValueKind.Array ? [.. of.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, Opt(b, "continueFrom"), Opt(b, "effort"), b.TryGetProperty("blocks", out JsonElement bl) && bl.ValueKind == JsonValueKind.Array ? [.. bl.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null) { Strict = b.TryGetProperty("strict", out JsonElement strict) && strict.ValueKind == JsonValueKind.True };
+            AiTaskRequest request = new(Opt(b, "kind") ?? "custom", Opt(b, "scope") ?? "file", Str(b, "prompt"), path, Opt(b, "song") ?? path, b.TryGetProperty("fromLine", out JsonElement fl) && fl.ValueKind == JsonValueKind.Number ? fl.GetInt32() : null, b.TryGetProperty("toLine", out JsonElement tl) && tl.ValueKind == JsonValueKind.Number ? tl.GetInt32() : null, Opt(b, "block"), Opt(b, "model"), b.TryGetProperty("hums", out JsonElement hm) && hm.ValueKind == JsonValueKind.Array ? [.. hm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("offered", out JsonElement of) && of.ValueKind == JsonValueKind.Array ? [.. of.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, Opt(b, "continueFrom"), Opt(b, "effort"), b.TryGetProperty("blocks", out JsonElement bl) && bl.ValueKind == JsonValueKind.Array ? [.. bl.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null) { Strict = b.TryGetProperty("strict", out JsonElement strict) && strict.ValueKind == JsonValueKind.True, Context = Opt(b, "context") == "saved" ? "saved" : "unsaved" };
             AiTask task = await s.Ai.StartTaskAsync(request, AssistantBase(c), sessionId, c.RequestAborted);
             return Ok(AiService.TaskJson(task, false));
         });
@@ -2864,7 +2930,7 @@ public static class Routes
                 throw new AmpleException("AMP5285", "A song name is letters, digits, _ and - only.");
             }
 
-            string folder = System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;
+            string folder = Opt(b, "folder") is { Length: > 0 } chosen ? WorkingPath(chosen) : System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;   // a folder the person chose (the first save of a new song), or the folder of the song
             string rel = (folder.Length == 0 ? name : folder + "/" + name) + ".amplet";
             if (File.Exists(ProjectPath.Resolve(s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
             await s.Bus.ExecuteAsync(new WriteFileCommand(rel, d.Text), c.RequestAborted);
@@ -2917,9 +2983,14 @@ public static class Routes
                         string? buildId = Opt(b, "buildId");   // the page names its build, so it can ignore the events of a build it stopped
             DocSession d = await OpenFreshAsync(s, events!, Str(b, "path"), c.RequestAborted);
             AmpleDocument parsed = s.ParseExpanded(d);
+            IReadOnlyList<SkippedBlock> skippedBlocks = [];
             if (parsed.Diagnostics.Any(x => x.Severity == Severity.Error))
             {
-                throw new AmpleException("AMP5287", "The song has errors; fix them first.");
+                // a block with an error does not stop the build: it is left out, and the answer says so loudly (plan/editor-tabs.md, decision 8). An error that belongs to no block still stops it.
+                string? cleaned = BrokenBlocks.Skip(d.Text, s.Spec, out skippedBlocks);
+                if (cleaned is null || skippedBlocks.Count == 0) throw new AmpleException("AMP5287", "The song has errors; fix them first." + UnsavedNote(s));
+                parsed = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(cleaned, s.Spec);
+                if (parsed.Diagnostics.Any(x => x.Severity == Severity.Error)) throw new AmpleException("AMP5287", "The song has errors; fix them first." + UnsavedNote(s));
             }
 
             // the first time a song is built with a component, that component is pinned in ample.lock (a later change of its code is AMP2203); written through the command bus
@@ -2957,10 +3028,12 @@ public static class Routes
             {
                 StorageApi.RecordBuild(s, parsed, report, clock.Elapsed.TotalSeconds);
                 s.LastBuildAt[Str(b, "path")] = parsed.ParsedAt;
+                s.PreviewBuilds[Str(b, "path")] = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0;
                 events!.Publish("build.done", new { report.Hits, report.Misses, report.MasterTakeId, buildId });
             }
 
-            return Ok(new { report.Hits, report.Misses, report.MasterTakeId, blocks = report.Blocks, clockAt = parsed.ParsedAt.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) });
+            object[] skippedReport = [.. skippedBlocks.Select(x => (object)new { block = x.Block, status = "skipped", message = $"has an error and was left out of this build: {x.Code} {x.Message} (line {x.Line})" })];
+            return Ok(new { report.Hits, report.Misses, report.MasterTakeId, blocks = report.Blocks.Cast<object>().Concat(skippedReport).ToArray(), builtWithErrors = skippedBlocks.Count > 0, unsavedInputs = s.Texts.DirtyWithHashes().Select(x => new { path = x.Path, x.Sha256 }), previewTake = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0, skippedBlocks = skippedBlocks.Select(x => new { x.Block, x.Code, x.Message, x.Line }), clockAt = parsed.ParsedAt.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) });
         });
         add("POST", "/api/build/text", "build", "Builds song text that is not a file of the project (the source of a template, to listen to it) as a draft: nothing is changed or announced. only builds up to one block and gives its take.", true, s is null ? null : async (HttpContext c) =>
         {

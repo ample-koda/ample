@@ -85,6 +85,7 @@ const levelOf = (id, bar) => {
 /** Starts or ends a session: a playback is followed only as long as it is still the song in the studio. Returns the session or null. */
 function follow(st) {
   if (!st.playing) { session = null; return null; }
+  if (st.source) { session = null; return null; }   // a sample or another file of the project that plays in the Project panel is not the song: no lights
   if (st.take && st.take !== LOCAL_TAKE) {
     if (session?.take !== st.take) {
       const target = targetOf(st.take);

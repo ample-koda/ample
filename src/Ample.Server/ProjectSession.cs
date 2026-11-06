@@ -52,6 +52,13 @@ internal sealed record PendingAct(string Title, string Acceptance, DateTimeOffse
 public sealed class ProjectSession : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, DocSession> docs = new(StringComparer.Ordinal);
+    private WorkingTexts? texts;
+
+    /// <summary>The songs whose last build was a preview build (it used unsaved text, or left out blocks with errors): its takes cannot be frozen, locked or promoted until a clean build.</summary>
+    internal ConcurrentDictionary<string, bool> PreviewBuilds { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>The working copies of the text files that are not songs (components, lyrics, sequences, text).</summary>
+    internal WorkingTexts Texts => texts ??= new WorkingTexts(this);
     private readonly ConcurrentDictionary<string, ModuleDocState> moduleDocs = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, PendingAct> acts = new();
     private readonly PhysicalFileSystem fs = new();
@@ -345,6 +352,9 @@ public sealed class ProjectSession : IAsyncDisposable
     internal static string DiskSha(string text) => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
 
     /// <summary>Whether a song or module of the project has changes that are not saved (an open working copy that differs from the file).</summary>
+    /// <summary>The unsaved text of an open song, or null when it is not open or has no unsaved changes.</summary>
+    internal string? DirtyDocText(string relative) => docs.TryGetValue(relative, out DocSession? d) && d.Text != d.Saved ? d.Text : null;
+
     internal bool IsDocDirty(string relative) => (docs.TryGetValue(relative, out DocSession? d) && d.Text != d.Saved) || (moduleDocs.TryGetValue(relative, out ModuleDocState? m) && m.Document.Text != m.Document.Saved);
 
     /// <summary>All songs and modules of the project that have unsaved changes in an open working copy.</summary>

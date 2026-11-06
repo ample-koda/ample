@@ -1,6 +1,13 @@
 /* The floating layer of Koda (app/koda.js): fixed above the page, below the modal dialogs; the presence animations (hide, peek, appear), the edge tab, the mute mark and the header button. */
 .koda-layer{position:fixed;inset:0;z-index:80;pointer-events:none}
 .koda-layer[hidden]{display:none}
+.koda.koda-layer .k-resize{position:fixed;box-sizing:border-box;border:1px dashed var(--k-cyan,#2de2ff);pointer-events:none;z-index:2}
+.koda.koda-layer .k-resize-handle{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--k-cyan,#2de2ff);border:2px solid #0b0d1a;pointer-events:auto;touch-action:none}
+.koda.koda-layer .k-resize-handle.tl{left:-10px;top:-10px;cursor:nwse-resize}.koda.koda-layer .k-resize-handle.br{right:-10px;bottom:-10px;cursor:nwse-resize}
+.koda.koda-layer .k-resize-handle.tr{right:-10px;top:-10px;cursor:nesw-resize}.koda.koda-layer .k-resize-handle.bl{left:-10px;bottom:-10px;cursor:nesw-resize}
+.koda.koda-layer .k-resize-label,.koda.koda-layer .k-resize-reset,.koda.koda-layer .k-resize-done{position:absolute;top:calc(100% + 8px);pointer-events:auto;font:600 12px system-ui,sans-serif;color:#fff;background:#14183a;border:1px solid #3a3f6b;border-radius:8px;padding:3px 9px;white-space:nowrap}
+.koda.koda-layer .k-resize-label{left:50%;transform:translateX(-50%);top:calc(100% + 34px);pointer-events:none}
+.koda.koda-layer .k-resize-reset{left:0}.koda.koda-layer .k-resize-done{right:0;background:var(--k-cyan,#2de2ff);color:#0b0d1a;border-color:transparent}
 .koda.koda-layer .bubhost{position:absolute;inset:0;pointer-events:none}
 .koda.koda-layer .bub{pointer-events:auto;position:absolute;left:0;top:0;width:min(var(--bw,330px),calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:visible}
 .koda.koda-layer .bub.long{overflow:auto}

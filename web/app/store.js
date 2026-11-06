@@ -122,7 +122,20 @@ export const current = () => S.moduleStack.length && S.moduleFlat ? containerVie
 export const errors = () => ((S.moduleStack.length ? S.moduleDoc : S.doc)?.diagnostics.filter((d) => d.severity === 'error') || []);
 export const unsupportedFeatures = () => (S.moduleStack.length ? S.moduleDoc?.unsupported : []) || [];
 export const dirty = () => !!(S.moduleStack.length ? S.moduleDoc?.dirty || S.moduleStack[0]?.midiBlock && S.doc?.dirty : S.doc?.dirty);
-export const readOnly = () => errors().length > 0 || !!S.peek;
+/** True when the text cannot be read into blocks and links (a graph-breaking error): the Blocks view is out of use and the errors are fixed in the code view. */
+export const graphBroken = () => !!(S.moduleStack.length ? S.moduleDoc : S.doc)?.graphBroken;
+/** The problems (errors and warnings) that belong to one block, as the server attributed them by line. */
+export const blockProblems = (name) => ((S.moduleStack.length ? S.moduleDoc : S.doc)?.diagnostics || []).filter((d) => d.block === name);
+/** The error of the line of one parameter of a block, or null: the properties panel marks that field. */
+export function paramProblem(name, param) {
+  const doc = S.moduleStack.length ? S.moduleDoc : S.doc;
+  const parameter = doc?.blocks?.find((b) => b.name === name || b.Name === name)?.parameters?.find((p) => (p.name ?? p.Name) === param);
+  if (!parameter) return null;
+  const line = (parameter.line ?? parameter.Line) + 1;   // a parameter counts lines from 0, a diagnostic from 1
+  return (doc.diagnostics || []).find((d) => d.severity === 'error' && d.line === line) || null;
+}
+/** Read-only: only when the text cannot be read into blocks, or a state is only being looked at. One block with an invalid value no longer freezes the whole song. */
+export const readOnly = () => graphBroken() || !!S.peek;
 
 const groupsKey = () => `ample.groups:${S.project ? S.project.id : ''}:${S.path}:${S.moduleStack.length ? S.modulePath : ''}`;
 const loadGroups = () => { try { return JSON.parse(localStorage.getItem(groupsKey()) || '{}'); } catch { return {}; } };
@@ -441,6 +454,7 @@ export async function loadProject() {
 }
 
 export async function openDoc(path) {
+  const leftPath = S.path, leftText = S.doc?.text;
   if (path !== S.path) { const { confirmSongSwitch } = await import('./source.js'); if (!(await confirmSongSwitch(path))) return; }
   if (path !== S.path) stopBuild();
   const doc = await api.get(`/api/doc?path=${encodeURIComponent(path)}`);
@@ -452,8 +466,15 @@ export async function openDoc(path) {
   S.modulePath = null;
   S.moduleDoc = null;
   S.moduleFlat = null;
+  // the undo history of a song survives a switch to another tab and back, as long as the text is the one it was left with
+  const leftHistory = leftPath && leftPath !== path ? documentHistory.get(`song:${leftPath}`) : null;
+  if (leftHistory) leftHistory.text = leftText;
+  const mine = documentHistory.get(`song:${path}`);
+  const keepMine = mine && mine.text === doc.text ? mine : null;
   documentHistory.clear();
-  activateHistory(true);
+  if (leftHistory) documentHistory.set(`song:${leftPath}`, leftHistory);
+  if (keepMine) documentHistory.set(`song:${path}`, keepMine);
+  activateHistory(!keepMine);
   S.selSet.clear();
   S.sel = null;
   const stored = readWork(path);   // read before setDoc, which keeps the song as it is now
@@ -469,7 +490,7 @@ export async function openDoc(path) {
   try { await api.post('/api/project/last-song', { path }); } catch (error) { toast(`Could not remember the last song: ${error.message}`); }
   document.dispatchEvent(new CustomEvent('ample:song-opened'));
   // a song that opens with errors cannot be edited as blocks: it starts in the source editor, as at the start of the app
-  if (errors().length) { const { setView } = await import('./views.js'); if (setView('src', true)) toast('This song opened with errors, so it starts in the source editor. Fix them to use the node editor.'); }
+  if (graphBroken()) { const { setView } = await import('./views.js'); if (setView('src', true)) toast('This song opened with errors that stop the blocks from being read, so it starts in the code view. Fix them to use the Blocks view.'); }
 }
 
 /** The browser may hold more than the saved song has after a server restart: restore undo history for identical text, otherwise require a saved-versus-recovered review. */
@@ -484,13 +505,11 @@ async function resumeWork(stored, doc) {
     S.undo.splice(0, S.undo.length, ...stored.undo); S.redo.splice(0, S.redo.length, ...stored.redo);
     return true;
   }
-  const when = new Date(stored.updated).toLocaleString();
-  const choice = await (await import('./source.js')).showRecoveryDiff(doc.path, doc.text, stored.text, when, 'work');
-  if (choice === 'saved') { dropWork(doc.path); return true; }
-  if (choice !== 'restore') return false;
+  // no question: the unsaved changes of this browser simply come back, and the person saves them or closes the tab and discards them
   const applied = await applyText(stored.text);
   if (!applied) return false;
   S.undo.splice(0, S.undo.length, ...stored.undo); S.redo.splice(0, S.redo.length, ...stored.redo);
+  toast(`Your unsaved changes from this browser (${new Date(stored.updated).toLocaleString()}) are back. Save them, or close the tab to discard them.`);
   return true;
 }
 
@@ -507,9 +526,6 @@ async function resumeModuleWork() {
     S.undo.splice(0, S.undo.length, ...stored.undo); S.redo.splice(0, S.redo.length, ...stored.redo);
     return;
   }
-  const choice = await (await import('./source.js')).showRecoveryDiff(S.modulePath, S.moduleDoc.text, stored.text, new Date(stored.updated).toLocaleString(), 'work');
-  if (choice === 'saved') { dropWork(S.modulePath); return; }
-  if (choice !== 'restore') return;
   S.moduleDoc = await api.put('/api/module/doc', { path: S.modulePath, text: stored.text, baseVersion: S.moduleDoc.version });
   S.moduleFlat = flatGraph(S.moduleDoc, S.tpl);
   S.undo.splice(0, S.undo.length, ...stored.undo);
@@ -681,8 +697,13 @@ export async function restoreEditPeek() {
   return !!(await applyText(text));
 }
 
+let beforeSave = null;
+/** The code view hands in what must happen before a save: its typed text is brought into the working copy, so a save never writes an older text than the editor shows. */
+export const setBeforeSave = (fn) => { beforeSave = fn; };
+
 export async function save() {
   try {
+    if (beforeSave) await Promise.resolve(beforeSave()).catch(() => {});
     if (S.moduleStack.length && S.modulePath) {
       S.moduleDoc = await api.post('/api/module/doc/save', { path: S.modulePath });
       S.moduleFlat = flatGraph(S.moduleDoc, S.tpl);
@@ -787,6 +808,11 @@ export async function build(only, range, intent, forceRender) {
     report = await api.post('/api/build', body, buildAbortController.signal);
     if (report.clockAt) { S.build.clockAt = report.clockAt; S.build.clockPath = S.path; }   // the clock the build read: what the roll and the preview show must be made with the same one
     appendBuildLog(`Build done: ${report.hits ?? report.Hits} cached, ${report.misses ?? report.Misses} rendered.`);
+    if (report.builtWithErrors) {
+      const left = (report.skippedBlocks || []).map((b) => `${b.block ?? b.Block} (${b.code ?? b.Code}, line ${b.line ?? b.Line})`).join(', ');
+      appendBuildLog(`ATTENTION: built WITH ERRORS. Left out of this build: ${left}. Fix the red blocks and build again.`);
+      toast(`Built with errors: ${left} left out. Fix the red blocks.`);
+    }
     for (const b of report.blocks || []) {
       const st = b.status ?? b.Status;
       if (st === 'failed' || st === 'skipped') appendBuildLog(`${b.block ?? b.Block}: ${st}: ${b.message ?? b.Message ?? ''}`);

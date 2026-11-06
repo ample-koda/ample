@@ -17,7 +17,7 @@ import { docTipShown, hideDocTip, showDocTip } from './doc-tip.js';
 import { evaluate, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
 import { api } from './api.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
-import { S, applyText, edit, flat, notify, notifySelection, readOnly, refreshActiveModule, refreshInputs, select, subscribe } from './store.js';
+import { S, applyText, edit, flat, notify, notifySelection, readOnly, refreshActiveModule, refreshInputs, select, setBeforeSave, subscribe } from './store.js';
 import { LspClient } from './lsp.js';
 import { registerView, setView, V } from './views.js';
 import { focusNode, showConnectionContextMenu } from './canvas.js';
@@ -35,7 +35,7 @@ import { seqDiagnostics } from '../lib/seq-diagnostics.mjs';
 import { getRecoveryDraft, listRecoveryDrafts, removeRecoveryDraft, saveRecoveryDraft } from '../lib/recovery-drafts.mjs';
 import { wordRangeBefore } from '../lib/word-range.mjs';
 import { consumeRecoveryAcceptance } from '../lib/work-state.mjs';
-import { createRecentFilesToggle, recentFilePaths, rememberRecentFile } from './recent-files.js';
+import { recentFilePaths, rememberRecentFile } from './recent-files.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { barBeats } from '../lib/meter.mjs';
 
@@ -309,11 +309,9 @@ async function recoverSourceDraft(path, savedText) {
   const accepted = consumeRecoveryAcceptance(localStorage, S.project?.id || '', path, 'source', draft?.updated, savedText);
   if (!draft || typeof draft.text !== 'string' || draft.text === savedText) { if (draft) clearSourceDraft(path); return savedText; }
   if (accepted) return draft.text;
-  const when = new Date(draft.updated).toLocaleString();
-  const choice = await showRecoveryDiff(path, savedText, draft.text, when, 'source');
-  if (choice === 'restore') return draft.text;
-  if (choice === 'saved') clearSourceDraft(path);
-  return savedText;   // 'cancel' (Esc): the saved file opens and the draft stays where it is
+  // no question: the unsaved text of this browser is what opens (marked unsaved); save it, or close the tab to discard it
+  toast(`Your unsaved changes in ${path.split('/').pop()} (${new Date(draft.updated).toLocaleString()}) are back. Save them, or close the tab to discard them.`);
+  return draft.text;
 }
 export function showRecoveryDiff(path, savedText, draftText, when, kind) {
   return new Promise((resolve) => {
@@ -462,7 +460,7 @@ async function build() {
     const { installTouchMenu, installKeyboardGuard } = await import('./editor-touch-menu.js');
     if (made?.view) { installTouchMenu(made.view); installKeyboardGuard(made.view, closeComp); }   // a long press on a phone: copy, cut, paste, select all; selecting text brings no keyboard and closes the suggestions
   } finally { editorMade(); }
-  ta.oninput = () => { setTimeout(updateSig, 0); setTimeout(updateBakeCall, 0); SE.text = ta.value; saveSourceDraftSoon(); refreshSeqDiagnostics(); gutter(); overlay(); status(); refreshSaveControls(); if (isSong()) { S.sourceEditMessage = 'Checking source...'; scheduleSourceSync(); notifySelection(); } clearTimeout(SE.timer); SE.timer = setTimeout(() => { SE.timer = 0; if (isSong() && SE.offline) localDiagnostics(); else if (isSong() && SE.lsp) { SE.sentText = ta.value; SE.lsp.change(ta.value).catch(() => {}); } }, 250); };
+  ta.oninput = () => { setTimeout(updateSig, 0); setTimeout(updateBakeCall, 0); SE.text = ta.value; saveSourceDraftSoon(); syncSoon(); refreshSeqDiagnostics(); gutter(); overlay(); status(); refreshSaveControls(); if (isSong()) { S.sourceEditMessage = 'Checking source...'; scheduleSourceSync(); notifySelection(); } clearTimeout(SE.timer); SE.timer = setTimeout(() => { SE.timer = 0; if (isSong() && SE.offline) localDiagnostics(); else if (isSong() && SE.lsp) { SE.sentText = ta.value; SE.lsp.change(ta.value).catch(() => {}); } }, 250); };
   ta.onselectionchange = syncSourceCursor;
   ta.onscroll = () => { gut.scrollTop = ta.scrollTop; hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; lk.scrollTop = ta.scrollTop; lk.scrollLeft = ta.scrollLeft; ghost.scrollTop = ta.scrollTop; ghost.scrollLeft = ta.scrollLeft; };
   ta.onclick = async (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); await ctrlClick(); } else closeComp(); };
@@ -517,7 +515,6 @@ async function build() {
   body.append(gut, wrap);
   bar.append(
     buildSwitcher(),
-    createRecentFilesToggle(),
     el('b', { id: 'se-title' }),
     el('button', { id: 'se-close-file', textContent: '×', title: 'Close this source file and return to the song', 'aria-label': 'Close current source file', onclick: closeCurrentSourceFile }),
     el('button', { textContent: 'Apply (Ctrl+Enter)', className: 'primary', id: 'se-apply', onclick: apply }),
@@ -1347,12 +1344,11 @@ export async function apply() {
       if (choice === 'merge') SE.text = ta.value = text;
     }
     if (SE.lsp) { await SE.lsp.change(SE.text); await new Promise((r) => setTimeout(r, 150)); }
-    if (errCount()) { toast(`Not applied: ${errCount()} error(s).`); return false; }
     const doc = await applyText(SE.text);
     if (!doc) return false;
     SE.orig = SE.text;
     SE.syncedText = SE.text;
-    toast('Applied to the working copy (not saved: Save makes a revision).');
+    toast(errCount() ? `Applied to the working copy with ${errCount()} error(s): the blocks with errors are marked red.` : 'Applied to the working copy (not saved: Save makes a revision).');
   } else {
     try { await api.put('/api/file', { path: SE.file, text: SE.text }); refreshInputs().catch(() => {}); SE.orig = SE.text; clearSourceDraft(SE.file); if (isComponentFile()) componentFileWritten().catch(() => {}); toast(`Wrote ${SE.file} (journaled in AMPLE Redux).`); } catch (e) { toast(e.message); return false; }
   }
@@ -1812,6 +1808,8 @@ export async function confirmSongSwitch(path) {
   const text = $('#se-ta')?.value ?? SE.text;
   if (text === SE.orig) return true;
   SE.text = text;
+  // no question any more: a song with typed text stays open as a tab with its unsaved changes; the text goes into its working copy first (plan/editor-tabs.md)
+  if (isSong() && await syncSong({ quiet: true })) return true;
   return confirmEditorSwitch(path);
 }
 
@@ -1821,10 +1819,25 @@ function leave() {
   SE.text = ta.value;
   if (isModuleSource() && SE.text !== SE.orig) return apply();
   if (!isSong() || SE.text === SE.orig) return true;
-  if (errCount()) { toast(`The song has ${errCount()} error(s): fix them, or Revert, before you leave the editor.`); return false; }
-  apply();
+  syncSong({ quiet: true });   // the Blocks view shows what the editor shows: the text goes into the working copy, errors or not (a block with an error goes red, only a text that cannot be read into blocks greys the view out)
   return true;
 }
+
+let syncTimer = 0;
+/** Brings the typed text of the code view into the working copy of the song, without a question and without a toast. Quiet: it gives up when the song changed elsewhere in the meantime (the Apply button asks). */
+async function syncSong({ quiet = true } = {}) {
+  const ta = $('#se-ta');
+  if (!ta || !isSong() || !SE.edit || !S.doc) return true;
+  SE.text = ta.value;
+  if (SE.text === SE.orig) return true;
+  if (S.doc.text !== SE.orig && SE.text !== S.doc.text) return quiet ? false : apply();
+  const doc = await applyText(SE.text);
+  if (!doc) return false;
+  SE.orig = SE.text;
+  SE.syncedText = SE.text;
+  return true;
+}
+const syncSoon = () => { clearTimeout(syncTimer); syncTimer = setTimeout(() => { if (V.mode === 'src') syncSong({ quiet: true }).catch(() => {}); }, 1500); };
 
 export function initSource() {
   document.addEventListener('ample:song-opened', () => {
@@ -1836,6 +1849,8 @@ export function initSource() {
   registerView('src', render);
   subscribe(() => { if (V.mode === 'src' && $('#se-hl')) { gutter(); overlay(); } });   // a new build brings the marks or takes them away
   V.guard = leave;
+  setBeforeSave(() => (V.mode === 'src' ? syncSong({ quiet: true }) : true));
+  setInterval(() => { if (V.mode === 'src' && document.visibilityState === 'visible') syncSong({ quiet: true }).catch(() => {}); }, 6000);   // now and then, whatever else happens
   // the song changed somewhere else (a revert, an undo, a block editor): the text follows, unless there is text typed here that is not applied
   subscribe(() => {
     const ta = $('#se-ta');

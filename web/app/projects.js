@@ -156,6 +156,8 @@ async function settings(body) {
   const kodaLang = el('select', { id: 'ps-koda-language' }, [el('option', { value: 'en', textContent: 'English' }), el('option', { value: 'nl', textContent: 'Nederlands' })]);
   kodaLang.value = s.koda?.language === 'nl' ? 'nl' : 'en';
   row('Koda language', kodaLang, "The language of Koda's own words and of its answers (Dutch answers keep the English AMPLE term in brackets). Saved with the project.");
+  const previewTabs = el('input', { id: 'ps-tabs-preview', type: 'checkbox', checked: localStorage.getItem('ample.tabs.preview') === '1', onchange: (e) => { e.stopPropagation(); try { localStorage.setItem('ample.tabs.preview', e.target.checked ? '1' : '0'); } catch { /* storage may be blocked */ } }, oninput: (e) => e.stopPropagation() });
+  row('Preview tabs', el('label', {}, [previewTabs, ' a single click in the Project panel opens a preview tab']), 'Off: a file opens in a tab with a double click. On: a single click opens a tab in italics that the next single click replaces; a double click or an edit keeps it. Kept in this browser.');
   saveBar('ps-save', 'Save general', () => api.post('/api/project/settings', { blackBoxBudget: Number(budget.value) * 1048576, fullDetailDays: Number(full.value), thinnedDays: Number(thin.value), defaultEngine: engine.value.trim(), buildParallelism: parallelism.value === '' ? null : Number(parallelism.value) }).then(() => import('./koda-lang.js').then((m) => m.saveKodaLanguage(kodaLang.value))));
   panel = panels.search;
   const braveKey = el('input', { id: 'ps-brave-key', type: 'password', autocomplete: 'new-password', placeholder: s.braveSearchKeyConfigured ? 'Configured; leave empty to keep' : 'Paste Brave Search API key', disabled: !s.braveSearchKeyStoreAvailable });

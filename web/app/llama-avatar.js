@@ -3,7 +3,9 @@
 // Drag it where you want it, double-click or double-tap to put it away again. Where it stands and whether it is out is remembered per block in this browser only. @ample:delay-llama
 
 import { auraOf, createLlama, SCHEMES } from './llama-art.js';
-import { S, flat } from './store.js';
+import { S, flat, saveViewSoon } from './store.js';
+import { sizes } from './geometry.js';
+import { showMenu } from './ui.js';
 import { playerState } from './player.js';
 import { outputLevels } from './playback-volume.js';
 import { absolute, parse } from '../lib/notes-model.mjs';
@@ -11,6 +13,51 @@ import { barBeats } from '../lib/meter.mjs';
 
 const clean = (v) => String(v ?? '').replace(/^"|"$/g, '').trim();
 const SIZE = () => (innerWidth <= 700 ? { width: 110, height: 112 } : { width: 150, height: 152 });
+
+// The size of a llama (0.5 to 1.25 in steps of 0.05, mostly meant to make it smaller): kept in the SONG, in its view block as `size "llama:<block>" <scale>`, 1 everywhere by default
+const SCALE_MIN = 0.5, SCALE_MAX = 1.25;
+const snapScale = (v) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(v * 20) / 20));
+const sizeKey = (block) => `llama:${block}`;
+const scaleOf = (block) => snapScale(Number(sizes[sizeKey(block)]) || 1);
+function applyScale(host, block) { const k = scaleOf(block); host.style.transformOrigin = '0 0'; host.style.transform = k === 1 ? '' : `scale(${k})`; }
+
+/** Four corners scale the llama in steps of 0.05; the opposite corner stays where it is. The size goes into the song (a step that can be undone). */
+function startLlamaResize(block) {
+  const avatar = open.get(block);
+  if (!avatar || avatar.resizing) return;
+  const host = avatar.host, base = SIZE();
+  const box = document.createElement('div');
+  box.className = 'llama-resize';
+  const label = document.createElement('span'); label.className = 'llama-resize-label';
+  let loopId = 0;   // the frame follows the llama while it is dragged, until Done
+  const frame = () => { const r = host.getBoundingClientRect(); Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); label.textContent = `${scaleOf(block).toFixed(2)}×`; };
+  const change = (next, anchor, corner) => {
+    if (next === 1) delete sizes[sizeKey(block)]; else sizes[sizeKey(block)] = next;
+    applyScale(host, block);
+    if (anchor) { const x = corner.includes('l') ? anchor.x - base.width * next : anchor.x, y = corner.includes('t') ? anchor.y - base.height * next : anchor.y; host.style.left = `${x}px`; host.style.top = `${y}px`; avatar.pos = { x, y }; write(block, { ...read(block), x, y }); }
+    saveViewSoon(); frame();
+  };
+  const finish = () => { cancelAnimationFrame(loopId); box.remove(); avatar.resizing = false; document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', frame); };
+  const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(); } };
+  const begin = (e, corner) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = host.getBoundingClientRect(), from = scaleOf(block);
+    const anchor = { x: corner.includes('l') ? r.right : r.left, y: corner.includes('t') ? r.bottom : r.top };
+    const d0 = Math.max(8, Math.hypot(e.clientX - anchor.x, e.clientY - anchor.y)), handle = e.currentTarget;
+    handle.setPointerCapture?.(e.pointerId);
+    const move = (ev) => { const next = snapScale(from * Math.hypot(ev.clientX - anchor.x, ev.clientY - anchor.y) / d0); if (next !== scaleOf(block)) change(next, anchor, corner); };
+    const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); };
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+  };
+  for (const corner of ['tl', 'tr', 'bl', 'br']) { const h = document.createElement('div'); h.className = `llama-resize-handle ${corner}`; h.dataset.corner = corner; h.addEventListener('pointerdown', (e) => begin(e, corner)); box.append(h); }
+  const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'llama-resize-btn reset'; reset.textContent = 'Reset'; reset.onclick = () => change(1, null, '');
+  const done = document.createElement('button'); done.type = 'button'; done.className = 'llama-resize-btn done'; done.textContent = 'Done'; done.onclick = finish;
+  box.append(label, reset, done);
+  document.body.append(box); avatar.resizing = true;
+  document.addEventListener('keydown', onKey, true); window.addEventListener('resize', frame);
+  const follow = () => { frame(); loopId = requestAnimationFrame(follow); };
+  follow();
+}
 const open = new Map();   // block id -> { host, llama, drag }
 const key = (block) => `ample.llama.avatar:${S.project?.id || ''}:${block}`;
 const read = (block) => { try { return JSON.parse(localStorage.getItem(key(block)) || '{}'); } catch { return {}; } };
@@ -187,6 +234,7 @@ export function showLlamaAvatar(block, scheme = null) {
   host.dataset.block = block;
   host.title = `${block}: the Delay Llama of this block. Drag to move, double-click to put away`;
   host.style.cssText = `left:${spot.x}px;top:${spot.y}px;width:${s.width}px;height:${s.height}px`;
+  applyScale(host, block);
   const inner = document.createElement('div');
   inner.className = 'llama-avatar-inner';
   const names = Object.keys(SCHEMES), chosen = scheme || (saved.open && SCHEMES[saved.scheme] ? saved.scheme : names[Math.floor(Math.random() * names.length)]);
@@ -219,6 +267,7 @@ export function showLlamaAvatar(block, scheme = null) {
   const end = () => { if (!drag) return; const moved = drag.moved; drag = null; host.classList.remove('drag'); if (moved) { write(block, { ...read(block), open: true, x: parseFloat(host.style.left), y: parseFloat(host.style.top) }); lastTap = 0; } };
   host.addEventListener('pointerup', end);
   host.addEventListener('pointercancel', end);
+  host.addEventListener('contextmenu', (event) => { event.preventDefault(); event.stopPropagation(); showMenu(event.clientX, event.clientY, [{ head: `Llama of ${block}` }, { label: 'Resize…', fn: () => startLlamaResize(block) }, { label: 'Put away', fn: () => hideLlamaAvatar(block) }]); });
   document.dispatchEvent(new CustomEvent('ample:llama-avatar', { detail: { block, open: true } }));
   wake();
 }

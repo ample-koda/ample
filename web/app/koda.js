@@ -23,7 +23,12 @@ import { namedBlocks } from '../lib/koda-glance.mjs';
 
 const KEY = 'ample.koda';
 import { kodaLanguage as kodaLanguageNow } from './koda-lang.js';
-const SIZE = () => ({ width: innerWidth <= 700 ? 110 : 150, height: innerWidth <= 700 ? 100 : 140 });
+// The size of Koda: 1 by default and 0.8 on a phone; a choice (0.5 to 1.25 in steps of 0.05, mostly meant to make Koda smaller) is kept in this browser only
+const SCALE_KEY = 'ample.koda.scale', SCALE_MIN = 0.5, SCALE_MAX = 1.25;
+const snapScale = (v) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(v * 20) / 20));
+const defaultScale = () => (innerWidth <= 700 ? 0.8 : 1);
+const scale = () => { try { const s = parseFloat(localStorage.getItem(SCALE_KEY)); if (Number.isFinite(s)) return snapScale(s); } catch { /* storage may be blocked */ } return defaultScale(); };
+const SIZE = () => { const k = scale(); return { width: Math.round((innerWidth <= 700 ? 110 : 150) * k), height: Math.round((innerWidth <= 700 ? 100 : 140) * k) }; };
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ enabled: me.enabled, ...Presence.toSaved(me.p) })); } catch { /* storage may be blocked */ } };
 
@@ -395,10 +400,46 @@ async function openMenu(x, y) {
     '-',
     ...modelItems,
     '-',
+    { label: tx('ctx.resize'), fn: () => startResize() },
     { label: me.p.muted ? tx('menu.unmute') : tx('menu.mute'), fn: () => muteKoda() },
     { label: tx('ctx.hide'), fn: () => hideKoda() },
     { label: tx('ctx.login'), fn: () => import('./koda-login.js').then((m) => m.openKodaLogin()) },
   ]);
+}
+
+/* ---------- resize: four corners scale the whole of Koda in steps of 0.05 ---------- */
+function startResize() {
+  if (me.resizing) return;
+  const box = el('div', { className: 'k-resize', role: 'group', 'aria-label': 'Resize Koda' });
+  const label = el('span', { className: 'k-resize-label' });
+  let loopId = 0;   // the frame follows Koda while it is dragged, until Done
+  const frame = () => { const r = me.float.getBoundingClientRect(); Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); label.textContent = `${scale().toFixed(2)}×`; };
+  const apply = (next, anchor, corner) => {
+    const before = me.float.getBoundingClientRect(), ratio = next / scale();
+    try { localStorage.setItem(SCALE_KEY, String(next)); } catch { /* storage may be blocked */ }
+    const w = before.width * ratio, h = before.height * ratio;
+    const spot = anchor ? { left: corner.includes('l') ? anchor.x - w : anchor.x, top: corner.includes('t') ? anchor.y - h : anchor.y } : me.p.spot;
+    setSpot(spot); save(); frame();
+  };
+  const finish = () => { cancelAnimationFrame(loopId); box.remove(); me.resizing = null; document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', frame); save(); };
+  const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(); } };
+  const begin = (e, corner) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = me.float.getBoundingClientRect(), from = scale();
+    const anchor = { x: corner.includes('l') ? r.right : r.left, y: corner.includes('t') ? r.bottom : r.top };   // the opposite corner stays where it is
+    const d0 = Math.max(8, Math.hypot(e.clientX - anchor.x, e.clientY - anchor.y));
+    const handle = e.currentTarget;
+    handle.setPointerCapture?.(e.pointerId);
+    const move = (ev) => { const next = snapScale(from * Math.hypot(ev.clientX - anchor.x, ev.clientY - anchor.y) / d0); if (next !== scale()) apply(next, anchor, corner); };
+    const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); };
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+  };
+  for (const corner of ['tl', 'tr', 'bl', 'br']) { const h = el('div', { className: `k-resize-handle ${corner}`, 'data-corner': corner }); h.addEventListener('pointerdown', (e) => begin(e, corner)); box.append(h); }
+  box.append(label, el('button', { type: 'button', className: 'k-resize-reset', textContent: 'Reset', title: 'The default size', onclick: () => { try { localStorage.removeItem(SCALE_KEY); } catch { /* storage may be blocked */ } setSpot(me.p.spot); save(); frame(); } }), el('button', { type: 'button', className: 'k-resize-done', textContent: 'Done', onclick: finish }));
+  me.layer.append(box); me.resizing = box;
+  document.addEventListener('keydown', onKey, true); window.addEventListener('resize', frame);
+  const follow = () => { frame(); loopId = requestAnimationFrame(follow); };
+  follow();
 }
 
 /* ---------- bubbles ---------- */

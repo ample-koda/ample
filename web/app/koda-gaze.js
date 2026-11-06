@@ -192,6 +192,8 @@ export function targetAt(x, y) {
     if (item) return { kind: 'type', id: item.dataset.tpl, selector: `.tplitem[data-tpl="${esc(item.dataset.tpl)}"]` };
     const card = e.closest?.('.tpl-card[data-id]');
     if (card) return { kind: 'template', selector: `.tpl-card[data-id="${esc(card.dataset.id)}"]`, name: card.querySelector('.tpl-head b')?.textContent ?? '', say: card.querySelector('.tpl-say')?.textContent ?? '', meta: card.querySelector('.tpl-meta')?.textContent ?? '', project: !!card.querySelector('.tpl-x') };
+    const tab = e.closest?.('#tabbar .tab[data-path], #tabs-popup .tabs-row[data-path]');   // a tab of the tab row, or a row of its list
+    if (tab) return { kind: 'tab', path: tab.dataset.path, selector: `${tab.classList.contains('tab') ? '#tabbar .tab' : '#tabs-popup .tabs-row'}[data-path="${esc(tab.dataset.path)}"]` };
     const file = e.closest?.(FILE_ROW);
     if (file) return { kind: 'file', path: file.dataset.path, isDir: file.classList.contains('file-list-folder'), selector: `[data-path="${esc(file.dataset.path)}"]` };
     const part = partAt(e);
@@ -296,6 +298,7 @@ export function lookAt(target, add = false) {
       subject = typeSubject({ id: target.id, ...S.tpl[target.id] });
     } else if (target.kind === 'template') subject = templateSubject(target);
     else if (target.kind === 'file') subject = fileSubject(target.path, target.isDir);
+    else if (target.kind === 'tab') subject = { kind: 'tab', path: target.path };
     else if (target.kind === 'revision') subject = revisionSubject(target);
     else if (target.kind === 'branch') subject = branchSubject(target);
     else if (target.kind === 'bar') subject = barSubject(target);

@@ -8,7 +8,7 @@ import { aiItems } from './ai.js';
 import { $, el, showMenu, toast, ask } from './ui.js';
 import { HEAD, ROW, W, baseWidth, sizes, compatible, fitView, fitPhoneView, fitReadableView, linkPath, nodeHeight, nodeWidth, nodesInRect, portPos, snap, toWorld, zoomAt, align, distribute, bounds } from './geometry.js';
 import { containerView, groupBlocks, ungroup } from './graph.js';
-import { S, bakeDynamicHelpers, blockReadsClock, quiet, recordGroups, saveViewSoon, setPinned, subscribeProgress, build, container, pinUnplaced, current, edit, flat, notify, notifySelection, readOnly, saveGroups, select, undo, redo, enterModule, setModuleLevel, applyText, openDoc, enterMidiVariant } from './store.js';
+import { S, bakeDynamicHelpers, blockReadsClock, quiet, recordGroups, saveViewSoon, setPinned, subscribeProgress, build, container, pinUnplaced, current, edit, flat, notify, notifySelection, readOnly, graphBroken, blockProblems, saveGroups, select, undo, redo, enterModule, setModuleLevel, applyText, openDoc, enterMidiVariant } from './store.js';
 import { gotoSource, showBlockStatusError } from './panels.js';
 import { componentMenuItems } from './components.js';
 import { registerPlaybackAudio } from './playback-volume.js';
@@ -21,7 +21,6 @@ import { openLyrics } from './lyrics.js';
 import { api } from './api.js';
 import { isExpression, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
 import { refKey } from '../lib/block-activity.mjs';
-import { createRecentFilesToggle } from './recent-files.js';
 import { openMidiCompare } from './midi-compare-view.js';
 import { setView } from './views.js';
 import { openStudioPanel } from './studio/modal.js';
@@ -137,6 +136,7 @@ export function renderGraph() {
   renderCrumbs();
   applyView();
   $('#canvaswrap').classList.toggle('romode', readOnly());
+  $('#canvaswrap').classList.toggle('broken', graphBroken());
 }
 
 /** The sound lines of a group (the audio ones), each with the block behind it. */
@@ -391,6 +391,13 @@ function nodeEl(n) {
     d.append(grip);
   }
   d.dataset.id = n.id;
+  {
+    const problems = n.proxy || n.isGroup || n.isModule ? [] : blockProblems(n.id), errs = problems.filter((p) => p.severity === 'error');
+    if (errs.length) {
+      d.classList.add('err'); d.dataset.err = String(errs.length);
+      d.append(el('span', { className: 'node-errmark', textContent: '!', title: errs.map((p) => `${p.code} ${p.message}${p.hint ? '\n' + p.hint : ''}`).join('\n\n'), 'aria-label': `${errs.length} error(s) in this block` }));
+    } else if (problems.some((p) => p.severity === 'warning')) d.classList.add('warn');
+  }
   d.tabIndex = n.proxy ? -1 : 0;
   d.setAttribute('role', 'group');
   { const tint = n.proxy ? '' : tintOf(n.params); if (tint) { d.classList.add('tinted'); d.style.setProperty('--tint', TINTS[tint]); d.dataset.tint = tint; } }
@@ -867,7 +874,7 @@ function renderCrumbs() {
   if (S.moduleStack.length) {
     const root = el('span', { className: 'c', textContent: name, title: S.path || name, 'data-koda-song': '' });
     root.onclick = () => { setModuleLevel(0).then(() => { setView('blocks', true); fit(); }); };
-    c.append(root, createRecentFilesToggle());
+    c.append(root);
     S.moduleStack.forEach((entry, i) => {
       c.append(el('span', { textContent: '›' }));
       const crumb = el('span', { className: 'c', textContent: entry.instance });
@@ -882,7 +889,6 @@ function renderCrumbs() {
     if (i === 0) s.setAttribute('data-koda-song', '');
     s.onclick = () => { if (i < S.stack.length - 1) { S.stack = S.stack.slice(0, i + 1); select(null); notify(); fit(); } };
     c.append(s);
-    if (i === 0) c.append(createRecentFilesToggle());
     if (i < S.stack.length - 1) c.append(el('span', { textContent: '›' }));
   });
 }

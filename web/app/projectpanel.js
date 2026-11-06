@@ -428,7 +428,7 @@ function renderContents(host) {
       columns.forEach((column) => { const cell = el('td', { textContent: projectColumnValue(item, column.id) }); if (column.id === 'name') { const label = cell.textContent; cell.textContent = ''; cell.className = 'file-name-cell'; cell.append(el('span', { className: 'file-name-content' }, [projectItemIcon(item), filePlayCell(item), el('span', { className: 'file-name-text', textContent: label })])); } cell.style.width = `${column.width}px`; if (column.id === 'usedBy' || column.id === 'sha256') { cell.dataset.path = item.path; cell.dataset.column = column.id; } else if (column.id === 'length') { cell.dataset.itemPath = item.path; cell.dataset.column = 'length'; } row.append(cell); });
       const nameCell = row.querySelector('.file-name-cell');
       if (nameCell) addDetailPreview(row, nameCell, item);
-      row.onclick = (event) => { if (event.detail >= 2 && item.isDir) { openItem(item); return; } selectClick(event, item, visible); detailWindows.get(host).focusPath = item.path; renderContents(host); };
+      row.onclick = (event) => { if (event.detail >= 2 && item.isDir) { openItem(item); return; } selectClick(event, item, visible); if (event.detail === 1 && !item.isDir && !event.ctrlKey && !event.shiftKey && !event.metaKey) document.dispatchEvent(new CustomEvent('ample:preview-file', { detail: item.path })); detailWindows.get(host).focusPath = item.path; renderContents(host); };
       row.ondblclick = () => openItem(item);
       row.onkeydown = (event) => {
         if (event.key === 'Enter') { openItem(item); return; }

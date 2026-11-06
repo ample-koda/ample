@@ -35,6 +35,9 @@ namespace Ample.Server;
 /// <param name="Blocks">The block IDs that form the initial focus when starting from a canvas selection or group.</param>
 internal sealed record AiTaskRequest(string Kind, string Scope, string Prompt, string Path, string Song, int? FromLine, int? ToLine, string? Block, string? Model, IReadOnlyList<string>? Hums = null, IReadOnlyList<string>? Offered = null, string? ContinueFrom = null, string? Effort = null, IReadOnlyList<string>? Blocks = null)
 {
+    /// <summary>What the task sees (plan/editor-tabs.md, part 5): <c>unsaved</c> (the default: the working copies of the open files, what is on the screen) or <c>saved</c> (the files on disk only).</summary>
+    public string Context { get; init; } = "unsaved";
+
     /// <summary>When true, retains the selected strict permission policy instead of requesting approval on access boundaries.</summary>
     public bool Strict { get; init; }
 }
@@ -2018,7 +2021,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 return;
             }
 
-            files[rel] = rel == task.Request.Song ? song.Text : File.ReadAllText(full);
+            // the choice of the person: the working copies of what is open (the song, other songs and text files with unsaved changes), or the saved files only
+            files[rel] = task.Request.Context == "saved" ? File.ReadAllText(full) : rel == task.Request.Song ? song.Text : s.Texts.Read(rel) ?? s.DirtyDocText(rel) ?? File.ReadAllText(full);
             total += size;
         }
 
