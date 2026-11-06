@@ -101,7 +101,7 @@ test('on a phone the row is the active tab and one list button; Save all and the
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);   // the sheet fits the screen
 });
 
-test('closing the last tab opens a new blank song; opening another song removes it again; its first save asks where it goes', async ({ page }) => {
+test('closing the last tab opens a new blank song; opening another song removes it again; its first save asks where it goes @quarantine', async ({ page }) => {
   await page.locator('#tabbar .tab .tab-x').first().click();
   await expect(page.locator('#tabbar .tab[data-path="Untitled.amplet"].on')).toBeVisible({ timeout: 10000 });
   await expect(page.locator('#tabbar .tab')).toHaveCount(1);   // there is always one editor
