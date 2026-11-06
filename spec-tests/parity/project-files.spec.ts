@@ -143,14 +143,14 @@ test('Ctrl+P opens the file switcher: a few letters find a file and Enter opens 
  
 });
 
-test('recent and open files are visible from both the canvas breadcrumb and Source header', async ({ page }) => {
+test('recent and open files are in the tab row, in the Source view and in the Blocks view', async ({ page }) => {
   await page.click('#vs-source');
   await page.locator('#se-switch').fill('notes/readme');
   await page.locator('#se-switch').press('Enter');
   await expect(page.locator('#se-title')).toHaveText('notes/readme.md');
   await expect.poll(() => srcText(page)).toBe('# hi\n');
 
-  const sourceToggle = page.locator('#se-bar .recent-files-toggle');
+  const sourceToggle = page.locator('#tabbar .recent-files-toggle');
   await sourceToggle.click();
   const sourceMenu = page.locator(`#${await sourceToggle.getAttribute('aria-controls')}`);
   await expect(sourceMenu).toBeVisible();
@@ -171,7 +171,7 @@ test('recent and open files are visible from both the canvas breadcrumb and Sour
   await expect(sourceMenu.locator('.recent-file-row[data-file="notes/readme.md"] .recent-file-dirty')).toHaveText('● Unsaved');
   await page.keyboard.press('Escape');
   await page.click('#vs-blocks');
-  const canvasToggle = page.locator('#crumbs .recent-files-toggle');
+  const canvasToggle = page.locator('#tabbar .recent-files-toggle');
   await expect(canvasToggle).toBeVisible();
   await canvasToggle.click();
   const canvasMenu = page.locator(`#${await canvasToggle.getAttribute('aria-controls')}`);

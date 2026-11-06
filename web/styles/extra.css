@@ -1166,3 +1166,4 @@ body.detached #work{grid-template-columns:0 1fr 0}
 .node.warn{border-color:var(--warn)}
 .prop.prop-err input,.prop.prop-err select,.prop.prop-err textarea{border-color:#ff5d6c;box-shadow:0 0 0 1px #ff5d6c}
 .prop.prop-err>label{color:#ff5d6c}
+.tabs-more+.recent-files-control{align-self:center}

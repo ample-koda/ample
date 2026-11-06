@@ -137,9 +137,9 @@ test('unsaved source files can switch into independent drafts and recover throug
   await page.locator('#dlg-btns button', { hasText: 'Keep draft and open' }).click();
   await expect(page.locator('#se-title')).toHaveText('other.txt');
   // the draft of the file left behind is marked in the Recent menu
-  await page.locator('#se-bar .recent-files-toggle').click();
-  await expect(page.locator('#se-bar .recent-file-row[data-file="notes.txt"] .recent-file-dirty')).toHaveText('● Unsaved');
-  await page.locator('#se-bar .recent-files-toggle').click();
+  await page.locator('#tabbar .recent-files-toggle').click();
+  await expect(page.locator('#tabbar .recent-file-row[data-file="notes.txt"] .recent-file-dirty')).toHaveText('● Unsaved');
+  await page.locator('#tabbar .recent-files-toggle').click();
   await page.evaluate(async () => {
     const { S } = await import('/app/store.js');
     const { workRecord } = await import('/lib/work-state.mjs');

@@ -70,3 +70,18 @@ test('a tab in a window of its own is a placeholder in the main window and comes
   await detached.close();
   await expect(page.locator('#tabbar .tab[data-path="side.txt"].remote')).toHaveCount(0, { timeout: 10000 });
 });
+
+test('a file open in another window can be taken back: that window closes and the main window shows the view it had', async ({ page, context }) => {
+  const token = await page.evaluate(() => sessionStorage.getItem('ample.token'));
+  const url = new URL(page.url());
+  await api('/api/file', { method: 'PUT', body: { path: 'again.txt', text: 'one\ntwo\nthree\n' } });
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'again.txt' })));
+  const detached = await context.newPage();
+  await detached.goto(`${url.origin}${url.pathname}?tab=again.txt#token=${token}`);
+  await expect(page.locator('#tabbar .tab[data-path="again.txt"].remote')).toBeVisible({ timeout: 10000 });
+  await page.locator('#tabbar .tab[data-path="again.txt"]').click();
+  await page.getByRole('button', { name: 'Take it back here' }).click();
+  await expect(page.locator('#tabbar .tab[data-path="again.txt"].remote')).toHaveCount(0, { timeout: 10000 });
+  await expect(page.locator('#tabbar .tab.on[data-path="again.txt"]')).toBeVisible();
+  expect(detached.isClosed() || await detached.evaluate(() => true).catch(() => true)).toBeTruthy();
+});

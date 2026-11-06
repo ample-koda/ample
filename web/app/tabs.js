@@ -3,8 +3,9 @@
 // already opens (a song, a text or component file); a tab click opens that file through the same events as the Project panel. @ample:tabs
 
 import { api, getToken } from './api.js';
-import { S, subscribe } from './store.js';
+import { S, notify, select, subscribe } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
+import { createRecentFilesToggle } from './recent-files.js';
 
 const KIND = [
   ['song', /\.amplet$/i], ['module', /\.module$/i], ['component', /\.amplec$/i],
@@ -49,7 +50,7 @@ function openFile(path) {
 }
 
 function activate(path) {
-  if (T.remote.has(path)) { post({ type: 'focus', path }); toast(`${baseName(path)} is open in another window: it is brought to the front.`); return; }   // one editor per file, in whatever window
+  if (T.remote.has(path)) { remoteChoice(path); return; }   // one editor per file, in whatever window
   T.active = path;
   save(); render();
   if (!(kindOf(path) === 'song' && path === S.path)) openFile(path);
@@ -129,8 +130,52 @@ function openChannel() {
     }
     if (data.type === 'detached') { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); if (T.active === data.path) { const next = T.tabs.find((t) => !T.remote.has(t.path)); if (next) activate(next.path); } render(); }
     else if (data.type === 'alive' && T.remote.has(data.path)) T.remote.get(data.path).seen = Date.now();
-    else if (data.type === 'attached') { T.remote.delete(data.path); T.active = data.path; save(); render(); activate(data.path); }
+    else if (data.type === 'attached') { T.remote.delete(data.path); T.active = data.path; save(); render(); activate(data.path); if (data.state) { setTimeout(() => applyViewState(data.state), 700); setTimeout(() => applyViewState(data.state), 1800); } }
   };
+}
+
+/** A file that is open in another window: bring that window to the front, or take the file back here (that window closes and this one shows what it showed). */
+async function remoteChoice(path) {
+  const choice = await ask('Open in another window', `${baseName(path)} is open in another window. There is only one editor per file.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Bring that window to the front', value: 'focus' }, { label: 'Take it back here', value: 'take', primary: true }]);
+  if (choice === 'focus') post({ type: 'focus', path });
+  else if (choice === 'take') post({ type: 'putback', path });
+}
+
+/** What the person sees in this window: the view (blocks, code, assets), how deep in a group, the selected block, the side panels, the line in the code, the scroll and the zoom. */
+async function captureViewState() {
+  const { V } = await import('./views.js');
+  const ta = document.querySelector('#se-ta');
+  const work = $('#work');
+  return {
+    mode: V.mode, stack: [...(S.stack || ['root'])], sel: S.sel || null, view: S.view ? { ...S.view } : null,
+    rightOpen: work ? !work.classList.contains('noR') : true, leftOpen: work ? !work.classList.contains('noL') : true,
+    line: ta ? ta.value.slice(0, ta.selectionStart).split('\n').length : null, column: ta ? ta.selectionStart - (ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1) : null, scrollTop: ta?.scrollTop || 0,
+  };
+}
+
+/** Shows again what the other window showed, as far as this file allows it. */
+async function applyViewState(state) {
+  if (!state) return;
+  try {
+    const { setView } = await import('./views.js');
+    const work = $('#work');
+    if (work) { work.classList.toggle('noR', state.rightOpen === false); work.classList.toggle('noL', state.leftOpen === false); }
+    if (Array.isArray(state.stack) && state.stack.length && state.stack[0] === 'root') S.stack = state.stack;
+    if (state.view) S.view = { ...state.view };
+    setView(state.mode || 'blocks', true);
+    notify();
+    if (state.sel) { try { select(state.sel); } catch { /* the block may be gone */ } }
+    if (state.mode === 'src' && state.line) {
+      setTimeout(() => {
+        const ta = document.querySelector('#se-ta');
+        if (!ta) return;
+        const lines = ta.value.split('\n');
+        const line = Math.min(state.line, lines.length);
+        const offset = lines.slice(0, line - 1).reduce((n, l) => n + l.length + 1, 0) + Math.min(state.column || 0, (lines[line - 1] || '').length);
+        ta.focus(); ta.setSelectionRange(offset, offset); ta.scrollTop = state.scrollTop || 0;
+      }, 400);
+    }
+  } catch { /* a view that cannot be restored is not worth an error */ }
 }
 
 /** The detached window: only this file, a slim header with Put back; closing the window puts the tab back. */
@@ -145,7 +190,7 @@ function startDetached(path) {
   add(path); T.active = path;
   openFile(path);
 }
-function putBack() { post({ type: 'attached', path: detachedPath() }); window.close(); }
+async function putBack() { let state = null; try { state = await captureViewState(); } catch { /* the tab comes back without the view */ } post({ type: 'attached', path: detachedPath(), state }); window.close(); }
 
 function marks(path) {
   const f = factsOf(path), out = [];
@@ -192,7 +237,8 @@ function render() {
   const list = el('div', { className: 'tabs-list', role: 'tablist', 'aria-label': 'Open files' }, T.tabs.map(tabElement));
   const more = el('button', { type: 'button', id: 'tabs-more', className: 'tabs-more', title: 'All open files', 'aria-haspopup': 'listbox', textContent: `▾ ${T.tabs.length}`, onclick: (e) => { e.stopPropagation(); togglePopup(more); } });
   const saveAllButton = dirtyCount ? el('button', { type: 'button', id: 'tabs-saveall', className: 'tabs-saveall', textContent: `Save all (${dirtyCount})`, title: 'Save every file with unsaved changes (Ctrl+Shift+S)', onclick: saveAll }) : '';
-  T.bar.replaceChildren(list, more, saveAllButton);
+  T.recent ??= createRecentFilesToggle();   // Recent lives with the tabs now: one place for the files that are open and the ones that were
+  T.bar.replaceChildren(list, more, T.recent, saveAllButton);
   T.bar.hidden = T.tabs.length < 1;
   requestAnimationFrame(() => { fit(list); more.classList.toggle('some', T.hidden > 0); });
 }

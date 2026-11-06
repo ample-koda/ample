@@ -21,7 +21,6 @@ import { openLyrics } from './lyrics.js';
 import { api } from './api.js';
 import { isExpression, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
 import { refKey } from '../lib/block-activity.mjs';
-import { createRecentFilesToggle } from './recent-files.js';
 import { openMidiCompare } from './midi-compare-view.js';
 import { setView } from './views.js';
 import { openStudioPanel } from './studio/modal.js';
@@ -875,7 +874,7 @@ function renderCrumbs() {
   if (S.moduleStack.length) {
     const root = el('span', { className: 'c', textContent: name, title: S.path || name, 'data-koda-song': '' });
     root.onclick = () => { setModuleLevel(0).then(() => { setView('blocks', true); fit(); }); };
-    c.append(root, createRecentFilesToggle());
+    c.append(root);
     S.moduleStack.forEach((entry, i) => {
       c.append(el('span', { textContent: '›' }));
       const crumb = el('span', { className: 'c', textContent: entry.instance });
@@ -890,7 +889,6 @@ function renderCrumbs() {
     if (i === 0) s.setAttribute('data-koda-song', '');
     s.onclick = () => { if (i < S.stack.length - 1) { S.stack = S.stack.slice(0, i + 1); select(null); notify(); fit(); } };
     c.append(s);
-    if (i === 0) c.append(createRecentFilesToggle());
     if (i < S.stack.length - 1) c.append(el('span', { textContent: '›' }));
   });
 }

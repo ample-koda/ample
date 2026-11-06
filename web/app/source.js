@@ -35,7 +35,7 @@ import { seqDiagnostics } from '../lib/seq-diagnostics.mjs';
 import { getRecoveryDraft, listRecoveryDrafts, removeRecoveryDraft, saveRecoveryDraft } from '../lib/recovery-drafts.mjs';
 import { wordRangeBefore } from '../lib/word-range.mjs';
 import { consumeRecoveryAcceptance } from '../lib/work-state.mjs';
-import { createRecentFilesToggle, recentFilePaths, rememberRecentFile } from './recent-files.js';
+import { recentFilePaths, rememberRecentFile } from './recent-files.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { barBeats } from '../lib/meter.mjs';
 
@@ -517,7 +517,6 @@ async function build() {
   body.append(gut, wrap);
   bar.append(
     buildSwitcher(),
-    createRecentFilesToggle(),
     el('b', { id: 'se-title' }),
     el('button', { id: 'se-close-file', textContent: '×', title: 'Close this source file and return to the song', 'aria-label': 'Close current source file', onclick: closeCurrentSourceFile }),
     el('button', { textContent: 'Apply (Ctrl+Enter)', className: 'primary', id: 'se-apply', onclick: apply }),
