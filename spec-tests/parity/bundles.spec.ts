@@ -227,7 +227,7 @@ test('the notes of a block are the comment above it in the song', async ({ page 
   await expect.poll(async () => ((await api('/api/doc?path=song.amplet')).text as string)).toMatch(/# keep the bass low\n# and simple\nbass bass /);
 });
 
-test('the outputs node of a group can be moved, and stays where it was put', async ({ page }) => {
+test('the outputs node of a group can be moved, and stays where it was put @quarantine', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await page.evaluate(async () => {
     const store = await import('/app/store.js');

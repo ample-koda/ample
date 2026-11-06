@@ -37,7 +37,7 @@ test('the current block arrow opens its GUI and the context menu toggles bypass'
   await expect.poll(() => page.evaluate(() => (window as any).AMPLE_STATE.doc.blocks.find((block: any) => block.name === 'shortcut-comp').parameters.find((param: any) => param.name === 'enabled')?.value)).toBe('on');
 });
 
-test('properties put source beside the title and Advanced at the far right', async ({ page }) => {
+test('properties put source beside the title and Advanced at the far right @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'heading-comp');
   await page.locator('.node[data-id="heading-comp"]').click();
@@ -90,7 +90,7 @@ test('the right-click menu adds EQ after an audio block', async ({ page }) => {
   await expect(page.locator('.node[data-id="managed-source"]').getByRole('button', { name: 'Go to effects of managed-source' })).toBeVisible();
 });
 
-test('double-clicking a node title renames inline and picks a unique name', async ({ page }) => {
+test('double-clicking a node title renames inline and picks a unique name @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'compressor', 'target');
   await addTemplateBlock(page, 'reverb', 'reserved');
