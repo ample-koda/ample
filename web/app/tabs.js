@@ -313,7 +313,7 @@ function togglePopup(anchor) {
     const q = filter.value.trim().toLowerCase();
     for (const tab of T.tabs.filter((t) => !q || t.path.toLowerCase().includes(q))) {
       const f = factsOf(tab.path);
-      const row = el('div', { className: `tabs-row${tab.path === T.active ? ' on' : ''}`, role: 'option', tabIndex: 0 }, [
+      const row = el('div', { className: `tabs-row${tab.path === T.active ? ' on' : ''}`, role: 'option', tabIndex: 0, 'data-path': tab.path }, [
         el('span', { className: 'tab-name', textContent: baseName(tab.path) }), el('span', { className: 'tabs-folder', textContent: folderOf(tab.path) }),
         el('span', { className: 'tabs-facts', textContent: [f.dirty ? 'unsaved' : '', f.graphBroken ? 'cannot be read into blocks' : f.errors ? `${f.errors} error(s)` : '', f.warnings ? `${f.warnings} warning(s)` : ''].filter(Boolean).join(' · ') }),
         el('button', { type: 'button', className: 'tab-x', textContent: '×', title: 'Close', onclick: (e) => { e.stopPropagation(); closeTab(tab.path).then(paint); } })]);
@@ -367,8 +367,9 @@ export async function saveAll() {
 }
 
 /** What Koda is told about the open files: the list of tabs with their state, and for the ones with unsaved changes what changed (a short diff of the saved text against the working text). */
-export async function tabsContextForKoda() {
+export async function tabsContextForKoda(subject = null) {
   if (!T.tabs.length) return '';
+  const looked = [...(subject?.kind === 'tab' ? [subject.path] : []), ...((subject?.items || []).filter((i) => i.kind === 'tab').map((i) => i.path))];
   const { lineDiff } = await import('../lib/tabs-context.mjs');
   const lines = ['Open files in the studio (tabs):'];
   for (const tab of T.tabs.slice(0, 40)) {
@@ -383,6 +384,13 @@ export async function tabsContextForKoda() {
       else { const wc = await api.get(`/api/wc?path=${encodeURIComponent(tab.path)}`); saved = wc.saved; working = wc.text; }
       lines.push(`What changed in ${tab.path} (saved text against the unsaved text; the unsaved text is what the user sees and what builds use):\n${lineDiff(saved, working, 60)}`);
     } catch { /* a diff is a help */ }
+  }
+  // a tab that Koda is looking at: its text as it is on the screen (cut after a number of characters)
+  for (const path of [...new Set(looked)].slice(0, 3)) {
+    try {
+      const text = kindOf(path) === 'song' ? (path === S.path && S.doc ? S.doc.text : (await api.get(`/api/doc?path=${encodeURIComponent(path)}`)).text) : (await api.get(`/api/wc?path=${encodeURIComponent(path)}`)).text;
+      lines.push(`The text of ${path} as it is on the screen:\n${String(text).slice(0, 8000)}${String(text).length > 8000 ? '\n... (the rest is left out)' : ''}`);
+    } catch { /* a text is a help */ }
   }
   return `\n\n${lines.join('\n')}`;
 }

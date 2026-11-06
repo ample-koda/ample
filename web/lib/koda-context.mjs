@@ -99,6 +99,7 @@ export function subjectName(s) {
   if (s.kind === 'template') return s.name;
   if (s.kind === 'port') return `the ${s.title || s.name} ${s.dir === 'in' ? 'input' : 'output'} of ${s.block}`;
   if (s.kind === 'file') return String(s.path).split('/').filter(Boolean).pop() || s.path;
+  if (s.kind === 'tab') return `the tab ${String(s.path).split('/').filter(Boolean).pop() || s.path}`;
   if (s.kind === 'revision') return `the revision ${s.ref || s.id}`;
   if (s.kind === 'branch') return `the branch ${s.name}`;
   if (s.kind === 'bar') return `${s.block} at bar ${s.at}`;
@@ -164,6 +165,7 @@ function describe(subject) {
   else if (subject.kind === 'song') lines.push(`The user is looking at the whole song${subject.name ? ` ${subject.name}` : ''}${subject.path ? ` (file ${subject.path})` : ''}: every block in it and how they work together, not one block. Read the song (ample_song) before answering.`);
   else if (subject.kind === 'arrangement') lines.push(`The user is looking at the arrangement (the timeline of the song with the bars of every block)${subject.bar ? `, around bar ${subject.bar}` : ''}.`);
   else if (subject.kind === 'port') lines.push(`The user is looking at the ${subject.dir === 'in' ? 'input' : 'output'} port "${subject.name}"${subject.title ? ` (shown as "${subject.title}")` : ''} of the block ${subject.block}; it carries ${subject.type}${subject.description ? `: ${subject.description}` : ''}${subject.chain ? ` Along the way it passes ${subject.chain}.` : ''}${subject.type === 'region' ? ' A region is a part of the timeline (the joins of a loop): effects can be chained on it, it never connects to an audio input, and only a region-merge block turns it back into audio.' : ''}`);
+  else if (subject.kind === 'tab') lines.push(`The user is looking at the tab ${subject.path}: a file that is open in the studio's tab row. Its text as it is on the screen (unsaved changes included), and what changed, is given below.`);
   else if (subject.kind === 'file') lines.push(`The user is looking at the ${subject.isDir ? 'folder' : 'file'} ${subject.path} of the project.`);
   else lines.push(`The user selected ${subjectName(subject)}${subject.block ? `, inside the block ${subject.block.name}` : ''}:`, subject.text);
   return lines;

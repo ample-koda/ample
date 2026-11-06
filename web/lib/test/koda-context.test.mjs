@@ -110,3 +110,8 @@ test('what the model says about its own check is not shown as a tool name', asyn
   assert.equal(bad.check, 'issue');
   assert.equal(bad.text, 'Added a reverb. the AMPLE check found 2 new errors.');
 });
+
+test('a tab of the tab row is a subject Koda can look at', () => {
+  assert.equal(subjectName({ kind: 'tab', path: 'songs/a.amplet' }), 'the tab a.amplet');
+  assert.match(promptOf({ kind: 'tab', path: 'songs/a.amplet' }, 'what is in it?', 'ask'), /looking at the tab songs\/a\.amplet/);
+});

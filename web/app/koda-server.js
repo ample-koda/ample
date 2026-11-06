@@ -40,7 +40,7 @@ let lastTask = '', hanging = '', hangSince = 0, hooked = false, interrupted = fa
 const HANG_QUICK_MS = 5 * 60 * 1000;   // a next question within this time goes on without asking
 
 /** The open tabs and what changed in the ones with unsaved changes: Koda works on the unsaved text and knows the difference. */
-async function tabsContext() { try { return await (await import('./tabs.js')).tabsContextForKoda(); } catch { return ''; } }
+async function tabsContext(subject) { try { return await (await import('./tabs.js')).tabsContextForKoda(subject); } catch { return ''; } }
 
 async function runTask(subject, text, mode, signal, onGlance, onThought, resume = false) {
   // the server needs the file Koda looks at (path is required): with no song and no module open there is nothing to look at, so say so instead of failing with "The field 'path' is required"
@@ -48,7 +48,7 @@ async function runTask(subject, text, mode, signal, onGlance, onThought, resume 
   let task;
   try {
     task = await api.post('/api/ai/tasks', {
-      sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + await tabsContext(), path: activePath(), song: S.path, context: 'unsaved',
+      sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + await tabsContext(subject), path: activePath(), song: S.path, context: 'unsaved',
       fromLine: subject.kind === 'code' ? subject.startLine : undefined, toLine: subject.kind === 'code' ? subject.endLine : undefined, block: subject.kind === 'code' ? subject.block?.name : subject.block,
       continueFrom: resume && hanging ? hanging : undefined,
       ...requestParts(),   // the model and thinking level of this Koda session (nothing: the setting of the assistant)

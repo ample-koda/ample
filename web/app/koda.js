@@ -412,6 +412,7 @@ function startResize() {
   if (me.resizing) return;
   const box = el('div', { className: 'k-resize', role: 'group', 'aria-label': 'Resize Koda' });
   const label = el('span', { className: 'k-resize-label' });
+  let loopId = 0;   // the frame follows Koda while it is dragged, until Done
   const frame = () => { const r = me.float.getBoundingClientRect(); Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); label.textContent = `${scale().toFixed(2)}×`; };
   const apply = (next, anchor, corner) => {
     const before = me.float.getBoundingClientRect(), ratio = next / scale();
@@ -420,7 +421,7 @@ function startResize() {
     const spot = anchor ? { left: corner.includes('l') ? anchor.x - w : anchor.x, top: corner.includes('t') ? anchor.y - h : anchor.y } : me.p.spot;
     setSpot(spot); save(); frame();
   };
-  const finish = () => { box.remove(); me.resizing = null; document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', frame); save(); };
+  const finish = () => { cancelAnimationFrame(loopId); box.remove(); me.resizing = null; document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', frame); save(); };
   const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(); } };
   const begin = (e, corner) => {
     e.preventDefault(); e.stopPropagation();
@@ -437,7 +438,8 @@ function startResize() {
   box.append(label, el('button', { type: 'button', className: 'k-resize-reset', textContent: 'Reset', title: 'The default size', onclick: () => { try { localStorage.removeItem(SCALE_KEY); } catch { /* storage may be blocked */ } setSpot(me.p.spot); save(); frame(); } }), el('button', { type: 'button', className: 'k-resize-done', textContent: 'Done', onclick: finish }));
   me.layer.append(box); me.resizing = box;
   document.addEventListener('keydown', onKey, true); window.addEventListener('resize', frame);
-  frame();
+  const follow = () => { frame(); loopId = requestAnimationFrame(follow); };
+  follow();
 }
 
 /* ---------- bubbles ---------- */

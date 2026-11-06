@@ -36,3 +36,15 @@ test('on a phone Koda starts smaller (0.8) unless a size was chosen', async ({ p
   await page.waitForSelector('body[data-ready="1"]');
   expect(await width(page)).toBe(88);   // 110 x 0.8
 });
+
+test('the resize frame follows Koda when it is dragged before Done', async ({ page }) => {
+  await page.locator('#koda-float svg.pet').click({ button: 'right' });
+  await page.getByText('Resize…', { exact: true }).click();
+  const before = (await page.locator('.k-resize').boundingBox())!;
+  const pet = (await page.locator('#koda-float svg.pet').boundingBox())!;
+  await page.mouse.move(pet.x + pet.width / 2, pet.y + pet.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(pet.x + pet.width / 2 - 120, pet.y + pet.height / 2 - 90, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.round((await page.locator('.k-resize').boundingBox())!.x)).toBeLessThan(Math.round(before.x) - 60);
+});

@@ -29,6 +29,7 @@ function startLlamaResize(block) {
   const box = document.createElement('div');
   box.className = 'llama-resize';
   const label = document.createElement('span'); label.className = 'llama-resize-label';
+  let loopId = 0;   // the frame follows the llama while it is dragged, until Done
   const frame = () => { const r = host.getBoundingClientRect(); Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); label.textContent = `${scaleOf(block).toFixed(2)}×`; };
   const change = (next, anchor, corner) => {
     if (next === 1) delete sizes[sizeKey(block)]; else sizes[sizeKey(block)] = next;
@@ -36,7 +37,7 @@ function startLlamaResize(block) {
     if (anchor) { const x = corner.includes('l') ? anchor.x - base.width * next : anchor.x, y = corner.includes('t') ? anchor.y - base.height * next : anchor.y; host.style.left = `${x}px`; host.style.top = `${y}px`; avatar.pos = { x, y }; write(block, { ...read(block), x, y }); }
     saveViewSoon(); frame();
   };
-  const finish = () => { box.remove(); avatar.resizing = false; document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', frame); };
+  const finish = () => { cancelAnimationFrame(loopId); box.remove(); avatar.resizing = false; document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', frame); };
   const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(); } };
   const begin = (e, corner) => {
     e.preventDefault(); e.stopPropagation();
@@ -54,7 +55,8 @@ function startLlamaResize(block) {
   box.append(label, reset, done);
   document.body.append(box); avatar.resizing = true;
   document.addEventListener('keydown', onKey, true); window.addEventListener('resize', frame);
-  frame();
+  const follow = () => { frame(); loopId = requestAnimationFrame(follow); };
+  follow();
 }
 const open = new Map();   // block id -> { host, llama, drag }
 const key = (block) => `ample.llama.avatar:${S.project?.id || ''}:${block}`;
