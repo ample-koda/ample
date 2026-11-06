@@ -11,7 +11,7 @@
     <UseSharedCompilation>false</UseSharedCompilation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>false</IsPackable>
-    <Version>0.1.5</Version>
+    <Version>0.1.6</Version>
     <SourceRevisionId Condition="'$(SourceRevisionId)' == ''">unknown</SourceRevisionId>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>

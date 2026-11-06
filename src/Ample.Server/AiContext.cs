@@ -751,13 +751,29 @@ internal static class AiContext
         return new JsonObject { ["query"] = q, ["found"] = hits.Count > 0, ["total"] = hits.Count, ["hits"] = new JsonArray([.. hits.Take(20).Select(h => h!.DeepClone())]), ["note"] = hits.Count > 20 ? "Only the first 20 are shown: use a more specific word." : "Read a document with ample_docs name=<id>, a block type with ample_block_types type=<id>." };
     }
 
-    private static JsonObject BlockOf(AmpleDocument doc, BlockNode b)
+    /// <summary>
+    /// The comment lines right above a block (the # lines of the song). A block that a component produced has a line number of the component's own text, which can lie
+    /// beyond the lines of this song: it has no comment here (reading line b.Line - 1 of the song threw IndexOutOfRangeException and made ample_song fail for such a song).
+    /// </summary>
+    internal static List<string> CommentAbove(IReadOnlyList<string> lines, int blockLine)
     {
         List<string> notes = [];
-        for (int i = b.Line - 1; i >= 0 && doc.Lines[i].TrimStart().StartsWith('#'); i--)
+        if (blockLine - 1 >= lines.Count)
         {
-            notes.Insert(0, doc.Lines[i].TrimStart().TrimStart('#').Trim());
+            return notes;
         }
+
+        for (int i = blockLine - 1; i >= 0 && lines[i].TrimStart().StartsWith('#'); i--)
+        {
+            notes.Insert(0, lines[i].TrimStart().TrimStart('#').Trim());
+        }
+
+        return notes;
+    }
+
+    private static JsonObject BlockOf(AmpleDocument doc, BlockNode b)
+    {
+        List<string> notes = CommentAbove(doc.Lines, b.Line);
 
         return new JsonObject
         {
@@ -774,6 +790,10 @@ internal static class AiContext
         };
     }
 
+    /// <summary>The quick fix of the parser for a problem, in words, so that the assistant can apply it without guessing (a text replacement on a line).</summary>
+    private static string FixHint(Diagnostic d) =>
+        d.Fix is { Kind: "replace" } f && f.Line > 0 && f.Col > 0 ? $" (fix: on line {f.Line}, replace columns {f.Col} to {f.EndCol} with \"{f.Text}\")" : string.Empty;
+
     /// <summary>A song: the project line, every block in short with how they are connected, and the problems the parser finds.</summary>
     public static async Task<JsonObject> SongAsync(ProjectSession s, string path, CancellationToken ct, string? proposal = null)
     {
@@ -788,7 +808,7 @@ internal static class AiContext
             ["unsavedChanges"] = d is not null && d.Text != d.Saved,
             ["source"] = proposal is null ? "the current working copy of the project" : "your proposal (the files of your working folder)",
             ["blocks"] = new JsonArray([.. doc.Blocks.Where(b => !b.Skipped).Select(b => (JsonNode)BlockOf(doc, b))]),
-            ["problems"] = new JsonArray([.. doc.Diagnostics.Where(x => x.Severity is Severity.Error or Severity.Warning).Take(40).Select(x => (JsonNode)$"line {x.Line}: {x.Severity.ToString().ToLowerInvariant()} {x.Code} {x.Message}")]),
+            ["problems"] = new JsonArray([.. doc.Diagnostics.Where(x => x.Severity is Severity.Error or Severity.Warning).Take(40).Select(x => (JsonNode)$"line {x.Line}: {x.Severity.ToString().ToLowerInvariant()} {x.Code} {x.Message}{FixHint(x)}")]),
             ["text"] = shown.Length > 80000 ? shown[..80000] + "\n… (cut)" : shown,
         };
     }
