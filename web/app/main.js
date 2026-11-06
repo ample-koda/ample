@@ -294,8 +294,18 @@ async function start() {
   applyView();
   notify();
   document.body.dataset.ready = '1';
+  hideBoot();
   await runFirstTimeWizard();
 }
+
+/** The loading overlay (plain HTML at the top of the page) fades away once the studio is ready for use; a failed start never leaves it standing. */
+function hideBoot() {
+  const boot = document.getElementById('boot');
+  if (!boot || boot.classList.contains('done')) return;
+  boot.classList.add('done');
+  setTimeout(() => boot.remove(), 500);
+}
+setTimeout(hideBoot, 20000);
 
 /** The first-time setup wizard (plan/first-run-wizard.md): while the project still has to do it, nothing opens by itself; at Finish a new project opens the demo song, builds it and plays it. */
 async function runFirstTimeWizard() {
