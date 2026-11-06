@@ -18,6 +18,12 @@ public sealed record ServerOptions(string ProjectRoot, string AmpleRoot, int Por
     /// <summary>Gets the declared source of the server start.</summary>
     public string StartedBy { get; init; } = "cli";
 
+    /// <summary>Gets how the tray hub can start this server again (shown in the instance registry), or null.</summary>
+    public Ample.Storage.Projects.InstanceRelaunch? Relaunch { get; init; }
+
+    /// <summary>Gets whether the tray hub must leave this server alone (<c>--no-hub</c>, or <c>AMPLE_NO_HUB=1</c>).</summary>
+    public bool NoHub { get; init; }
+
     /// <summary>Gets whether the sign-in with the stored user and password is on (<c>--login</c>): its session tokens work next to the launch token.</summary>
     public bool Login { get; init; }
 

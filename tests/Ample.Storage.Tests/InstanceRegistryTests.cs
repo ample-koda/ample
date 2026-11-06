@@ -11,6 +11,7 @@ public sealed class InstanceRegistryTests : IDisposable
     private readonly FakeProbe probe = new();
     private readonly FixedClock clock = new(new DateTimeOffset(2026, 10, 5, 10, 0, 0, TimeSpan.Zero));
     private readonly string projectId = Guid.NewGuid().ToString("D");
+    private static readonly string[] ServeArgs = { "serve", "--port", "54321" };
 
     [Fact]
     public void Register_writes_schema_record_and_private_launch_file()
@@ -37,6 +38,31 @@ public sealed class InstanceRegistryTests : IDisposable
         {
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(folder, projectId + ".launch")));
         }
+    }
+
+    [Fact]
+    public void Relaunch_recipe_and_the_no_hub_flag_round_trip_and_the_launch_token_stays_out_of_the_record()
+    {
+        InstanceRegistry registry = new(home, clock, probe);
+
+        registry.Register(projectId, "demo", home, 42, clock.UtcNow, 54321, "0.1.0", "cli", null, null, "http://127.0.0.1:54321/#token=secret-marker", new InstanceRelaunch("C:/ample/ample.exe", ServeArgs), true);
+
+        InstanceRecord read = registry.Find(projectId)!;
+        Assert.Equal("C:/ample/ample.exe", read.Relaunch!.Exe);
+        Assert.Equal(ServeArgs, read.Relaunch.Args);
+        Assert.True(read.NoHub);
+        Assert.DoesNotContain("secret-marker", File.ReadAllText(Path.Combine(home, "instances", projectId + ".json")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_older_record_without_a_recipe_still_reads_and_the_hub_may_manage_it()
+    {
+        InstanceRegistry registry = new(home, clock, probe);
+        registry.Register(projectId, "demo", home, 42, clock.UtcNow, 54321, "0.1.0", "cli", null, null, "http://127.0.0.1:54321/#token=x");
+
+        InstanceRecord read = registry.Find(projectId)!;
+        Assert.Null(read.Relaunch);
+        Assert.False(read.NoHub);
     }
 
     [Fact]

@@ -3,7 +3,7 @@
 // already opens (a song, a text or component file); a tab click opens that file through the same events as the Project panel. @ample:tabs
 
 import { api, getToken } from './api.js';
-import { S, notify, select, subscribe } from './store.js';
+import { S, editSerial, notify, select, subscribe, undoHooks } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
 
@@ -126,6 +126,30 @@ async function placeUntitled(path) {
   } catch (error) { toast(error.message || String(error)); return false; }
 }
 
+// the last closed tab, for Undo (reopen) and Redo (close again); it counts only while nothing was edited after it
+let lastClose = null;
+
+async function tabUndo(kind) {
+  const c = lastClose;
+  if (!c || c.serial !== editSerial()) { lastClose = null; return false; }
+  if (kind === 'undo' && !c.open) {
+    if (T.tabs.some((t) => t.path === c.path)) { lastClose = null; return false; }
+    add(c.path);
+    const at = T.tabs.findIndex((t) => t.path === c.path);
+    if (at >= 0) { const [tab] = T.tabs.splice(at, 1); T.tabs.splice(Math.min(c.index, T.tabs.length), 0, tab); }
+    c.open = true;
+    if (c.wasActive) activate(c.path); else { save(); refreshState(); render(); }
+    toast(`Reopened ${baseName(c.path)}. Redo closes it again.`);
+    return true;
+  }
+  if (kind === 'redo' && c.open) {
+    if (!T.tabs.some((t) => t.path === c.path)) { lastClose = null; return false; }
+    await closeTab(c.path);
+    return true;
+  }
+  return false;
+}
+
 async function closeTab(path) {
   const tab = T.tabs.find((t) => t.path === path);
   if (!tab) return;
@@ -139,6 +163,7 @@ async function closeTab(path) {
     } catch (error) { toast(error.message || String(error)); return; }
   }
   const index = T.tabs.findIndex((t) => t.path === path);
+  lastClose = { path, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
   T.tabs.splice(index, 1);
   if (T.active === path) {
     const next = T.tabs[Math.min(index, T.tabs.length - 1)];
@@ -315,8 +340,7 @@ function togglePopup(anchor) {
       const f = factsOf(tab.path);
       const row = el('div', { className: `tabs-row${tab.path === T.active ? ' on' : ''}`, role: 'option', tabIndex: 0, 'data-path': tab.path }, [
         el('span', { className: 'tab-name', textContent: baseName(tab.path) }), el('span', { className: 'tabs-folder', textContent: folderOf(tab.path) }),
-        el('span', { className: 'tabs-facts', textContent: [f.dirty ? 'unsaved' : '', f.graphBroken ? 'cannot be read into blocks' : f.errors ? `${f.errors} error(s)` : '', f.warnings ? `${f.warnings} warning(s)` : ''].filter(Boolean).join(' · ') }),
-        el('button', { type: 'button', className: 'tab-x', textContent: '×', title: 'Close', onclick: (e) => { e.stopPropagation(); closeTab(tab.path).then(paint); } })]);
+        el('span', { className: 'tabs-facts', textContent: [f.dirty ? 'unsaved' : '', f.graphBroken ? 'cannot be read into blocks' : f.errors ? `${f.errors} error(s)` : '', f.warnings ? `${f.warnings} warning(s)` : ''].filter(Boolean).join(' · ') })]);
       row.onclick = () => { closePopup(); activate(tab.path); };
       row.onkeydown = (e) => { if (e.key === 'Enter') row.click(); };
       rows.append(row);
@@ -401,6 +425,7 @@ export function initTabs() {
   if (!T.bar) return;
   try { const stored = JSON.parse(localStorage.getItem(key()) || 'null'); for (const p of stored?.paths || []) add(p); T.active = stored?.active || ''; } catch { /* a damaged list starts empty */ }
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
+  undoHooks.push(tabUndo);
   document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
   document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
   // the option "preview tabs" (Project settings): a single click in the Project panel opens a tab in italics that the next single click replaces; a double click or an edit keeps it

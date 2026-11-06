@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Text;
+using Microsoft.Win32;
 using WixToolset.Dtf.WindowsInstaller;
 
 namespace Ample.Msi
@@ -86,6 +88,45 @@ namespace Ample.Msi
             }
 
             return ActionResult.Success;
+        }
+
+        /// <summary>
+        /// Immediate custom action: sets HUB_RUNTIME to "ok" when the .NET 9 (or newer) Desktop Runtime is installed, else "missing". The tray hub is a small
+        /// framework-dependent program that needs it. Looks at the registry of the shared framework, then at the folder of the shared runtimes.
+        /// </summary>
+        [CustomAction]
+        public static ActionResult DetectDesktopRuntime(Session session)
+        {
+            bool ok = false;
+            try
+            {
+                using (RegistryKey baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                using (RegistryKey key = baseKey.OpenSubKey(@"SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App", false))
+                {
+                    if (key != null) foreach (string name in key.GetValueNames()) ok |= IsNine(name);
+                }
+
+                if (!ok)
+                {
+                    string programFiles = Environment.GetEnvironmentVariable("ProgramW6432") ?? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                    string shared = Path.Combine(programFiles, "dotnet", "shared", "Microsoft.WindowsDesktop.App");
+                    if (Directory.Exists(shared)) foreach (string dir in Directory.GetDirectories(shared)) ok |= IsNine(Path.GetFileName(dir));
+                }
+            }
+            catch (Exception ex)
+            {
+                session.Log("AmpleCa: runtime detection failed: " + ex.Message);   // unknown counts as missing: the wizard then says how to get it
+            }
+
+            session["HUB_RUNTIME"] = ok ? "ok" : "missing";
+            session.Log("AmpleCa: HUB_RUNTIME=" + session["HUB_RUNTIME"]);
+            return ActionResult.Success;
+        }
+
+        private static bool IsNine(string version)
+        {
+            Version parsed;
+            return Version.TryParse(version.Split('-')[0], out parsed) && parsed.Major >= 9;
         }
 
         private static MessageResult Say(Session session, string text)

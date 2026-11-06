@@ -22,18 +22,51 @@
     <Property Id="ARPHELPLINK" Value="https://get.ample-koda.dev/help.html" />
     <Property Id="ARPCOMMENTS" Value="AMPLE is beta: it works, and anything may still change." />
 
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AmpleMenuFolder" Name="AMPLE" />
+    </StandardDirectory>
+
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
         <Directory Id="AmpleFolder" Name="AMPLE">
-          <Directory Id="INSTALLFOLDER" Name="msi" />
+          <Directory Id="INSTALLFOLDER" Name="msi">
+            <Directory Id="HUBFOLDER" Name="hub" />
+          </Directory>
         </Directory>
       </Directory>
     </StandardDirectory>
 
     <Feature Id="Program" Title="AMPLE program and studio" Level="1" AllowAbsent="no" AllowAdvertise="no"
              Description="The ample command, the studio, the documentation and the plug-ins that come with AMPLE.">
-      <Files Include="$(SourceDir)\**" />
+      <Files Include="$(SourceDir)\**">
+        <Exclude Files="$(SourceDir)\hub\**" />
+      </Files>
+<?if $(HasHub) = 1?>
+      <Component Id="SettingsShortcutComponent" Directory="AmpleMenuFolder" Guid="c8f2d3e4-5a6b-4c7d-8e9f-1a2b3c4d5e6f">
+        <Shortcut Id="SettingsShortcut" Name="AMPLE Tune-up" Description="Sign-in, health check and extras for AMPLE" Target="[INSTALLFOLDER]Ample.Setup.exe" Arguments="--mode reconfigure" WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveAmpleMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\AMPLE\msi" Name="menu-settings" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+<?endif?>
     </Feature>
+
+<?if $(HasHub) = 1?>
+    <Feature Id="Hub" Title="Tray hub" Level="1" AllowAdvertise="no"
+             Description="A small tray icon (Windows program) to see, start, stop and restart AMPLE, and to open an overview. Needs the .NET 9 Desktop Runtime; the setup after the install says if it is missing.">
+      <Files Include="$(SourceDir)\hub\**" Directory="HUBFOLDER" />
+      <Component Id="StudioShortcutComponent" Directory="AmpleMenuFolder" Guid="d9a3e4f5-6b7c-4d8e-9fa0-2b3c4d5e6f70">
+        <Shortcut Id="StudioShortcut" Name="AMPLE" Description="Start AMPLE and open the studio" Target="[HUBFOLDER]Ample.Hub.exe" Arguments="--start-main --open-studio" WorkingDirectory="HUBFOLDER" />
+        <RemoveFolder Id="RemoveAmpleMenuFolder2" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\AMPLE\msi" Name="menu-studio" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Feature Id="HubAutostart" Title="Start the hub when I sign in" Level="1" AllowAdvertise="no"
+               Description="Starts the tray hub when you sign in to Windows. The hub itself can switch this off too.">
+        <Component Id="HubAutostartComponent" Directory="HUBFOLDER" Guid="b7e1c2d3-4f5a-4b6c-9d8e-0a1b2c3d4e5f">
+          <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="AMPLE Hub" Type="string" Value="&quot;[HUBFOLDER]Ample.Hub.exe&quot;" KeyPath="yes" />
+        </Component>
+      </Feature>
+    </Feature>
+<?endif?>
 
     <Feature Id="PathEntry" Title="Add ample to the PATH" Level="1" AllowAdvertise="no"
              Description="Lets you type ample in any new terminal. Only your own PATH is changed.">
@@ -64,6 +97,26 @@
       <ProgressText Action="FetchSoundFont" Message="Downloading the General MIDI SoundFont (about 205 MB)..." Template="[1]" />
       <ProgressText Action="FetchKodaBrowser" Message="Downloading koda-browser (the browser driver and Chromium)..." Template="[1]" />
     </UI>
+
+<?if $(HasHub) = 1?>
+    <!-- After the wizard: the mini wizard (Ample.Setup.exe) offers the sign-in and the actions. Never in a silent install (no UI sequence, no exit dialog). -->
+    <Property Id="SETUPMODE" Value="fresh" />
+    <Property Id="HUB_RUNTIME" Value="missing" />
+    <SetProperty Id="SETUPMODE" Value="update" After="FindRelatedProducts" Sequence="both" Condition="WIX_UPGRADE_DETECTED" />
+    <CustomAction Id="DetectRuntime" DllEntry="DetectDesktopRuntime" Execute="immediate" Return="ignore" BinaryRef="AmpleCa" />
+    <CustomAction Id="LaunchSetup" Directory="INSTALLFOLDER" ExeCommand="&quot;[INSTALLFOLDER]Ample.Setup.exe&quot; --mode [SETUPMODE] --runtime [HUB_RUNTIME]" Return="asyncNoWait" />
+    <InstallUISequence>
+      <Custom Action="DetectRuntime" After="CostFinalize" Condition="NOT Installed" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="DetectRuntime" After="CostFinalize" Condition="NOT Installed" />
+    </InstallExecuteSequence>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Open the AMPLE setup (recommended)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Order="999" Event="DoAction" Value="LaunchSetup" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND REMOVE&lt;&gt;&quot;ALL&quot;" />
+    </UI>
+<?endif?>
 
     <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
     <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />

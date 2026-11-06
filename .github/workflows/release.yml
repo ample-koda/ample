@@ -110,12 +110,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'wix did not install' }
           & "$wix\wix.exe" extension add -g WixToolset.UI.wixext/6.0.2
           & "$wix\wix.exe" extension add -g WixToolset.Util.wixext/6.0.2
+      - name: Build the tray hub and the setup wizard
+        shell: pwsh
+        run: ./install/msi/build-hub.ps1 -Out (Join-Path $env:RUNNER_TEMP 'hub')
       - name: Build the MSI from the Windows zip
         shell: pwsh
         env:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          ./install/msi/build-msi.ps1 -Zip "dist/ample-$env:VERSION-win-x64.zip" -Out "dist/ample-$env:VERSION-win-x64.msi" -Wix (Join-Path $env:RUNNER_TEMP 'wix\wix.exe')
+          ./install/msi/build-msi.ps1 -Zip "dist/ample-$env:VERSION-win-x64.zip" -Out "dist/ample-$env:VERSION-win-x64.msi" -Wix (Join-Path $env:RUNNER_TEMP 'wix\wix.exe') -HubDir (Join-Path $env:RUNNER_TEMP 'hub')
       - name: Test the MSI (silent install without extras, run, uninstall, nothing left)
         shell: pwsh
         env:

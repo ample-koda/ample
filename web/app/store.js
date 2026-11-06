@@ -189,7 +189,7 @@ async function runAll(ops) {
   const prev = S.doc.text;
   try {
     const doc = await api.post('/api/doc/edits', { path: S.path, baseVersion: S.doc.version, ops });
-    if (doc.text !== prev) { S.undo.push(prev); S.redo.length = 0; }
+    if (doc.text !== prev) { S.undo.push(prev); editCount++; S.redo.length = 0; }
     setDoc(doc);
     return true;
   } catch (e) {
@@ -582,8 +582,8 @@ async function runOps(ops) {
       ? await api.post('/api/module/doc/edit', { path: S.modulePath, baseVersion: doc.version, op })
       : await api.post('/api/doc/edit', { path: S.path, baseVersion: doc.version, op });
   } catch (e) {
-    if (inModule && doc !== S.moduleDoc) { S.undo.push(prev); S.redo.length = 0; S.moduleDoc = doc; S.moduleFlat = flatGraph(doc, S.tpl); notify(); }
-    else if (!inModule && doc !== S.doc) { S.undo.push(prev); S.redo.length = 0; setDoc(doc); }
+    if (inModule && doc !== S.moduleDoc) { S.undo.push(prev); editCount++; S.redo.length = 0; S.moduleDoc = doc; S.moduleFlat = flatGraph(doc, S.tpl); notify(); }
+    else if (!inModule && doc !== S.doc) { S.undo.push(prev); editCount++; S.redo.length = 0; setDoc(doc); }
     if (current?.type === 'setParameter' && /AMP2081/.test(String(e.message || ''))) {
       // the property is driven by an expression: no control may overwrite it silently, the person chooses
       const mode = await ask(`${current.block}.${current.name} comes from an expression`, String(e.message).replace(/^AMP2081:\s*/, '') + '\n\nOverride keeps the expression in the source and uses your value on purpose; bake freezes what the expression gives now; a literal drops the expression.', [
@@ -600,7 +600,7 @@ async function runOps(ops) {
     fail(e);
     return false;
   }
-  if (doc.text !== prev) { S.undo.push(prev); S.redo.length = 0; }
+  if (doc.text !== prev) { S.undo.push(prev); editCount++; S.redo.length = 0; }
   if (inModule) { S.moduleDoc = doc; S.moduleFlat = flatGraph(doc, S.tpl); notify(); persistWorkSoon(); }
   else setDoc(doc);
   return true;
@@ -629,7 +629,7 @@ export async function applyText(text) {
     const doc = inModule
       ? await api.put('/api/module/doc', { path: S.modulePath, text, baseVersion: active.version })
       : await api.put('/api/doc', { path: S.path, text, baseVersion: active.version });
-    if (doc.text !== prev) { S.undo.push(prev); S.redo.length = 0; }
+    if (doc.text !== prev) { S.undo.push(prev); editCount++; S.redo.length = 0; }
     if (inModule) { S.moduleDoc = doc; S.moduleFlat = flatGraph(doc, S.tpl); notify(); }
     else setDoc(doc);
     return doc;
@@ -647,8 +647,14 @@ function swapGroups(entry, to) {
   notify();
 }
 
+// things that are not text edits but can still be undone (closing a tab): each hook gets 'undo' or 'redo' and returns true when it handled it
+export const undoHooks = [];
+let editCount = 0;
+export const editSerial = () => editCount;
+
 export async function undo() {
   if (S.peek) { toast('History previews are read-only. Return to the current work before undoing.'); return; }
+  for (const hook of undoHooks) if (await hook('undo')) return;
   if (!S.undo.length) { toast('Nothing to undo.'); return; }
   const text = S.undo.pop();
   if (text && typeof text === 'object') { swapGroups(text, S.redo); return; }
@@ -658,6 +664,7 @@ export async function undo() {
 
 export async function redo() {
   if (S.peek) { toast('History previews are read-only. Return to the current work before redoing.'); return; }
+  for (const hook of undoHooks) if (await hook('redo')) return;
   if (!S.redo.length) { toast('Nothing to redo.'); return; }
   const text = S.redo.pop();
   if (text && typeof text === 'object') { swapGroups(text, S.undo); return; }

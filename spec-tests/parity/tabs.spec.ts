@@ -118,3 +118,41 @@ test('closing the last tab opens a new blank song; opening another song removes 
   await expect(page.locator('#tabbar .tab[data-path="my-first.amplet"].on')).toBeVisible({ timeout: 10000 });
   expect(((await api('/api/docs')) as string[]).includes('Untitled.amplet')).toBe(false);
 });
+
+test('closing a tab is an undo step: Ctrl+Z opens it again in its place, Redo closes it, and an edit in between ends it', async ({ page }) => {
+  await makeFile('undo-a.txt'); await makeFile('undo-b.txt');
+  await open(page, 'undo-a.txt'); await open(page, 'undo-b.txt');
+  await expect(page.locator('#tabbar .tab')).toHaveCount(3);
+  await page.locator('#tabbar .tab[data-path="undo-a.txt"] .tab-x').click();
+  await expect(page.locator('#tabbar .tab[data-path="undo-a.txt"]')).toHaveCount(0);
+  await page.evaluate(async () => (await import('/app/store.js')).undo());
+  await expect(page.locator('#tabbar .tab[data-path="undo-a.txt"]')).toHaveCount(1);
+  expect(await page.locator('#tabbar .tab').evaluateAll((tabs) => tabs.map((t) => (t as HTMLElement).dataset.path))).toEqual([expect.any(String), 'undo-a.txt', 'undo-b.txt']);
+  await page.evaluate(async () => (await import('/app/store.js')).redo());
+  await expect(page.locator('#tabbar .tab[data-path="undo-a.txt"]')).toHaveCount(0);
+});
+
+test('the list of open files has no close buttons', async ({ page }) => {
+  await makeFile('nox-a.txt'); await open(page, 'nox-a.txt');
+  await page.locator('#tabs-more').click();
+  await expect(page.locator('#tabs-popup .tabs-row')).toHaveCount(2);
+  await expect(page.locator('#tabs-popup .tab-x')).toHaveCount(0);
+});
+
+test('a window of its own keeps the block library and the properties, and their buttons work', async ({ page, context }) => {
+  await makeFile('panels.txt'); await open(page, 'panels.txt');
+  const url = new URL(page.url());
+  const token = await page.evaluate(() => sessionStorage.getItem('ample.token'));
+  const detached = await context.newPage();
+  await detached.setViewportSize({ width: 1400, height: 800 });
+  await detached.goto(`${url.origin}${url.pathname}?tab=panels.txt#token=${token}`);
+  await expect(detached.locator('#tab-putback')).toBeVisible({ timeout: 10000 });
+  await expect(detached.locator('#left')).toBeVisible();
+  await expect(detached.locator('#right')).toBeVisible();
+  await expect(detached.locator('#tabbar')).toBeHidden();
+  await detached.locator('#tg-left').click();
+  await expect(detached.locator('#left')).toBeHidden();
+  await detached.locator('#tg-left').click();
+  await expect(detached.locator('#left')).toBeVisible();
+  await detached.close();
+});

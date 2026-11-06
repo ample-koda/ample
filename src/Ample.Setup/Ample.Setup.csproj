@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The mini wizard that follows the MSI (a .NET Framework 4.7.2 program: it starts on every Windows 10/11, even when .NET 9 is missing).
+       It offers the sign-in step (fresh installs) and the actions "start AMPLE and open the studio" / "apply the update to the running AMPLE". -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <AssemblyName>Ample.Setup</AssemblyName>
+    <RootNamespace>Ample.Setup</RootNamespace>
+    <ApplicationIcon>../../install/msi/ample.ico</ApplicationIcon>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="banner.png" LogicalName="Ample.Setup.banner.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

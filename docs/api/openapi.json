@@ -7947,6 +7947,31 @@
         }
       }
     },
+    "/api/shutdown": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Stops this server gracefully (the tray hub uses it for Stop and Restart; it needs the same sign-in as any other change).",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/songs": {
       "post": {
         "tags": [

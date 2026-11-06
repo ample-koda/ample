@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The tray hub of AMPLE: a Windows (WinForms) program. The windows are covered by the manual Windows checklist; the logic lives in Ample.Hub.Core (with tests). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Ample.Hub</AssemblyName>
+    <ApplicationIcon>../../install/msi/ample.ico</ApplicationIcon>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ample.Hub.Core/Ample.Hub.Core.csproj" />
+  </ItemGroup>
+</Project>
