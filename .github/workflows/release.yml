@@ -225,6 +225,8 @@ jobs:
   draft:
     name: Draft the release
     needs: [check, build, msi, linux-packages, linux-test]
+    # the draft is made when everything that is BUILT and INSTALLED is fine; the test run of the sources (check) is reported but does not hold the draft back (owner, 2026-11-06: it is a beta, and the draft is only read by the owner and signed by hand before anything is public)
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.msi.result == 'success' && needs.linux-packages.result == 'success' && needs.linux-test.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write

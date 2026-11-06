@@ -896,6 +896,9 @@ async function resetLite() {
 
 // ---- start
 
+/** The demo that a visitor with an empty workspace gets (the demo song every AMPLE project starts with). */
+const DEFAULT_DEMO = 'welcome-to-ample';
+
 async function start() {
   $('#lite-new-project').onclick = newProject;
   $('#lite-demos-btn').onclick = openDemos;
@@ -1030,6 +1033,7 @@ async function start() {
   const last = await app.store.last();
   const shared = sharedDemoId(location.hash);
   if (last) await openProject(last); else showEmptyFile();
+  const emptyWorkspace = !last;
   document.documentElement.dataset.liteReady = 'true';
   const shareLink = /^\/(?:mix|m|s)\/([0-9A-HJKMNP-TV-Z]{8})\/?$/.exec(location.pathname);
   const manageCode = /^#manage=([0-9A-Z]{26})$/.exec(location.hash)?.[1];
@@ -1037,6 +1041,7 @@ async function start() {
   else if (shareLink) runShareLink(shareLink[1]);   // a link to a shared song
   else if (shared) runShared(shared);   // a shared demo: the window with the steps, then Play
   else if (/[#&]song=/.test(location.hash)) importSongFromHash().catch((error) => toast(errorText(error), 'error'));   // layered sounds from the docs
+  else if (emptyWorkspace) await openShared(DEFAULT_DEMO);   // nothing is kept yet (a first visit, or after Reset workspace): the AMPLE demo song is there to look at, not built and not played
 }
 
 /** #song=<base64url of UTF-8 text>&title=<encoded title> (the docs site sends layered previews this way): a NEW local project with that song.amplet, opened, not built. */

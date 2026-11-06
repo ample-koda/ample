@@ -225,7 +225,9 @@ public sealed class GameRoutesTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task State_reports_are_remembered_and_never_touch_the_project()
     {
-        string[] before = Directory.GetFiles(folder, "*", SearchOption.AllDirectories);
+        // the project files only: AMPLE's own folder (.ample) changes by itself while the server starts and runs (locks, temporary files, journal segments), which has nothing to do with this test
+        static int ProjectFiles(string root) => Directory.GetFiles(root, "*", SearchOption.AllDirectories).Count(file => !Path.GetRelativePath(root, file).Split(Path.DirectorySeparatorChar).Contains(".ample", StringComparer.OrdinalIgnoreCase));
+        int before = ProjectFiles(folder);
         using HttpResponseMessage reported = await Post("/api/game/state", new { session = "match-1", state = "tension", previous = "calm", intensity = 0.6, advantage = 0.1, signals = new { armyRatio = 1.2 } });
         Assert.True(reported.IsSuccessStatusCode);
         using HttpResponseMessage invalid = await Post("/api/game/state", new { state = "NOT VALID" });
@@ -234,7 +236,7 @@ public sealed class GameRoutesTests : IAsyncLifetime, IDisposable
         JsonElement state = await http.GetFromJsonAsync<JsonElement>("/api/game/state?count=5", CancellationToken.None);
         Assert.Equal("tension", state.GetProperty("latest").GetProperty("state").GetString());
         Assert.Equal(1, state.GetProperty("entries").GetArrayLength());
-        Assert.Equal(before.Length, Directory.GetFiles(folder, "*", SearchOption.AllDirectories).Length);
+        Assert.Equal(before, ProjectFiles(folder));
     }
 
     private static string FindAmpleRoot()

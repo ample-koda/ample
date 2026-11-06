@@ -6903,6 +6903,56 @@
         }
       }
     },
+    "/api/project/first-run": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "The first-time setup wizard of the project: whether it still has to be walked through (pending), where the project came from (origin: new or existing), the wizard version of this program and the version that was done.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/project/first-run/complete": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Marks the first-time setup wizard as walked through (the same again does nothing more) and says what the studio opens: the demo song of a new project (play: true), otherwise the song that was open (play: false).",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/project/folder": {
       "delete": {
         "tags": [
