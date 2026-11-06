@@ -13,21 +13,38 @@ jobs:
   test:
     # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
     if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
-    name: Build and test
+    # The test projects run in three groups at the same time (the server tests are the slowest and drive a browser; the engine and audio tests come next; the rest is
+    # every other project in tests/, so a new test project is picked up without a change here).
+    name: Test (${{ matrix.group }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [server, engine, rest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Keep the NuGet packages between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - name: Keep the browser of the server tests between runs
+        if: matrix.group == 'server'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-server-tests-${{ hashFiles('**/Directory.Packages.props') }}
       - name: Install the browser the server tests drive
+        if: matrix.group == 'server'
         shell: bash
         run: |
           set -euo pipefail
-          if [ -d tests/Ample.Server.Tests ]; then
-            dotnet build tests/Ample.Server.Tests -c Release --nologo
-            pwsh tests/Ample.Server.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
-          fi
+          dotnet build tests/Ample.Server.Tests -c Release --nologo
+          pwsh tests/Ample.Server.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
       - name: Cache the General MIDI SoundFont
         # the tests that play General MIDI (the Lite demos, the SoundFont renderer) need it; it is fetched once and kept between runs
         uses: actions/cache@v4
@@ -39,13 +56,21 @@ jobs:
         env:
           AMPLE_PACK_OUT: ${{ github.workspace }}/.ample-home/audio-packs
         run: node tools/fetch-gm-soundfont.mjs --download
-      - name: Test every test project
+      - name: Test this group of test projects
         shell: bash
         env:
           AMPLE_HOME: ${{ github.workspace }}/.ample-home
+          GROUP: ${{ matrix.group }}
         run: |
           set -euo pipefail
-          for project in tests/*.Tests/*.csproj; do
+          case "$GROUP" in
+            server) projects="tests/Ample.Server.Tests/Ample.Server.Tests.csproj" ;;
+            engine) projects="tests/Ample.Engine.Tests/Ample.Engine.Tests.csproj tests/Ample.Audio.Tests/Ample.Audio.Tests.csproj tests/Ample.Plugins.Tests/Ample.Plugins.Tests.csproj" ;;
+            rest) projects=$(ls tests/*.Tests/*.csproj | grep -v -e Ample.Server.Tests -e Ample.Engine.Tests -e Ample.Audio.Tests -e Ample.Plugins.Tests) ;;
+            *) echo "unknown group $GROUP"; exit 2 ;;
+          esac
+          for project in $projects; do
+            [ -f "$project" ] || continue
             dotnet test "$project" -c Release --nologo
           done
 

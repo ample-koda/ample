@@ -2,14 +2,15 @@
 set -euo pipefail
 
 full=0
-if [[ "${1:-}" == "--full" ]]; then
-  full=1
+skip_tests=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --full) full=1 ;;
+    --skip-tests) skip_tests=1 ;;   # build, format and the node and spec checks only: the test projects and the browser tests run in the public CI
+    *) echo "usage: $(basename "$0") [--full] [--skip-tests]" >&2; exit 2 ;;
+  esac
   shift
-fi
-if [[ $# -ne 0 ]]; then
-  echo "usage: $(basename "$0") [--full]" >&2
-  exit 2
-fi
+done
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 solution="$repository_root/ample/Ample.sln"
@@ -19,7 +20,9 @@ source_revision="${GITHUB_SHA:-unknown}"
 cd "$repository_root/ample"
 dotnet restore "$solution"
 dotnet build "$solution" --no-restore -warnaserror -p:SourceRevisionId="$source_revision"
-if [[ "$full" -eq 1 ]]; then
+if [[ "$skip_tests" -eq 1 ]]; then
+  echo 'Test projects skipped (--skip-tests).'
+elif [[ "$full" -eq 1 ]]; then
   dotnet test "$solution" --no-build -p:SourceRevisionId="$source_revision"
 else
   dotnet test "$solution" --no-build --filter '(Category!=Performance)&(Category!=Chaos)' -p:SourceRevisionId="$source_revision"
@@ -43,7 +46,9 @@ elif [[ "$full" -eq 1 ]]; then
 fi
 
 # Browser parity tests need "npm install" in ample/ and "npx playwright install chromium"; they run when installed.
-if [[ -d "$repository_root/ample/node_modules/@playwright" ]]; then
+if [[ "$skip_tests" -eq 1 ]]; then
+  echo 'Playwright parity tests skipped (--skip-tests).'
+elif [[ -d "$repository_root/ample/node_modules/@playwright" ]]; then
   (cd "$repository_root/ample" && npx playwright test --project=chromium)
 elif [[ "$full" -eq 1 ]]; then
   echo 'Full check requires npm install in ample/ and a Playwright browser for browser parity tests.' >&2
