@@ -230,6 +230,22 @@ async function settings(body) {
   show(settingsTab);
 }
 
+/** The settings pages for the first-time wizard: builds them into `body` (kept out of sight) and gives the wizard the panel of each tab and a save that says whether it worked. */
+export async function settingsForWizard(body) {
+  await settings(body);
+  const panels = new Map([...body.querySelectorAll('.ps-panel')].map((panel) => [panel.id.replace('ps-tab-', ''), panel]));   // kept here: the wizard moves them out of `body`
+  const panelOf = (id) => panels.get(id);
+  return {
+    panel: panelOf,
+    async save(id) {
+      const button = panelOf(id)?.querySelector('.ps-save');
+      if (!button || !dirty.has(id)) return true;   // nothing changed on that page: nothing is written
+      await button.onclick();
+      return !dirty.has(id);
+    },
+  };
+}
+
 async function health(body) {
   const [h, redux] = await Promise.all([api.get('/api/health'), api.get('/api/redux/status')]);
   body.append(el('h2', { textContent: 'Health' }));

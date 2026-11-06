@@ -653,7 +653,7 @@ public static class Routes
         // --- project and health ---
         add("GET", "/api/ping", "health", "Minimal unauthenticated instance liveness check.", false, s is null ? null : () => Ok(new { ok = true, id = s.Manifest.Id.ToString("D") }));
         add("GET", "/api/about", "health", "About this AMPLE: version, build time, runtime and when this server started (the About dialog shows it).", false, s is null ? null : () => Ok(new { name = "AMPLE", version = typeof(Routes).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion.Split('+')[0] ?? "0", builtAt = File.GetLastWriteTimeUtc(File.Exists(Path.Combine(AppContext.BaseDirectory, typeof(Routes).Assembly.GetName().Name + ".dll")) ? Path.Combine(AppContext.BaseDirectory, typeof(Routes).Assembly.GetName().Name + ".dll") : Environment.ProcessPath ?? string.Empty), runtime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription, os = System.Runtime.InteropServices.RuntimeInformation.OSDescription, spec = s.Spec.Version, startedAt = Process.GetCurrentProcess().StartTime.ToUniversalTime() }));
-        add("GET", "/api/project", "project", "The open project: id, name, folder, master seed and last Studio song.", false, s is null ? null : () => Ok(new { s.Manifest.Id, s.Manifest.Name, folder = s.Root, masterSeed = s.Manifest.MasterSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), format = s.Manifest.FormatVersion, readOnly = false, lastSong = RecentProjects.List(s.Library.Home).FirstOrDefault(project => string.Equals(project.Path, Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase))?.LastSong }));
+        add("GET", "/api/project", "project", "The open project: id, name, folder, master seed and last Studio song.", false, s is null ? null : () => Ok(new { s.Manifest.Id, s.Manifest.Name, folder = s.Root, masterSeed = s.Manifest.MasterSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), format = s.Manifest.FormatVersion, readOnly = false, firstRunPending = ReadManifestSync(s).Settings.FirstRun.Pending, lastSong = RecentProjects.List(s.Library.Home).FirstOrDefault(project => string.Equals(project.Path, Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase))?.LastSong }));
         add("POST", "/api/project/last-song", "project", "Remembers the last Studio song in the user's recent-project record.", true, s is null ? null : async (HttpContext c) =>
         {
             string path = Str(await Body(c), "path").Replace('\\', '/');
@@ -962,7 +962,7 @@ public static class Routes
         {
             string relative = c.Request.Query["path"].ToString().Replace('\\', '/').Trim('/');
             if (relative.Split('/').Any(part => part.Equals(".ample", StringComparison.OrdinalIgnoreCase))) throw new AmpleException("AMP5285", "Files cannot be deleted from the private project folder.");
-            if (Ample.Storage.Projects.DemoSongRules.IsDemo(relative)) throw new AmpleException("AMP5285", Ample.Storage.Projects.DemoSongRules.Refusal);
+            if (Ample.Storage.Projects.DemoSongRules.IsDemo(relative) && Ample.Storage.Projects.DemoSongRules.IsProtected(s.Root)) throw new AmpleException("AMP5285", Ample.Storage.Projects.DemoSongRules.Refusal);
             string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
             if (!s.Fs.FileExists(full) || HasProjectLink(s.Fs, s.Root, relative)) throw new AmpleException("AMP5243", "The project file does not exist or cannot be changed.");
             await s.Bus.ExecuteAsync(new DeleteFileCommand(relative), c.RequestAborted).ConfigureAwait(false);
@@ -1817,6 +1817,19 @@ public static class Routes
         {
             ProjectManifest m = ProjectFile.Parse(File.ReadAllText(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile)));
             return Ok(new { m.Name, masterSeed = m.MasterSeed, m.Settings.BlackBox, m.Settings.Mounts, m.Settings.DefaultEngine, m.Settings.ProjectPanel, m.Settings.Faer, koda = m.Settings.Koda, buildParallelism = m.Settings.BuildParallelism, parallelismLimit = Ample.Engine.Engine.BuildParallelism.ServerLimit, cores = Ample.Engine.Engine.BuildParallelism.Cores, ai = m.Settings.Ai, braveSearchKeyStoreAvailable = OperatingSystem.IsWindows(), braveSearchKeyConfigured = AiProjectSecretStore.IsConfigured(s.Library.Home, m.Id) || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY_" + m.Id.ToString("N").ToUpperInvariant())) || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY")) });
+        });
+        add("GET", "/api/project/first-run", "project", "The first-time setup wizard of the project: whether it still has to be walked through (pending), where the project came from (origin: new or existing), the wizard version of this program and the version that was done.", false, s is null ? null : async (HttpContext c) =>
+        {
+            FirstRunSettings first = (await ReadManifest(s, c.RequestAborted)).Settings.FirstRun;
+            return Ok(new { pending = first.Pending, origin = first.Origin, wizardVersion = FirstRunSettings.WizardVersion, doneVersion = first.DoneVersion, doneAt = first.DoneAt });
+        });
+        add("POST", "/api/project/first-run/complete", "project", "Marks the first-time setup wizard as walked through (the same again does nothing more) and says what the studio opens: the demo song of a new project (play: true), otherwise the song that was open (play: false).", false, s is null ? null : async (HttpContext c) =>
+        {
+            ProjectManifest m = await ReadManifest(s, c.RequestAborted);
+            FirstRunSettings first = m.Settings.FirstRun;
+            if (first.Pending) await s.Bus.ExecuteAsync(new SetSettingsCommand(m.Settings with { FirstRun = first.Completed(DateTimeOffset.UtcNow) }), c.RequestAborted);
+            bool demo = first.Origin == "new" && File.Exists(Path.Combine(s.Root, Ample.Storage.Projects.DemoSongRules.FileName));
+            return Ok(new { pending = false, origin = first.Origin, open = demo ? Ample.Storage.Projects.DemoSongRules.FileName : null, play = demo });
         });
         add("GET", "/api/beats", "project", "The built-in beats catalogue (no AI): search by text, genre, mood, kind, bpm, energy and novelty (the query names of the ample_beats tool), overview=1 for the lists, id=<id> for one entry (parts=<parts>), similar=<id> for the entries that look like it.", false, (HttpContext c) =>
         {
@@ -3510,6 +3523,12 @@ public static class Routes
         AmpleDocument doc = p.Length == 0 ? Parser.Parse(string.Empty, s.Spec) : s.Parse(await s.DocAsync(p, c.RequestAborted));
         return s.NewControl(doc, await s.RenderersAsync(c.RequestAborted));
     }
+
+    private static async Task<ProjectManifest> ReadManifest(ProjectSession session, CancellationToken cancellationToken) =>
+        ProjectFile.Parse(await File.ReadAllTextAsync(Path.Combine(session.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), cancellationToken).ConfigureAwait(false));
+
+    private static ProjectManifest ReadManifestSync(ProjectSession session) =>
+        ProjectFile.Parse(File.ReadAllText(Path.Combine(session.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile)));
 
     private static ProjectTreeItem[] ProjectTree(ProjectSession session, string folder, int depth, bool showHidden = false)
     {

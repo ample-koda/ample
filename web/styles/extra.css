@@ -1099,3 +1099,21 @@ dialog.ask-dialog:has(textarea.notes-editor) #dlg-extra{max-width:100%}
 .se-suggest { position: absolute; right: 14px; bottom: 12px; z-index: 5; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--dim); cursor: pointer; opacity: .85; }
 .se-suggest:hover, .se-suggest:focus-visible { color: var(--text); opacity: 1; }
 @media (pointer: coarse) { .se-suggest { width: 44px; height: 44px; } }
+
+/* the first-time setup wizard (plan/first-run-wizard.md): a full-screen overlay with the steps on the left */
+#fr{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-columns:230px 1fr;color:var(--text)}
+#fr .fr-side{background:var(--panel);border-right:1px solid var(--line);padding:16px;overflow:auto}
+#fr .fr-side h3{margin:0 0 4px}
+#fr .fr-steps{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+#fr .fr-steps li{padding:6px 10px;border-radius:6px;border:1px solid transparent;color:var(--dim,var(--text));opacity:.7}
+#fr .fr-steps li.done{opacity:.9}
+#fr .fr-steps li.on{opacity:1;border-color:var(--acc);background:var(--panel2)}
+#fr .fr-main{display:flex;flex-direction:column;min-width:0;padding:18px 26px;overflow:hidden}
+#fr .fr-main h2{margin:0 0 10px;font-size:20px}
+#fr .fr-body{flex:1;overflow:auto;max-width:900px}
+#fr .fr-body .ps-save{display:none}
+#fr .fr-foot{display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--line);margin-top:10px;max-width:900px}
+#fr .fr-foot .sp{flex:1}
+#fr #fr-message:empty{display:none}
+#toast{z-index:60}
+@media (max-width:700px){#fr{grid-template-columns:1fr;grid-template-rows:auto 1fr}#fr .fr-side{border-right:0;border-bottom:1px solid var(--line)}#fr .fr-steps{flex-direction:row;flex-wrap:wrap}}

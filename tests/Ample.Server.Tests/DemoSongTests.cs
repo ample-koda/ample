@@ -113,6 +113,30 @@ public sealed class DemoSongTests : IDisposable
         Assert.False(File.Exists(Path.Combine(folder, "renamed.amplet")));
     }
 
+    [Fact]
+    public async Task After_the_first_time_setup_the_demo_can_be_deleted_and_does_not_come_back()
+    {
+        string folder = await NewProjectAsync();
+        await using (RunningServer server = await StartAsync(folder, seed: true))
+        {
+            using HttpClient http = new() { BaseAddress = new Uri(server.Url) };
+            http.DefaultRequestHeaders.Add("X-Ample-Token", server.Token);
+            string path = Path.Combine(folder, DemoSongRules.FileName);
+            using HttpResponseMessage refused = await http.DeleteAsync("/api/project/file?path=demo.amplet");
+            Assert.NotEqual(HttpStatusCode.OK, refused.StatusCode);   // while the setup is still to be done
+            using HttpResponseMessage done = await http.PostAsync("/api/project/first-run/complete", Json(new { }));
+            Assert.Equal(HttpStatusCode.OK, done.StatusCode);
+            using HttpResponseMessage deleted = await http.DeleteAsync("/api/project/file?path=demo.amplet");
+            Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+            Assert.False(File.Exists(path));
+        }
+
+        await using (RunningServer again = await StartAsync(folder, seed: true))
+        {
+            Assert.False(File.Exists(Path.Combine(folder, DemoSongRules.FileName)));   // a project without songs gets the demo only while its setup is pending
+        }
+    }
+
     [Theory]
     [InlineData("demo.amplet", true)]
     [InlineData("DEMO.amplet", true)]

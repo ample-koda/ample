@@ -23,12 +23,23 @@ internal static class ProjectCommands
         Argument<string> folder = FolderArgument();
         Option<string?> name = new("--name") { Description = "Project name (default: the folder name)." };
         Option<ulong?> seed = new("--seed") { Description = "Master seed (default: derived from the project id)." };
-        Command command = new("new", "Creates a project folder with the mandatory .ample structure.") { folder, name, seed };
+        Option<bool> noFirstRun = new("--no-first-run") { Description = "Mark the first-time setup wizard of the studio as already done (for scripts and tests).", Hidden = true };
+        Command command = new("new", "Creates a project folder with the mandatory .ample structure.") { folder, name, seed, noFirstRun };
         command.SetAction(async (parse, token) => await Run(output, async () =>
         {
             string path = Path.GetFullPath(parse.GetValue(folder)!);
             using OpenProject project = await ProjectStore.CreateAsync(Fs, Clock, new GuidV7Generator(), path, parse.GetValue(name) ?? Path.GetFileName(path), parse.GetValue(seed), token);
             output.WriteLine($"Created project '{project.Manifest.Name}' ({project.Manifest.Id}) at {path}");
+            if (parse.GetValue(noFirstRun))
+            {
+                string projectFile = Path.Combine(path, Ample.Storage.Projects.ProjectLayout.AmpleFolder, Ample.Storage.Projects.ProjectLayout.ProjectFile);
+                Ample.Storage.Projects.ProjectManifest created = Ample.Storage.Projects.ProjectFile.Parse(await File.ReadAllTextAsync(projectFile, token));
+                await File.WriteAllTextAsync(projectFile, Ample.Storage.Projects.ProjectFile.Serialize(created with { Settings = created.Settings with { FirstRun = created.Settings.FirstRun.Completed(Clock.UtcNow) } }), token);
+            }
+            else
+            {
+                output.WriteLine("The studio starts a first-time setup wizard when this project is opened (the project settings, then the demo song).");
+            }
             // every new project starts with the demo song (the AMPLE folder is found like for check and build; without one there is no demo, and that is not an error)
             try
             {
