@@ -323,7 +323,7 @@ public static class AmpleServer
             try
             {
                 registry = new InstanceRegistry(options.LibraryHome ?? Ample.Storage.Library.Library.DefaultHome(), session.Clock, new SystemInstanceProbe());
-                registry.Register(projectId, session.Manifest.Name, session.Root, Environment.ProcessId, new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero), new Uri(address).Port, version, options.StartedBy, options.Agent, null, $"{address}/#token={token}");
+                registry.Register(projectId, session.Manifest.Name, session.Root, Environment.ProcessId, new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero), new Uri(address).Port, version, options.StartedBy, options.Agent, null, $"{address}/#token={token}", options.Relaunch, options.NoHub);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {

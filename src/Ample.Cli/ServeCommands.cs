@@ -12,6 +12,17 @@ namespace Ample.Cli;
 /// <summary>The <c>ample serve</c> command.</summary>
 internal static class ServeCommands
 {
+    /// <summary>How this server can be started again: this program and its own arguments (no token, no password is ever in them).</summary>
+    private static Ample.Storage.Projects.InstanceRelaunch? RelaunchRecipe()
+    {
+        string? exe = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(exe)) return null;
+        string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+        if (exe.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) || exe.EndsWith("dotnet", StringComparison.Ordinal)) return null;   // run from source: no recipe
+        if (args.Any(a => a.Contains("token", StringComparison.OrdinalIgnoreCase) || a.Contains("password", StringComparison.OrdinalIgnoreCase))) return null;
+        return new Ample.Storage.Projects.InstanceRelaunch(exe, args);
+    }
+
     internal static IReadOnlyList<Command> Create(TextWriter output)
     {
         Option<string?> project = new("--project") { Description = "The project folder (default: the current folder)." };
@@ -34,8 +45,9 @@ internal static class ServeCommands
         Option<string> startedBy = new("--started-by") { Description = "Start source for launcher integration.", DefaultValueFactory = _ => "cli" };
         Option<string?> agentName = new("--agent-name") { Description = "Self-reported agent name for launcher integration." };
         Option<string?> agentReason = new("--agent-reason") { Description = "Reason for an agent-started server." };
+        Option<bool> noHub = new("--no-hub") { Description = "Do not let the tray hub manage this server (also AMPLE_NO_HUB=1)." };
         Option<string?> openapi = new("--openapi") { Description = "Write the OpenAPI document to this file and exit (no project needed)." };
-        Command serve = new("serve", "Starts the local server with the web UI, the API and the help (127.0.0.1 only).") { project, root, home, port, maxUploadMb, forbidCapabilities, envAllow, noBrowser, visible, noTokenOutput, allowLan, login, allowAll, bind, parallelism, liteOnly, logFile, startedBy, agentName, agentReason, openapi };
+        Command serve = new("serve", "Starts the local server with the web UI, the API and the help (127.0.0.1 only).") { project, root, home, port, maxUploadMb, forbidCapabilities, envAllow, noBrowser, visible, noTokenOutput, allowLan, login, allowAll, bind, parallelism, liteOnly, logFile, startedBy, agentName, agentReason, noHub, openapi };
         serve.SetAction(async (p, t) =>
         {
             try
@@ -84,7 +96,7 @@ internal static class ServeCommands
                 string ample = (p.GetValue(root) is string r ? SpecRoot.At(r) : SpecRoot.Find(Directory.GetCurrentDirectory())).Path;
                 InstanceAgent? agent = source == "agent" ? new InstanceAgent(name!, reason!, null) : null;
                 Ample.Engine.Engine.BuildParallelism.ConfigureServer(p.GetValue(parallelism) ?? (int.TryParse(Environment.GetEnvironmentVariable("AMPLE_PARALLELISM"), out int fromEnvironment) ? fromEnvironment : null));
-                ServerOptions options = new(Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory()), ample, p.GetValue(port), null, p.GetValue(allowLan), p.GetValue(home) ?? Library.DefaultHome(), maxUploadMegabytes * 1024L * 1024) { StartedBy = source, Agent = agent, Login = p.GetValue(login), AllowAll = p.GetValue(allowAll), BindAddress = p.GetValue(bind), LiteOnly = p.GetValue(liteOnly), SeedDemo = true };
+                ServerOptions options = new(Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory()), ample, p.GetValue(port), null, p.GetValue(allowLan), p.GetValue(home) ?? Library.DefaultHome(), maxUploadMegabytes * 1024L * 1024) { StartedBy = source, Agent = agent, Login = p.GetValue(login), AllowAll = p.GetValue(allowAll), BindAddress = p.GetValue(bind), LiteOnly = p.GetValue(liteOnly), SeedDemo = true, NoHub = p.GetValue(noHub) || Environment.GetEnvironmentVariable("AMPLE_NO_HUB") == "1", Relaunch = RelaunchRecipe() };
                 await using RunningServer server = await AmpleServer.StartAsync(options, t);
                 output.WriteLine($"AMPLE is running at {server.Url}");
                 output.WriteLine(p.GetValue(noTokenOutput) ? "Open: private launch URL is in the instance registry." : $"Open: {server.LaunchUrl}");

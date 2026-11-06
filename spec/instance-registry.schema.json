@@ -47,7 +47,23 @@
           }
         }
       ]
-    }
+    },
+    "relaunch": {
+      "description": "How the tray hub can start this server again: the program and its arguments (never a token or a password).",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["exe", "args"],
+          "properties": {
+            "exe": { "type": "string", "minLength": 1 },
+            "args": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
+    },
+    "noHub": { "type": "boolean", "description": "True when the tray hub must leave this server alone." }
   },
   "allOf": [
     {

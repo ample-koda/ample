@@ -14,8 +14,11 @@ public sealed record InstanceAgent(string Name, string Reason, string? Session);
 /// <summary>Last known ACE-Step health, when available.</summary>
 public sealed record InstanceAce(string Url, bool Ok, DateTimeOffset Checked);
 
+/// <summary>How a running server can be started again by the tray hub: the program and its arguments. Never a token or a password.</summary>
+public sealed record InstanceRelaunch(string Exe, IReadOnlyList<string> Args);
+
 /// <summary>A running AMPLE server, without its secret launch URL.</summary>
-public sealed record InstanceRecord(int Schema, string ProjectId, string Name, string Folder, int Pid, DateTimeOffset ProcessStart, int Port, DateTimeOffset Started, DateTimeOffset Updated, string Version, string Host, string StartedBy, InstanceAgent? Agent, InstanceAce? Ace);
+public sealed record InstanceRecord(int Schema, string ProjectId, string Name, string Folder, int Pid, DateTimeOffset ProcessStart, int Port, DateTimeOffset Started, DateTimeOffset Updated, string Version, string Host, string StartedBy, InstanceAgent? Agent, InstanceAce? Ace, InstanceRelaunch? Relaunch = null, bool NoHub = false);
 
 /// <summary>Checks whether a recorded process still owns the same process identity and answers the local ping endpoint.</summary>
 public interface IInstanceProbe
@@ -51,7 +54,7 @@ public sealed class InstanceRegistry
     public static InstanceRegistry ForCurrentUser(IClock clock) => new(Ample.Storage.Library.Library.DefaultHome(), clock, new SystemInstanceProbe());
 
     /// <summary>Registers a server after it has started listening.</summary>
-    public InstanceRecord Register(string projectId, string name, string folder, int pid, DateTimeOffset processStart, int port, string version, string startedBy, InstanceAgent? agent, InstanceAce? ace, string launchUrl)
+    public InstanceRecord Register(string projectId, string name, string folder, int pid, DateTimeOffset processStart, int port, string version, string startedBy, InstanceAgent? agent, InstanceAce? ace, string launchUrl, InstanceRelaunch? relaunch = null, bool noHub = false)
     {
         if (!Guid.TryParseExact(projectId, "D", out Guid projectGuid)) throw new ArgumentException("The project id must be a UUID.", nameof(projectId));
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -67,7 +70,7 @@ public sealed class InstanceRegistry
         Directory.CreateDirectory(instancesFolder);
         DateTimeOffset now = clock.UtcNow.ToUniversalTime();
         projectId = projectGuid.ToString("D");
-        InstanceRecord record = new(1, projectId, name, Path.GetFullPath(folder), pid, processStart.ToUniversalTime(), port, now, now, version, Environment.MachineName, startedBy, agent, ace);
+        InstanceRecord record = new(1, projectId, name, Path.GetFullPath(folder), pid, processStart.ToUniversalTime(), port, now, now, version, Environment.MachineName, startedBy, agent, ace, relaunch, noHub);
         try
         {
             WriteLaunch(projectId, launchUrl);

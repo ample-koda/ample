@@ -11,7 +11,8 @@ param(
   [Parameter(Mandatory)][string]$Zip,
   [Parameter(Mandatory)][string]$Out,
   [string]$Wix = $env:AMPLE_WIX,
-  [string]$License = ''   # the licence text (the LICENSE file of the repository); the wizard shows it
+  [string]$License = '',   # the licence text (the LICENSE file of the repository); the wizard shows it
+  [string]$HubDir = ''     # the folder with Ample.Hub.exe (the tray hub) and Ample.Setup.exe (the mini wizard); without it the MSI has no hub
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Wix) { $Wix = (Get-Command wix -ErrorAction SilentlyContinue).Source }
@@ -41,9 +42,18 @@ try {
   $caOut = Join-Path $stage 'ca'
   & dotnet build (Join-Path $here 'CustomActions/AmpleCa.csproj') -nologo -v q -c Release -o $caOut | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'the custom action did not build' }
+  $hasHub = 0
+  if ($HubDir) {
+    foreach ($need in 'Ample.Hub.exe', 'Ample.Setup.exe') { if (-not (Test-Path -LiteralPath (Join-Path $HubDir $need))) { throw "$need was not found in '$HubDir'." } }
+    foreach ($name in 'Ample.Setup.exe', 'Ample.Setup.exe.config') { if (Test-Path -LiteralPath (Join-Path $HubDir $name)) { Copy-Item -LiteralPath (Join-Path $HubDir $name) -Destination $source } }
+    $hubTarget = Join-Path $source 'hub'
+    New-Item -ItemType Directory -Path $hubTarget | Out-Null
+    Get-ChildItem -LiteralPath $HubDir -File | Where-Object { $_.Name -notlike 'Ample.Setup.exe*' -and $_.Extension -notin '.pdb', '.xml' } | Copy-Item -Destination $hubTarget
+    $hasHub = 1
+  }
   $outFull = [IO.Path]::GetFullPath($Out)
   & $Wix build (Join-Path $here 'Package.wxs') -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
-    -d "Version=$version" -d "SourceDir=$source" -d "CaDll=$(Join-Path $caOut 'AmpleCa.CA.dll')" -loc (Join-Path $here 'en-us.wxl') -bindpath $here -bindpath $stage -o $outFull   # (ICE validation is a separate step: wix msi validate)
+    -d "Version=$version" -d "HasHub=$hasHub" -d "SourceDir=$source" -d "CaDll=$(Join-Path $caOut 'AmpleCa.CA.dll')" -loc (Join-Path $here 'en-us.wxl') -bindpath $here -bindpath $stage -o $outFull   # (ICE validation is a separate step: wix msi validate)
   if ($LASTEXITCODE -ne 0) { throw "wix build failed ($LASTEXITCODE)" }
   $item = Get-Item -LiteralPath $outFull
   "built $($item.FullName) ($([math]::Round($item.Length / 1MB, 1)) MB, version $version)"

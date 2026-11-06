@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Ample.Storage/Ample.Storage.csproj" />
+    <InternalsVisibleTo Include="Ample.Hub.Core.Tests" />
+  </ItemGroup>
+</Project>

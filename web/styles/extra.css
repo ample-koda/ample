@@ -1143,9 +1143,8 @@ body{grid-template-rows:auto auto auto 1fr auto}
 .tab.preview .tab-name{font-style:italic}
 .tab.remote{opacity:.6;border-style:dashed}
 .tab.remote .tab-name::after{content:" ↗"}
-/* a tab in a window of its own: only the file and the header */
-body.detached #left,body.detached #right,body.detached #tabbar,body.detached #banner{display:none}
-body.detached #work{grid-template-columns:0 1fr 0}
+/* a tab in a window of its own: the file and the header; the block library and the properties stay (their buttons work as in the main window), the tab row and the banner are not needed */
+body.detached #tabbar,body.detached #banner{display:none}
 .tab-kind{opacity:.7;font-size:11px}
 .tab-dot{color:var(--warn);font-style:normal;font-size:10px}
 .tab-err,.tab-bad{color:#fff;background:#ff5d6c;border-radius:9px;padding:0 5px;font-style:normal;font-size:10px;line-height:15px}

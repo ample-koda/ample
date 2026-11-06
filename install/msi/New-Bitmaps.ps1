@@ -6,6 +6,9 @@ param([string]$Dir = $PSScriptRoot)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $icon = New-Object Drawing.Icon (Join-Path $Dir 'ample.ico'), 64, 64
+# the logo pictures come from tools/brand/make-setup-banner.mjs: the dark one is also embedded in the setup wizard
+$logoDark = [Drawing.Image]::FromFile((Join-Path $Dir '..\..\src\Ample.Setup\banner.png'))
+$logoLight = [Drawing.Image]::FromFile((Join-Path $Dir 'logo-light.png'))
 function New-Picture([int]$w, [int]$h, [string]$path, [bool]$side) {
   $bmp = New-Object Drawing.Bitmap $w, $h, ([Drawing.Imaging.PixelFormat]::Format24bppRgb)
   $g = [Drawing.Graphics]::FromImage($bmp)
@@ -19,17 +22,14 @@ function New-Picture([int]$w, [int]$h, [string]$path, [bool]$side) {
     $cyan = New-Object Drawing.Pen ([Drawing.Color]::FromArgb(90, 45, 226, 255)), 1
     for ($x = -60; $x -le 220; $x += 28) { $g.DrawLine($pink, 82, 215, $x, $h) }   # the lit grid floor
     for ($y = 222; $y -le $h; $y += 16) { $g.DrawLine($cyan, 0, $y, 164, $y) }
-    $g.DrawIcon($icon, (New-Object Drawing.Rectangle 50, 36, 64, 64))
-    $font = New-Object Drawing.Font 'Segoe UI Semibold', 17
-    $g.DrawString('AMPLE', $font, ([Drawing.Brushes]::White), 36, 110)
-    $small = New-Object Drawing.Font 'Segoe UI', 8.5
-    $g.DrawString('beta', $small, (New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(255, 209, 102))), 38, 140)
+    $g.DrawIcon($icon, (New-Object Drawing.Rectangle 50, 30, 64, 64))
+    $g.DrawImage($logoDark, (New-Object Drawing.Rectangle 10, 104, 144, 45))   # the AMPLE logo with the beta sticker
     $white = New-Object Drawing.SolidBrush ([Drawing.Color]::White)
     $g.FillRectangle($white, 164, 0, $w - 164, $h)
   }
   else {
     $g.Clear([Drawing.Color]::White)
-    $g.DrawIcon($icon, (New-Object Drawing.Rectangle ($w - 54), 4, 48, 48))
+    $g.DrawImage($logoLight, (New-Object Drawing.Rectangle ($w - 166), 4, 156, 49))   # the AMPLE logo with the beta sticker, for a light background
     $line = New-Object Drawing.Drawing2D.LinearGradientBrush (New-Object Drawing.Rectangle 0, ($h - 3), $w, 3), ([Drawing.Color]::FromArgb(45, 226, 255)), ([Drawing.Color]::FromArgb(255, 79, 216)), 0
     $g.FillRectangle($line, 0, $h - 3, $w, 3)
   }
