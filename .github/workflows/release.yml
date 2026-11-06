@@ -15,34 +15,29 @@ permissions:
 
 jobs:
   check:
-    # The checks run on Ubuntu, with the same steps as the public CI (build with warnings as errors, every test project, the format check, the node checks)
-    # plus the dependency audit. The browser tests of the studio and the slow performance suites are NOT part of this gate: they run in the public CI
-    # (browser tests: see the failures there) and are not repeated on a slower Windows runner. Nothing is retried, no time-out is lengthened, no test is skipped here.
-    name: Check everything (Ubuntu)
+    # The sources are checked on Ubuntu: the build with warnings as errors, the format check, the node and spec checks and the dependency audit. The test projects
+    # and the browser tests are NOT repeated here: the public CI runs them for every commit on main (a release is made from a commit that has been through it).
+    # Nothing is retried, no time-out is lengthened.
+    name: Check the sources (Ubuntu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
-      - name: Install the test dependencies
+          cache: npm
+      - name: Install the dependencies
         run: npm ci
-      - name: Install the browser the server tests drive (the same step as the public CI)
-        run: |
-          set -euo pipefail
-          dotnet build tests/Ample.Server.Tests -c Release --nologo
-          pwsh tests/Ample.Server.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
-      - name: Fetch the General MIDI SoundFont (the tests that play General MIDI need it; the script checks the size and the pinned SHA-256)
-        env:
-          AMPLE_PACK_OUT: ${{ github.workspace }}/.ample-home/audio-packs
-        run: node tools/fetch-gm-soundfont.mjs --download
-      - name: Check everything
-        env:
-          AMPLE_HOME: ${{ github.workspace }}/.ample-home
-        run: bash ./tools/check-all.sh
+      - name: Check the sources
+        run: bash ./tools/check-all.sh --skip-tests
       - name: Audit the dependencies
         run: |
           set -u
@@ -63,6 +58,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+          cache: npm
       - name: Read the version
         id: version
         shell: pwsh
@@ -139,19 +135,15 @@ jobs:
           path: dist/*.msi
           if-no-files-found: error
 
-  linux-packages:
-    name: Debian packages and the release manifest
-    needs: [build, msi]
+  linux-debs:
+    name: Debian packages
+    needs: build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dist
-          path: dist
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: msi
           path: dist
       - name: Unpack the Linux program
         env:
@@ -162,7 +154,12 @@ jobs:
           unzip -q "dist/ample-${VERSION}-linux-x64.zip" -d work
           test -f "work/ample-${VERSION}-linux-x64/ample"
           chmod +x "work/ample-${VERSION}-linux-x64/ample"
-      - name: Fetch the pinned SoundFont (checked by SHA-256 by the program)
+      - name: Keep the SoundFont between runs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ample-home
+          key: musescore-general-pack-${{ hashFiles('tools/fetch-gm-soundfont.mjs') }}
+      - name: Fetch the pinned SoundFont (checked by SHA-256 by the program; not downloaded again when the cache has it)
         env:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
@@ -176,6 +173,37 @@ jobs:
           sh tools/build-deb.sh --version "$VERSION" --program "work/ample-${VERSION}-linux-x64" --out debs \
             --soundfont "$RUNNER_TEMP/ample-home/audio-packs/licensed/musescore-general/MuseScore_General.sf2" \
             --licence LICENSE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: debs
+          path: debs/*.deb
+          if-no-files-found: error
+
+  manifest:
+    name: The release manifest
+    needs: [build, msi, linux-debs]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist
+          path: dist
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: msi
+          path: dist
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: debs
+          path: debs
+      - name: Unpack the Linux program
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -eu
+          mkdir -p work
+          unzip -q "dist/ample-${VERSION}-linux-x64.zip" -d work
+          chmod +x "work/ample-${VERSION}-linux-x64/ample"
       - name: "Write the release manifest (unsigned, the owner signs it): zips, tool, extension, MSI and Debian packages"
         env:
           VERSION: ${{ needs.build.outputs.version }}
@@ -194,7 +222,7 @@ jobs:
 
   linux-test:
     name: Linux test (${{ matrix.os }})
-    needs: [build, linux-packages]
+    needs: [build, linux-debs]
     strategy:
       fail-fast: false
       matrix:
@@ -208,8 +236,8 @@ jobs:
           path: dist
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: linux-extras
-          path: extras
+          name: debs
+          path: extras/debs
       - name: Smoke test the Linux zip
         shell: pwsh
         run: ./tools/smoke-package.ps1
@@ -227,9 +255,9 @@ jobs:
 
   draft:
     name: Draft the release
-    needs: [check, build, msi, linux-packages, linux-test]
+    needs: [build, msi, manifest, linux-test]
     # the draft is made when everything that is BUILT and INSTALLED is fine; the test run of the sources (check) is reported but does not hold the draft back (owner, 2026-11-06: it is a beta, and the draft is only read by the owner and signed by hand before anything is public)
-    if: ${{ !cancelled() && needs.build.result == 'success' && needs.msi.result == 'success' && needs.linux-packages.result == 'success' && needs.linux-test.result == 'success' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.msi.result == 'success' && needs.manifest.result == 'success' && needs.linux-test.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
