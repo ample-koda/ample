@@ -1,5 +1,23 @@
 [
   {
+    "id": "welcome-to-ample",
+    "name": "Welcome to AMPLE",
+    "description": "The demo song every AMPLE project starts with: a 60-bar song at 175 BPM with a piano, a pad, stabs, a bass, a lead and drums. Play it, then change the tempo or a wave and listen again.",
+    "category": "Basics",
+    "level": "Beginner",
+    "tags": [
+      "demo",
+      "tour",
+      "song",
+      "drums",
+      "piano"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
     "id": "hello-melody",
     "name": "Hello melody",
     "description": "A first tune on a synth: a clip of notes, a synth to play it, a master.",

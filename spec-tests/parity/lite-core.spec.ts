@@ -31,11 +31,13 @@ const rollLayout = async (page: Page) => page.locator('#lite-roll-canvas').evalu
 const editorText = (page: Page) => page.locator('#lite-editor .cm-content').innerText();
 const typeAtEnd = async (page: Page, text: string) => { await page.locator('#lite-editor .cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.type(text); };
 
-test('/remix opens behind the token, empty at first, with the demos one click away', async ({ page }) => {
+test('/remix opens behind the token, with the AMPLE demo song already there and the other demos one click away', async ({ page }) => {
   await fresh(page);
-  await expect(page.locator('#lite-empty')).toBeVisible();
+  await expect(page.locator('#lite-empty')).toBeHidden();   // nothing was kept yet: the demo song is open (not built, not played)
+  await expect(page.locator('#lite-projects option')).toHaveText(['Welcome to AMPLE']);
+  await expect(page.locator('#lite-filename')).toHaveText('song.amplet');
   await expect(page.locator('#lite-build')).toBeVisible();
-  await page.click('#lite-empty-demos');
+  await page.click('#lite-demos-btn');
   await expect(page.locator('#lite-demo-list li').first()).toBeVisible();
   expect(await page.locator('#lite-demo-list li').count()).toBeGreaterThanOrEqual(2);
   // without the token the API refuses
@@ -55,7 +57,7 @@ test('a demo is copied into an editable project and the demo itself never change
   expect(await (await fetch(new URL('/remix/demos/hello-melody/song.amplet', launchUrl()).toString())).text()).toBe(original);
   await useDemo(page, 'hello-melody');
   expect(await editorText(page)).not.toContain('my own change');
-  await expect(page.locator('#lite-projects option')).toHaveCount(2);
+  await expect(page.locator('#lite-projects option')).toHaveCount(3);   // the AMPLE demo song of an empty workspace, and the two copies
 });
 
 test('a change survives a reload, and the project and the open file come back', async ({ page }) => {
@@ -154,8 +156,8 @@ test('Reset Lite deletes the Lite data only: the Studio keys and the sign-in sta
   await expect(page.locator('#lite-dialog')).toContainText('Studio, its projects, your sign-in');
   await page.click('#lite-dialog-ok');
   await page.waitForSelector('html[data-lite-ready="true"]');
-  await expect(page.locator('#lite-empty')).toBeVisible();
-  expect(await page.locator('#lite-projects option').count()).toBe(0);
+  await expect(page.locator('#lite-empty')).toBeHidden();   // after a reset the AMPLE demo song is loaded again by itself
+  await expect(page.locator('#lite-projects option')).toHaveText(['Welcome to AMPLE']);
   expect(await page.evaluate(() => localStorage.getItem('ample.studio.setting'))).toBe('keep');
   expect(await page.evaluate(() => sessionStorage.getItem('ample-remix.tab'))).toBeNull();
   expect(await page.evaluate(() => Object.entries(sessionStorage).filter(([k]) => !k.startsWith('ample-remix.')))).toEqual(tokenBefore);
@@ -365,7 +367,7 @@ test('Studio keeps working next to Lite', async ({ page }) => {
 
 test('a shared demo link opens a fresh copy, builds it and plays; Share copies the link only while the copy is unchanged', async ({ page, context }) => {
   await fresh(page);
-  await expect(page.locator('#lite-share')).toBeHidden();
+  await expect(page.locator('#lite-share')).toBeVisible();   // the AMPLE demo song of an empty workspace is open, an unchanged demo copy that Share can link
   await useDemo(page, 'hello-melody');
   await expect(page.locator('#lite-share')).toBeVisible();
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);

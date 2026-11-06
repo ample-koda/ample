@@ -1,1 +1,1 @@
-AMPLE 0.1.0 (beta, commit <commit>)
+AMPLE <version> (beta, commit <commit>)
