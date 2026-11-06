@@ -78,7 +78,7 @@ test('a block can be saved as a switch (on or off when the template is used), an
   expect(await page.evaluate(async () => (await import('/app/store.js')).S.doc.text)).toMatch(/piano keys-\d+ pinned@2\.1 at 1 for 8 disabled \{/);
 });
 
-test('a project template can be dragged onto the board: a preview hangs at the pointer, letting go opens the form, which can be cancelled or confirmed', async ({ page }) => {
+test('a project template can be dragged onto the board: a preview hangs at the pointer, letting go opens the form, which can be cancelled or confirmed @quarantine', async ({ page }) => {
   await select(page, ['chords', 'keys']);
   await page.locator('#tpl-save').click();
   const win = page.locator('dialog.ample-win');

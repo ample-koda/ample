@@ -32,6 +32,7 @@ dotnet format "$solution" --no-restore --verify-no-changes
 node --test --test-isolation=none "$repository_root/ample/tools/parity-report.test.mjs"
 node "$repository_root/ample/tools/parity-report.mjs" --check --require-complete
 node --test --test-isolation=none "$repository_root/ample/tools/validate-spec.test.mjs"
+node --test --test-isolation=none "$repository_root/ample/tools/quarantine-failed.test.mjs"
 node --test --test-isolation=none "$repository_root/ample/faer/server.test.mjs" "$repository_root/ample/faer/gpu-manager.test.mjs"
 node "$repository_root/ample/tools/validate-spec.mjs"
 node "$repository_root/ample/tools/gen-prng-vectors.mjs" --check

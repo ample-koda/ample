@@ -63,7 +63,7 @@ test('an answer can be followed by a question of your own, which goes with what 
   expect(asked.said.length).toBeGreaterThan(5);
 });
 
-test('a patch over several blocks is grouped per block, starts with the neon button, and with many blocks the groups are pages', async ({ page }) => {
+test('a patch over several blocks is grouped per block, starts with the neon button, and with many blocks the groups are pages @quarantine', async ({ page }) => {
   await page.evaluate(async () => {
     const { draftBubble } = await import('/app/koda-bubbles.js');
     const calls: string[] = [];
@@ -307,7 +307,7 @@ test('the language of Koda is a project setting in the project settings: Dutch w
   await page.evaluate(() => import('/app/koda-lang.js').then((m) => m.saveKodaLanguage('en')));
 });
 
-test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays while the block is selected and fades when it is not', async ({ page }) => {
+test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays while the block is selected and fades when it is not @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   const koda = await page.locator('#koda-layer .pet').boundingBox();
@@ -365,7 +365,7 @@ test('Ctrl+Shift and drag adds more things to look at, letting go on a linked on
   await expect.poll(async () => (await state(page)).emotion, { timeout: 4000 }).toBe('happy');
 });
 
-test('shaking Koda itself throws the lines off one after the other, the newest first', async ({ page }) => {
+test('shaking Koda itself throws the lines off one after the other, the newest first @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await expect(page.locator('#koda-layer .bub')).toContainText('I am Koda');   // the hello comes after a second: let it come and go first
@@ -411,7 +411,7 @@ test('shaking Koda itself throws the lines off one after the other, the newest f
   expect(smiled).toBe(true);
 });
 
-test('Koda sways to the beat of whatever plays, and settles when it stops', async ({ page }) => {
+test('Koda sways to the beat of whatever plays, and settles when it stops @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.keyboard.press('Escape');
@@ -699,7 +699,7 @@ test('the line of Koda does not point into the void when its target is scrolled 
   expect(seen.shown).toBe(true);
 });
 
-test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply', async ({ page }) => {
+test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.evaluate(async () => {

@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Dev tooling for the AMPLE web UI: Playwright parity tests (npm install, then npm run test:web; needs dotnet build ample/Ample.sln first).",
   "scripts": {
-    "test:web": "playwright test --project=chromium",
+    "test:web": "playwright test --project=chromium --grep-invert @quarantine",
+    "test:web:quarantine": "playwright test --project=chromium --grep @quarantine --workers=1",
     "test:web:slow": "playwright test --project=slow --workers=1",
     "build:codemirror": "node tools/build-codemirror.mjs",
     "test:web-lib": "node --test \"web/lib/test/*.mjs\" \"web/remix/test/*.mjs\"",

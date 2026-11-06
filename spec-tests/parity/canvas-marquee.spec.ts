@@ -18,11 +18,11 @@ test('a click on the empty canvas and then at once a held press with a drag draw
   const right = Math.max(a!.x + a!.width, b!.x + b!.width) + 10, bottom = Math.max(a!.y + a!.height, b!.y + b!.height) + 10;
   const size = () => page.evaluate(async () => (await import('/app/store.js')).S.selSet.size);
   expect(await size()).toBeLessThan(2);
-  await page.mouse.click(right, bottom);   // a click on the empty canvas
-  await page.mouse.move(right, bottom);
+  await page.mouse.click(left, top);   // a click on the empty canvas (the top left: the bottom right of a fitted view can lie under the minimap)
+  await page.mouse.move(left, top);
   await page.mouse.down();   // pressed again at once and held
   await page.mouse.move((left + right) / 2, (top + bottom) / 2, { steps: 4 });
-  await page.mouse.move(left, top, { steps: 4 });
+  await page.mouse.move(right, bottom, { steps: 4 });
   await page.mouse.up();
   expect(await size()).toBeGreaterThanOrEqual(2);
 });

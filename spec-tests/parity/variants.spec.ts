@@ -109,7 +109,7 @@ test('field choices are previewed before rendering and recorded in the take plan
   expect(change.to).toBe(proposed.split('→').at(-1)?.trim());
 });
 
-test('making variants without selected fields refuses before rendering', async ({ page }) => {
+test('making variants without selected fields refuses before rendering @quarantine', async ({ page }) => {
   await page.locator('#v-target').selectOption('master');
   await page.click('#v-make');
   await expect(page.locator('#v-status')).toContainText('Select at least one field');
