@@ -16,7 +16,7 @@ jobs:
     # The test projects run in three groups at the same time (the server tests are the slowest and drive a browser; the engine and audio tests come next; the rest is
     # every other project in tests/, so a new test project is picked up without a change here).
     name: Test (${{ matrix.group }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -74,12 +74,46 @@ jobs:
             dotnet test "$project" -c Release --nologo
           done
 
+  studio-plan:
+    # How many shards the browser tests need: about 200 tests each, counted from the tests themselves, so the number grows with the suite and nobody has to edit it.
+    if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
+    name: Studio browser tests (plan)
+    runs-on: ubuntu-24.04
+    outputs:
+      shards: ${{ steps.count.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the test tools
+        run: npm ci
+      - name: Count the tests and choose the number of shards
+        id: count
+        shell: bash
+        run: |
+          set -euo pipefail
+          total=$(npx playwright test --list --project=chromium | grep -oE 'Total: [0-9]+' | grep -oE '[0-9]+')
+          per=200
+          shards=$(( (total + per - 1) / per ))
+          [ "$shards" -lt 1 ] && shards=1
+          [ "$shards" -gt 12 ] && shards=12
+          echo "$total tests, $shards shards"
+          list=$(seq -s, 1 "$shards")
+          echo "shards=[$list]" >> "$GITHUB_OUTPUT"
+
   studio:
     # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
     if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
-    # The browser tests of the studio (Playwright, Chromium): they start the built command line tool and drive its pages.
-    name: Studio browser tests
-    runs-on: ubuntu-latest
+    # The browser tests of the studio (Playwright, Chromium): they start the built command line tool and drive its pages. They run in shards at the same time.
+    name: Studio browser tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: studio-plan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.studio-plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -89,12 +123,28 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Keep the NuGet packages between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
       - name: Build the command line tool
         run: dotnet build src/Ample.Cli -c Release --nologo
-      - name: Install the test tools and Chromium
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
+      - name: Install the test tools
+        run: npm ci
+      - name: Keep Chromium between runs
+        # the browser is downloaded once for a version of Playwright and kept; only the system libraries it needs are installed on every run
+        id: chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Chromium
+        if: steps.chromium.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Install the system libraries of Chromium
+        run: npx playwright install-deps chromium
       - name: Cache the General MIDI SoundFont
         # the tests that play General MIDI need it; it is fetched once and kept between runs
         uses: actions/cache@v4
@@ -104,14 +154,14 @@ jobs:
       - name: Fetch the General MIDI SoundFont
         # the script checks the size and the pinned SHA-256 of the SoundFont, and does not download again when the file is already there (from the cache)
         run: node tools/fetch-gm-soundfont.mjs --download --into
-      - name: Run the browser tests
+      - name: Run this shard of the browser tests
         # no retry: a test that fails fails (the owner's rule); the traces below show why
-        run: npx playwright test --project=chromium --workers=2 --trace=retain-on-failure
+        run: npx playwright test --project=chromium --workers=2 --shard=${{ matrix.shard }}/${{ strategy.job-total }} --trace=retain-on-failure
       - name: Keep the traces of the failed tests
         # a trace shows the page, the steps and the console of a test that failed, to be opened with npx playwright show-trace
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: studio-test-traces
+          name: studio-test-traces-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
