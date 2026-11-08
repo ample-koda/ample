@@ -1,0 +1,37 @@
+/** Notes in, a plucky lead out with an echo. */
+#[DisplayName("House pluck")]
+#[Category("House")]
+#[Tags("lead", "pluck", "house", "instrument", "house")]
+component koda.house.housePluck version 1.0.0 current {
+  id "demo.koda.house.house-pluck"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(500), MaxValue(6000)]
+  property brightness: Int = 2600
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -9dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="square", attack="2 ms", decay="180 ms", sustain="10", release="120 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> delay(time=0.75beat, feedback=40%, mix=25%)
+      |> gain(level)
+  }
+}

@@ -70,7 +70,14 @@ dialog input[type="text"] { width: 100%; box-sizing: border-box; }
 #lite-demo-list { list-style: none; margin: 0; padding: 0; overflow: auto; display: grid; gap: 8px; }
 #lite-demo-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-s); }
 #lite-demo-list h3 { margin: 0; font-size: 14px; } #lite-demo-list p { margin: 0; color: var(--dim); font-size: 13px; grid-column: 1; }
-#lite-demo-list .meta { grid-column: 1; font-size: 11px; color: var(--dim); } #lite-demo-list button { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+#lite-demo-list .meta { grid-column: 1; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; font-size: 11px; color: var(--dim); }
+#lite-demo-list .pill { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); line-height: 1.6; white-space: nowrap; }
+#lite-demo-list .pill.cat { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 55%, var(--line)); background: color-mix(in srgb, var(--acc) 12%, transparent); font-weight: 600; }
+#lite-demo-list .pill.level.beginner { color: #7ed56f; border-color: color-mix(in srgb, #7ed56f 50%, var(--line)); }
+#lite-demo-list .pill.level.intermediate { color: #ffd166; border-color: color-mix(in srgb, #ffd166 50%, var(--line)); }
+#lite-demo-list .pill.level.advanced { color: #ff7ac6; border-color: color-mix(in srgb, #ff7ac6 50%, var(--line)); }
+#lite-demo-list .pill.tag { background: var(--panel); }
+#lite-demo-list li:hover { border-color: var(--acc); } #lite-demo-list button { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
 #lite-roll { width: min(1600px, 98vw); height: 94vh; max-width: none; max-height: none; padding: 14px 16px; box-sizing: border-box; } #lite-roll[open] { display: flex; flex-direction: column; gap: 10px; }
 .lite-roll-head, .lite-roll-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; } .lite-roll-head h2 { margin: 0 6px 0 0; font-size: 17px; }
 .lite-roll-field { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; } .lite-roll-field select, .lite-roll-field input { text-transform: none; letter-spacing: 0; font-size: 14px; }

@@ -1,0 +1,44 @@
+composition "Delay Llama" { ample 1  tempo 84  master-seed 20261025 }
+
+# A slow chant in A minor sung by the delay-llama block. auto(bar:value, ...) moves a value over the song:
+# the vowel goes from u to a and back, the mouth opens and closes.
+midi-clip chant at 1 for 8 {
+  bars 8
+  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 2:3:1:62:96 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90 5:0:2:57:100 5:2:2:64:106 6:0:4:69:112;bend=-300 7:0:2:67:100 7:2:2:64:96 8:0:4:57:104
+}
+
+delay-llama llama {
+  vowel auto(1:100, 3:30, 5:0, 7:60, 9:100)
+  mouth auto(1:15, 3:85, 6:95, 8:40, 9:20)
+  voice 40
+  glide 160 ms
+  vibrato 40%
+  unison 3
+  echo 30%
+  gain -4 dB
+  from chant.notes -> notes
+}
+
+midi-clip pad-notes at 1 for 8 {
+  bars 8
+  chords "Am F C G Am F G Am"
+}
+
+synth pad at 1 for 8 {
+  wave saw
+  attack 600 ms
+  release 900 ms
+  cutoff 1400 Hz
+  gain -16 dB
+  from pad-notes.notes -> notes
+}
+
+mixer demo {
+  inputs 4
+  from llama.audio -> audio1
+  from pad.audio -> audio2
+}
+
+master out {
+  from demo.audio -> audio
+}

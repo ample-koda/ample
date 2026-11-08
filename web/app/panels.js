@@ -438,6 +438,12 @@ export function renderProps() {
     withJamIcon(lite);
     lite.onclick = () => openRoll(n.id);
     pad.append(el('div', { className: 'row' }, [lite, track]));
+    if (n.params.melody !== undefined || n.params.chords !== undefined) {
+      const words = n.params.chords !== undefined && n.params.melody === undefined ? 'chords' : 'melody';
+      const me = el('button', { type: 'button', className: 'primary', textContent: `Edit ${words}`, title: `Edit the ${words} of this clip on a roll, in notation or as a list. The ${words} line stays the source.` });
+      me.onclick = () => import('./melody-editor.js').then((m) => m.openMelodyEditor(n.id));
+      pad.append(el('div', { className: 'row' }, [me]));
+    }
   }
   // the Jam button of a Notes property: it opens in Jam as a clip of its own (the notes stay in the song as the value of that property)
   const jamButton = (p) => {

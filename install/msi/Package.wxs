@@ -9,11 +9,14 @@
   The installer starts nothing: no service, no network port, no sign-in.
   Build: install/msi/build-msi.ps1 (WiX 6). Variables: Version (a.b.c), SourceDir (the unpacked win-x64 folder).
 -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package Name="AMPLE" Manufacturer="AMPLE" Version="$(Version)" UpgradeCode="6f1d0a52-8a5e-4c43-9d1b-3c2f7e8b9a10"
            Scope="perUser" Language="1033" Compressed="yes" InstallerVersion="500">
     <SummaryInformation Description="AMPLE (beta): songs as reproducible text" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of AMPLE is already installed." />
+    <!-- An update or removal while the tray hub or a server runs: the installer closes them itself (the hub has no window to close, so it is ended) instead of asking the person to. -->
+    <util:CloseApplication Id="CloseHub" Target="Ample.Hub.exe" CloseMessage="yes" TerminateProcess="0" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseAmple" Target="ample.exe" CloseMessage="yes" TerminateProcess="0" RebootPrompt="no" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="ample.ico" SourceFile="ample.ico" />

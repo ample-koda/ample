@@ -1,0 +1,16 @@
+composition "sampled bass" { ample 1  tempo 90  master-seed 8 }
+
+midi-clip line at 1 for 4 {
+  melody "a1:1.5 a1:0.5 c2:1 e2:1 f1:1.5 f1:0.5 a1:1 c2:1 g1:1.5 g1:0.5 b1:1 d2:1 e1:2 e1:2"
+  bars 4
+}
+
+# "set" names a folder of the project that holds one recording per note (a1.wav, c2.wav ...). Without it the built-in 808 plays.
+bass b at 1 for 4 {
+  set samples/bass
+  from line.notes -> notes
+}
+
+master out {
+  from b.audio -> audio
+}

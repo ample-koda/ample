@@ -1,0 +1,459 @@
+composition "CinematicScore" { ample 1  tempo 100  master-seed 3117721176 }
+
+# A FANTASY SCORE: 50 bars at 100 BPM = 120 seconds, played by the General MIDI orchestra (MuseScore General).
+# Nothing in it is a long list of notes: a few small cells (a chord row, a theme, a bass line, a drum call)
+# are fed to the instruments, and each instrument is placed in the bars where it plays.
+#
+#    bars  1- 8   embers          cellos, violas, harp
+#    bars  9-24   banners rise    + the strings move, the horns carry the theme, kettle drums from bar 17
+#    bars 25-32   remembrance     the flute sings the theme high, the harp plays on
+#    bars 33-48   the mountain gate   everything, the theme doubled an octave up
+#    bars 49-50   hall decay      one last D minor chord
+#
+# TRY: change the tempo above (100) to 80 for a slower, heavier score or 120 for a march.
+# TRY: select a block and press the keyboard icon (Edit notes) to see its notes on a piano roll.
+# TRY: put "enabled off" in a block to hear the score without it (for example the horns).
+
+# ---- the cells: where the notes come from ---------------------------------------------------------
+
+# Eight chords of one bar each: D minor, B flat, F, C, G minor, A.
+# TRY: change a chord (Dm Dm Bb Bb F C Gm A), for example swap the Bb for Bbmaj7 or the last A for A7.
+midi-clip kingdom-harmony pinned@1.0 {
+  chords Dm Dm Bb Bb F C Gm A
+  bars 8
+}
+# The theme: name:length:velocity (a length of 1 is one beat). r is a rest.
+# TRY: raise a note by changing its name (d4 to e4), or make the velocity (the last number) louder.
+midi-clip kingdom-theme pinned@1.0 {
+  melody d4:2:78 a4:1:86 f4:1:80 e4:1:74 d4:3:82 f4:2:84 d4:1:78 bb3:1:72 c4:1:76 d4:3:86 a4:2:96 c5:1:94 a4:1:88 g4:2:84 e4:2:80 g4:1:86 a4:1:90 bb4:2:96 a4:3:94 r:1
+  bars 8
+}
+# The ground: one long low note per bar, the root of each chord.
+midi-clip ground pinned@1.0 {
+  melody d2:4:72 d2:4:66 bb1:4:74 bb1:4:68 f2:4:78 c2:4:74 g1:4:80 a1:4:84
+  bars 8
+}
+# The kettle drum call: a short rhythm that answers every chord.
+# TRY: take out a few notes (replace them with r:1) for a sparser, more distant drum.
+midi-clip kettle-call pinned@1.0 {
+  melody d2:1:96 r:1 d2:0.5:66 d2:0.5:76 a2:1:85 d2:1:100 r:2 a2:1:80 bb1:1:100 r:1 f2:1:78 bb1:1:85 bb1:1:96 r:2 f2:1:76 f2:1:100 r:1 c2:1:80 f2:1:88 c2:1:96 r:2 g2:1:80 g1:1:100 r:1 d2:0.5:72 d2:0.5:82 g1:1:96 a1:1:102 r:1 a1:0.5:70 a1:0.5:78 a1:0.5:86 a1:0.5:96
+  bars 8
+}
+
+# ---- note effects: the cells are turned into new notes before an instrument plays them ----------
+
+# The chords broken into eighth notes, up and down: this is what the strings that move play.
+# TRY: rate 1/16 for a faster shimmer, pattern up for a rising run, gate 90 for longer notes.
+arpeggiator woven-strings pinned@1.0 {
+  rate 1/8
+  pattern updown
+  gate 68
+  octaves 1
+  from kingdom-harmony.notes -> notes
+}
+# A little looseness, so that the strings do not sound like a machine (timing in ms, velocity in steps).
+# TRY: timing 30 and velocity 16 for a rougher ensemble, 0 and 0 for a perfect one.
+midi-humanize bow-motion pinned@1.0 {
+  velocity 9
+  timing 14
+  from woven-strings.notes -> notes
+}
+# The same chords an octave down (the violas) and the theme an octave up (the high strings).
+# TRY: -7 or -5 here for a fifth or a fourth below instead of an octave.
+transpose low-harmony pinned@1.0 {
+  semitones -12
+  from kingdom-harmony.notes -> notes
+}
+transpose soaring-theme pinned@1.0 {
+  semitones 12
+  from kingdom-theme.notes -> notes
+}
+
+# ---- the instruments: program is the General MIDI sound (42 cello, 48 string ensemble, 60 horn) ---
+# An instrument that plays in several parts of the song is one block per part, joined by a bus below.
+# TRY: change a program number: 40 violin, 56 trumpet, 71 clarinet, 73 flute, 46 harp, 47 timpani.
+
+# The cellos play the ground all the way through, a little softer in the first eight bars.
+gm cellos-1 pinned@1.0 at 1 for 8 {
+  file pack:musescore-general
+  program 42
+  gain -16 dB
+  channels stereo
+  from ground.notes -> notes
+}
+gm cellos-2 pinned@1.0 at 9 for 8 {
+  file pack:musescore-general
+  program 42
+  gain -12 dB
+  channels stereo
+  from ground.notes -> notes
+}
+gm cellos-3 pinned@1.0 at 17 for 8 {
+  file pack:musescore-general
+  program 42
+  gain -12 dB
+  channels stereo
+  from ground.notes -> notes
+}
+gm cellos-4 pinned@1.0 at 25 for 8 {
+  file pack:musescore-general
+  program 42
+  gain -12 dB
+  channels stereo
+  from ground.notes -> notes
+}
+gm cellos-5 pinned@1.0 at 33 for 8 {
+  file pack:musescore-general
+  program 42
+  gain -12 dB
+  channels stereo
+  from ground.notes -> notes
+}
+gm cellos-6 pinned@1.0 at 41 for 8 {
+  file pack:musescore-general
+  program 42
+  gain -12 dB
+  channels stereo
+  from ground.notes -> notes
+}
+# A bus adds the six parts of an instrument into one sound (the parts do not overlap in time).
+bus cellos pinned@1.0 {
+  inputs 6
+  gains 0 0 0 0 0 0
+  from cellos-1.audio -> audio1
+  from cellos-2.audio -> audio2
+  from cellos-3.audio -> audio3
+  from cellos-4.audio -> audio4
+  from cellos-5.audio -> audio5
+  from cellos-6.audio -> audio6
+}
+
+# The violas hold the chords an octave down, underneath everything.
+gm violas-1 pinned@1.0 at 1 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -20 dB
+  channels stereo
+  from low-harmony.notes -> notes
+}
+gm violas-2 pinned@1.0 at 9 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -16 dB
+  channels stereo
+  from low-harmony.notes -> notes
+}
+gm violas-3 pinned@1.0 at 17 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -16 dB
+  channels stereo
+  from low-harmony.notes -> notes
+}
+gm violas-4 pinned@1.0 at 25 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -16 dB
+  channels stereo
+  from low-harmony.notes -> notes
+}
+gm violas-5 pinned@1.0 at 33 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -16 dB
+  channels stereo
+  from low-harmony.notes -> notes
+}
+gm violas-6 pinned@1.0 at 41 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -16 dB
+  channels stereo
+  from low-harmony.notes -> notes
+}
+bus violas pinned@1.0 {
+  inputs 6
+  gains 0 0 0 0 0 0
+  from violas-1.audio -> audio1
+  from violas-2.audio -> audio2
+  from violas-3.audio -> audio3
+  from violas-4.audio -> audio4
+  from violas-5.audio -> audio5
+  from violas-6.audio -> audio6
+}
+
+# The moving strings (the broken chords) come in at bar 9, stop for the remembrance and return at the gate.
+# TRY: move one of these to another bar (at 9 to at 5) and hear the score grow earlier.
+gm string-motion-1 pinned@1.0 at 9 for 8 {
+  file pack:musescore-general
+  program 45
+  gain -12 dB
+  channels stereo
+  from bow-motion.notes -> notes
+}
+gm string-motion-2 pinned@1.0 at 17 for 8 {
+  file pack:musescore-general
+  program 45
+  gain -12 dB
+  channels stereo
+  from bow-motion.notes -> notes
+}
+gm string-motion-3 pinned@1.0 at 33 for 8 {
+  file pack:musescore-general
+  program 45
+  gain -12 dB
+  channels stereo
+  from bow-motion.notes -> notes
+}
+gm string-motion-4 pinned@1.0 at 41 for 8 {
+  file pack:musescore-general
+  program 45
+  gain -10 dB
+  channels stereo
+  from bow-motion.notes -> notes
+}
+bus string-motion pinned@1.0 {
+  inputs 4
+  gains 0 0 0 0
+  from string-motion-1.audio -> audio1
+  from string-motion-2.audio -> audio2
+  from string-motion-3.audio -> audio3
+  from string-motion-4.audio -> audio4
+}
+
+# The high strings sing the theme an octave up, only at the mountain gate.
+gm high-strings-1 pinned@1.0 at 33 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -12 dB
+  channels stereo
+  from soaring-theme.notes -> notes
+}
+gm high-strings-2 pinned@1.0 at 41 for 8 {
+  file pack:musescore-general
+  program 48
+  gain -12 dB
+  channels stereo
+  from soaring-theme.notes -> notes
+}
+bus high-strings pinned@1.0 {
+  inputs 4
+  gains 0 0 0 0
+  from high-strings-1.audio -> audio1
+  from high-strings-2.audio -> audio2
+}
+
+# The horns carry the theme itself, louder every time it comes round (-12, -8, -8, -6 dB).
+# TRY: gain -2 dB on the last one for a really heroic ending.
+gm french-horns-1 pinned@1.0 at 9 for 8 {
+  file pack:musescore-general
+  program 60
+  gain -12 dB
+  channels stereo
+  from kingdom-theme.notes -> notes
+}
+gm french-horns-2 pinned@1.0 at 17 for 8 {
+  file pack:musescore-general
+  program 60
+  gain -8 dB
+  channels stereo
+  from kingdom-theme.notes -> notes
+}
+gm french-horns-3 pinned@1.0 at 33 for 8 {
+  file pack:musescore-general
+  program 60
+  gain -8 dB
+  channels stereo
+  from kingdom-theme.notes -> notes
+}
+gm french-horns-4 pinned@1.0 at 41 for 8 {
+  file pack:musescore-general
+  program 60
+  gain -6 dB
+  channels stereo
+  from kingdom-theme.notes -> notes
+}
+bus french-horns pinned@1.0 {
+  inputs 4
+  gains 0 0 0 0
+  from french-horns-1.audio -> audio1
+  from french-horns-2.audio -> audio2
+  from french-horns-3.audio -> audio3
+  from french-horns-4.audio -> audio4
+}
+
+# Remembrance (bars 25-32): the horns rest and a flute sings the theme, high and alone.
+# TRY: program 71 (clarinet) or 68 (oboe) for another colour.
+gm remembrance-flute pinned@1.0 at 25 for 8 {
+  file pack:musescore-general
+  program 73
+  gain -10 dB
+  channels stereo
+  from soaring-theme.notes -> notes
+}
+# The harp plays the broken chords in the embers and again in the remembrance.
+gm harp-1 pinned@1.0 at 1 for 8 {
+  file pack:musescore-general
+  program 46
+  gain -14 dB
+  channels stereo
+  from bow-motion.notes -> notes
+}
+gm harp-2 pinned@1.0 at 25 for 8 {
+  file pack:musescore-general
+  program 46
+  gain -14 dB
+  channels stereo
+  from bow-motion.notes -> notes
+}
+bus harp pinned@1.0 {
+  inputs 4
+  gains 0 0 0 0
+  from harp-1.audio -> audio1
+  from harp-2.audio -> audio2
+}
+
+# The kettle drums enter at bar 17 and stay to the end.
+gm timpani-1 pinned@1.0 at 17 for 8 {
+  file pack:musescore-general
+  program 47
+  gain -8 dB
+  channels stereo
+  from kettle-call.notes -> notes
+}
+gm timpani-2 pinned@1.0 at 33 for 8 {
+  file pack:musescore-general
+  program 47
+  gain -8 dB
+  channels stereo
+  from kettle-call.notes -> notes
+}
+gm timpani-3 pinned@1.0 at 41 for 8 {
+  file pack:musescore-general
+  program 47
+  gain -8 dB
+  channels stereo
+  from kettle-call.notes -> notes
+}
+bus timpani pinned@1.0 {
+  inputs 4
+  gains 0 0 0 0
+  from timpani-1.audio -> audio1
+  from timpani-2.audio -> audio2
+  from timpani-3.audio -> audio3
+}
+
+# The last two bars: one D minor chord, left to ring out in the hall.
+midi-clip home-chord pinned@1.0 {
+  chords Dm
+  bars 1
+}
+gm home-strings pinned@1.0 at 49 for 2 {
+  file pack:musescore-general
+  program 48
+  gain -12 dB
+  channels stereo
+  from home-chord.notes -> notes
+}
+
+# ---- the room: mixing, space and the end of the song -----------------------------------------------
+
+# Seating, then separate spaces for the strings and the heroic brass.
+# pan: -100 is the far left, 100 the far right, c the centre; one number per input, in order.
+# TRY: gains are in dB: put -6 on the first input to push the cellos back, or swap two pan values.
+mixer strings-and-wood pinned@1.0 {
+  inputs 7
+  gains 0 0 0 0 0 0 0
+  pan 12 -15 -24 -18 22 -8 c
+  from cellos.audio -> audio1
+  from violas.audio -> audio2
+  from string-motion.audio -> audio3
+  from high-strings.audio -> audio4
+  from remembrance-flute.audio -> audio5
+  from harp.audio -> audio6
+  from home-strings.audio -> audio7
+}
+# A little warmth: low up, highs down (the cutoffs are in Hz).
+eq bow-warmth pinned@1.0 {
+  low 0.5 dB
+  mid -0.8 dB
+  high -2 dB
+  low_hz 220 Hz
+  high_hz 4500 Hz
+  from strings-and-wood.audio -> audio
+}
+# The wooden hall of the strings. TRY: mix 40% and decay 90% for a cathedral, mix 5% for a dry studio.
+reverb wood-hall pinned@1.0 {
+  size 82%
+  decay 73%
+  mix 23%
+  channels stereo
+  from bow-warmth.audio -> audio
+}
+mixer brass-and-kettles pinned@1.0 {
+  gains 0 -1 0 0
+  pan 9 0 c c
+  from french-horns.audio -> audio1
+  from timpani.audio -> audio2
+}
+eq bronze-warmth pinned@1.0 {
+  low -1 dB
+  mid 0.5 dB
+  high -2.5 dB
+  low_hz 180 Hz
+  high_hz 3800 Hz
+  from brass-and-kettles.audio -> audio
+}
+# The stone hall of the brass is bigger than the wooden one.
+reverb stone-hall pinned@1.0 {
+  size 88%
+  decay 78%
+  mix 18%
+  channels stereo
+  from bronze-warmth.audio -> audio
+}
+mixer orchestra pinned@1.0 {
+  gains 0 0 0 0
+  from wood-hall.audio -> audio1
+  from stone-hall.audio -> audio2
+}
+# Gentle coloration and glue; keep the percussion attacks and orchestral dynamics.
+# TRY: drive 8 dB and mix 30% to hear what the coloration does (then put it back).
+distortion amber pinned@1.0 {
+  mode soft
+  drive 2 dB
+  tone 8500 Hz
+  level -1 dB
+  mix 8%
+  from orchestra.audio -> audio
+}
+compressor orchestral-glue pinned@1.0 {
+  threshold -16 dB
+  ratio 1.4
+  attack 45 ms
+  release 280 ms
+  makeup 0 dB
+  from amber.audio -> audio
+}
+# Wider than the speakers. TRY: width 100 is the plain stereo picture, 150 is very wide.
+width stage pinned@1.0 {
+  width 112
+  from orchestral-glue.audio -> audio
+}
+# The fade out starts at 112 seconds and lasts 8.
+fade final-decay pinned@1.0 {
+  direction out
+  start 112s
+  length 8s
+  shape exp
+  from stage.audio -> audio
+}
+# The master sets the loudness (LUFS) and keeps the peaks under -1 dB.
+master master pinned@1.0 {
+  target -18 LUFS
+  limiter -1 dB
+  slice_from 1
+  slice_to 50
+  channels stereo
+  from final-decay.audio -> audio
+}

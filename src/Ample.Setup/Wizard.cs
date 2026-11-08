@@ -40,9 +40,9 @@ namespace Ample.Setup
         private Control healthPage;
         private Control actionsPage;
         private Control resultPage;
-        private readonly Button back = new Button();
-        private readonly Button next = new Button();
-        private readonly Button cancel = new Button();
+        private readonly Button back = new ThemedButton();
+        private readonly Button next = new ThemedButton();
+        private readonly Button cancel = new ThemedButton();
         private readonly RadioButton signInOff = new RadioButton();
         private readonly RadioButton signInStored = new RadioButton();
         private readonly RadioButton signInNew = new RadioButton();
@@ -335,13 +335,13 @@ namespace Ample.Setup
             Color colour = f.Level == "ok" ? Good : f.Level == "note" ? Warn : Bad;
             string glyph = f.Level == "ok" ? "✓" : f.Level == "note" ? "i" : "✕";
             string detail = f.Detail.Length > 70 ? f.Detail.Substring(0, 70) + "..." : f.Detail;
-            Panel row = new Panel { Width = 500, Height = f.Fix != null && f.Level != "ok" ? 48 : 24, Margin = new Padding(0, 0, 0, 2) };
+            Panel row = new Panel { Width = 500, Height = f.Fix != null && f.Level != "ok" ? 66 : 24, Margin = new Padding(0, 0, 0, 2) };
             row.Controls.Add(new Label { Text = glyph, ForeColor = colour, Font = new Font("Segoe UI Semibold", 10f), AutoSize = false, Size = new Size(20, 22), Location = new Point(0, 0) });
             row.Controls.Add(new Label { Text = f.Name + (detail.Length > 0 && f.Level != "ok" ? ": " + detail : ""), ForeColor = Ink, AutoSize = false, AutoEllipsis = true, Size = new Size(478, 22), Location = new Point(22, 1) });
             if (f.Fix != null && f.Level != "ok")
             {
                 string size = f.Fix.SizeMb > 0 ? " (about " + f.Fix.SizeMb + " MB)" : "";
-                CheckBox box = new CheckBox { Text = f.Fix.Title + size + (f.Fix.Admin ? "  [needs administrator permission]" : ""), Tag = f.Fix, AutoSize = false, Size = new Size(476, 22), Location = new Point(22, 24), ForeColor = f.Fix.Admin ? Warn : Ink, Checked = f.Fix.Kind == "pack" && f.Fix.Id == "soundfont" };
+                CheckBox box = new CheckBox { Text = f.Fix.Title + size + (f.Fix.Admin ? "  [needs administrator permission]" : ""), Tag = f.Fix, AutoSize = false, Size = new Size(476, 40), Location = new Point(22, 24), CheckAlign = ContentAlignment.TopLeft, TextAlign = ContentAlignment.TopLeft, ForeColor = f.Fix.Admin ? Warn : Ink, Checked = f.Fix.Kind == "pack" && f.Fix.Id == "soundfont" };
                 box.CheckedChanged += (s, e) => UpdateShield();
                 fixBoxes.Add(box);
                 row.Controls.Add(box);
@@ -473,6 +473,18 @@ namespace Ample.Setup
                 }
             }
             catch (Exception ex) { code = -1; return ex.Message; }
+        }
+    }
+
+    /// <summary>A flat button that stays readable when it is disabled (WinForms paints a disabled flat button dark grey on dark).</summary>
+    internal sealed class ThemedButton : Button
+    {
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            if (Enabled) { base.OnPaint(e); return; }
+            e.Graphics.Clear(Color.FromArgb(30, 28, 46));
+            using (Pen pen = new Pen(Color.FromArgb(70, 64, 104))) e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+            TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, Color.FromArgb(150, 146, 176), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
         }
     }
 }

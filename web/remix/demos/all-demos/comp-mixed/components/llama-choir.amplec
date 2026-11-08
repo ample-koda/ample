@@ -1,0 +1,49 @@
+/** A choir of llamas with a room around it: the notes go in, a chanting formant voice comes out, with unison, vibrato and a reverb. */
+#[DisplayName("Llama choir")]
+#[Category("Instruments")]
+#[Tags("llama", "voice", "choir", "formant", "instrument")]
+component koda.fx.llamaChoir version 1.0.0 current {
+  id "demo.koda.fx.llama-choir"
+
+  input notes: Notes
+
+  #[MinValue(0), MaxValue(100)]
+  property vowel: Int = 50
+
+  #[MinValue(0), MaxValue(100)]
+  property voice: Int = 50
+
+  #[DisplayName("Llamas"), MinValue(1), MaxValue(8)]
+  property unison: Int = 3
+
+  #[MinValue(0%), MaxValue(100%)]
+  property vibrato: Percent = 30%
+
+  #[MinValue(0%), MaxValue(100%)]
+  property room: Percent = 40%
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob vowel label "Vowel" size l tint pink
+      knob voice label "Size" size l
+      knob unison label "Llamas"
+    }
+    row {
+      knob vibrato tint teal
+      knob room tint blue
+    }
+    card {
+      knob vowel size s
+      knob unison size s
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> delay-llama(vowel=vowel, voice=voice, unison=unison, vibrato=vibrato)
+      |> reverb(size=room)
+  }
+}

@@ -71,7 +71,7 @@ public static partial class LitePolicy
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(limits);
         if (files.Count == 0) throw new LiteRejectedException("AMPL901", 400, "The project has no files.");
-        if (files.Count > limits.MaxFiles) throw new LiteRejectedException("AMPL902", 413, $"A Remix project has at most {limits.MaxFiles} files.");
+        if (files.Count > limits.FilesAccepted) throw new LiteRejectedException("AMPL902", 413, $"A Remix project has at most {limits.FilesAccepted} files.");
         long total = 0;
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
         foreach (LiteFile file in files)
@@ -85,7 +85,7 @@ public static partial class LitePolicy
             total += file.Data.LongLength;
         }
 
-        if (total > limits.MaxProjectBytes) throw new LiteRejectedException("AMPL906", 413, $"The project is {total / 1024 / 1024} MB; the most is {limits.MaxProjectBytes / 1024 / 1024} MB.");
+        if (total > limits.BytesAccepted) throw new LiteRejectedException("AMPL906", 413, $"The project is {total / 1024 / 1024} MB; the most is {limits.BytesAccepted / 1024 / 1024} MB.");
         string wanted = CleanPath(entry, limits);
         if (!string.Equals(System.IO.Path.GetExtension(wanted), ".amplet", StringComparison.OrdinalIgnoreCase)) throw new LiteRejectedException("AMPL907", 400, "The song to build must be a .amplet file.");
         if (!seen.Contains(wanted)) throw new LiteRejectedException("AMPL908", 400, $"The song \"{wanted}\" is not in the project.");

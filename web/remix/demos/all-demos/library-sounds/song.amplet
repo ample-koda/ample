@@ -1,0 +1,71 @@
+composition "library sounds" { ample 1  tempo 96  master-seed 21 }
+
+# SOUNDS THAT COME WITH REMIX. Besides the files of your project, a sound block can use the library of the server:
+# a name that starts with pack: (instead of a folder of your own). All of these are free to use (CC0, public domain).
+#
+#   drums   kit pack:free/virtuosity-drums/jazz-kit    a jazz kit (kick, snare, hat, open, pedal, ride, rim, tom, floor, crash)
+#           kit pack:free/big-rusty-drums/kit          a rough rock kit (kick, snare, hat, open, tom)
+#           kit pack:free/swirly-drums/kit             a big kit with many soft and hard hits
+#           kit pack:free/unruly-drums/kit             another big kit
+#   bass    set pack:free/meatbass/pizzicato           a plucked upright bass (also pizzicato-deep)
+#           set pack:free/growlybass/sustain           a growling bass that holds its notes
+#           set pack:free/black-and-blue-basses/babyblue   (and darkblack)
+#   piano   set pack:free/osiris-piano/upright         an upright piano
+#   guitar  set pack:free/emilyguitar/emily            a nylon guitar; the strum row below plays it
+#           set pack:free/shinyguitar/electric         an electric guitar
+#           set pack:free/black-and-green-guitars/green-electric
+#   also    pack:free/the-hat-with-the-phat/hihat, pack:free/frankensnare/snare, pack:free/vsco-2-ce (orchestra)
+#   and     file pack:musescore-general   the General MIDI orchestra, for the gm block (program 0 to 127)
+#
+# TRY: change one of the names below to another one from the list and press Build & play.
+
+# Four bars of a chord row: A minor, F, C, G.
+# TRY: swap a chord for Dm, Em or G7.
+midi-clip chords at 1 for 4 {
+  chords Am F C G
+  bars 4
+}
+
+# A walking bass line, one note a beat.
+# TRY: change a note name (a2 to c3) or the length (a number after the colon, in beats).
+midi-clip line at 1 for 4 {
+  melody "a2:1 a2:1 c3:1 e3:1 f2:1 f2:1 a2:1 c3:1 c3:1 c3:1 e3:1 g3:1 g2:1 g2:1 b2:1 d3:1"
+  bars 4
+}
+
+# A jazz kit from the library of the server: no files of your own needed.
+# TRY: kit pack:free/big-rusty-drums/kit for a rock sound (it has no ride or pedal: use hat and open instead).
+drums beat at 1 for 4 {
+  kit pack:free/virtuosity-drums/jazz-kit
+  pattern kick:x.......x....... snare:....x.......x... ride:x.xxx.xxx.xxx.xx
+  swing 30
+  humanize 12
+}
+
+# A plucked upright bass playing the line.
+# TRY: set pack:free/growlybass/sustain for a bass that holds its notes.
+bass walk at 1 for 4 {
+  set pack:free/meatbass/pizzicato
+  gain -4 dB
+  from line.notes -> notes
+}
+
+# An upright piano comping the chords.
+# TRY: set pack:free/osiris-piano/upright is the only piano; try gain -12 dB to put it further back.
+piano keys at 1 for 4 {
+  set pack:free/osiris-piano/upright
+  gain -8 dB
+  from chords.notes -> notes
+}
+
+mixer band {
+  inputs 4
+  gains "0 0 0 0"
+  from beat.audio -> audio1
+  from walk.audio -> audio2
+  from keys.audio -> audio3
+}
+
+master out {
+  from band.audio -> audio
+}

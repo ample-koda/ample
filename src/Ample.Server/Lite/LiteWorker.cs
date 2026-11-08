@@ -64,7 +64,7 @@ public static class LiteWorker
         string entry = reader.ReadString();
         LiteLimits limits = JsonSerializer.Deserialize<LiteLimits>(reader.ReadString(), Json) ?? LiteLimits.Default;
         int count = reader.ReadInt32();
-        if (count < 0 || count > limits.MaxFiles + 8) return 2;
+        if (count < 0 || count > limits.FilesAccepted + 8) return 2;
         List<LiteFile> files = new(count);
         long total = 0;
         for (int i = 0; i < count; i++)
@@ -72,7 +72,7 @@ public static class LiteWorker
             string path = reader.ReadString();
             int length = reader.ReadInt32();
             total += length;
-            if (length < 0 || total > limits.MaxProjectBytes + (1024 * 1024)) return 2;
+            if (length < 0 || total > limits.BytesAccepted + (1024 * 1024)) return 2;
             files.Add(new LiteFile(path, reader.ReadBytes(length)));
         }
 

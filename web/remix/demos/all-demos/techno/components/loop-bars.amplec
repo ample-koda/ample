@@ -1,0 +1,25 @@
+/** Repeats a pattern one bar count after another: a one-bar riff becomes a whole section. */
+#[DisplayName("Loop bars")]
+#[Category("Techno")]
+#[Tags("loop", "repeat", "arrangement", "techno")]
+component koda.techno.loopBars version 1.0.0 current {
+  id "demo.koda.techno.loop-bars"
+
+  input source: Notes
+
+  #[DisplayName("Times"), MinValue(1), MaxValue(64), Step(1)]
+  property times: Int = 8
+
+  output notes: Notes
+
+  ui {
+    knob times tint teal
+    card {
+      knob times size s tint teal
+    }
+  }
+
+  process {
+    emit source |> repeat(times)
+  }
+}

@@ -1,0 +1,35 @@
+composition "seeded" { ample 1  tempo 100  master-seed 7 }
+
+# The notes are not written: they are made. walk() steps over a scale, euclid() spreads hits over a bar.
+# Change a seed (seed=7) and you get another piece; build again with the same seed and you get exactly the same one.
+midi-clip tune at 1 for 8 {
+  notes walk(D, minor, steps=32, step=1beat, octave=4, range=3, velocity=90, seed=7)
+}
+
+midi-clip pulse at 1 for 8 {
+  notes euclid(5, 16, pitch=38, step=0.25beat, velocity=100) |> repeat(8)
+}
+
+synth lead at 1 for 8 {
+  wave triangle
+  release 400 ms
+  from tune.notes -> notes
+}
+
+synth bass at 1 for 8 {
+  wave square
+  cutoff 900 Hz
+  release 80 ms
+  from pulse.notes -> notes
+}
+
+mixer mix {
+  inputs 4
+  gains "-4 -9 0 0"
+  from lead.audio -> audio1
+  from bass.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

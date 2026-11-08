@@ -1,0 +1,22 @@
+composition "automation" { ample 1  tempo 110  master-seed 14 }
+
+midi-clip tune at 1 for 4 {
+  melody "a3:0.5 c4:0.5 e4:0.5 a4:0.5 g4:1 e4:1 f3:0.5 a3:0.5 c4:0.5 f4:0.5 e4:1 c4:1 g3:0.5 b3:0.5 d4:0.5 g4:0.5 f4:1 d4:1 e3:2 b3:2"
+  bars 4
+}
+
+synth lead at 1 for 4 {
+  wave square
+  cutoff auto(1:600, 3:6000, 5:600)
+  gain auto(1:-18, 2:-8, 5:-8)
+  from tune.notes -> notes
+}
+
+pan swing {
+  pan auto(1:-80, 3:80, 5:-80)
+  from lead.audio -> audio
+}
+
+master out {
+  from swing.audio -> audio
+}

@@ -1,0 +1,120 @@
+composition "Mozart K525 - the exposition" { ample 1  tempo 144  master-seed 525144 }
+
+# MOZART: Eine kleine Nachtmusik (K525), first movement, the exposition: 55 bars, about a minute and a half, for a string quintet (two violins, viola, cello, double bass).
+# The notes are not typed one by one: a sequencer block plays a .ampleseq file (mozart.ampleseq: named patterns and a playlist of them) and gives every voice its own lane.
+# Each voice then has its own eq and seat in the room (a pan), they meet in one mixer, a small chamber reverb and the master.
+# Score: Mozart K525 I, Breitkopf and Hartel 1883; Mutopia 2230, typeset Mike Blackstock, public domain. Sounds: MuseScore General (MIT).
+# The performance (small timing offsets, accents, bow lengths) is written into the .ampleseq with a fixed seed, so it plays the same every time.
+
+# Opening call and rising answer: violin-i.
+
+eq violin-i-tone {
+  low -1 dB
+  mid 0.4 dB
+  high -1.8 dB
+  low_hz 250 Hz
+  high_hz 3200 Hz
+  from score.lane1 -> audio
+}
+
+pan violin-i-seat {
+  pan -12
+  from violin-i-tone.render -> render
+}
+
+# Opening call and rising answer: violin-ii.
+
+eq violin-ii-tone {
+  low -1.4 dB
+  mid 0 dB
+  high -2.6 dB
+  low_hz 250 Hz
+  high_hz 3200 Hz
+  from score.lane2 -> audio
+}
+
+pan violin-ii-seat {
+  pan -5
+  from violin-ii-tone.render -> render
+}
+
+# Opening call and rising answer: viola.
+
+eq viola-tone {
+  low 0.5 dB
+  mid -0.6 dB
+  high -2.4 dB
+  low_hz 250 Hz
+  high_hz 3200 Hz
+  from score.lane3 -> audio
+}
+
+pan viola-seat {
+  pan 7
+  from viola-tone.render -> render
+}
+
+# Opening call and rising answer: cello.
+
+eq cello-tone {
+  low 0.4 dB
+  mid 0.5 dB
+  high -1.2 dB
+  low_hz 250 Hz
+  high_hz 3200 Hz
+  from score.lane4 -> audio
+}
+
+pan cello-seat {
+  pan 12
+  from cello-tone.render -> render
+}
+
+# Opening call and rising answer: bass.
+
+eq bass-tone {
+  low -2 dB
+  mid 0 dB
+  high -2 dB
+  low_hz 250 Hz
+  high_hz 3200 Hz
+  from score.lane5 -> audio
+}
+
+pan bass-seat {
+  pan 3
+  from bass-tone.render -> render
+}
+
+# Central ensemble balance; lower strings support the upper-string gesture.
+mixer ensemble {
+  inputs 5
+  gains 5 5 5 5 3
+  pan c c c c c
+  from violin-i-seat.audio -> audio1
+  from violin-ii-seat.audio -> audio2
+  from viola-seat.audio -> audio3
+  from cello-seat.audio -> audio4
+  from bass-seat.audio -> audio5
+}
+
+# One modest acoustic space; direct articulation remains prominent.
+reverb chamber {
+  size 32%
+  decay 28%
+  mix 13%
+  from ensemble.audio -> audio
+}
+
+master master {
+  target -20 LUFS
+  limiter -2 dB
+  slice_from 1
+  slice_to 55
+  from chamber.audio -> audio
+}
+
+sequencer score {
+  file mozart/mozart.ampleseq
+  lanes lane1=violin1 lane2=violin2 lane3=viola lane4=cello lane5=bass
+}

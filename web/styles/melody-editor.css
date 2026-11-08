@@ -1,0 +1,83 @@
+/* The melody and chords editor (web/app/melody-editor.js): colours only from the theme tokens, so it follows every theme. The window itself is the Jam window (pianoroll-lite.css). */
+.me-panel{flex-direction:column}
+.me-toolbar{gap:6px}
+.me-toolbar .sp{flex:1}
+.me-toolbar label{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.me-seg{display:inline-flex;margin:0 4px}
+.me-seg button{border-radius:0;margin:0}
+.me-seg button:first-child{border-radius:var(--r-s) 0 0 var(--r-s)}
+.me-seg button:last-child{border-radius:0 var(--r-s) var(--r-s) 0}
+.me-seg button[aria-pressed="true"]{background:var(--acc);color:var(--on-accent);border-color:transparent}
+.me-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 230px}
+@media(max-width:820px){.me-main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}}
+.me-stage{display:flex;flex-direction:column;min-width:0;min-height:0}
+.me-body{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--panel3)}
+.me-scroll{flex:1;min-height:0;overflow:auto}
+.me-velwrap{overflow-x:auto;border-top:1px solid var(--line);background:var(--panel3)}
+.me-text{display:flex;gap:10px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);background:var(--panel2);font-family:Consolas,monospace;font-size:12px;flex-wrap:wrap}
+.me-text code{color:var(--acc)}
+.me-text .me-val{flex:1;min-width:0;word-break:break-all}
+.me-text button{width:auto;margin:0;padding:2px 9px}
+.me-insp{border-left:1px solid var(--line);background:var(--panel);padding:10px 12px;overflow:auto;display:grid;gap:6px;align-content:start}
+@media(max-width:820px){.me-insp{border-left:0;border-top:1px solid var(--line);max-height:40%}}
+.me-insp h4{margin:6px 0 2px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);font-weight:600}
+.me-f{display:grid;grid-template-columns:70px minmax(0,1fr);gap:6px;align-items:center}
+.me-f span{color:var(--dim)}
+.me-f input,.me-f select{width:100%;min-width:0;margin:0}
+.me-acts{display:flex;flex-wrap:wrap;gap:6px}
+.me-acts button{width:auto;margin:0;padding:3px 9px}
+.me-dim{color:var(--dim);font-size:12px;margin:2px 0}
+.me-problem{padding:18px;color:var(--warn)}
+/* roll */
+.me-roll .row{fill:var(--panel3)}
+.me-roll .row.black{fill:var(--panel2)}
+.me-roll .key{fill:#dfe1ee;stroke:#000;stroke-width:.5}
+.me-roll .key.black{fill:#1a1b24}
+.me-roll .keylabel{fill:#333;font-size:10px}
+.me-roll .gl{stroke:var(--line);stroke-opacity:.45}
+.me-roll .gl.beat{stroke-opacity:.8}
+.me-roll .gl.bar{stroke:var(--dim);stroke-opacity:.7}
+.me-roll .barlabel,.me-vel .barlabel{fill:var(--dim);font-size:11px}
+.me-roll .mark{fill:var(--warn);font-size:11px;font-style:italic}
+.me-roll .hit{cursor:crosshair}
+.me-roll .hit.tool-select,.me-roll .hit.tool-erase{cursor:default}
+.me-roll .note{cursor:grab}
+.me-roll .note rect:first-child{fill:var(--acc);stroke:var(--on-accent);stroke-opacity:.45}
+.me-roll .note.sel rect:first-child{fill:var(--acc);stroke:var(--text);stroke-width:2}
+.me-roll .nlabel{fill:var(--on-accent);font-size:10px;font-weight:600;pointer-events:none}
+.me-roll .edge{cursor:ew-resize}
+.me-roll .head,.me-vel .head{stroke:var(--warn);stroke-width:2;pointer-events:none}
+.me-vel .vbar{fill:var(--acc);cursor:ns-resize;opacity:.75}
+.me-vel .vbar.sel{fill:var(--text);opacity:1}
+/* notation */
+.me-staff .stl{stroke:var(--dim)}
+.me-staff .clef{fill:var(--text);font-size:60px}
+.me-staff .nhead{fill:var(--acc);stroke:var(--acc);stroke-width:2;cursor:pointer}
+.me-staff .nhead.open{fill:none}
+.me-staff .nhead.sel{stroke:var(--text)}
+.me-staff .nstem{stroke:var(--acc);stroke-width:2}
+.me-staff .acc{fill:var(--warn);font-size:15px}
+/* list */
+.me-list{width:100%;border-collapse:collapse}
+.me-list th{position:sticky;top:0;background:var(--panel2);color:var(--dim);font-weight:500;text-align:left;padding:5px 10px}
+.me-list td{padding:4px 10px;border-top:1px solid var(--line)}
+.me-list tr{cursor:pointer}
+.me-list tr.sel td{background:color-mix(in srgb,var(--acc) 18%,transparent)}
+/* chords */
+.me-chords{padding:14px;display:grid;gap:14px;overflow:auto}
+.me-ribbon{display:flex;gap:6px;flex-wrap:wrap}
+.me-cb{flex:1 1 84px;min-width:72px;max-width:150px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center;cursor:pointer;display:grid;gap:1px;margin:0;width:auto}
+.me-cb b{font-size:16px;color:var(--acc)}
+.me-cb small{color:var(--dim)}
+.me-cb i{font-style:normal;font-size:10px;color:var(--dim);opacity:.7}
+.me-cb.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.me-cb.over{outline:2px dashed var(--acc);outline-offset:2px}
+.me-cb.playing{border-color:var(--warn);box-shadow:0 0 0 2px var(--warn) inset;background:color-mix(in srgb,var(--warn) 14%,var(--panel2))}
+.me-roll .note.playing rect:first-child{fill:var(--warn);stroke:var(--text);stroke-width:2}
+.me-list tr.playing td{background:color-mix(in srgb,var(--warn) 25%,transparent)}
+.me-cb.add{flex:0 0 48px;min-width:48px;font-size:20px;color:var(--dim)}
+.me-kb{display:flex;height:84px;overflow-x:auto}
+.me-kb i{width:30px;flex:none;border:1px solid #000;background:#e3e5f1;border-radius:0 0 5px 5px;cursor:pointer}
+.me-kb i.b{background:#1a1b24;height:52px;width:20px;margin:0 -10px;z-index:1}
+.me-kb i.lit{background:var(--acc)}
+.me-hint{color:var(--dim);margin:0;font-size:12px}

@@ -59,9 +59,9 @@ export const sendPlan = (files, missing) => {
 export function checkBuild(entry, files, limits = DEFAULT_LIMITS) {
   const problems = [];
   if (!files.some((f) => f.path === entry)) problems.push(`The song "${entry}" is not in the project.`);
-  if (files.length > limits.maxFiles) problems.push(`A Remix project has at most ${limits.maxFiles} files.`);
+  if (files.length > Math.max(limits.maxFiles, limits.buildMaxFiles ?? 0)) problems.push(`A Remix project has at most ${Math.max(limits.maxFiles, limits.buildMaxFiles ?? 0)} files.`);
   const total = files.reduce((sum, f) => sum + (f.blob ? f.blob.size : new TextEncoder().encode(f.text).length), 0);
-  if (total > limits.maxProjectBytes) problems.push(`The files of this build are ${Math.ceil(total / 1024 / 1024)} MB; the most is ${Math.floor(limits.maxProjectBytes / 1024 / 1024)} MB.`);
+  if (total > Math.max(limits.maxProjectBytes, limits.buildMaxProjectBytes ?? 0)) problems.push(`The files of this build are ${Math.ceil(total / 1024 / 1024)} MB; the most is ${Math.floor(Math.max(limits.maxProjectBytes, limits.buildMaxProjectBytes ?? 0) / 1024 / 1024)} MB.`);
   return problems;
 }
 

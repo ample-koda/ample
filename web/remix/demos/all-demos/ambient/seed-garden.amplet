@@ -1,0 +1,114 @@
+composition "generative ambient" { ample 1  tempo 60  master-seed 60 }
+
+# GENERATIVE AMBIENT: generative ambient (seeded random walk), 32 bars at 60 BPM (2:08), made of custom components.
+#
+#   bars  1- 8  bud
+#   bars  9-24  bloom
+#   bars 25-32  rest
+#
+# Components (techno-style: Notes components arrange the riffs, instruments are Notes in / sound out, the rest are audio components): loopBars, arrange, walkBells, walkLead, gardenPad, gardenSub, master.
+import "ambient/components/loop-bars.amplec"
+import "ambient/components/arrange.amplec"
+import "ambient/components/walk-bells.amplec"
+import "ambient/components/walk-lead.amplec"
+import "ambient/components/garden-pad.amplec"
+import "ambient/components/garden-sub.amplec"
+import "ambient/components/master.amplec"
+
+# ------------------------------------------------------------------ riffs, loops and the arrangement of every instrument
+midi-clip walkBellsRiff at 1 for 8 {
+  notes walk(C, major, steps=24, step=1beat, octave=5, range=7, seed=5) |> humanize(timing=12ms, velocity=8, seed=6)
+}
+
+koda.genambient.loopBars walkBellsLoop1 at 1 for 24 {
+  times 3
+  from walkBellsRiff.notes -> source
+}
+
+koda.genambient.arrange walkBellsPlan at 1 for 32 {
+  s1 8bar
+  from walkBellsLoop1.notes -> p1
+}
+
+koda.genambient.walkBells walkBells at 1 for 32 {
+  from walkBellsPlan.notes -> notes
+}
+
+midi-clip walkLeadRiff at 1 for 8 {
+  notes walk(E, major, steps=12, step=2beat, octave=4, range=5, seed=9)
+}
+
+koda.genambient.loopBars walkLeadLoop1 at 1 for 16 {
+  times 2
+  from walkLeadRiff.notes -> source
+}
+
+koda.genambient.arrange walkLeadPlan at 1 for 32 {
+  s1 8bar
+  from walkLeadLoop1.notes -> p1
+}
+
+koda.genambient.walkLead walkLead at 1 for 32 {
+  from walkLeadPlan.notes -> notes
+}
+
+midi-clip gardenPadRiff at 1 for 8 {
+  notes 1:0:4:48:70;tie=1 2:0:4:48:70;tie=1 1:0:4:52:70;tie=2 2:0:4:52:70;tie=2 1:0:4:55:70;tie=3 2:0:4:55:70;tie=3 1:0:4:59:70;tie=4 2:0:4:59:70;tie=4 1:0:4:62:70;tie=5 2:0:4:62:70;tie=5 3:0:4:57:70;tie=6 4:0:4:57:70;tie=6 3:0:4:60:70;tie=7 4:0:4:60:70;tie=7 3:0:4:64:70;tie=8 4:0:4:64:70;tie=8 3:0:4:67:70;tie=9 4:0:4:67:70;tie=9 3:0:4:71:70;tie=10 4:0:4:71:70;tie=10 5:0:4:53:70;tie=11 6:0:4:53:70;tie=11 5:0:4:57:70;tie=12 6:0:4:57:70;tie=12 5:0:4:60:70;tie=13 6:0:4:60:70;tie=13 5:0:4:64:70;tie=14 6:0:4:64:70;tie=14 5:0:4:67:70;tie=15 6:0:4:67:70;tie=15 7:0:4:55:70;tie=16 8:0:4:55:70;tie=16 7:0:4:57:70;tie=17 8:0:4:57:70;tie=17 7:0:4:62:70;tie=18 8:0:4:62:70;tie=18
+}
+
+koda.genambient.loopBars gardenPadLoop1 at 1 for 32 {
+  times 4
+  from gardenPadRiff.notes -> source
+}
+
+koda.genambient.arrange gardenPadPlan at 1 for 32 {
+  s1 0bar
+  from gardenPadLoop1.notes -> p1
+}
+
+koda.genambient.gardenPad gardenPad at 1 for 32 {
+  from gardenPadPlan.notes -> notes
+}
+
+midi-clip gardenSubRiff at 1 for 8 {
+  notes 1:0:4:24:90 2:0:4:24:90 3:0:4:33:90 4:0:4:33:90 5:0:4:29:90 6:0:4:29:90 7:0:4:31:90 8:0:4:31:90
+}
+
+koda.genambient.loopBars gardenSubLoop1 at 1 for 24 {
+  times 3
+  from gardenSubRiff.notes -> source
+}
+
+koda.genambient.arrange gardenSubPlan at 1 for 32 {
+  s1 8bar
+  from gardenSubLoop1.notes -> p1
+}
+
+koda.genambient.gardenSub gardenSub at 1 for 32 {
+  from gardenSubPlan.notes -> notes
+}
+
+# ------------------------------------------------------------------ the music
+mixer music {
+  inputs 4
+  gains "-8 -10 -6 -9"
+  from walkBells.audio -> audio1
+  from walkLead.audio -> audio2
+  from gardenPad.audio -> audio3
+  from gardenSub.audio -> audio4
+}
+
+# ------------------------------------------------------------------ the mix
+mixer final {
+  inputs 4
+  gains "9 0 0 0"
+  from music.audio -> audio1
+}
+
+koda.genambient.master finish {
+  from final.audio -> audio
+}
+
+master out {
+  from finish.audio -> audio
+}

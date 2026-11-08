@@ -1,0 +1,37 @@
+/** Notes in, a wide slow pad out. */
+#[DisplayName("Liquid pad")]
+#[Category("Drum and bass")]
+#[Tags("pad", "dnb", "instrument", "dnb")]
+component koda.dnb.dnbPad version 1.0.0 current {
+  id "demo.koda.dnb.dnb-pad"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(300), MaxValue(5000)]
+  property brightness: Int = 1600
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -10dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint purple
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint purple
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="800 ms", decay="400 ms", sustain="80", release="1200 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> reverb(size=80%, decay=70%, mix=35%)
+      |> gain(level)
+  }
+}

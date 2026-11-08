@@ -1,0 +1,35 @@
+composition "filters" { ample 1  tempo 120  master-seed 12 }
+
+midi-clip chords at 1 for 8 {
+  chords Am F C G Am F G E
+  bars 8
+}
+
+synth pad at 1 for 8 {
+  wave saw
+  attack 80 ms
+  release 300 ms
+  cutoff 9000 Hz
+  from chords.notes -> notes
+}
+
+# lfo_rate is a note length (1/4 = a quarter note), lfo_depth how many octaves the cutoff moves.
+filter wobble {
+  type lowpass
+  cutoff 900 Hz
+  lfo_rate 1/4
+  lfo_depth 1.5 oct
+  lfo_shape triangle
+  from pad.audio -> audio
+}
+
+# auto(bar:value, ...) writes a curve over the bars (whole numbers, the unit is the one of the parameter): the cutoff opens from 300 Hz to 5000 Hz over the 8 bars.
+filter open {
+  type lowpass
+  cutoff auto(1:300, 9:5000)
+  from wobble.audio -> audio
+}
+
+master out {
+  from open.audio -> audio
+}

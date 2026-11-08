@@ -1,0 +1,24 @@
+import "comp-nesting/components/octave-layers.amplec"
+import "comp-nesting/components/echo-notes.amplec"
+
+/** A fanfare made of two other components: the notes are stacked in octaves, and the stack echoes upward. A Notes component calls another one like a function. */
+#[DisplayName("Fanfare")]
+#[Category("Notes")]
+#[Tags("nested", "layers", "echo", "fanfare")]
+component koda.notes.fanfare version 1.0.0 current {
+  id "demo.koda.notes.fanfare"
+
+  input source: Notes
+
+  #[MinValue(1), MaxValue(4), Step(1)]
+  property layers: Int = 2
+
+  #[MinValue(1), MaxValue(8), Step(1)]
+  property plays: Int = 3
+
+  output notes: Notes
+
+  process {
+    emit koda.notes.echoNotes(koda.notes.octaveLayers(source, layers=layers), plays=plays, interval=2)
+  }
+}

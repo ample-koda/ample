@@ -202,6 +202,24 @@ body.alive:has(.pv.playing) .logo b{transform:scale(calc(1 + var(--lvl) * .3))}
   h1{font-size:28px}.hero h1{font-size:32px}
   pre,table,.pv,.note,.cards{max-width:100%}
   table{display:block;overflow-x:auto}
+  table.paramtable{display:block;overflow:visible;max-width:100%}
+  table.paramtable tbody{display:block}
+  table.paramtable tr{display:block;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 10px;background:var(--panel2)}
+  table.paramtable tr:first-child{display:none}
+  table.paramtable td{display:block;border:0;padding:2px 0;min-width:0;overflow-wrap:anywhere;white-space:normal}
+  table.paramtable td:empty{display:none}
+  table.paramtable td:nth-child(2):not(:empty)::before{content:"Default ";opacity:.65;font-size:12px}
+  table.paramtable td:nth-child(3):not(:empty)::before{content:"Range ";opacity:.65;font-size:12px}
+  table.paramtable td:nth-child(4){margin-top:4px;opacity:.9}
+  .pv-srcbar{flex-wrap:wrap;gap:6px 10px}
+  table.rowcards{display:block;overflow:visible;max-width:100%}
+  table.rowcards tbody{display:block}
+  table.rowcards tr{display:block;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 10px;background:var(--panel2)}
+  table.rowcards tr:first-child{display:none}
+  table.rowcards td{display:block;border:0;padding:2px 0;min-width:0;overflow-wrap:anywhere;white-space:normal}
+  table.rowcards td:empty{display:none}
+  table.rowcards td:first-child,table.rowcards td:last-child{white-space:normal!important}
+  table.rowcards td[data-label]::before{content:attr(data-label) " ";opacity:.65;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
 }
 @media(max-width:400px){.logo{font-size:0;gap:0}.logo b{font-size:16px}}
 

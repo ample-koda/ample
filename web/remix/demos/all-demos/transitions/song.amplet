@@ -1,0 +1,238 @@
+composition "transitions" { ample 1  tempo 124  master-seed 9 }
+
+# TRANSITIONS: 24 bars at 124 BPM about the moves between sections, built from effects on audio (the notes are four short riffs, about 60 notes, repeated by a loop component).
+#
+#   bars  1-16  the groove (keys, bass and drums; the lead joins at bar 9)
+#   bar   8     a REVERSED reverb tail of an open hat swells into the downbeat of bar 9
+#   bars 13-16  the lead slides from clean to bit-crushed with a CROSSFADE
+#   bar  16.5   a DJ REWIND: the music stops, a scratch is heard, and it jumps back
+#   bars 17-20  the break: only a pad, smeared into clouds by GRANULAR synthesis, panned by an auto-pan
+#   bars 21-24  the groove comes back and is FADED out
+import "transitions/components/loop.amplec"
+
+midi-clip changes at 1 for 4 {
+  # Am F C G, a chord a bar, as two held notes
+  notes 1:0:2:57:80 1:2:1.5:57:70 1:0:2:60:80 1:2:1.5:60:70 1:0:2:64:80 1:2:1.5:64:70 2:0:2:53:80 2:2:1.5:53:70 2:0:2:57:80 2:2:1.5:57:70 2:0:2:60:80 2:2:1.5:60:70 3:0:2:55:80 3:2:1.5:55:70 3:0:2:60:80 3:2:1.5:60:70 3:0:2:64:80 3:2:1.5:64:70 4:0:2:55:80 4:2:1.5:55:70 4:0:2:59:80 4:2:1.5:59:70 4:0:2:62:80 4:2:1.5:62:70
+}
+
+midi-clip bassRiff at 1 for 4 {
+  notes 1:0:0.75:45:100 1:1:0.5:45:88 1:1.5:0.5:57:92 1:2.5:0.5:45:90 1:3:0.75:52:92 2:0:0.75:41:100 2:1:0.5:41:88 2:1.5:0.5:53:92 2:2.5:0.5:41:90 2:3:0.75:48:92 3:0:0.75:48:100 3:1:0.5:48:88 3:1.5:0.5:60:92 3:2.5:0.5:48:90 3:3:0.75:55:92 4:0:0.75:43:100 4:1:0.5:43:88 4:1.5:0.5:55:92 4:2.5:0.5:43:90 4:3:0.75:50:92
+}
+
+midi-clip tune at 1 for 4 {
+  notes 1:0:1.5:76:98 1:1.5:0.5:74:90 1:2:2:72:96 2:0:1:69:92 2:1:1:72:92 2:2:2:76:98 3:0:1.5:77:98 3:1.5:0.5:76:90 3:2:2:72:96 4:0:2:71:94 4:2:2:67:90
+}
+
+midi-clip padChords at 1 for 4 {
+  notes 1:0:4:45:70 1:0:4:48:70 1:0:4:52:70 2:0:4:41:70 2:0:4:45:70 2:0:4:48:70 3:0:4:43:70 3:0:4:48:70 3:0:4:52:70 4:0:4:43:70 4:0:4:47:70 4:0:4:50:70
+}
+
+koda.demo.loop keysLoopA at 1 for 16 {
+  times 4
+  from changes.notes -> source
+}
+
+koda.demo.loop keysLoopB at 21 for 4 {
+  times 1
+  from changes.notes -> source
+}
+
+koda.demo.loop bassLoopA at 1 for 16 {
+  times 4
+  from bassRiff.notes -> source
+}
+
+koda.demo.loop bassLoopB at 21 for 4 {
+  times 1
+  from bassRiff.notes -> source
+}
+
+koda.demo.loop leadLoopA at 9 for 8 {
+  times 2
+  from tune.notes -> source
+}
+
+koda.demo.loop leadLoopB at 21 for 4 {
+  times 1
+  from tune.notes -> source
+}
+
+koda.demo.loop padLoop at 17 for 4 {
+  times 1
+  from padChords.notes -> source
+}
+
+# ------------------------------------------------------------------ the groove (bars 1-16)
+synth keysA at 1 for 16 {
+  wave triangle
+  attack 15 ms
+  release 400 ms
+  detune 7
+  cutoff 3400 Hz
+  gain -11
+  from keysLoopA.notes -> notes
+}
+
+synth bassA at 1 for 16 {
+  wave saw
+  attack 4 ms
+  release 110 ms
+  cutoff 700 Hz
+  gain -8
+  from bassLoopA.notes -> notes
+}
+
+drums kitA at 1 for 16 {
+  kit samples/kit
+  pattern kick:x...x...x...x... snare:....x.......x... hat:x.xxx.xxx.xxx.xx open:......x.......x.
+  swing 5
+  humanize 15
+}
+
+synth leadA at 9 for 8 {
+  wave square
+  attack 6 ms
+  release 240 ms
+  cutoff 4200 Hz
+  gain -16
+  from leadLoopA.notes -> notes
+}
+
+# the same lead, crushed: a second copy of the sound runs through a bit crusher, and a crossfade blends from the clean one to the crushed one (start and length are bars of the song: bars 13 to 17)
+bitcrusher leadCrush {
+  from leadA.audio -> audio
+}
+
+crossfade leadSlide at 9 for 8 {
+  start 13
+  length 4
+  shape equal
+  from leadA.audio -> a
+  from leadCrush.audio -> b
+}
+
+mixer grooveMix {
+  inputs 4
+  gains "0 0 6 0"
+  from keysA.audio -> audio1
+  from bassA.audio -> audio2
+  from kitA.audio -> audio3
+  from leadSlide.audio -> audio4
+}
+
+# the DJ rewind at bar 16.5 (events are counted in bars from the start of this block)
+rewind pull at 1 for 16 {
+  events "at 15.5 scratch 500ms back 1.9s"
+  sound spin
+  brake 200 ms
+  from grooveMix.audio -> audio
+}
+
+# ------------------------------------------------------------------ the reversed swell into bar 9: an open hat, a huge reverb, the whole bar played backwards
+drums swellHit at 8 for 1 {
+  kit samples/kit
+  pattern open:x...............
+}
+
+reverb swellVerb at 8 for 1 {
+  size 95%
+  decay 92%
+  mix 100%
+  from swellHit.audio -> audio
+}
+
+reverse swell at 8 for 1 {
+  from swellVerb.audio -> audio
+}
+
+# ------------------------------------------------------------------ the break (bars 17-20): a pad turned into clouds
+synth padBreak at 17 for 4 {
+  wave saw
+  attack 800 ms
+  release 1200 ms
+  detune 16
+  cutoff auto(17:500, 21:3000)
+  gain -14
+  from padLoop.notes -> notes
+}
+
+granular clouds at 17 for 4 {
+  grain 90
+  density 70
+  scatter 85
+  pitch 7
+  from padBreak.audio -> audio
+}
+
+tremolo drift at 17 for 4 {
+  mode autopan
+  rate 0.4
+  depth 80
+  from clouds.audio -> audio
+}
+
+# ------------------------------------------------------------------ the groove returns (bars 21-24) and fades out
+synth keysB at 21 for 4 {
+  wave triangle
+  attack 15 ms
+  release 400 ms
+  detune 7
+  cutoff 3400 Hz
+  gain -11
+  from keysLoopB.notes -> notes
+}
+
+synth bassB at 21 for 4 {
+  wave saw
+  attack 4 ms
+  release 110 ms
+  cutoff 700 Hz
+  gain -8
+  from bassLoopB.notes -> notes
+}
+
+synth leadB at 21 for 4 {
+  wave square
+  attack 6 ms
+  release 240 ms
+  cutoff 4200 Hz
+  gain -16
+  from leadLoopB.notes -> notes
+}
+
+drums kitB at 21 for 4 {
+  kit samples/kit
+  pattern kick:x...x...x...x... snare:....x.......x... hat:x.xxx.xxx.xxx.xx open:......x.......x.
+  swing 5
+}
+
+mixer returnMix {
+  inputs 4
+  gains "0 0 6 0"
+  from keysB.audio -> audio1
+  from bassB.audio -> audio2
+  from kitB.audio -> audio3
+  from leadB.audio -> audio4
+}
+
+fade outro at 21 for 4 {
+  direction out
+  start 23
+  length 2
+  shape equal
+  from returnMix.audio -> audio
+}
+
+# ------------------------------------------------------------------ the master
+mixer sum {
+  inputs 4
+  gains "0 -4 9 0"
+  from pull.audio -> audio1
+  from swell.audio -> audio2
+  from drift.audio -> audio3
+  from outro.audio -> audio4
+}
+
+master out {
+  from sum.audio -> audio
+}

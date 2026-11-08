@@ -37,6 +37,8 @@ namespace Ample.Server.Lite;
 /// <param name="ShareStoreMegabytes">The megabytes that live shares may hold together; what does not fit is "no longer available", the oldest first (nothing is deleted from disk yet).</param>
 /// <param name="ShareCeilingMegabytes">The most megabytes of shared files on disk, expired shares included; above it no new share is accepted until a cleanup has run.</param>
 /// <param name="ShareMegabytesPerIpPerHour">The megabytes of own files that one address may put in shares in an hour.</param>
+/// <param name="BuildMaxFiles">Grandfathering: the most files a build still accepts when it is higher than MaxFiles (0 = no extra). Raise this to the old MaxFiles when lowering MaxFiles, so existing projects keep working and new files are refused.</param>
+/// <param name="BuildMaxProjectBytes">The same for the total size of a project.</param>
 /// <param name="MaxBuildMemoryMegabytes">The memory a build in its own process may use before it is stopped (with isolation).</param>
 public sealed record LiteLimits(
     int MaxFiles = 200,
@@ -72,8 +74,16 @@ public sealed record LiteLimits(
     int ShareStoreMegabytes = 2048,
     int ShareCeilingMegabytes = 4096,
     int ShareMegabytesPerIpPerHour = 128,
-    int MaxBuildMemoryMegabytes = 3000)
+    int MaxBuildMemoryMegabytes = 3000,
+    int BuildMaxFiles = 0,
+    long BuildMaxProjectBytes = 0)
 {
+    /// <summary>The most files a build still accepts: <see cref="MaxFiles"/>, or <see cref="BuildMaxFiles"/> when that is higher. Lower MaxFiles later and set BuildMaxFiles to the old value: projects that exist keep building, new files cannot be added past MaxFiles.</summary>
+    public int FilesAccepted => Math.Max(MaxFiles, BuildMaxFiles);
+
+    /// <summary>The most bytes a build still accepts: <see cref="MaxProjectBytes"/>, or <see cref="BuildMaxProjectBytes"/> when that is higher (same idea as <see cref="FilesAccepted"/>).</summary>
+    public long BytesAccepted => Math.Max(MaxProjectBytes, BuildMaxProjectBytes);
+
     /// <summary>The defaults.</summary>
     public static LiteLimits Default { get; } = new();
 
@@ -82,11 +92,11 @@ public sealed record LiteLimits(
     /// a small cache, a short queue.
     /// </summary>
     public static LiteLimits Public { get; } = new(
-        MaxFiles: 100,
+        MaxFiles: 200,
         MaxTextBytes: 256 * 1024,
         MaxAudioBytes: 8L * 1024 * 1024,
         MaxSoundFontBytes: 16L * 1024 * 1024,
-        MaxProjectBytes: 32L * 1024 * 1024,
+        MaxProjectBytes: 64L * 1024 * 1024,
         BuildSeconds: 60,
         MaxOutputSeconds: 240,
         OutputMinutes: 5,
