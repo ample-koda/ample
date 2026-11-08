@@ -418,3 +418,14 @@ body:has(dialog.mls-panel[data-window="max"]) .koda-gaze{z-index:1099}
 .koda button.letsgo::before{content:"";position:absolute;inset:-6px;border-radius:24px}
 .koda button.letsgo.busy{pointer-events:none;animation:none;transform:none;filter:saturate(.8) brightness(.9)}
 .koda button.letsgo.busy .eq i{animation:k-eq .35s ease-in-out infinite alternate}
+
+/* Bare metal (the third state of the draft / live pill): the whole of Koda goes from blue towards a red-purple "danger zone": the bubble, the pill, the dot, and a hazard stripe on top of the bubble */
+.koda.koda-layer[data-mode=bare] .bub{--bc:#ff2d6f;background:linear-gradient(150deg,#2b0a26f5 0%,#1c0a38f5 100%)}
+.koda.koda-layer[data-mode=bare] .bub::after{background:#2b0a26}
+.koda.koda-layer[data-mode=bare] .bub{box-shadow:0 10px 30px #0009,0 0 22px #ff2d6f55,inset 0 0 0 1px #b13cff66}
+.koda .riskpill[data-mode=bare]{border-color:#c43cff99;color:#ff7ad9}
+.koda .riskpill[data-mode=bare] i{background:linear-gradient(135deg,#ff2d6f,#b13cff);box-shadow:0 0 7px #ff2d6f}
+.koda .bub button.riskpill[data-mode=bare]:not(.x){color:#ff7ad9}
+.koda .bub button.riskpill[data-mode=bare]:not(.x) i{box-shadow:0 0 5px #c43cff}
+.koda .riskdot.bare{background:linear-gradient(135deg,#ff2d6f,#b13cff);box-shadow:0 0 6px #ff2d6f}
+.koda .pet[data-mode=bare]{filter:drop-shadow(0 0 5px #ff2d6faa) hue-rotate(-18deg) saturate(1.25)}

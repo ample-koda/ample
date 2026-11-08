@@ -42,21 +42,53 @@ const HANG_QUICK_MS = 5 * 60 * 1000;   // a next question within this time goes 
 /** The open tabs and what changed in the ones with unsaved changes: Koda works on the unsaved text and knows the difference. */
 async function tabsContext(subject) { try { return await (await import('./tabs.js')).tabsContextForKoda(subject); } catch { return ''; } }
 
+// Bare metal mode (the third state of the draft / live switch): live, and the model is told to be quick and rough: assumptions instead of questions, a quick compile-style check, no waiting for a full build or render.
+let bare = false;
+export const setBare = (on) => { bare = !!on; };
+
+// Bare metal also shows what the model makes while it works: after every edit it has made (seen by polling the proposed text of the task) the song in the editor is brought to
+// that text, and what the person changes meanwhile is told to the model ("the user changed this: adapt and carry on"). The editor side (koda.js) provides show / start / end.
+let liveHooks = null, liveTask = null, lastLive = '', liveBroken = false, userLines = [];
+export const setLiveHooks = (hooks) => { liveHooks = hooks; };
+async function liveStep(task) {
+  if (!bare || !liveHooks || liveBroken || liveTask !== task.id || !activePath()) return;
+  let text;
+  try { text = (await api.get(`/api/ai/tasks/${task.id}/text?path=${encodeURIComponent(activePath())}`)).text; } catch { return; }
+  if (typeof text !== 'string' || text === lastLive || text === activeText()) return;
+  // the person edited meanwhile and the model's copy does not hold that edit (yet): never overwrite what the person wrote
+  if (userLines.length && !userLines.every((l) => text.includes(l))) { liveBroken = true; liveHooks.paused?.(); return; }
+  lastLive = text;
+  await liveHooks.show(text);
+}
+/** The person changed the song while Koda works in bare metal mode: the proposal is brought up to date where it can be, and the model is told what changed. */
+export async function tellUserEdit(prev, next) {
+  if (!bare || !liveTask) return;
+  const had = new Set(String(prev).split('\n').map((l) => l.trim()));
+  const added = String(next).split('\n').map((l) => l.trim()).filter((l) => l && !had.has(l));
+  userLines = [...userLines, ...added].slice(-200);
+  const changes = describeChanges(prev, next).map((c) => c.type + ': ' + c.text).join('; ').slice(0, 600);
+  try { await api.post(`/api/ai/tasks/${liveTask}/rebase`, {}); } catch { /* it may not apply: the live view is then paused if the model's copy lacks the edit */ }
+  const lines = added.slice(0, 40).join('\n');
+  await api.post(`/api/ai/tasks/${liveTask}/message`, { text: 'Attention: the user changed the song while you were working' + (changes ? ' (' + changes + ')' : '') + '. Their change stays: do not undo it. Adapt your plan to it and carry on with the rest of the task.' + (lines ? '\n\nNew or changed lines of the user:\n' + lines : '') }).catch(() => {});
+}
+const BARE_TEXT = '\n\nBARE METAL mode (the person chose it for speed and knows it is rough): work fast on what you are asked and do all of it in one go (for example five effects at once). Make sensible assumptions instead of asking, and say in one short line which assumptions you made. Check only what is quick: that the song text would compile (the diagnostics tool answers in seconds). Do not run or wait for a full build, a render or a long computation, and do not re-check what you already know. If something is unclear, take the likeliest choice and carry on.';
+
 async function runTask(subject, text, mode, signal, onGlance, onThought, resume = false) {
   // the server needs the file Koda looks at (path is required): with no song and no module open there is nothing to look at, so say so instead of failing with "The field 'path' is required"
   if (!activePath()) throw new KodaUnavailable('Open a song first: Koda works on the song that is open in the editor.');
   let task;
   try {
     task = await api.post('/api/ai/tasks', {
-      sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + await tabsContext(subject), path: activePath(), song: S.path, context: 'unsaved',
+      sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + (bare ? BARE_TEXT : '') + await tabsContext(subject), path: activePath(), song: S.path, context: 'unsaved',
       fromLine: subject.kind === 'code' ? subject.startLine : undefined, toLine: subject.kind === 'code' ? subject.endLine : undefined, block: subject.kind === 'code' ? subject.block?.name : subject.block,
       continueFrom: resume && hanging ? hanging : undefined,
       ...requestParts(),   // the model and thinking level of this Koda session (nothing: the setting of the assistant)
     });
     lastTask = task.id;
+    if (bare && liveHooks) { liveTask = task.id; lastLive = ''; liveBroken = false; userLines = []; liveHooks.start?.(); }
   } catch (error) { throw kodaFailure(error); }
   // every finished answer keeps the conversation hanging by itself: the next question within HANG_QUICK_MS goes on without a choice or a question
-  return follow(task, signal, onGlance, onThought).then((result) => { hanging = task.id; hangSince = Date.now(); return result; });
+  return follow(task, signal, onGlance, onThought).then((result) => { hanging = task.id; hangSince = Date.now(); return result; }).finally(() => { if (liveTask === task.id) { liveTask = null; liveHooks?.end?.(); } });
 }
 
 /** Waits until the task has finished its turn (a new one, or one that goes on after a message), showing what it reads and thinks on the way. */
@@ -70,6 +102,7 @@ async function follow(task, signal, onGlance, onThought, afterMessage = false) {
   for (;;) {
     await wait(1200, signal).catch((e) => { throw e; });
     task = await api.get(`/api/ai/tasks/${task.id}?since=${seq}&details=1`);   // only the new log entries, with the arguments of the tool calls
+    await liveStep(task).catch(() => {});   // bare metal: what the model has made so far goes into the song
     // the blocks the model is reading, for the thin lines that glance at them
     try {
       const g = glanced(task.log, flat().nodes.map((n) => n.id), seq, task.thought && task.thought !== thought ? task.thought : '');
@@ -138,7 +171,16 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
       return true;
     },
     async apply() {
-      const r = await api.post(`/api/ai/tasks/${task.id}/accept`, {});
+      let r;
+      try { r = await api.post(`/api/ai/tasks/${task.id}/accept`, {}); } catch (error) {
+        // bare metal: the song in the editor already holds what the model made (the live view), so the project no longer matches the base of the proposal and Accept can refuse:
+        // the proposed text is then put in the song itself and the proposal is put aside (files other than the song are not carried along in this case)
+        if (!lastLive || !proposed) throw error;
+        await applyText(proposed);
+        await api.post('/api/ai/tasks/' + task.id + '/reject', {}).catch(() => {});
+        await reloadDoc();
+        return true;
+      }
       if (r.songText != null && S.path === r.song) await applyText(r.songText);
       await reloadDoc();
       return true;

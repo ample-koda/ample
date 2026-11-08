@@ -12,6 +12,8 @@ internal sealed class TrayApp : ApplicationContext
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 3000 };
     private HubState state = new(null, [], new HubSettings());
     private int busy;
+    // the installer asks a running hub to quit by setting this event (it cannot close a window: the hub has none); the timer sees it within a few seconds
+    private readonly EventWaitHandle exitSignal = new(false, EventResetMode.AutoReset, @"Local\AMPLE-Hub-Exit");
 
     internal TrayApp(MainInstance main)
     {
@@ -19,7 +21,7 @@ internal sealed class TrayApp : ApplicationContext
         icon = new NotifyIcon { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application, Visible = true, Text = "AMPLE", ContextMenuStrip = menu };
         icon.DoubleClick += (_, _) => OpenMain();
         menu.Opening += (_, _) => Rebuild();
-        timer.Tick += async (_, _) => await RefreshAsync();
+        timer.Tick += async (_, _) => { if (exitSignal.WaitOne(0)) { ExitThread(); return; } await RefreshAsync(); };
         timer.Start();
         _ = RefreshAsync();
     }
@@ -29,6 +31,7 @@ internal sealed class TrayApp : ApplicationContext
         if (disposing)
         {
             timer.Dispose();
+            exitSignal.Dispose();
             icon.Visible = false;
             icon.Dispose();
             menu.Dispose();

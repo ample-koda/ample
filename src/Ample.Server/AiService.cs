@@ -1813,7 +1813,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
             }
             else
             {
-                JsonObject resume = new() { ["threadId"] = task.ThreadId, ["cwd"] = task.Workspace };
+                // a resumed thread must be given the sandbox and the approval policy again: without them Codex uses its own default, which can be read-only ("the filesystem is read-only, I cannot edit the song")
+                JsonObject resume = ModeParameters(task.Mode, task.Request.Kind == "explain", policy, task.Request.Strict);
+                resume["threadId"] = task.ThreadId;
+                resume["cwd"] = task.Workspace;
                 JsonNode? thread = await rpc.RequestAsync("thread/resume", resume, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
                 task.ThreadId = thread?["thread"]?["id"]?.GetValue<string>() ?? task.ThreadId;
             }
@@ -2406,7 +2409,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                         try { await stale.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) when (ex is IOException or InvalidOperationException) { /* gone anyway */ }
                     }
 
-                    thread = await rpc.RequestAsync("thread/resume", new JsonObject { ["threadId"] = before.ThreadId, ["cwd"] = task.Workspace, ["developerInstructions"] = threadParams["developerInstructions"]?.DeepClone() }, TimeSpan.FromSeconds(60), task.Cancel.Token).ConfigureAwait(false);
+                    thread = await rpc.RequestAsync("thread/resume", new JsonObject { ["threadId"] = before.ThreadId, ["cwd"] = task.Workspace, ["developerInstructions"] = threadParams["developerInstructions"]?.DeepClone(), ["approvalPolicy"] = threadParams["approvalPolicy"]?.DeepClone(), ["sandbox"] = threadParams["sandbox"]?.DeepClone() }, TimeSpan.FromSeconds(60), task.Cancel.Token).ConfigureAwait(false);
                     task.Add("info", "Koda went on in the Codex conversation of the earlier question.");
                 }
                 catch (AmpleException)
