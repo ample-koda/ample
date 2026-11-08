@@ -1186,3 +1186,9 @@ body.detached #tabbar,body.detached #banner{display:none}
 .prop.prop-err input,.prop.prop-err select,.prop.prop-err textarea{border-color:#ff5d6c;box-shadow:0 0 0 1px #ff5d6c}
 .prop.prop-err>label{color:#ff5d6c}
 .tabs-more+.recent-files-control{align-self:center}
+/* the File menu (it replaced the Recent button): actions on top, then the open and the recent files */
+.recent-file-row.file-action{font-weight:600}
+.file-kinds{display:flex;flex-direction:column;gap:2px;padding-left:14px;border-left:1px solid var(--line);margin:0 0 4px 8px}
+.file-kinds[hidden]{display:none}
+.file-kinds .recent-file-row{font-weight:400}
+.recent-files-rule{height:1px;background:var(--line);margin:4px 0}

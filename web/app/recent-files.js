@@ -53,7 +53,7 @@ function bindDismissal() {
 export function createRecentFilesToggle() {
   bindDismissal();
   const id = `recent-files-menu-${++nextMenuId}`;
-  const button = el('button', { type: 'button', className: 'recent-files-toggle', textContent: 'Recent ▾', title: 'Open a recent file or return to a file already open', 'aria-label': 'Recent files', 'aria-expanded': 'false', 'aria-controls': id });
+  const button = el('button', { type: 'button', className: 'recent-files-toggle', textContent: 'File ▾', title: 'Add a new file, Save all, the files that are open and the recent ones', 'aria-label': 'File menu', 'aria-expanded': 'false', 'aria-controls': id });
   const menu = el('div', { id, className: 'recent-files-menu', role: 'menu', hidden: true });
   const wrap = el('span', { className: 'recent-files-control' }, [button, menu]);
   const close = () => { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); };
@@ -74,7 +74,22 @@ export function createRecentFilesToggle() {
     return row;
   };
   const paint = async () => {
-    menu.replaceChildren(el('div', { className: 'recent-files-heading', textContent: 'Open now' }));
+    menu.replaceChildren();
+    // the actions of the File menu: a new file of a kind (it is made and opened in its editor), and Save all
+    const act = (label, hint, fn, id) => { const r = el('button', { type: 'button', role: 'menuitem', className: 'recent-file-row file-action', id, onclick: fn }); r.append(el('span', { className: 'recent-file-path', textContent: label })); if (hint) r.append(el('span', { className: 'recent-file-label', textContent: hint })); return r; };
+    const kindsBox = el('div', { className: 'file-kinds', role: 'group', 'aria-label': 'Add new', hidden: true });
+    const addNewRow = act('Add new  \u25B8', 'a file of a kind, opened at once', async () => {
+      kindsBox.hidden = !kindsBox.hidden;
+      if (kindsBox.hidden || kindsBox.childElementCount) return;
+      let kinds = [];
+      try { kinds = await api.get('/api/project/kinds'); } catch { /* the list stays empty */ }
+      const first = ['song', 'folder'];
+      const sorted = [...kinds.filter((k) => first.includes(k.id)).sort((a, b) => first.indexOf(a.id) - first.indexOf(b.id)), ...kinds.filter((k) => !first.includes(k.id)).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))];
+      for (const kind of sorted) kindsBox.append(act(kind.label, '', () => { close(); import('./projectpanel.js').then((m) => m.addNew(kind, '')); }));
+      if (!sorted.length) kindsBox.append(el('div', { className: 'recent-files-empty', textContent: 'Could not load the kinds of file.' }));
+    }, 'file-add-new');
+    menu.append(addNewRow, kindsBox, act('Save all', 'Ctrl+Shift+S', () => { close(); import('./tabs.js').then((m) => m.saveAll()); }, 'file-save-all'), el('div', { className: 'recent-files-rule' }));
+    menu.append(el('div', { className: 'recent-files-heading', textContent: 'Open now' }));
     try {
       const files = await api.get('/api/project/files');
       const paths = new Set(files.map((file) => file.path).filter((path) => EDITABLE.test(path)));

@@ -14,6 +14,9 @@ const openPanel = async (page: Page) => { await page.getByRole('button', { name:
 const menuItem = (page: Page, text: string) => page.locator('#menu div', { hasText: text }).filter({ hasNot: page.locator('div', { hasText: text }) }).first();
 const dialogInput = (page: Page) => page.locator('#dlg-extra input').first();
 const dialogButton = (page: Page, name: string) => page.locator('#dlg-btns button', { hasText: name });
+// the new-file browser (Add new): a name field with the extension after it, and Create
+const newName = (page: Page) => page.locator('dialog.new-file .new-name');
+const newCreate = (page: Page) => page.locator('dialog.new-file .project-picker-actions button', { hasText: /^Create$/ });
 
 // the tests share one server: a song that an earlier test changed is saved first, so every test starts clean
 test.beforeEach(async ({ page }) => { await api('/api/doc/save', { method: 'POST', body: { path: 'song.amplet' } }); await openApp(page, { reset: false }); });
@@ -35,8 +38,8 @@ test('right-click on an empty spot of the panel offers Add and creates a lyrics 
   await page.locator('#project-panel-content').evaluate((host) => host.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 300 })));
   await menuItem(page, 'Add').click();
   await menuItem(page, 'Lyrics (timed)').click();
-  await dialogInput(page).fill('Chorus');
-  await dialogButton(page, 'Create').click();
+  await newName(page).fill('Chorus');
+  await newCreate(page).click();
   await expect(page.locator('#toast')).toContainText('lyrics/Chorus.lrc');
   expect((await api(`/api/file?path=${encodeURIComponent('lyrics/Chorus.lrc')}`)).text).toContain('[ti:Chorus]');
 });
@@ -294,14 +297,17 @@ test('Add > Folder from the + menu and from the right-click menu of a folder cre
   await page.getByRole('button', { name: 'Project actions' }).click();
   await menuItem(page, 'Add').click();
   await menuItem(page, /^Folder$/).click();
-  await dialogInput(page).fill('from-plus');
-  await dialogButton(page, 'Create').click();
+  await newName(page).fill('from-plus');
+  await newCreate(page).click();
   await expect.poll(async () => JSON.stringify(await api('/api/project/tree?depth=0'))).toContain('"path":"from-plus"');
-  await page.locator('.project-tile[data-path="from-plus"]').click({ button: 'right' });
+  // the new folder is shown in the project files; its tile gets the right-click menu
+  const tile = page.locator('.project-tile[data-path="from-plus"]');
+  await expect(tile).toBeAttached();
+  await tile.evaluate((node) => { const r = node.getBoundingClientRect(); node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 })); });
   await menuItem(page, 'Add').click();
   await menuItem(page, /^Folder$/).click();
-  await dialogInput(page).fill('inner');
-  await dialogButton(page, 'Create').click();
+  await newName(page).fill('inner');
+  await newCreate(page).click();
   await expect.poll(async () => JSON.stringify(await api('/api/project/tree?path=from-plus&depth=0'))).toContain('from-plus/inner');
 });
 
@@ -339,4 +345,38 @@ test('files from the computer can be dropped on the project panel: into the open
   await expect.poll(async () => JSON.stringify(await api('/api/project/tree?path=notes&depth=0'))).toContain('notes/dropped-in-notes.wav');
   expect(await drop('.project-tiles', 'dropped-here.wav')).toBe(true);
   await expect.poll(async () => JSON.stringify(await api('/api/project/tree?depth=0'))).toContain('"path":"dropped-here.wav"');
+});
+
+test('the new-file browser shows the extension, refuses a name that exists, and makes the file in the open folder', async ({ page }) => {
+  await api('/api/project/new', { method: 'POST', body: { kind: 'note', name: 'dupe' } });
+  await openPanel(page);
+  await page.getByRole('button', { name: 'Project actions' }).click();
+  await menuItem(page, 'Add').click();
+  await menuItem(page, 'Text note').click();
+  const box = page.locator('dialog.new-file');
+  await expect(box).toBeVisible();
+  await expect(box.locator('.new-ext')).toHaveText('.md');
+  await expect(box.locator('.project-picker-actions button', { hasText: /^Create$/ })).toBeDisabled();
+  await box.locator('.new-name').fill('dupe');
+  await expect(box.locator('.project-file-detail')).toContainText('already in this folder');
+  await expect(box.locator('.project-picker-actions button', { hasText: /^Create$/ })).toBeDisabled();
+  await box.locator('.new-name').fill('fresh');
+  await expect(box.locator('.project-file-detail')).toContainText('Creates notes/fresh.md');
+  await box.locator('.new-name').press('Enter');   // Enter creates
+  await expect(page.locator('#toast')).toContainText('notes/fresh.md');
+});
+
+test('a folder made in the new-file browser is opened at once, so the file can be made in it', async ({ page }) => {
+  await openPanel(page);
+  await page.getByRole('button', { name: 'Project actions' }).click();
+  await menuItem(page, 'Add').click();
+  await menuItem(page, 'Text note').click();
+  const box = page.locator('dialog.new-file');
+  await box.getByRole('button', { name: 'New folder' }).click();
+  await dialogInput(page).fill('brand-new');
+  await dialogButton(page, 'Create').click();
+  await box.locator('.new-name').fill('inside');
+  await expect(box.locator('.project-file-detail')).toContainText('brand-new/inside.md');
+  await box.locator('.new-name').press('Enter');
+  await expect(page.locator('#toast')).toContainText('brand-new/inside.md');
 });
