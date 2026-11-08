@@ -1266,6 +1266,21 @@ export async function openProjectTextFile(path) {
   render();
 }
 
+/** Ctrl+click on the value of a `melody` or `chords` line of a midi-clip opens the melody editor of that clip as a window; the view (code or blocks) stays as it is. */
+async function openMelodyAt(line, ch) {
+  const all = lines(SE.text);
+  const m = /^(\s*)(melody|chords)\s+\S/.exec(all[line] || '');
+  if (!m || ch < m[1].length + m[2].length) return false;
+  let name = null;
+  for (let i = line - 1; i >= 0 && !name; i--) { const h = /^\s*midi-clip\s+("(?:[^"\\]|\\.)*"|\S+)\s.*\{\s*$/.exec(all[i]); if (h) name = h[1].replace(/^"|"$/g, ''); else if (/^\}/.test(all[i])) break; }
+  if (!name) return false;
+  if (errCount()) { toast('The song has errors: fix them first to use the melody editor.'); return true; }
+  if (SE.text !== SE.orig && !(await apply())) return true;
+  const { openMelodyEditor } = await import('./melody-editor.js');
+  openMelodyEditor(name);
+  return true;
+}
+
 async function ctrlClick() {
   if (!isSong()) return;
   const { line, ch } = caretLine();
@@ -1281,6 +1296,7 @@ async function ctrlClick() {
     else toast('Could not find the block that owns this connection.');
     return;
   }
+  if (await openMelodyAt(line, ch)) return;
   let def = null;
   try { def = await SE.lsp.ask('textDocument/definition', { position: { line, character: ch } }); } catch { def = null; }
   if (!def) return;

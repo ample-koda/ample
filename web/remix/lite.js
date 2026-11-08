@@ -187,6 +187,7 @@ async function refreshProjects() {
 async function openProject(id) {
   await flushSave();
   app.project = await app.store.getProject(id);
+  stopSound();   // another project: the sound of the old one stops, the button goes back to Build & play
   changed();
   await app.store.setLast(id);
   app.texts.clear();
@@ -237,6 +238,8 @@ function closeEditor() {
 async function openFile(path) {
   await flushSave();
   app.active = path;
+  if (isSong(path) && app.outputEntry && path !== app.outputEntry) stopSound();   // another song: stop the sound of the one that was built
+  syncMain();
   await app.store.setActive(app.project.id, path);
   closeEditor();
   renderTree();
@@ -604,6 +607,7 @@ async function playOutput(result, entry) {
   app.outputId = result.outputId;
   app.builtRev = app.builtFrom?.rev ?? app.rev;
   app.builtProject = app.builtFrom?.project ?? app.project?.id;
+  app.outputEntry = entry;   // the song this sound was built from
   app.outputName = entry.replace(/\.amplet$/, '').split('/').pop();
   for (const format of ['flac', 'mp3']) $(`#lite-download-${format}`).hidden = false;
   if (app.outputUrl) URL.revokeObjectURL(app.outputUrl);
@@ -625,6 +629,12 @@ async function playOutput(result, entry) {
     status('Click anywhere to play');
     document.addEventListener('pointerdown', () => audio.play().catch(() => status('Press play')), { once: true });
   });
+}
+
+/** Stops the sound that is playing (and rewinds it) without touching the build. */
+function stopSound() {
+  const audio = $('#lite-output');
+  if (!audio.paused) { audio.pause(); audio.currentTime = 0; status(''); }
 }
 
 function stop() {
@@ -650,7 +660,8 @@ function syncMain() {
   if (button.dataset.wait === '1' || app.building) return;
   const audio = $('#lite-output');
   const playing = !audio.paused && !audio.ended;
-  const fresh = !!app.outputId && app.builtRev === app.rev && app.builtProject === app.project?.id;
+  const entry = app.project ? pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt) : null;
+  const fresh = !!app.outputId && app.builtRev === app.rev && app.builtProject === app.project?.id && entry === app.outputEntry;   // a different song than the one that was built is not fresh
   button.textContent = fresh ? (playing ? '\u25A0 Stop' : '\u25B6 Play from start') : 'Build & play';
   button.title = fresh ? (playing ? 'Stop the sound' : 'Play the sound from the start (Ctrl+Enter builds it again)') : 'Build the song and play it (Ctrl+Enter)';
   button.dataset.mode = fresh ? (playing ? 'stop' : 'play') : 'build';
@@ -689,7 +700,9 @@ function renderDemos() {
     li.dataset.demo = demo.id;
     const title = document.createElement('h3'); title.textContent = demo.name;
     const text = document.createElement('p'); text.textContent = demo.description;
-    const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${demo.category} · ${demo.level} · ${demo.tags.join(', ')}`;
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const pill = (text, cls) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; return s; };
+    meta.append(pill(demo.category, 'pill cat'), pill(demo.level, 'pill level ' + demo.level.toLowerCase()), ...demo.tags.map((tag) => pill(tag, 'pill tag')));
     const use = document.createElement('button'); use.type = 'button'; use.className = 'primary'; use.textContent = 'Use';
     use.title = 'Make your own copy of this demo and open it';
     use.onclick = () => useDemo(demo);

@@ -105,7 +105,7 @@ public static class LiteApi
                 governor.Spend("check", LiteClient.Keys(context), lim.ChecksPerMinute, lim.ChecksPerMinute * 30);
                 using JsonDocument body = await JsonDocument.ParseAsync(context.Request.Body, cancellationToken: context.RequestAborted).ConfigureAwait(false);
                 List<string> hashes = [.. body.RootElement.GetProperty("hashes").EnumerateArray().Select(e => e.GetString() ?? string.Empty)];
-                if (hashes.Count > lim.MaxFiles || hashes.Any(h => !LiteBlobs.IsHash(h))) return Problem("AMPL900", 400, "The hashes are at most as many as the files of a project, each a SHA-256 in lower case hexadecimal.");
+                if (hashes.Count > lim.FilesAccepted || hashes.Any(h => !LiteBlobs.IsHash(h))) return Problem("AMPL900", 400, "The hashes are at most as many as the files of a project, each a SHA-256 in lower case hexadecimal.");
                 return Results.Json(new { missing = hashes.Where(h => !blobs.Has(h)).Distinct(StringComparer.Ordinal).ToArray() }, Json);
             }
             catch (LiteRejectedException rejected)
@@ -121,7 +121,7 @@ public static class LiteApi
         {
             if (!context.Request.HasFormContentType) return Problem("AMPL900", 400, "A build is a multipart form: a manifest and the files.");
             IHttpMaxRequestBodySizeFeature? bodyLimit = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
-            if (bodyLimit is { IsReadOnly: false }) bodyLimit.MaxRequestBodySize = lim.MaxProjectBytes + (4L * 1024 * 1024);
+            if (bodyLimit is { IsReadOnly: false }) bodyLimit.MaxRequestBodySize = lim.BytesAccepted + (4L * 1024 * 1024);
             IReadOnlyList<string> keys = LiteClient.Keys(context);
             try
             {
@@ -295,7 +295,7 @@ public static class LiteApi
             throw new LiteRejectedException("AMPL900", 400, "The manifest is not valid: it holds {\"entry\": \"song.amplet\", \"files\": [paths or {path, sha256}]}.");
         }
 
-        if (names.Count > limits.MaxFiles) throw new LiteRejectedException("AMPL902", 413, $"A Remix project has at most {limits.MaxFiles} files.");
+        if (names.Count > limits.FilesAccepted) throw new LiteRejectedException("AMPL902", 413, $"A Remix project has at most {limits.FilesAccepted} files.");
         if (names.Any(n => n.Hash is not null && !LiteBlobs.IsHash(n.Hash))) throw new LiteRejectedException("AMPL900", 400, "A hash in the manifest is not a SHA-256 in lower case hexadecimal.");
         if (form.Files.Count > names.Count) throw new LiteRejectedException("AMPL900", 400, "The manifest and the files do not match.");
         List<LiteFile> files = [];

@@ -75,6 +75,7 @@ export async function pipelineNotes(node) {
 export async function openRoll(blockId, options = {}) {
   const node = flat().nodes.find((n) => n.id === blockId);
   if (!node) return null;
+  if ((node.params.melody !== undefined || node.params.chords !== undefined) && !options.writeOut && !isPipeline(node)) { const me = await import('./melody-editor.js'); return me.openMelodyEditor(blockId); }   // the line stays: no write-out to notes
   const jam = await import('./pianoroll-lite.js');
   if (rollable(node)) return jam.openPianoRollLite(blockId, options);
   if (isPipeline(node)) {

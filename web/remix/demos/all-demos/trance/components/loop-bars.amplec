@@ -1,0 +1,25 @@
+/** Repeats a riff: a short pattern becomes a whole section. */
+#[DisplayName("Loop bars")]
+#[Category("Trance")]
+#[Tags("loop", "repeat", "arrangement", "trance")]
+component koda.trance.loopBars version 1.0.0 current {
+  id "demo.koda.trance.loop-bars"
+
+  input source: Notes
+
+  #[DisplayName("Times"), MinValue(1), MaxValue(64), Step(1)]
+  property times: Int = 8
+
+  output notes: Notes
+
+  ui {
+    knob times tint teal
+    card {
+      knob times size s tint teal
+    }
+  }
+
+  process {
+    emit source |> repeat(times)
+  }
+}

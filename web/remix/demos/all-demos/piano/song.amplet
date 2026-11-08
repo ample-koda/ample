@@ -1,0 +1,31 @@
+composition "piano" { ample 1  tempo 84  master-seed 10 }
+
+midi-clip chords at 1 for 8 {
+  chords Am F C G Am F G E
+  bars 8
+}
+
+midi-clip tune at 1 for 8 {
+  melody "e5:2 c5:1 d5:1 e5:2 g5:2 f5:2 e5:1 d5:1 c5:2 e5:2 d5:4 e5:2 c5:2 b4:2 c5:2 a4:4 c5:2 b4:1 a4:1 e5:4"
+  bars 8
+}
+
+piano keys at 1 for 8 {
+  gain -6
+  from chords.notes -> notes
+}
+
+piano melody at 1 for 8 {
+  from tune.notes -> notes
+}
+
+mixer mix {
+  inputs 4
+  gains "-4 0 0 0"
+  from keys.audio -> audio1
+  from melody.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

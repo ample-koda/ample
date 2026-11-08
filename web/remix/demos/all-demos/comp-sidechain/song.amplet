@@ -1,0 +1,26 @@
+composition "audio-sidechain" { ample 1  tempo 120  master-seed 8 }
+
+# Two Audio inputs: the pad is ducked by the kick (a sidechain), wired by name.
+import "comp-sidechain/components/sidechain-pump.amplec"
+
+midi-clip padNotes at 1 for 2 {
+  notes 1:0:4:60:90 2:0:4:64:90
+}
+
+midi-clip kickNotes at 1 for 2 {
+  notes 1:0:1:36:110 1:1:1:36:110 1:2:1:36:110 1:3:1:36:110
+}
+
+piano pad at 1 for 2 {
+  from padNotes.notes -> notes
+}
+
+bass kick at 1 for 2 {
+  from kickNotes.notes -> notes
+}
+
+koda.fx.sidechainPump pump {
+  threshold -28dB
+  from pad.audio -> audio
+  from kick.audio -> sidechain
+}

@@ -1,0 +1,38 @@
+/** Notes in, a fat detuned chord pad out. */
+#[DisplayName("Neon brass")]
+#[Category("Synthwave")]
+#[Tags("pad", "brass", "synthwave", "instrument", "synthwave")]
+component koda.synthwave.brassPad version 1.0.0 current {
+  id "demo.koda.synthwave.brass-pad"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(500), MaxValue(6000)]
+  property brightness: Int = 2400
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -10dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint purple
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint purple
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="120 ms", decay="300 ms", sustain="75", release="500 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> chorus(depth=6ms, period=2800ms, mix=50)
+      |> reverb(size=60%, decay=55%, mix=22%)
+      |> gain(level)
+  }
+}

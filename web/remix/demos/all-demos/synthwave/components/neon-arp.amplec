@@ -1,0 +1,37 @@
+/** Notes in, a sparkling sixteenth arpeggio out. */
+#[DisplayName("Neon arp")]
+#[Category("Synthwave")]
+#[Tags("arp", "synthwave", "instrument", "synthwave")]
+component koda.synthwave.neonArp version 1.0.0 current {
+  id "demo.koda.synthwave.neon-arp"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(600), MaxValue(7000)]
+  property brightness: Int = 3000
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -10dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="square", attack="2 ms", decay="140 ms", sustain="15", release="90 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> delay(time=0.75beat, feedback=38%, mix=24%)
+      |> gain(level)
+  }
+}

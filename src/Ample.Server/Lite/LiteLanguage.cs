@@ -101,7 +101,7 @@ public static class LiteLanguage
     {
         using MemoryStream copy = new();
         await context.Request.Body.CopyToAsync(copy, context.RequestAborted).ConfigureAwait(false);
-        if (copy.Length > limits.MaxProjectBytes) throw new BadHttpRequestException("The request is too large.", 413);
+        if (copy.Length > limits.BytesAccepted) throw new BadHttpRequestException("The request is too large.", 413);
         JsonElement body = JsonDocument.Parse(copy.ToArray()).RootElement.Clone();
         Dictionary<string, string> files = new(StringComparer.Ordinal);
         if (body.TryGetProperty("files", out JsonElement list) && list.ValueKind == JsonValueKind.Array) Apply(files, list.EnumerateArray().Select(f => (f.GetProperty("path").GetString() ?? string.Empty, f.GetProperty("text").GetString() ?? string.Empty)), limits);
@@ -113,7 +113,7 @@ public static class LiteLanguage
     {
         foreach ((string path, string text) in incoming)
         {
-            if (text.Length > limits.MaxTextBytes || (!files.ContainsKey(path) && files.Count >= limits.MaxFiles)) continue;
+            if (text.Length > limits.MaxTextBytes || (!files.ContainsKey(path) && files.Count >= limits.FilesAccepted)) continue;
             try
             {
                 _ = LitePolicy.CleanPath(path, limits);

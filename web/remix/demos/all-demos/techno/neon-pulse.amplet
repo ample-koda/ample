@@ -1,0 +1,346 @@
+composition "neon pulse" { ample 1  tempo 126  master-seed 20261029 }
+
+# NEON PULSE: a modern techno track, 64 bars at 126 BPM in F minor (about 2 minutes), made of custom components.
+#
+#   bars  1-8   intro        kick, hats from bar 5
+#   bars  9-16  build        + clap, open hat, acid bass, pad, a snare roll at the end
+#   bars 17-32  drop         everything, stabs, the lead arpeggio from bar 25, a fill at bar 32
+#   bars 33-40  break        no kick: pad, the lead melody, hats from 37, a roll into the drop
+#   bars 41-56  drop 2       the full groove with more percussion and a variation of the stabs
+#   bars 57-64  outro        kick, hats, bass and pad
+#
+# Components used (all in techno/components): loopBars and arrange (Notes in, Notes out: the arrangement is text, not a mouse),
+# acidBass, stabs, pad and lead (Notes in, sound out: an instrument with its own effects, with knobs), drumBus (four audio inputs),
+# pump (the sidechain), master. The drums need the kit in samples/kit (kick, snare, hat, open, tom).
+import "techno/components/loop-bars.amplec"
+import "techno/components/arrange.amplec"
+import "techno/components/acid-bass.amplec"
+import "techno/components/stabs.amplec"
+import "techno/components/pad.amplec"
+import "techno/components/lead.amplec"
+import "techno/components/drum-bus.amplec"
+import "techno/components/pump.amplec"
+import "techno/components/master.amplec"
+
+# ------------------------------------------------------------------ the riffs (one clip each, then looped and arranged)
+midi-clip bassRiffA at 1 for 1 {
+  notes 1:0:0.2:29:60 1:0.25:0.2:29:60 1:0.5:0.2:29:112 1:0.75:0.2:29:60 1:1:0.2:29:62 1:1.25:0.2:29:60 1:1.5:0.2:29:112 1:1.75:0.2:29:60 1:2:0.2:29:60 1:2.25:0.2:29:60 1:2.5:0.2:29:112 1:2.75:0.2:29:60 1:3:0.2:29:62 1:3.25:0.2:29:60 1:3.5:0.2:29:112 1:3.75:0.2:29:60
+}
+
+midi-clip bassRiffB at 1 for 2 {
+  notes 1:0:0.2:29:60 1:0.25:0.2:29:60 1:0.5:0.2:41:112 1:0.75:0.2:29:60 1:1:0.2:29:62 1:1.25:0.2:32:60 1:1.5:0.2:29:112 1:1.75:0.2:41:60 1:2:0.2:29:60 1:2.25:0.2:29:60 1:2.5:0.2:41:112 1:2.75:0.2:29:60 1:3:0.2:36:62 1:3.25:0.2:29:60 1:3.5:0.2:41:112 1:3.75:0.2:29:60 2:0:0.2:29:60 2:0.25:0.2:29:60 2:0.5:0.2:29:112 2:0.75:0.2:41:60 2:1:0.2:29:62 2:1.25:0.2:34:60 2:1.5:0.2:29:112 2:1.75:0.2:41:60 2:2:0.2:29:60 2:2.25:0.2:29:60 2:2.5:0.2:29:112 2:2.75:0.2:41:60 2:3:0.2:37:62 2:3.25:0.2:29:60 2:3.5:0.2:29:112 2:3.75:0.2:41:60
+}
+
+midi-clip stabRiffA at 1 for 4 {
+  notes 1:0.5:0.2:53:96 1:0.5:0.2:56:96 1:0.5:0.2:60:96 1:0.5:0.2:63:96 1:1.5:0.2:53:96 1:1.5:0.2:56:96 1:1.5:0.2:60:96 1:1.5:0.2:63:96 1:2.5:0.2:53:96 1:2.5:0.2:56:96 1:2.5:0.2:60:96 1:2.5:0.2:63:96 1:3.5:0.2:53:96 1:3.5:0.2:56:96 1:3.5:0.2:60:96 1:3.5:0.2:63:96 2:0.5:0.2:53:96 2:0.5:0.2:56:96 2:0.5:0.2:60:96 2:0.5:0.2:63:96 2:1.5:0.2:53:96 2:1.5:0.2:56:96 2:1.5:0.2:60:96 2:1.5:0.2:63:96 2:2.5:0.2:53:96 2:2.5:0.2:56:96 2:2.5:0.2:60:96 2:2.5:0.2:63:96 2:3.5:0.2:53:96 2:3.5:0.2:56:96 2:3.5:0.2:60:96 2:3.5:0.2:63:96 3:0.5:0.2:49:96 3:0.5:0.2:53:96 3:0.5:0.2:56:96 3:0.5:0.2:61:96 3:1.5:0.2:49:96 3:1.5:0.2:53:96 3:1.5:0.2:56:96 3:1.5:0.2:61:96 3:2.5:0.2:49:96 3:2.5:0.2:53:96 3:2.5:0.2:56:96 3:2.5:0.2:61:96 3:3.5:0.2:49:96 3:3.5:0.2:53:96 3:3.5:0.2:56:96 3:3.5:0.2:61:96 4:0.5:0.2:51:96 4:0.5:0.2:55:96 4:0.5:0.2:58:96 4:0.5:0.2:62:96 4:1.5:0.2:51:96 4:1.5:0.2:55:96 4:1.5:0.2:58:96 4:1.5:0.2:62:96 4:2.5:0.2:51:96 4:2.5:0.2:55:96 4:2.5:0.2:58:96 4:2.5:0.2:62:96 4:3.5:0.2:51:96 4:3.5:0.2:55:96 4:3.5:0.2:58:96 4:3.5:0.2:62:96
+}
+
+midi-clip stabRiffB at 1 for 4 {
+  notes 1:0.5:0.2:53:96 1:0.5:0.2:56:96 1:0.5:0.2:60:96 1:0.5:0.2:63:96 1:1.5:0.2:53:96 1:1.5:0.2:56:96 1:1.5:0.2:60:96 1:1.5:0.2:63:96 1:2.5:0.2:53:96 1:2.5:0.2:56:96 1:2.5:0.2:60:96 1:2.5:0.2:63:96 1:3.5:0.2:53:96 1:3.5:0.2:56:96 1:3.5:0.2:60:96 1:3.5:0.2:63:96 2:0.5:0.2:53:96 2:0.5:0.2:56:96 2:0.5:0.2:60:96 2:0.5:0.2:63:96 2:1.5:0.2:53:96 2:1.5:0.2:56:96 2:1.5:0.2:60:96 2:1.5:0.2:63:96 2:2.5:0.2:53:96 2:2.5:0.2:56:96 2:2.5:0.2:60:96 2:2.5:0.2:63:96 2:3.5:0.2:53:96 2:3.5:0.2:56:96 2:3.5:0.2:60:96 2:3.5:0.2:63:96 3:0.5:0.2:49:96 3:0.5:0.2:53:96 3:0.5:0.2:56:96 3:0.5:0.2:61:96 3:1.5:0.2:49:96 3:1.5:0.2:53:96 3:1.5:0.2:56:96 3:1.5:0.2:61:96 3:2.5:0.2:49:96 3:2.5:0.2:53:96 3:2.5:0.2:56:96 3:2.5:0.2:61:96 3:3.5:0.2:49:96 3:3.5:0.2:53:96 3:3.5:0.2:56:96 3:3.5:0.2:61:96 4:0.5:0.2:51:96 4:0.5:0.2:55:96 4:0.5:0.2:58:96 4:0.5:0.2:62:96 4:1.5:0.2:51:96 4:1.5:0.2:55:96 4:1.5:0.2:58:96 4:1.5:0.2:62:96 4:2.5:0.2:51:96 4:2.5:0.2:55:96 4:2.5:0.2:58:96 4:2.5:0.2:62:96
+}
+
+midi-clip padRiff at 1 for 8 {
+  notes 1:0:4:41:78;tie=1 2:0:4:41:78;tie=1 1:0:4:53:78;tie=2 2:0:4:53:78;tie=2 1:0:4:56:78;tie=3 2:0:4:56:78;tie=3 1:0:4:60:78;tie=4 2:0:4:60:78;tie=4 3:0:4:37:78;tie=5 4:0:4:37:78;tie=5 3:0:4:49:78;tie=6 4:0:4:49:78;tie=6 3:0:4:53:78;tie=7 4:0:4:53:78;tie=7 3:0:4:56:78;tie=8 4:0:4:56:78;tie=8 5:0:4:44:78;tie=9 6:0:4:44:78;tie=9 5:0:4:56:78;tie=10 6:0:4:56:78;tie=10 5:0:4:60:78;tie=11 6:0:4:60:78;tie=11 5:0:4:63:78;tie=12 6:0:4:63:78;tie=12 7:0:4:39:78;tie=13 8:0:4:39:78;tie=13 7:0:4:51:78;tie=14 8:0:4:51:78;tie=14 7:0:4:55:78;tie=15 8:0:4:55:78;tie=15 7:0:4:58:78;tie=16 8:0:4:58:78;tie=16
+}
+
+midi-clip arpRiff at 1 for 4 {
+  notes 1:0:0.2:65:104 1:0.25:0.2:68:88 1:0.5:0.2:72:88 1:0.75:0.2:68:88 1:1:0.2:75:104 1:1.25:0.2:72:88 1:1.5:0.2:68:88 1:1.75:0.2:72:88 1:2:0.2:65:104 1:2.25:0.2:68:88 1:2.5:0.2:72:88 1:2.75:0.2:68:88 1:3:0.2:75:104 1:3.25:0.2:72:88 1:3.5:0.2:68:88 1:3.75:0.2:72:88 2:0:0.2:61:104 2:0.25:0.2:65:88 2:0.5:0.2:68:88 2:0.75:0.2:65:88 2:1:0.2:73:104 2:1.25:0.2:68:88 2:1.5:0.2:65:88 2:1.75:0.2:68:88 2:2:0.2:61:104 2:2.25:0.2:65:88 2:2.5:0.2:68:88 2:2.75:0.2:65:88 2:3:0.2:73:104 2:3.25:0.2:68:88 2:3.5:0.2:65:88 2:3.75:0.2:68:88 3:0:0.2:68:104 3:0.25:0.2:72:88 3:0.5:0.2:75:88 3:0.75:0.2:72:88 3:1:0.2:80:104 3:1.25:0.2:75:88 3:1.5:0.2:72:88 3:1.75:0.2:75:88 3:2:0.2:68:104 3:2.25:0.2:72:88 3:2.5:0.2:75:88 3:2.75:0.2:72:88 3:3:0.2:80:104 3:3.25:0.2:75:88 3:3.5:0.2:72:88 3:3.75:0.2:75:88 4:0:0.2:63:104 4:0.25:0.2:67:88 4:0.5:0.2:70:88 4:0.75:0.2:67:88 4:1:0.2:75:104 4:1.25:0.2:70:88 4:1.5:0.2:67:88 4:1.75:0.2:70:88 4:2:0.2:63:104 4:2.25:0.2:67:88 4:2.5:0.2:70:88 4:2.75:0.2:67:88 4:3:0.2:75:104 4:3.25:0.2:70:88 4:3.5:0.2:67:88 4:3.75:0.2:70:88
+}
+
+midi-clip melodyRiff at 1 for 4 {
+  notes 1:0:1.5:77:100 1:2:1:75:90 2:0:2:72:96 2:2.5:1:75:90 3:0:1.5:73:100 3:2:1:72:90 4:0:3:68:100
+}
+
+
+koda.techno.loopBars bassA8 at 1 for 8 {
+  times 8
+  from bassRiffA.notes -> source
+}
+
+koda.techno.loopBars bassB16 at 1 for 16 {
+  times 8
+  from bassRiffB.notes -> source
+}
+
+koda.techno.loopBars stabA16 at 1 for 16 {
+  times 4
+  from stabRiffA.notes -> source
+}
+
+koda.techno.loopBars stabB16 at 1 for 16 {
+  times 4
+  from stabRiffB.notes -> source
+}
+
+koda.techno.loopBars padLoop at 1 for 24 {
+  times 3
+  from padRiff.notes -> source
+}
+
+koda.techno.loopBars arpLoop8 at 1 for 8 {
+  times 2
+  from arpRiff.notes -> source
+}
+
+koda.techno.loopBars arpLoop16 at 1 for 16 {
+  times 4
+  from arpRiff.notes -> source
+}
+
+koda.techno.loopBars melodyLoop at 1 for 8 {
+  times 2
+  from melodyRiff.notes -> source
+}
+
+
+# ------------------------------------------------------------------ the arrangement of every instrument
+koda.techno.arrange bassPlan at 1 for 64 {
+  s1 8bar
+  s2 16bar
+  s3 40bar
+  s4 56bar
+  from bassA8.notes -> p1
+  from bassB16.notes -> p2
+  from bassB16.notes -> p3
+  from bassA8.notes -> p4
+}
+
+koda.techno.arrange stabPlan at 1 for 64 {
+  s1 16bar
+  s2 40bar
+  from stabA16.notes -> p1
+  from stabB16.notes -> p2
+}
+
+koda.techno.arrange padPlan at 1 for 64 {
+  s1 8bar
+  s2 32bar
+  from padLoop.notes -> p1
+  from padLoop.notes -> p2
+}
+
+koda.techno.arrange leadPlan at 1 for 64 {
+  s1 24bar
+  s2 32bar
+  s3 40bar
+  from arpLoop8.notes -> p1
+  from melodyLoop.notes -> p2
+  from arpLoop16.notes -> p3
+}
+
+# ------------------------------------------------------------------ the instruments: notes in, sound out
+koda.techno.acidBass bass at 1 for 64 {
+  cutoff 3740
+  drive 16dB
+  from bassPlan.notes -> notes
+}
+
+koda.techno.stabs stabs at 1 for 64 {
+  echo 60%
+  brightness 5131
+  from stabPlan.notes -> notes
+}
+
+koda.techno.pad pad at 1 for 64 {
+  level -5dB
+  brightness 3495
+  space 63%
+  from padPlan.notes -> notes
+}
+
+koda.techno.lead lead at 1 for 64 {
+  from leadPlan.notes -> notes
+}
+
+# the music goes through one pump: it ducks on every kick
+mixer music {
+  inputs 4
+  gains "-5 -9 -11 -8"
+  from bass.audio -> audio1
+  from stabs.audio -> audio2
+  from pad.audio -> audio3
+  from lead.audio -> audio4
+}
+
+koda.techno.pump pump {
+  depth 10dB
+  release 170
+  from music.audio -> audio
+}
+
+# ------------------------------------------------------------------ the drums, group by group (the sample kit has kick, snare, hat, open, tom)
+drums kickIntro at 1 for 32 {
+  kit samples/kit
+  pattern kick:x...x...x...x...
+}
+
+drums kickDrop2 at 41 for 24 {
+  kit samples/kit
+  pattern kick:x...x...x...x...
+}
+
+mixer kicks {
+  inputs 4
+  gains "0 0 0 0"
+  from kickIntro.audio -> audio1
+  from kickDrop2.audio -> audio2
+}
+
+
+drums clapBuild at 9 for 24 {
+  kit samples/kit
+  pattern snare:....x.......x...
+}
+
+drums clapDrop2 at 41 for 16 {
+  kit samples/kit
+  pattern snare:....x.......x...
+}
+
+drums rollBuild at 16 for 1 {
+  kit samples/kit
+  pattern snare:xxxxxxxxxxxxxxxx
+}
+
+drums rollBreak at 40 for 1 {
+  kit samples/kit
+  pattern snare:xxxxxxxxxxxxxxxx
+}
+
+mixer claps {
+  inputs 4
+  gains "0 0 -3 -3"
+  from clapBuild.audio -> audio1
+  from clapDrop2.audio -> audio2
+  from rollBuild.audio -> audio3
+  from rollBreak.audio -> audio4
+}
+
+
+drums hatsA at 5 for 28 {
+  kit samples/kit
+  pattern hat:x.xxx.xxx.xxx.xx
+}
+
+drums hatsB at 37 for 28 {
+  kit samples/kit
+  pattern hat:x.xxx.xxx.xxx.xx
+}
+
+drums openA at 13 for 20 {
+  kit samples/kit
+  pattern open:..x...x...x...x.
+}
+
+drums openB at 41 for 16 {
+  kit samples/kit
+  pattern open:..x...x...x...x.
+}
+
+mixer hats {
+  inputs 4
+  gains "0 0 -2 -2"
+  from hatsA.audio -> audio1
+  from hatsB.audio -> audio2
+  from openA.audio -> audio3
+  from openB.audio -> audio4
+}
+
+
+drums tomsFill1 at 32 for 1 {
+  kit samples/kit
+  pattern tom:......x.x.x.xxxx
+}
+
+drums tomsGroove at 49 for 8 {
+  kit samples/kit
+  pattern tom:..x...x..x..x...
+}
+
+drums tomsFill2 at 56 for 1 {
+  kit samples/kit
+  pattern tom:......x.x.x.xxxx
+}
+
+mixer percs {
+  inputs 4
+  gains "-2 -4 -2 0"
+  from tomsFill1.audio -> audio1
+  from tomsGroove.audio -> audio2
+  from tomsFill2.audio -> audio3
+}
+
+
+koda.techno.drumBus drumBus {
+  kickLevel 6dB
+  snareLevel 0dB
+  hatLevel -4dB
+  percLevel -3dB
+  from kicks.audio -> kick
+  from claps.audio -> snare
+  from hats.audio -> hats
+  from percs.audio -> perc
+}
+
+# ------------------------------------------------------------------ the mix
+mixer final {
+  inputs 4
+  gains "8 5 0 0"
+  from drumBus.audio -> audio1
+  from pump.audio -> audio2
+}
+
+
+koda.techno.master finish {
+  from final.audio -> audio
+}
+
+master out {
+  from finish.audio -> audio
+}
+layout bassRiffA 20 20
+layout bassRiffB 360 20
+layout kickIntro 700 20
+layout kickDrop2 1040 20
+layout clapBuild 1380 20
+layout clapDrop2 1720 20
+layout rollBuild 2060 20
+layout rollBreak 2400 20
+layout hatsA 2740 20
+layout hatsB 3080 20
+layout openA 3420 20
+layout openB 3760 20
+layout tomsFill1 4100 20
+layout tomsGroove 4440 20
+layout tomsFill2 4780 20
+layout stabRiffA 5120 20
+layout stabRiffB 5460 20
+layout padRiff 5800 20
+layout arpRiff 6140 20
+layout melodyRiff 6480 20
+layout bassA8 1380 270
+layout bassB16 1720 270
+layout kicks 2060 270
+layout claps 2400 270
+layout hats 2740 270
+layout percs 3080 270
+layout stabA16 3420 270
+layout stabB16 3760 270
+layout padLoop 4100 270
+layout arpLoop8 4440 270
+layout arpLoop16 4780 270
+layout melodyLoop 5120 270
+layout bassPlan 2570 540
+layout drumBus 2910 540
+layout stabPlan 3250 540
+layout padPlan 3590 540
+layout leadPlan 3930 540
+layout bass 3590 940
+layout stabs 3930 940
+layout pad 4270 940
+layout lead 4610 940
+layout music 3590 1280
+layout pump 3590 1550
+layout final 3250 1900
+layout finish 3250 2160
+layout out 3250 2510

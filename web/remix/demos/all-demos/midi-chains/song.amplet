@@ -1,0 +1,166 @@
+composition "midi chains" { ample 1  tempo 118  master-seed 77 }
+
+# MIDI CHAINS: 16 bars at 118 BPM from ONE short clip of single notes (a root note per bar: 8 notes in all, played over four bars).
+# Everything else is made by chains of MIDI effects: each effect takes notes in and gives notes out, so they stack like pedals.
+#
+#   roots -> chord -> synth                                    a pad (the chord block turns every note into a chord)
+#   roots -> chord -> arpeggiator -> quantize -> humanize      a pluck that runs through the chord, then loosened up a little
+#   roots -> transpose -24                                     a bass two octaves down
+#   roots -> transpose +12 -> chord -> random arpeggiator      a shimmer on top; the random order comes from master-seed, so it is the same every time
+#
+#   bars  1- 4  pad and bass
+#   bars  5-16  + the pluck and the drums
+#   bars  9-16  + the shimmer
+import "midi-chains/components/loop.amplec"
+
+midi-clip roots at 1 for 4 {
+  # A minor, F, C, G: one root a bar, and a short fill on the last beat of bar 4
+  notes 1:0:4:57:90 2:0:4:53:90 3:0:4:48:90 4:0:3:55:90 4:3:0.5:59:70 4:3.5:0.5:62:70
+}
+
+koda.demo.loop rootsA at 1 for 16 {
+  times 4
+  from roots.notes -> source
+}
+
+koda.demo.loop rootsB at 5 for 12 {
+  times 3
+  from roots.notes -> source
+}
+
+koda.demo.loop rootsC at 9 for 8 {
+  times 2
+  from roots.notes -> source
+}
+
+# ------------------------------------------------------------------ chain 1: the pad
+chord padChord {
+  type sus2
+  from rootsA.notes -> notes
+}
+
+synth pad at 1 for 16 {
+  wave saw
+  attack 500 ms
+  release 800 ms
+  detune 12
+  cutoff 2600 Hz
+  gain -16
+  from padChord.notes -> notes
+}
+
+# ------------------------------------------------------------------ chain 2: the pluck (chord, then arpeggio, then snapped to the grid, then loosened)
+chord pluckChord {
+  type min7
+  from rootsB.notes -> notes
+}
+
+arpeggiator pluckRun {
+  rate 1/16
+  pattern updown
+  octaves 2
+  gate 60
+  from pluckChord.notes -> notes
+}
+
+quantize pluckGrid {
+  grid 1/16
+  strength 100
+  from pluckRun.notes -> notes
+}
+
+midi-humanize pluckLoose {
+  velocity 18
+  timing 12
+  from pluckGrid.notes -> notes
+}
+
+synth pluck at 5 for 12 {
+  wave square
+  attack 3 ms
+  decay 140 ms
+  sustain 10
+  release 120 ms
+  cutoff 3800 Hz
+  gain -17
+  from pluckLoose.notes -> notes
+}
+
+# ------------------------------------------------------------------ chain 3: the bass
+transpose bassDown {
+  semitones -24
+  from rootsA.notes -> notes
+}
+
+synth bass at 1 for 16 {
+  wave sine
+  attack 6 ms
+  release 200 ms
+  gain -5
+  from bassDown.notes -> notes
+}
+
+# ------------------------------------------------------------------ chain 4: the shimmer (up an octave, power chords, in a random order that the seed fixes)
+transpose shimmerUp {
+  semitones 12
+  from rootsC.notes -> notes
+}
+
+chord shimmerChord {
+  type power
+  from shimmerUp.notes -> notes
+}
+
+arpeggiator shimmerRun {
+  rate 1/8
+  pattern random
+  octaves 3
+  gate 45
+  from shimmerChord.notes -> notes
+}
+
+synth shimmer at 9 for 8 {
+  wave triangle
+  attack 4 ms
+  decay 300 ms
+  sustain 20
+  release 600 ms
+  gain -19
+  from shimmerRun.notes -> notes
+}
+
+delay shimmerEcho {
+  time 381 ms
+  feedback 50%
+  mix 40%
+  from shimmer.audio -> audio
+}
+
+reverb shimmerSpace {
+  size 80%
+  decay 80%
+  mix 35%
+  from shimmerEcho.audio -> audio
+}
+
+# ------------------------------------------------------------------ drums and the mix
+drums beat at 5 for 12 {
+  kit samples/kit
+  pattern kick:x...x...x...x... snare:....x.......x... hat:x.xxx.xxx.xxx.xx open:......x.......x.
+  swing 6
+  humanize 15
+}
+
+mixer sum {
+  inputs 8
+  gains "-2 8 -9 3 9 0 0 0"
+  from pad.audio -> audio1
+  from pluck.audio -> audio2
+  from bass.audio -> audio3
+  from shimmerSpace.audio -> audio4
+  from beat.audio -> audio5
+}
+
+master out {
+  from sum.audio -> audio
+}

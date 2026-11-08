@@ -1,0 +1,28 @@
+/** Two Audio inputs: the compressor of the sound listens to the sidechain. */
+#[DisplayName("Sidechain pump")]
+#[Category("Audio effects")]
+#[Tags("sidechain", "pump", "dynamics")]
+component koda.fx.sidechainPump version 1.0.0 current {
+  id "demo.koda.fx.sidechain-pump"
+
+  input audio: Audio
+  input sidechain: Audio
+
+  property threshold: Gain = -24dB
+
+  property release: Duration = 120ms
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob threshold
+      field release
+    }
+  }
+
+  process {
+    emit audio
+      |> compressor(threshold=threshold, release=release, key=sidechain)
+  }
+}

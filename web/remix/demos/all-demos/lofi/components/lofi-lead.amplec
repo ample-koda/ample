@@ -1,0 +1,38 @@
+/** Notes in, a soft muted melody out. */
+#[DisplayName("Muted lead")]
+#[Category("Lo-fi")]
+#[Tags("lead", "lofi", "instrument", "lofi")]
+component koda.lofi.lofiLead version 1.0.0 current {
+  id "demo.koda.lofi.lofi-lead"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(500), MaxValue(4000)]
+  property brightness: Int = 1800
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -9dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="triangle", attack="10 ms", decay="250 ms", sustain="55", release="300 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> delay(time=0.75beat, feedback=35%, mix=22%)
+      |> reverb(size=55%, decay=50%, mix=20%)
+      |> gain(level)
+  }
+}

@@ -1,0 +1,37 @@
+composition "space" { ample 1  tempo 96  master-seed 13 }
+
+midi-clip tune at 1 for 4 {
+  melody "e5:0.5 r:1.5 g5:0.5 r:1.5 a5:0.5 r:1.5 e5:0.5 r:1.5 d5:0.5 r:1.5 b4:0.5 r:1.5 c5:4"
+  bars 4
+}
+
+piano keys at 1 for 4 {
+  from tune.notes -> notes
+}
+
+delay echo {
+  time 0.75 beat
+  feedback 45%
+  mix 100%
+  from keys.audio -> audio
+}
+
+reverb hall {
+  size 85%
+  decay 80%
+  mix 100%
+  from keys.audio -> audio
+}
+
+# The dry sound, the echo and the hall are three inputs of a mixer: gains are in dB, the dry one is the loudest.
+mixer mix {
+  inputs 4
+  gains "0 -10 -8 0"
+  from keys.audio -> audio1
+  from echo.audio -> audio2
+  from hall.audio -> audio3
+}
+
+master out {
+  from mix.audio -> audio
+}

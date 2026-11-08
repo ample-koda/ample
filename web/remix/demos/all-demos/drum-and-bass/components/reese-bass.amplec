@@ -1,0 +1,37 @@
+/** Notes in, a growling detuned bass out. */
+#[DisplayName("Reese bass")]
+#[Category("Drum and bass")]
+#[Tags("bass", "dnb", "instrument", "dnb")]
+component koda.dnb.reeseBass version 1.0.0 current {
+  id "demo.koda.dnb.reese-bass"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(150), MaxValue(2500)]
+  property brightness: Int = 600
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -5dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint orange
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint orange
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="4 ms", decay="200 ms", sustain="60", release="80 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> distortion(drive=8dB, mode="soft", tone=4000Hz, mix=45%)
+      |> gain(level)
+  }
+}

@@ -1,0 +1,39 @@
+composition "chords and a bass" { ample 1  tempo 96  master-seed 2 }
+
+# Chords from names: one chord per bar.
+midi-clip chords at 1 for 4 {
+  chords Am F C G
+  bars 4
+}
+
+# A pad for the chords and a sine bass on the root notes.
+synth pad at 1 for 4 {
+  wave saw
+  attack 400 ms
+  release 800 ms
+  cutoff 1800 Hz
+  from chords.notes -> notes
+}
+
+midi-clip root at 1 for 4 {
+  melody "a2:4 f2:4 c2:4 g2:4"
+  bars 4
+}
+
+synth bass at 1 for 4 {
+  wave sine
+  attack 5 ms
+  release 200 ms
+  from root.notes -> notes
+}
+
+mixer mix {
+  inputs 4
+  gains "-8 -4 0 0"
+  from pad.audio -> audio1
+  from bass.audio -> audio2
+}
+
+master out {
+  from mix.audio -> audio
+}

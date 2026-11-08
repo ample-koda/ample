@@ -1,0 +1,32 @@
+/** Notes in, bells that follow a seeded random walk out. */
+#[DisplayName("Walking bells")]
+#[Category("Generative ambient")]
+#[Tags("bells", "generative", "ambient", "instrument", "genambient")]
+component koda.genambient.walkBells version 1.0.0 current {
+  id "demo.koda.genambient.walk-bells"
+
+  input notes: Notes
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -8dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob level size l tint gray
+    }
+    card {
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> piano()
+      |> delay(time=1.5beat, feedback=55%, mix=40%)
+      |> reverb(size=92%, decay=88%, mix=45%)
+      |> gain(level)
+  }
+}

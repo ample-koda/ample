@@ -1,0 +1,37 @@
+/** Notes in, a hazy pad under the keys out. */
+#[DisplayName("Vinyl pad")]
+#[Category("Lo-fi")]
+#[Tags("pad", "lofi", "instrument", "lofi")]
+component koda.lofi.vinylPad version 1.0.0 current {
+  id "demo.koda.lofi.vinyl-pad"
+
+  input notes: Notes
+
+  #[DisplayName("Brightness"), MinValue(300), MaxValue(3000)]
+  property brightness: Int = 1000
+
+  #[DisplayName("Level"), MinValue(-30dB), MaxValue(6dB)]
+  property level: Gain = -10dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob brightness size l tint purple
+      knob level size l tint gray
+    }
+    card {
+      knob brightness size s tint purple
+      knob level size s tint gray
+    }
+    preview live
+  }
+
+  process {
+    emit notes
+      |> synth(wave="saw", attack="600 ms", decay="400 ms", sustain="80", release="1000 ms")
+      |> filter(type="lowpass", cutoff=brightness * 1Hz)
+      |> reverb(size=60%, decay=60%, mix=24%)
+      |> gain(level)
+  }
+}
