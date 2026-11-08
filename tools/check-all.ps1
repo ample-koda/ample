@@ -36,6 +36,7 @@ try {
 
   node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\validate-spec.test.mjs')
   node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\quarantine-failed.test.mjs')
+  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\issue-sync\sync.test.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\faer\server.test.mjs') (Join-Path $repositoryRoot 'ample\faer\gpu-manager.test.mjs')

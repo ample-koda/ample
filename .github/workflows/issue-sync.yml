@@ -1,0 +1,39 @@
+name: Issue sync
+
+# Keeps the issues of this repository and the maintainers' private tracker in step (tools/issue-sync/sync.mjs): every issue here is mirrored there, and only the
+# maintainer issues that are marked for it are published here. A run reconciles everything, so the event only says "look again"; nothing of an issue (a title,
+# a text) is ever put in a command: the script reads it from the API as data. The private side is a secret; the log never shows it or any text.
+on:
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled]
+  issue_comment:
+    types: [created, edited]
+  schedule:
+    - cron: '*/5 * * * *'   # also looks at the private side, which cannot start this workflow itself
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: issue-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'ample-koda/ample'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/issue-sync
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reconcile
+        run: node tools/issue-sync/sync.mjs
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          SYNC_PRIVATE_REPO: ${{ secrets.SYNC_PRIVATE_REPO }}
+          SYNC_SCAN_RULES: ${{ secrets.SYNC_SCAN_RULES }}
+          SYNC_BOT_LOGIN: ${{ secrets.SYNC_BOT_LOGIN }}
