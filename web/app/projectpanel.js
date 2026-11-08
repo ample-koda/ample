@@ -19,17 +19,19 @@ let kindsCache = null;
 const projectKinds = async () => kindsCache || (kindsCache = await api.get('/api/project/kinds'));
 
 /** Creates a file or folder of a kind in a folder (the Add menu), then opens it in the editor that fits. */
-async function addNew(kind, inFolder) {
+export async function addNew(kind, inFolder) {
   try {
-    const input = el('input', { value: '', placeholder: kind.isFolder ? 'folder name' : 'name', 'aria-label': `Name of the new ${kind.label.toLowerCase()}` });
-    const where = inFolder || kind.folder || 'the project root';
-    if (!(await ask(`New ${kind.label.toLowerCase()}`, `It is created in ${where}${kind.extension ? ' and gets the extension ' + kind.extension : ''}.`, [{ label: 'Create', value: true, primary: true }, { label: 'Cancel', value: false }], [input]))) return;
-    const body = { kind: kind.id, name: input.value.trim() };
-    if (inFolder) body.folder = inFolder;
+    // a file browser: the folders and what is in them, a name with the extension after it, and what is made (the folder the kind prefers, or the one this was started from)
+    const { openProjectFilePicker } = await import('./filepicker.js');
+    const picked = await openProjectFilePicker('', undefined, 'new', { title: `New ${kind.label.toLowerCase()}`, extension: kind.extension, isFolder: kind.isFolder, folder: inFolder || kind.folder || '' });
+    if (!picked) return;
+    const body = { kind: kind.id, name: picked.name };
+    if (picked.folder) body.folder = picked.folder;
     const made = await api.post('/api/project/new', body);
     await refreshProjectPanel();
     if (made.open === 'song') document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
-    else if (made.open === 'text') document.dispatchEvent(new CustomEvent('ample:open-file', { detail: made.path }));
+    else if (made.open === 'text' || made.open === 'midi') document.dispatchEvent(new CustomEvent('ample:open-file', { detail: made.path }));
+    else if (made.isFolder || made.open === 'none') document.dispatchEvent(new CustomEvent('ample:reveal-file', { detail: made.path }));   // a folder is shown (and opened) in the project files
     toast(`Created ${made.path}`);
   } catch (error) { toast(error.message); }
 }

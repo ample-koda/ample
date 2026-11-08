@@ -38,9 +38,14 @@ export async function uploadProjectFiles(fileList, folder, onProgress) {
   return results;
 }
 
-export async function openProjectFilePicker(current, accept, mode) {
-  const dialog = el('dialog', { className: 'project-file-picker', 'aria-labelledby': 'project-picker-title' });
-  const title = el('h2', { id: 'project-picker-title', textContent: mode === 'folder' ? 'Choose a project folder' : 'Choose a project file' });
+/**
+ * The project file browser. mode: 'file' (choose a file), 'folder' (choose a folder) or 'new' (a "save as" for a new file or folder: the tree and the list show what is there, a name with the
+ * extension next to it says what will be made and refuses a name that exists; it answers { folder, name }). options for 'new': title, extension, isFolder, folder (where it starts).
+ */
+export async function openProjectFilePicker(current, accept, mode, options = {}) {
+  const isNew = mode === 'new';
+  const dialog = el('dialog', { className: `project-file-picker${isNew ? ' new-file' : ''}`, 'aria-labelledby': 'project-picker-title' });
+  const title = el('h2', { id: 'project-picker-title', textContent: isNew ? (options.title || 'New file') : mode === 'folder' ? 'Choose a project folder' : 'Choose a project file' });
   const search = el('input', { type: 'search', placeholder: 'Search files', 'aria-label': 'Search files' });
   const tree = el('div', { className: 'project-tree' });
   const files = el('div', { className: `project-file-list${mode === 'folder' ? ' folder-picker-list' : ''}` });
@@ -48,25 +53,42 @@ export async function openProjectFilePicker(current, accept, mode) {
   const uploadStatus = el('div', { className: 'project-upload-progress', 'aria-live': 'polite' });
   const upload = el('input', { type: 'file', multiple: true, 'aria-label': 'Upload files' });
   const newFolder = el('button', { type: 'button', textContent: 'New folder' });
-  const choose = el('button', { type: 'button', className: 'primary', textContent: 'Choose', disabled: mode !== 'folder' || !current });
+  const choose = el('button', { type: 'button', className: 'primary', textContent: isNew ? 'Create' : 'Choose', disabled: isNew || mode !== 'folder' || !current });
   const noFile = el('button', { type: 'button', textContent: mode === 'folder' ? 'Use no folder' : 'Use no file' });
   const cancel = el('button', { type: 'button', textContent: 'Cancel' });
   // compact rows (a name, no preview) and one fixed layout: search, the two lists that fill the height, and a foot with the details and the actions
   files.dataset.rowHeight = '34';
   upload.hidden = true;
+  noFile.hidden = isNew;
+  // the new-file dialog: a name with the extension after it, under the lists
+  const extension = options.extension || '';
+  const nameInput = el('input', { type: 'text', className: 'new-name', placeholder: options.isFolder ? 'folder name' : 'name', 'aria-label': 'Name', maxLength: 120, autocomplete: 'off', spellcheck: false });
+  const nameRow = isNew ? el('div', { className: 'new-file-row' }, [el('label', { textContent: options.isFolder ? 'Folder name' : 'Name' }), nameInput, extension ? el('span', { className: 'new-ext', textContent: extension }) : '']) : null;
   const uploadButton = el('button', { type: 'button', textContent: 'Upload...', title: 'Add files from this computer to the open folder (or drop them on the list)', onclick: () => upload.click() });
-  const foot = el('div', { className: 'project-picker-foot' }, [detail, uploadStatus, el('div', { className: 'project-picker-actions' }, [uploadButton, newFolder, noFile, el('span', { className: 'sp' }), cancel, choose]), upload]);
+  const foot = el('div', { className: 'project-picker-foot' }, [detail, ...(nameRow ? [nameRow] : []), uploadStatus, el('div', { className: 'project-picker-actions' }, [...(isNew ? [] : [uploadButton]), newFolder, noFile, el('span', { className: 'sp' }), cancel, choose]), upload]);
   dialog.append(title, search, el('div', { className: 'project-picker-body' }, [tree, files]), foot);
   document.body.append(dialog);
 
   let selected = current || '';
-  let activeFolder = parentFolder(selected);
+  let activeFolder = isNew ? (options.folder || '') : parentFolder(selected);
   let activeItems = [];
   let roots = [];
+  /** The new-file dialog: what will be made, and why Create is not possible yet (no name, a slash in it, a name that is already in the folder). */
+  const updateTarget = () => {
+    const name = nameInput.value.trim();
+    const full = name && extension && !name.toLowerCase().endsWith(extension.toLowerCase()) ? name + extension : name;
+    let problem = '';
+    if (/[\\/]/.test(name) || name === '.' || name === '..') problem = 'A name has no slash.';
+    else if (name && activeItems.some((item) => item.name.toLowerCase() === full.toLowerCase())) problem = full + ' is already in this folder.';
+    detail.replaceChildren(el('span', { textContent: problem || (name ? 'Creates ' + (activeFolder ? activeFolder + '/' : '') + full : 'Pick a folder on the left and type a name. It is made in ' + (activeFolder || 'the project root') + '.') }));
+    detail.classList.toggle('bad', !!problem);
+    choose.disabled = !name || !!problem;
+  };
   const loadChildren = async (folder) => (await api.get(`/api/project/tree?path=${encodeURIComponent(folder.path)}&depth=1`)).children;
   const refresh = async () => {
     const listing = await api.get(`/api/project/tree?path=${encodeURIComponent(activeFolder)}&depth=1`);
     activeItems = listing.children;
+    if (isNew) updateTarget();
     if (mode === 'folder') {
       files.setAttribute('role', 'listbox');
       files.replaceChildren(...activeItems.filter((item) => item.isDir).map((item) => {
@@ -108,6 +130,7 @@ export async function openProjectFilePicker(current, accept, mode) {
   };
   const chooseFile = async (item) => {
     if (item.isDir) { await selectFolder(item); return; }   // a folder in the list opens it
+    if (isNew) return;   // in the new-file dialog a file in the list only shows what is already there
     selected = item.path;
     choose.disabled = false;
     detail.replaceChildren(
@@ -177,28 +200,34 @@ export async function openProjectFilePicker(current, accept, mode) {
     await uploadFiles(event.dataTransfer.files, onFolder ? onFolder.dataset.path : activeFolder);
   };
   dialog.onkeydown = (event) => {
-    if (event.key === '/' && event.target !== search) { event.preventDefault(); search.focus(); }
+    if (event.key === '/' && event.target !== search && event.target.tagName !== 'INPUT') { event.preventDefault(); search.focus(); }
     if (event.key === 'Backspace' && event.target !== search && event.target.tagName !== 'INPUT' && activeFolder) { event.preventDefault(); activeFolder = parentFolder(activeFolder); renderTree(); refresh().catch((error) => toast(error.message)); }
   };
   search.oninput = () => renderProjectFileList(files, activeItems, search.value, accept, selected, chooseFile, showListMenu);
+  nameInput.oninput = updateTarget;
+  nameInput.onkeydown = (event) => { if (event.key === 'Enter' && !choose.disabled) { event.preventDefault(); choose.click(); } };
   upload.onchange = async () => { if (upload.files) await uploadFiles(upload.files); upload.value = ''; };
   const createFolderIn = async (parent) => {
     const name = el('input', { type: 'text', 'aria-label': 'Folder name', maxLength: 128 });
     const create = await ask('New folder', `Create a folder in ${parent || 'the project root'}.`, [{ label: 'Create', value: true, primary: true }, { label: 'Cancel', value: false }], [name]);
     if (!create || !name.value.trim()) return;
     try {
-      await api.createProjectFolder(parent ? `${parent}/${name.value.trim()}` : name.value.trim());
+      const made = parent ? `${parent}/${name.value.trim()}` : name.value.trim();
+      await api.createProjectFolder(made);
+      // the new folder is opened right away (the tree opens to it and the list shows it), so a file can be made in it at once; when a folder is being chosen it is the choice
+      activeFolder = made;
+      if (mode === 'folder') { selected = made; choose.disabled = false; detail.textContent = `Selected folder: ${made}`; }
       roots = (await api.get('/api/project/tree?depth=1')).children;
       await revealCurrent();
     } catch (error) { toast(error.message); }
   };
   newFolder.onclick = () => createFolderIn(activeFolder);
   return new Promise((resolve) => {
-    choose.onclick = () => { dialog.close(); rescueMenu(); dialog.remove(); resolve(selected || undefined); };
+    choose.onclick = () => { dialog.close(); rescueMenu(); dialog.remove(); resolve(isNew ? { folder: activeFolder, name: nameInput.value.trim() } : selected || undefined); };
     noFile.onclick = () => { dialog.close(); rescueMenu(); dialog.remove(); resolve(''); };
     cancel.onclick = () => { dialog.close(); rescueMenu(); dialog.remove(); resolve(undefined); };
     dialog.oncancel = (event) => { event.preventDefault(); dialog.close(); rescueMenu(); dialog.remove(); resolve(undefined); };
     dialog.showModal();
-    search.focus();
+    (isNew ? nameInput : search).focus();
   });
 }
