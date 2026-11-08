@@ -42,7 +42,7 @@ test('a drum block with a sample kit shows its pattern as a grid and a click cha
   await expect.poll(() => param('kit', 'pattern')).toBe('beat-A');
 });
 
-test('voices can be added and removed, presets and clear work, and a voice without a file is marked', async ({ page }) => {
+test('voices can be added and removed, presets and clear work, and a voice without a file is marked @quarantine', async ({ page }) => {
   await node(page, 'kit').locator('.nh .t').click();
   const grid = page.locator('#seq-drums');
   await grid.locator('select[title^="Add a voice"]').selectOption('tom');

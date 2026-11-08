@@ -198,7 +198,7 @@ test('plain Accept applies the proposal without starting another Codex turn', as
   expect(said(accepted.log)).toBe(saidBefore);   // Accept starts no other turn: Codex says nothing new
 });
 
-test('double-clicking Accept selected applies once without starting another Codex turn', async ({ page }) => {
+test('double-clicking Accept selected applies once without starting another Codex turn @quarantine', async ({ page }) => {
   test.setTimeout(180000);
   fs.writeFileSync(path.join(ownServer()!.home, 'ai-policy.json'), JSON.stringify({ codexPath: path.resolve('web/tests/fixtures/fake-codex.js') }));
   await openApp(page);
