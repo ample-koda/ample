@@ -14,9 +14,6 @@
            Scope="perUser" Language="1033" Compressed="yes" InstallerVersion="500">
     <SummaryInformation Description="AMPLE (beta): songs as reproducible text" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of AMPLE is already installed." />
-    <!-- An update or removal while the tray hub or a server runs: the installer closes them itself (the hub has no window to close, so it is ended) instead of asking the person to. -->
-    <util:CloseApplication Id="CloseHub" Target="Ample.Hub.exe" CloseMessage="yes" TerminateProcess="0" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseAmple" Target="ample.exe" CloseMessage="yes" TerminateProcess="0" RebootPrompt="no" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="ample.ico" SourceFile="ample.ico" />
@@ -91,7 +88,10 @@
     <CustomAction Id="FetchKodaBrowser" DllEntry="RunAmplePack" Execute="deferred" Impersonate="yes" Return="ignore" BinaryRef="AmpleCa" />
     <SetProperty Id="FetchSoundFont" Value="[INSTALLFOLDER]ample.exe|soundfont|[AMPLEHOME]" Sequence="execute" Before="FetchSoundFont" Condition="NOT REMOVE AND &amp;SoundFont=3" />
     <SetProperty Id="FetchKodaBrowser" Value="[INSTALLFOLDER]ample.exe|koda-browser|[AMPLEHOME]" Sequence="execute" Before="FetchKodaBrowser" Condition="NOT REMOVE AND &amp;KodaBrowser=3" />
+    <!-- The required step after "Install": see whether AMPLE still runs from the install folder (the tray hub, servers). The person chooses (close them nicely and go on, or stop the installation); a program that does not stop by itself within 25 seconds is closed forcibly only after a second yes. A silent install does the same without asking. -->
+    <CustomAction Id="CloseRunningAmple" DllEntry="CloseRunningAmple" Execute="immediate" Return="check" BinaryRef="AmpleCa" />
     <InstallExecuteSequence>
+      <Custom Action="CloseRunningAmple" Before="InstallValidate" />
       <Custom Action="FetchSoundFont" After="InstallFiles" Condition="NOT REMOVE AND &amp;SoundFont=3 AND NOT SKIPEXTRAS" />
       <Custom Action="FetchKodaBrowser" After="FetchSoundFont" Condition="NOT REMOVE AND &amp;KodaBrowser=3 AND NOT SKIPEXTRAS" />
     </InstallExecuteSequence>

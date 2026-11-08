@@ -171,9 +171,10 @@ export class Koda {
     this.cfg = this.#tail(TAILS[this.emotion] ?? TAILS.neutral);
   }
   /** Unsafe mode (the user lets Koda change things directly): a red headband, sharper eyes and a tighter, more purposeful movement for as long as it lasts. */
-  setRisk(unsafe) {
+  setRisk(unsafe, bare = false) {
     const was = !!this.unsafe;
     this.unsafe = !!unsafe;
+    if (unsafe && bare) this.svg.dataset.mode = 'bare'; else delete this.svg.dataset.mode;   // bare metal: the headband and the glow go from red towards purple and pink
     if (this.unsafe) this.svg.dataset.risk = 'unsafe'; else delete this.svg.dataset.risk;
     this.cfg = this.#tail(TAILS[this.emotion] ?? TAILS.neutral);
     if (was !== this.unsafe) this.#transform(this.unsafe);

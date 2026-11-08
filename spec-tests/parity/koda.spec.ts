@@ -730,6 +730,12 @@ test('draft or live: a pill in the bubble until the first reply; live applies th
   await page.keyboard.press('Control+k');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
   await page.locator('#koda-layer .riskpill').click({ force: true });   // Koda moves about in live mode, so it is never 'stable'
+  // the third state: bare metal (live, quick and rough), remembered as 2 and tinted
+  await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('data-mode', 'bare');
+  await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#koda-layer')).toHaveAttribute('data-mode', 'bare');
+  expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBe('2');
+  await page.locator('#koda-layer .riskpill').click({ force: true });
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'false');
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBeNull();
 });

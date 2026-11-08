@@ -1,12 +1,12 @@
 // Koda, the small helper of AMPLE (plan/pet): one floating layer above the page with the note, its bubbles and its presence (visible, hiding, hidden, peeking, appearing, muted). Koda speaks only when asked: a block,
 // a piece of code or a field is the subject; what AMPLE can tell by itself is told at once, the rest goes to the backend (koda-backend.js). Nothing here changes the project except an accepted draft. @ample:koda
-import { S, flat, subscribe, undo, redo } from './store.js';
+import { S, applyText, flat, subscribe, undo, redo } from './store.js';
 import { $, el, showMenu, toast } from './ui.js';
 import { currentPower, loadModels, menuItems, onModelChange, summary } from './koda-model.js';
 import { Koda } from './koda-art.js';
 import { answerBubble, choiceBubble, draftBubble, menuBubble, noteBubble, thoughtBubble, variantsBubble } from './koda-bubbles.js';
 import { KodaBusy, KodaUnavailable, backend, setBackend } from './koda-backend.js';
-import { activeText, serverBackend } from './koda-server.js';
+import { activeText, serverBackend, setBare, setLiveHooks, tellUserEdit } from './koda-server.js';
 import { clearGhosts, showGhosts } from './koda-ghosts.js';
 import { editorOpen, hideInline, inlineShown, showInline } from './koda-inline.js';
 import { editorShowsSong } from './source.js';
@@ -49,7 +49,7 @@ export function initKoda() {
   const muteMark = el('div', { className: 'mutebadge', title: 'Koda is muted', hidden: true });
   muteMark.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 17.5a2.5 2 0 1 1-1-1.6V6l9-2v10.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   // draft / live: a pill in the bubble that can be switched until the first reply of the conversation, then a small dot under Koda says which it was
-  me.pill = el('button', { type: 'button', className: 'riskpill', role: 'switch', 'aria-checked': 'false', hidden: true, onclick: () => { me.risk = me.risk === 'unsafe' ? 'safe' : 'unsafe'; rememberRisk(); paintRisk(); } });
+  me.pill = el('button', { type: 'button', className: 'riskpill', role: 'switch', 'aria-checked': 'false', hidden: true, onclick: () => { me.risk = me.risk === 'safe' ? 'unsafe' : me.risk === 'unsafe' ? 'bare' : 'safe'; rememberRisk(); paintRisk(); } });   // draft, live, bare metal
   me.dot = el('span', { className: 'riskdot', 'aria-hidden': 'true', hidden: true });
   me.risk = recalledRisk();   // live mode stays on until it is switched off (remembered in this browser)
   // a choice of model or thinking level that is not the default is always visible: a small chip under Koda (a click opens the menu)
@@ -96,22 +96,50 @@ function applyModelLook() {
 }
 function paintRisk() {
   if (!me.ready || !me.pill) return;
-  const unsafe = me.risk === 'unsafe';
+  const unsafe = me.risk !== 'safe', bare = me.risk === 'bare';   // live and bare metal both change things at once
   const asking = !me.locked && ['menu', 'choice', 'thought'].includes(me.bubble?.kind);
   me.pill.hidden = !asking;
   me.pill.setAttribute('aria-checked', String(unsafe));
+  me.pill.dataset.mode = me.risk;
   me.pill.title = tx('risk.title');
-  me.pill.replaceChildren(el('i'), document.createTextNode(tx(unsafe ? 'risk.unsafe' : 'risk.safe')));
+  me.pill.replaceChildren(el('i'), document.createTextNode(tx(bare ? 'risk.bare' : unsafe ? 'risk.unsafe' : 'risk.safe')));
   me.dot.hidden = !(me.locked && me.bubble);
   me.dot.classList.toggle('unsafe', unsafe);
-  me.koda?.setRisk(unsafe);
+  me.dot.classList.toggle('bare', bare);
+  if (me.layer) me.layer.dataset.mode = me.risk;   // the whole of Koda takes the tint of the mode
+  setBare(bare);   // bare metal also tells the model to be quick and rough
+  me.koda?.setRisk(unsafe, bare);
 }
 /** The first real reply (an answer, a draft or variants) locks the choice for the rest of the conversation; a closed conversation starts again on safe. */
 /** Live mode is remembered in this browser only (never on the server) until it is switched off again. */
 const RISK_KEY = 'ample.koda.live';
-const recalledRisk = () => { try { return localStorage.getItem(RISK_KEY) === '1' ? 'unsafe' : 'safe'; } catch { return 'safe'; } };
-const rememberRisk = () => { try { if (me.risk === 'unsafe') localStorage.setItem(RISK_KEY, '1'); else localStorage.removeItem(RISK_KEY); } catch { /* storage may be blocked */ } };
+const recalledRisk = () => { try { const v = localStorage.getItem(RISK_KEY); return v === '2' ? 'bare' : v === '1' ? 'unsafe' : 'safe'; } catch { return 'safe'; } };
+const rememberRisk = () => { try { if (me.risk !== 'safe') localStorage.setItem(RISK_KEY, me.risk === 'bare' ? '2' : '1'); else localStorage.removeItem(RISK_KEY); } catch { /* storage may be blocked */ } };
 const lockRisk = () => { me.locked = true; paintRisk(); };
+
+// Bare metal, the live view: the song follows what the model makes, edit by edit; the steps in between are folded into one undo step when it is done,
+// and what the person changes meanwhile is handed to the model (koda-server.js tellUserEdit).
+const live = { running: false, applying: false, known: '', start: null, did: false };
+setLiveHooks({
+  start() { live.running = true; live.known = activeText(); live.start = null; live.did = false; },
+  async show(text) {
+    if (live.start === null) live.start = S.undo.length;
+    live.applying = true;
+    try { await applyText(text); live.did = true; } finally { live.applying = false; }
+    live.known = activeText();
+  },
+  paused() { toast(tx('bare.paused')); },
+  end() {
+    live.running = false;
+    if (live.start !== null && S.undo.length > live.start + 1) S.undo.splice(live.start + 1);   // one undo step for everything Koda did while it worked
+    live.start = null;
+  },
+});
+subscribe(() => {
+  if (!live.running || live.applying) return;
+  const now = activeText();
+  if (now !== live.known) { const was = live.known; live.known = now; tellUserEdit(was, now); }
+});
 
 /** The note at the edge (Koda is away): drag it along the edge to move it, and pull it far enough from the edge to bring Koda out where you let go. */
 const PULL = 70;
@@ -642,7 +670,7 @@ async function askModel(kind, subject, text, resume) {
   me.showThought = showThought;
   // a permission the model asks for (reading a source asset, ...): live mode allows reading an asset by itself, otherwise the bubble asks and the thinking goes on afterwards
   backend().setApprover?.(async (a) => {
-    if (me.risk === 'unsafe' && a.kind === 'asset') return 'acceptForSession';
+    if (me.risk !== 'safe' && a.kind === 'asset') return 'acceptForSession';
     const decision = await new Promise((resolve) => openNote({ label: tx('perm.label'), text: tx('perm.text', { x: a.summary || a.kind }), emotion: 'confused', buttons: [{ label: tx('perm.allow'), primary: true, value: 'acceptForSession' }, { label: tx('perm.deny'), quiet: true, value: 'decline' }] }, (v) => resolve(v || 'decline')));
     if (me.busy === controller) showThought();
     return decision;
@@ -759,7 +787,7 @@ function showResultNow(kind, subject, result) {
   clearGhosts();
   hideInline();
   if (result.kind === 'variants') { showVariants(kind, subject, result); return; }
-  if (result.kind === 'draft' && me.risk === 'unsafe' && result.apply && !result.fromQuestion) {
+  if (result.kind === 'draft' && me.risk !== 'safe' && result.apply && !result.fromQuestion) {
     // unsafe: no question, the draft is applied at once, through the same accept as a kept draft (one undo step, in the history); a stale song or a check with an issue falls back to the draft
     if (!result.issue && (result.baseText === undefined || result.baseText === activeText())) { autoApply(result, subject); return; }
     toast(tx('risk.held'));
@@ -840,7 +868,8 @@ async function autoApply(result, subject) {
   let ok = false;
   try { ok = (await result.apply()) !== false; } catch { ok = false; }
   if (!ok) { openNote({ kind: 'error', label: tx('kept.failed.label'), text: tx('kept.failed.text'), emotion: 'sad' }, () => closeBubble()); return; }
-  const made = S.undo.length > depth;
+  const made = S.undo.length > depth || live.did;   // bare metal: Koda's changes are already in the song (live view), as one undo step
+  live.did = false;
   const text = [result.note, tx('risk.done.text')].filter(Boolean).join(' ');
   const buttons = [...(made ? [{ label: tx('risk.undo'), primary: true, value: 'undo' }] : []), { label: tx('answer.thanks'), quiet: made, primary: !made, value: 'ok' }, { label: tx('answer.ask'), quiet: true, value: 'ask' }, ...assistantButton(result.taskId)];
   setBubble('answer', answerBubble({ title: '', label: tx('risk.done.label'), text, buttons, onAsk: followUp(subject, text) }, async (v) => { if (v === 'undo') await undoneBubble(subject, made); else if (v === 'open') openInAssistant(result.taskId); else closeBubble(); }, () => closeBubble()), 'happy');
