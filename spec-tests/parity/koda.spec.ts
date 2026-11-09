@@ -639,7 +639,7 @@ test('variants the model offered are shown as A, B and C: listen to one, ask abo
   await expect(bubble.locator('.vt')).toHaveCount(3, { timeout: 8000 });
   await expect(bubble.locator('.vt').first()).toContainText('Sound 1');
   await expect(bubble.locator('.vbody')).toContainText('beat 1');
-  await bubble.locator('.vt').nth(1).click({ force: true });
+  await bubble.locator('.vt').nth(1).dispatchEvent('click');   // Koda moves about: a mouse click can miss the tab
   await expect(bubble.locator('.vbody')).toContainText('beat 2');
   await expect(bubble.locator('.vlisten').first()).toContainText('Listen to B');
   await expect(bubble.locator('.vt').nth(1)).toBeVisible();
@@ -648,7 +648,7 @@ test('variants the model offered are shown as A, B and C: listen to one, ask abo
   await page.keyboard.press('Enter');
   await expect(bubble.locator('.vans')).toContainText('Done: other beats please');
   await expect(bubble.locator('.vt')).toHaveCount(2);   // the proposal went on: new variants replace the old ones
-  await bubble.getByRole('button', { name: 'Use this one' }).click({ force: true });
+  await bubble.getByRole('button', { name: 'Use this one' }).dispatchEvent('click');
   await expect(page.locator('#koda-layer .bub.k-draft')).toContainText('beat 1');
   expect(await page.evaluate(() => (window as any).__discarded.length)).toBe(0);   // the proposal is dropped when the chosen one is applied, not before
 });

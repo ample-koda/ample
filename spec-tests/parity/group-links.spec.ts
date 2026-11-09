@@ -37,8 +37,15 @@ test('a connection at the port of a group can be taken away from outside, and ma
   await expect(fromPort).toBeVisible();
   await expect(toPort).toBeVisible();
   await page.waitForTimeout(300);
-  const from = (await fromPort.boundingBox())!;
-  const to = (await toPort.boundingBox())!;
+  let from!: { x: number; y: number; width: number; height: number }, to!: typeof from;
+  await expect(async () => {   // take both ports when they have a place and stand still
+    const f1 = await fromPort.boundingBox(), t1 = await toPort.boundingBox();
+    await page.waitForTimeout(200);
+    const f2 = await fromPort.boundingBox(), t2 = await toPort.boundingBox();
+    expect(f1 && t1 && f2 && t2).toBeTruthy();
+    expect([f2!.x, f2!.y, t2!.x, t2!.y]).toEqual([f1!.x, f1!.y, t1!.x, t1!.y]);
+    from = f2!; to = t2!;
+  }).toPass({ timeout: 15000 });
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down(); await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 }); await page.mouse.up();
   await expect.poll(reads).toBe(1);

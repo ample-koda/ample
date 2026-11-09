@@ -304,7 +304,7 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         using HttpResponseMessage response = await Post("/api/effects/preview", new { path = "song.amplet", block = "fx", takeId = "missing", fromMs = 0, toMs = 30_001, @params = new { } });
         Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
         int filesAfter = Directory.Exists(privateFolder) ? Directory.EnumerateFiles(privateFolder, "*", SearchOption.AllDirectories).Count() : 0;
-        Assert.Equal(filesBefore, filesAfter);
+        Assert.True(filesAfter <= filesBefore, $"a rejected range must not leave files behind: {filesBefore} before, {filesAfter} after");   // other work in the folder may remove files meanwhile, so fewer is fine
     }
 
     [Fact]
