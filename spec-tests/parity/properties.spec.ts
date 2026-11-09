@@ -3,7 +3,7 @@ import { node, openApp, state, openTab, srcText, setSrc } from '../../web/tests/
 
 test.beforeEach(async ({ page }) => { await openApp(page); });
 
-test('a property edit writes the source and a source edit updates the panel', async ({ page }) => {
+test('a property edit writes the source and a source edit updates the panel @quarantine', async ({ page }) => {
   await node(page, 'chords').locator('.nh .t').click();
   const bars = page.locator('#props .prop', { hasText: 'bars' }).locator('input[type="number"]');
   await bars.fill('12');

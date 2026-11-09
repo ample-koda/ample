@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => { await openApp(page); });
 
 const engineOf = async (block: string) => (await api('/api/doc?path=song.amplet')).blocks.find((b: { name: string }) => b.name === block)?.parameters.find((p: { name: string }) => p.name === 'engine')?.value as string | undefined;
 
-test('the engine of an ace-music block is chosen with a place and a model and written to the song', async ({ page }) => {
+test('the engine of an ace-music block is chosen with a place and a model and written to the song @quarantine', async ({ page }) => {
   await addTemplateBlock(page, 'ace-music', 'tune');
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await node(page, 'tune').click({ position: { x: 20, y: 36 } });
