@@ -81,7 +81,9 @@ test('a block can be made smaller or bigger by its grip, the size is kept and a 
   const block = node(page, 'drums');
   await block.hover();
   const grip = block.locator('.size-grip');
-  const box = (await grip.boundingBox())!;
+  await expect(grip).toBeVisible();
+  let box = (await grip.boundingBox())!;
+  await expect.poll(async () => { const now = (await grip.boundingBox())!; const same = now.x === box.x && now.y === box.y; box = now; return same; }, { intervals: [200, 200, 200] }).toBe(true);   // the grip fades in after the hover: use it when it stands still
   const before = (await block.boundingBox())!.width;
   await page.mouse.move(box.x + 7, box.y + 7);
   await page.mouse.down();
