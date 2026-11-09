@@ -1,0 +1,74 @@
+name: One browser test
+
+# Runs one browser spec file (or one test of it) many times on the CI machine: for fixing a flaky test, started by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: 'The spec file, for example spec-tests/parity/koda-resize.spec.ts'
+        required: true
+        type: string
+      grep:
+        description: 'Only the tests whose title matches this text (empty: the whole file)'
+        required: false
+        default: ''
+        type: string
+      repeat:
+        description: 'How many times each test runs'
+        required: false
+        default: '10'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  one:
+    name: One browser test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    env:
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build the command line tool
+        run: dotnet build src/Ample.Cli -c Release --nologo
+      - name: Install the test tools
+        run: npm ci
+      - name: Cache the General MIDI SoundFont
+        uses: actions/cache@v4
+        with:
+          path: audio-packs/licensed/musescore-general
+          key: musescore-general-${{ hashFiles('tools/fetch-gm-soundfont.mjs') }}
+      - name: Fetch the General MIDI SoundFont
+        run: node tools/fetch-gm-soundfont.mjs --download --into
+      - name: Run the test
+        env:
+          SPEC: ${{ inputs.spec }}
+          GREP: ${{ inputs.grep }}
+          REPEAT: ${{ inputs.repeat }}
+        run: |
+          set -uo pipefail
+          args=(--project=chromium --workers=1 --repeat-each="$REPEAT" --trace=retain-on-failure --reporter=list)
+          if [ -n "$GREP" ]; then args+=(-g "$GREP"); fi
+          npx playwright test "${args[@]}" "$SPEC"
+      - name: Keep the traces of the failed tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-test-failures
+          path: test-results/
+          retention-days: 7
