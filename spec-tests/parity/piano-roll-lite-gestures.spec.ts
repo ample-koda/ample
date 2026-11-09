@@ -113,7 +113,7 @@ test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an oct
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:61:96');
   await page.keyboard.press('Control+ArrowUp');
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:73:96');
-  expect((await calls(panel)).some((c) => c.pitch === 73)).toBe(true);
+  await expect.poll(async () => (await calls(panel)).some((c) => c.pitch === 73)).toBe(true);   // the preview of the new pitch is started a moment after the note has moved
 });
 
 test('holding the pointer past the right edge keeps scrolling while a note is dragged', async ({ page }) => {
