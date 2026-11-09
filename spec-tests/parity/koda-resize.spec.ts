@@ -45,10 +45,12 @@ test('the resize frame follows Koda when it is dragged before Done', async ({ pa
   await page.getByText('Resize…', { exact: true }).click();
   await still(page);
   const before = (await page.locator('.k-resize').boundingBox())!;
-  const pet = (await page.locator('#koda-float svg.pet').boundingBox())!;
-  await page.mouse.move(pet.x + pet.width / 2, pet.y + pet.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(pet.x + pet.width / 2 - 120, pet.y + pet.height / 2 - 90, { steps: 8 });
-  await page.mouse.up();
-  await expect.poll(async () => Math.round((await page.locator('.k-resize').boundingBox())!.x)).toBeLessThan(Math.round(before.x) - 60);
+  await expect(async () => {   // Koda can still be settling after the menu closes and a drag that starts on a place it has just left grabs nothing: grab it again where it is now
+    const pet = (await page.locator('#koda-float svg.pet').boundingBox())!;
+    await page.mouse.move(pet.x + pet.width / 2, pet.y + pet.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(pet.x + pet.width / 2 - 120, pet.y + pet.height / 2 - 90, { steps: 8 });
+    await page.mouse.up();
+    expect(Math.round((await page.locator('.k-resize').boundingBox())!.x)).toBeLessThan(Math.round(before.x) - 60);
+  }).toPass({ timeout: 20000 });
 });
