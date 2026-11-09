@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { addTemplateBlock, chooseMenu, freshServer, openApp } from '../../web/tests/support';
 
+// a box that is there: the canvas and the panels are drawn again now and then, and a measurement taken in between finds nothing
+const boxOf = async (target: import('@playwright/test').Locator) => { let found: { x: number; y: number; width: number; height: number } | null = null; await expect.poll(async () => { found = await target.boundingBox(); return found !== null; }).toBe(true); return found!; };
+
+
 freshServer();
 
 test('unbuilt effects do not request a preview without a source take', async ({ page }) => {
@@ -45,7 +49,7 @@ test('properties put source beside the title and Advanced at the far right', asy
   const title = heading.locator('.prop-heading-title');
   const source = heading.getByRole('button', { name: 'Edit in source' });
   const advanced = heading.getByRole('button', { name: 'Open advanced controls' });
-  const titleBox = (await title.boundingBox())!, sourceBox = (await source.boundingBox())!, advancedBox = (await advanced.boundingBox())!, headingBox = (await heading.boundingBox())!;
+  const titleBox = (await boxOf(title)), sourceBox = (await boxOf(source)), advancedBox = (await boxOf(advanced)), headingBox = (await boxOf(heading));
   expect(sourceBox.x).toBeGreaterThan(titleBox.x + titleBox.width);
   expect(advancedBox.x).toBeGreaterThan(sourceBox.x + sourceBox.width + 20);
   expect(headingBox.x + headingBox.width - advancedBox.x - advancedBox.width).toBeLessThan(20);
@@ -141,7 +145,7 @@ test('a knob pointer gesture commits once and can be undone once', async ({ page
   const knob = page.locator('#studio').getByRole('slider', { name: 'Threshold' }).last();
   const before = Number(await knob.getAttribute('aria-valuenow'));
   const undoBefore = await page.evaluate(async () => (await import('/app/store.js')).S.undo.length);
-  const box = (await knob.boundingBox())!;
+  const box = (await boxOf(knob));
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 56, box.y + box.height / 2 - 32, { steps: 5 });

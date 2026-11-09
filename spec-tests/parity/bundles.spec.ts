@@ -89,9 +89,10 @@ test('a block can be made smaller or bigger by its grip, the size is kept and a 
     await page.waitForTimeout(300);
     const box = (await grip.boundingBox())!;
     before = (await block.boundingBox())!.width;
-    await grip.hover({ position: { x: 7, y: 7 }, timeout: 3000 });   // fails with the name of whatever covers the grip, if something does
+    // the middle of the grip: after Fit the block is drawn at about half its size, the grip is 7 pixels wide and its corner is rounded, so a point 7 pixels from its edge is outside it
+    await grip.hover({ timeout: 3000 });
     await page.mouse.down();
-    await page.mouse.move(box.x + 7 - 60, box.y + 7, { steps: 5 });
+    await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2, { steps: 5 });
     try { await expect(block.locator('.node-status')).toBeHidden({ timeout: 2000 }); } finally { await page.mouse.up(); }   // the status tag does not show while the grip is dragged
   }).toPass({ timeout: 25000 });
   await expect(block).toBeVisible();
