@@ -37,7 +37,8 @@ test('the Live switch loops the instrument the server rendered and runs the effe
   await node(page, 'voice').click({ position: { x: 24, y: 12 } });
   const live = page.locator('#props .cui-live');
   await expect(live).toBeEnabled();
-  const alreadyBuilt = (await node(page, 'voice').locator('.player').count()) > 0;   // the tests of this file share one server: an earlier test may have built the block
+  // the tests of this file share one server: an earlier test may have built the block, and its player is drawn a moment after the page is ready
+  const alreadyBuilt = await expect(node(page, 'voice').locator('.player')).toHaveCount(1, { timeout: 4000 }).then(() => true, () => false);
   await live.click();
   if (alreadyBuilt) {
     await expect(live).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
