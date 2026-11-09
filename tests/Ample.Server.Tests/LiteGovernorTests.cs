@@ -22,6 +22,18 @@ public sealed class LiteGovernorTests
     }
 
     [Fact]
+    public void Builds_have_a_limit_for_a_minute_for_5_minutes_and_for_15_minutes()
+    {
+        (TimeSpan, int, string)[] rules = [(TimeSpan.FromMinutes(1), 100, "a minute"), (TimeSpan.FromMinutes(5), 12, "5 minutes"), (TimeSpan.FromMinutes(15), 100, "15 minutes")];
+        using LiteGovernor governor = new(new LiteLimits());
+        for (int i = 0; i < 12; i++) governor.Spend("build", Alice, rules);   // 12 are allowed in 5 minutes
+        LiteRejectedException refused = Assert.Throws<LiteRejectedException>(() => governor.Spend("build", Alice, rules));
+        Assert.Equal("AMPL932", refused.Code);
+        Assert.Contains("5 minutes", refused.Message);
+        governor.Spend("build", Bob, rules);
+    }
+
+    [Fact]
     public void Clearing_the_cookie_does_not_get_around_the_limit_because_the_address_counts_too()
     {
         using LiteGovernor governor = new(new LiteLimits());

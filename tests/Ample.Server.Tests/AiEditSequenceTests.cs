@@ -43,6 +43,26 @@ public sealed class AiEditSequenceTests
         SpecData spec = Spec();
         Assert.Throws<AmpleException>(() => AiEdit.Apply(Song, JsonNode.Parse("[{\"op\":\"sequence_row\",\"block\":\"beat-bed\",\"pattern\":\"groove\",\"channel\":\"strings\",\"text\":\"x\"}]")!.AsArray(), spec));
         Assert.Throws<AmpleException>(() => AiEdit.Apply(Song, JsonNode.Parse("[{\"op\":\"sequence_row\",\"block\":\"beat-bed\",\"pattern\":\"nope\",\"channel\":\"kick\",\"text\":\"x\"}]")!.AsArray(), spec));
-        Assert.Throws<AmpleException>(() => AiEdit.Apply(Song, JsonNode.Parse("[{\"op\":\"sequence_channel\",\"block\":\"beat-bed\",\"channel\":\"kick\",\"text\":\"drum\"}]")!.AsArray(), spec));
+    }
+
+    [Fact]
+    public void A_channel_that_exists_is_changed_settings_alone_change_only_those_and_a_type_replaces_the_rest()
+    {
+        SpecData spec = Spec();
+        AiEdit.Result changed = AiEdit.Apply(Song, JsonNode.Parse("[{\"op\":\"sequence_channel\",\"block\":\"beat-bed\",\"channel\":\"kick\",\"text\":\"vol=-3\"}]")!.AsArray(), spec);
+        Assert.Contains("    channel kick drum sample=samples/kick.wav vol=-3\n", changed.Text);
+        AiEdit.Result replaced = AiEdit.Apply(Song, JsonNode.Parse("[{\"op\":\"sequence_channel\",\"block\":\"beat-bed\",\"channel\":\"kick\",\"text\":\"gm program=40\"}]")!.AsArray(), spec);
+        Assert.Contains("    channel kick gm program=40\n", replaced.Text);
+    }
+
+    [Fact]
+    public void The_channels_of_a_ampleseq_file_are_changed_without_a_block_and_the_patterns_stay()
+    {
+        const string file = "sequencer 1\n# a score\nchannel violin1 gm file=pack:x program=40 bank=0 vol=-5 pan=0\nchannel bass gm file=pack:x program=43 bank=0 vol=-12 pan=0\npattern opening bars=4\n  violin1 1:0:1:79:97\n";
+        AiEdit.Result r = AiEdit.Apply(file, JsonNode.Parse("[{\"op\":\"sequence_channel\",\"channel\":\"violin1\",\"value\":\"program=42\"},{\"op\":\"sequence_channel\",\"channel\":\"bass\",\"text\":\"program=41 vol=-9\"},{\"op\":\"sequence_channel\",\"channel\":\"harp\",\"text\":\"gm program=46\"}]")!.AsArray(), Spec());
+        Assert.Contains("channel violin1 gm file=pack:x program=42 bank=0 vol=-5 pan=0\n", r.Text);
+        Assert.Contains("channel bass gm file=pack:x program=41 bank=0 vol=-9 pan=0\n", r.Text);
+        Assert.Contains("channel bass gm file=pack:x program=41 bank=0 vol=-9 pan=0\nchannel harp gm program=46\npattern opening", r.Text);
+        Assert.Contains("  violin1 1:0:1:79:97\n", r.Text);
     }
 }

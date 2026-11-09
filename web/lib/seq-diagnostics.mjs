@@ -6,16 +6,27 @@ import { check, parseSeq } from './seq-model.mjs';
 const NOTE_TYPES = new Set(['notes', 'bass', 'piano', 'gm']);
 const decimal = /^\d+(\.\d+)?$/;
 
-/** What is wrong with one note `bar:beat:length:pitch:velocity` (the beat and the length in beats, four to a bar), or '' when it is fine. */
-export function noteProblem(token) {
-  const f = token.split(':');
+/**
+ * What is wrong with one note `bar:beat:length:pitch:velocity` (the beat and the length in beats, four to a bar; in ticks of `ppq` when the channel line has ppq=N, a bar then has 4 x N ticks),
+ * or '' when it is fine. What follows a `;` (a tie id, `;tie=117`) is not part of the five numbers.
+ */
+export function noteProblem(token, ppq = 0) {
+  const f = token.split(';')[0].split(':');
   if (f.length !== 5 && f.length !== 8 && f.length !== 9) return 'a note is bar:beat:length:pitch:velocity (five numbers)';
   const [bar, beat, length, pitch, velocity] = f;
   if (!/^\d+$/.test(bar) || Number(bar) < 1) return 'the bar is a whole number from 1';
-  if (!decimal.test(beat) || !decimal.test(length)) return 'the beat and the length are numbers of beats, such as 0, 1.5 or 0.75';
-  if (Number(beat) >= 4) return `the start is ${beat}: a bar has 4 beats, so the start is below 4 (beats, not sixteenth steps)`;
-  if (Number(length) <= 0) return 'the length must be more than 0';
-  if (Number(beat) + Number(length) > 4) return `the note ends at beat ${Number(beat) + Number(length)}, past the end of the bar (4)`;
+  if (ppq > 0) {   // exact ticks: the start and the length are whole ticks, and a bar is 4 x ppq of them
+    const bar4 = 4 * ppq;
+    if (!/^\d+$/.test(beat) || !/^\d+$/.test(length)) return `the start and the length are whole ticks (this channel has ppq=${ppq})`;
+    if (Number(beat) >= bar4) return `the start is tick ${beat}: a bar has ${bar4} ticks (ppq=${ppq}), so the start is below that`;
+    if (Number(length) <= 0) return 'the length must be more than 0';
+    if (Number(beat) + Number(length) > bar4) return `the note ends at tick ${Number(beat) + Number(length)}, past the end of the bar (${bar4} ticks)`;
+  } else {
+    if (!decimal.test(beat) || !decimal.test(length)) return 'the beat and the length are numbers of beats, such as 0, 1.5 or 0.75';
+    if (Number(beat) >= 4) return `the start is ${beat}: a bar has 4 beats, so the start is below 4 (beats, not sixteenth steps)`;
+    if (Number(length) <= 0) return 'the length must be more than 0';
+    if (Number(beat) + Number(length) > 4) return `the note ends at beat ${Number(beat) + Number(length)}, past the end of the bar (4)`;
+  }
   if (!/^\d+$/.test(pitch) || Number(pitch) > 127) return 'the pitch is a MIDI note from 0 to 127';
   if (!/^\d+$/.test(velocity) || Number(velocity) < 1 || Number(velocity) > 127) return 'the velocity is from 1 to 127';
   return '';
@@ -38,7 +49,7 @@ export function seqDiagnostics(text, files = null) {
     add(line, 0, (lines[line] || '').length, parsed.error.replace(/^line \d+:\s*/, ''));
   } else for (const problem of check(parsed.seq)) add(0, 0, (lines[0] || '').length, problem);
 
-  const types = {};
+  const types = {}, ppqOf = {};
   let inPattern = false;
   lines.forEach((raw, i) => {
     const line = raw.replace(/\r$/, ''), trimmed = line.trim();
@@ -49,6 +60,7 @@ export function seqDiagnostics(text, files = null) {
       inPattern = words[0] === 'pattern';
       if (words[0] === 'channel' && words[1] && words[2]) {
         types[words[1]] = words[2];
+        ppqOf[words[1]] = Number(/\bppq=(\d+)/.exec(line)?.[1] ?? 0);
         // the files a channel plays must be in the project (a pack: reference is not a file of the project)
         for (const match of line.matchAll(/\b(sample|set|file)=("[^"]*"|\S+)/g)) {
           const value = match[2].replace(/^"|"$/g, '');
@@ -66,7 +78,7 @@ export function seqDiagnostics(text, files = null) {
     let from = line.indexOf(channel) + channel.length;
     for (const token of line.slice(from).split(/(\s+)/)) {
       if (token.trim()) {
-        const problem = noteProblem(token);
+        const problem = noteProblem(token, ppqOf[channel] || 0);
         if (problem) add(i, from, from + token.length, `The note '${token}' of '${channel}': ${problem}.`);
       }
 

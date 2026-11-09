@@ -159,7 +159,10 @@ test('checkpoint checks every recovery draft before writing any of them', async 
   await expect.poll(() => page.evaluate(async () => { const { S } = await import('/app/store.js'); const { getRecoveryDraft } = await import('/lib/recovery-drafts.mjs'); return getRecoveryDraft(localStorage, S.project.id, 'other.txt')?.text; })).toBe('draft other');
   await api('/api/file', { method: 'PUT', body: { path: 'other.txt', text: 'externally changed' } });
   await page.click('#btn-cp'); await page.locator('#dlg-btns button', { hasText: 'Save all work and checkpoint' }).click();
-  await expect(page.locator('#toast')).toContainText('Checkpoint stopped');
+  await expect(page.locator('#dlg')).toContainText('Unsaved text no longer fits the saved file');
+  await expect(page.locator('#dlg')).toContainText('other.txt');
+  await page.locator('#dlg-btns button', { hasText: 'Cancel' }).click();
+  await expect(page.locator('#toast')).toContainText('Checkpoint cancelled');
   await expect.poll(async () => (await api('/api/file?path=notes.txt')).text).toBe('saved notes');
   await expect.poll(async () => (await api('/api/file?path=other.txt')).text).toBe('externally changed');
   expect((await api('/api/history/graph')).nodes).toHaveLength(before);
@@ -217,7 +220,9 @@ test('checkpoint leaves conflicting drafts recoverable and does not create a par
   await api('/api/file', { method: 'PUT', body: { path: 'notes.txt', text: 'external edit' } });
   const before = (await api('/api/history')).log.length;
   await page.click('#btn-cp'); await page.locator('#dlg-btns button', { hasText: 'Save all work and checkpoint' }).click();
-  await expect(page.locator('#toast')).toContainText('changed since its recovery draft');
+  await expect(page.locator('#dlg')).toContainText('notes.txt');
+  await page.locator('#dlg-btns button', { hasText: 'Cancel' }).click();
+  await expect(page.locator('#toast')).toContainText('Checkpoint cancelled');
   expect((await api('/api/history')).log).toHaveLength(before); await page.reload(); await page.waitForSelector('body[data-ready="1"]'); await page.click('#vs-source'); await openSourceFile(page, 'notes.txt');
   await expect(page.locator('.recovery-diff-dialog')).toHaveCount(0);
   await expect.poll(() => text(page)).toContain('draft notes');

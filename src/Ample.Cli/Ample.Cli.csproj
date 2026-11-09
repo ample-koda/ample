@@ -13,6 +13,8 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Ample.Cli.Tests" />
+    <!-- the catalog of the downloadable sample packs with the SHA-256 of every zip (made by tools/build-sample-pack-zips.mjs) -->
+    <EmbeddedResource Include="../../audio-packs/packs-index.json" LogicalName="audio-packs-index.json" />
     <PackageReference Include="System.CommandLine" />
     <ProjectReference Include="../Ample.Engine/Ample.Engine.csproj" />
     <ProjectReference Include="../Ample.Docs/Ample.Docs.csproj" />

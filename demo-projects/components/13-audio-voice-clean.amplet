@@ -1,0 +1,22 @@
+composition "audio-voice-clean" { ample 1  tempo 100  master-seed 13 }
+
+# The two components for voice recordings ship with AMPLE: no import line, they are known by name in every song.
+# A piano stands in for a recording here: any audio goes through them.
+
+midi-clip melody at 1 for 2 {
+  notes 1:0:1:60:100 1:1:1:64:100 1:2:1:67:100 2:0:2:72:100
+}
+
+piano lead at 1 for 2 {
+  from melody.notes -> notes
+}
+
+ample.voice.trim trim {
+  skip 0.5s
+  from lead.audio -> audio
+}
+
+ample.voice.clean clean {
+  noise 60%
+  from trim.audio -> audio
+}

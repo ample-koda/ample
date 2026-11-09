@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { collectBuildErrors, errorLineFor, liveMarks } from '../build-errors.mjs';
+import { buildErrorsText, collectBuildErrors, errorLineFor, liveMarks } from '../build-errors.mjs';
 
 const lines = ['composition "x" { ample 1  tempo 100 }', 'sampler s at 1 for 4 {', '  file samples/kick.wav', '  gain 0', '}'];
 const doc = { blocks: [{ name: 's', line: 1, parameters: [{ name: 'file', value: 'samples/kick.wav', line: 2 }, { name: 'gain', value: '0', line: 3 }] }] };
@@ -34,4 +34,13 @@ test('a mark follows its line to the nearest line with the same text, not to the
   const items = { b: { message: 'AMP1 x', code: 'AMP1', line: 12, text: '  fingerprint content' } };
   const text = Array.from({ length: 30 }, (_, i) => (i === 3 || i === 14 || i === 25 ? '  fingerprint content' : `line ${i}`));
   assert.deepEqual(Object.keys(liveMarks(items, text)), ['14']);   // moved down two lines; not line 3
+});
+
+test('the failed blocks are told to Koda as text, none as nothing', () => {
+  assert.equal(buildErrorsText({}), '');
+  assert.equal(buildErrorsText(undefined), '');
+  const text = buildErrorsText({ score: { message: "AMP5380: The lane 2 names 'contrabass',\n which is not a channel.", text: '  lanes lane1=cello lane2=contrabass' } });
+  assert.match(text, /- block score: AMP5380: The lane 2 names 'contrabass', which is not a channel\./);
+  assert.match(text, /blamed on the line: lanes lane1=cello lane2=contrabass/);
+  assert.match(text, /not a parse problem/);
 });

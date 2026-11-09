@@ -95,6 +95,7 @@ test('picker creates a folder and offers all upload conflict choices', async ({ 
   await picker.getByRole('button', { name: 'New folder' }).click();
   await page.locator('#dlg-extra input[aria-label="Folder name"]').fill('picker-folder');
   await page.locator('#dlg-btns').getByRole('button', { name: 'Create' }).click();
+  await page.waitForTimeout(800);   // the new folder is open (tree and list) before the file goes in
   await picker.getByLabel('Upload files').setInputFiles({ name: 'picker.wav', mimeType: 'audio/wav', buffer: Buffer.from([1, 2, 3]) });
   await expect(picker.locator('[role=option]', { hasText: 'picker.wav' })).toHaveCount(1);
   await picker.getByLabel('Upload files').setInputFiles({ name: 'picker.wav', mimeType: 'audio/wav', buffer: Buffer.from([4, 5, 6]) });
@@ -104,11 +105,8 @@ test('picker creates a folder and offers all upload conflict choices', async ({ 
   await expect(conflictButtons.getByRole('button', { name: 'Keep both' })).toBeVisible();
   await expect(conflictButtons.getByRole('button', { name: 'Overwrite and record' })).toBeVisible();
   await page.locator('#dlg-btns').getByRole('button', { name: 'Keep both' }).click();
-  // the files come first and the folders follow after them; a folder in the list opens it
-  await expect(picker.locator('[role=option]')).toHaveCount(3);
-  await expect(picker.locator('[role=option]').last()).toContainText('picker-folder');
-  await picker.locator('[role=option]').last().click();
-  await expect(picker.locator('[role=option]')).toHaveCount(0);
+  // a new folder opens at once, so the uploads and the kept copy are in it
+  await expect(picker.locator('[role=option]')).toHaveCount(2);
   await picker.getByRole('button', { name: 'Cancel' }).click();
 });
 
@@ -124,9 +122,8 @@ test('right click in the picker list offers Add > Folder, on an empty spot and o
   await page.locator('#menu .flyout > div', { hasText: /^Folder$/ }).click();
   await page.locator('#dlg-extra input[aria-label="Folder name"]').fill('menu-made');
   await page.locator('#dlg-btns').getByRole('button', { name: 'Create' }).click();
-  const made = picker.locator('[role=option]', { hasText: 'menu-made' });
-  await expect(made).toHaveCount(1);
-  await made.click({ button: 'right' });
+  // the new folder is open now: the next menu on an empty spot adds a folder inside it
+  await page.mouse.click(box.x + box.width - 6, box.y + box.height - 6, { button: 'right' });
   await page.locator('#menu div', { hasText: /^Add/ }).click();
   await page.locator('#menu .flyout > div', { hasText: /^Folder$/ }).click();
   await page.locator('#dlg-extra input[aria-label="Folder name"]').fill('inside');

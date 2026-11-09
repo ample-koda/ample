@@ -36,3 +36,22 @@ test('a mistake of the format itself is reported on its line, and a good file ha
   assert.ok(found.some((d) => d.range.start.line === 5));
   assert.equal(seqDiagnostics(`${head}pattern g bars=1\n  kick ....\n`, ['samples/kick.wav']).length, 0);
 });
+
+test('a channel with ppq=N takes whole ticks, a bar is 4 x N of them, and a tie id after a ; is not part of the note', () => {
+  assert.equal(noteProblem('3:0:240:68:76', 480), '');
+  assert.equal(noteProblem('10:1440:240:65:76;tie=117', 480), '');
+  assert.equal(noteProblem('1:1680:240:60:80', 480), '');   // 1680 + 240 = 1920 = the end of the bar
+  assert.match(noteProblem('1:1700:240:60:80', 480), /past the end of the bar \(1920 ticks\)/);
+  assert.match(noteProblem('1:2000:10:60:80', 480), /a bar has 1920 ticks/);
+  assert.match(noteProblem('1:0.5:10:60:80', 480), /whole ticks/);
+  assert.match(noteProblem('3:0:240:68:76', 0), /past the end of the bar \(4\)/);   // without ppq the old rule stays
+});
+
+test('a score with ppq channels and .events rows has no problems of the editor, a real mistake still has', () => {
+  const score = 'sequencer 1\nchannel piano-rh gm file=pack:musescore-general program=0 bank=0 ppq=480 vol=-6 pan=0\nchannel vocal gm file=pack:x program=0 ppq=480\npattern p bars=2\n  piano-rh 1:0:240:68:76 1:240:240:72:76 2:0:1920:60:76\n  vocal 1:0:480:63:76;tie=1 1:480:480:63:76;tie=1\n  piano-rh.events 1:30:c:64:127 2:0:c:64:0\nplaylist\n  clip p track=1 at=1 for=2\n';
+  assert.deepEqual(seqDiagnostics(score).map((d) => d.message), []);
+  const bad = score.replace('2:0:1920:60:76', '2:1900:100:60:76');
+  assert.equal(seqDiagnostics(bad).length, 1);
+  const ghost = score.replace('piano-rh.events', 'ghost.events');
+  assert.match(seqDiagnostics(ghost)[0].message, /ghost\.events.*not a channel/);
+});

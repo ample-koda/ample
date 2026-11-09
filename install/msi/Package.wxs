@@ -82,23 +82,30 @@
     <Feature Id="KodaBrowser" Title="koda-browser (optional, download)" Level="2" AllowAdvertise="no"
              Description="Lets Koda, the assistant, use a web browser when a task needs one. Fetched at the end by ample itself (the browser driver and Chromium, a few hundred MB). Koda works without it." />
 
+    <Feature Id="Audiveris" Title="Audiveris, the reader of sheet music (optional, download)" Level="2" AllowAdvertise="no"
+             Description="Lets AMPLE and Koda import a PDF or a picture of sheet music as notes (optical music recognition, audiveris.org). About 80 MB, fetched at the end by ample itself, checked against a fixed SHA-256 and unpacked for you alone. AMPLE works without it." />
+
     <Binary Id="AmpleCa" SourceFile="$(CaDll)" />
     <!-- The extras are fetched by ample.exe itself at the end of the install, as the person who installs (deferred, impersonated). The managed custom action reads what ample reports and shows it in the wizard. AMPLEHOME (optional) is a different AMPLE home. -->
     <CustomAction Id="FetchSoundFont" DllEntry="RunAmplePack" Execute="deferred" Impersonate="yes" Return="ignore" BinaryRef="AmpleCa" />
     <CustomAction Id="FetchKodaBrowser" DllEntry="RunAmplePack" Execute="deferred" Impersonate="yes" Return="ignore" BinaryRef="AmpleCa" />
+    <CustomAction Id="FetchAudiveris" DllEntry="RunAmplePack" Execute="deferred" Impersonate="yes" Return="ignore" BinaryRef="AmpleCa" />
     <SetProperty Id="FetchSoundFont" Value="[INSTALLFOLDER]ample.exe|soundfont|[AMPLEHOME]" Sequence="execute" Before="FetchSoundFont" Condition="NOT REMOVE AND &amp;SoundFont=3" />
     <SetProperty Id="FetchKodaBrowser" Value="[INSTALLFOLDER]ample.exe|koda-browser|[AMPLEHOME]" Sequence="execute" Before="FetchKodaBrowser" Condition="NOT REMOVE AND &amp;KodaBrowser=3" />
+    <SetProperty Id="FetchAudiveris" Value="[INSTALLFOLDER]ample.exe|audiveris|[AMPLEHOME]" Sequence="execute" Before="FetchAudiveris" Condition="NOT REMOVE AND &amp;Audiveris=3" />
     <!-- The required step after "Install": see whether AMPLE still runs from the install folder (the tray hub, servers). The person chooses (close them nicely and go on, or stop the installation); a program that does not stop by itself within 25 seconds is closed forcibly only after a second yes. A silent install does the same without asking. -->
     <CustomAction Id="CloseRunningAmple" DllEntry="CloseRunningAmple" Execute="immediate" Return="check" BinaryRef="AmpleCa" />
     <InstallExecuteSequence>
       <Custom Action="CloseRunningAmple" Before="InstallValidate" />
       <Custom Action="FetchSoundFont" After="InstallFiles" Condition="NOT REMOVE AND &amp;SoundFont=3 AND NOT SKIPEXTRAS" />
       <Custom Action="FetchKodaBrowser" After="FetchSoundFont" Condition="NOT REMOVE AND &amp;KodaBrowser=3 AND NOT SKIPEXTRAS" />
+      <Custom Action="FetchAudiveris" After="FetchKodaBrowser" Condition="NOT REMOVE AND &amp;Audiveris=3 AND NOT SKIPEXTRAS" />
     </InstallExecuteSequence>
 
     <UI>
       <ProgressText Action="FetchSoundFont" Message="Downloading the General MIDI SoundFont (about 205 MB)..." Template="[1]" />
       <ProgressText Action="FetchKodaBrowser" Message="Downloading koda-browser (the browser driver and Chromium)..." Template="[1]" />
+      <ProgressText Action="FetchAudiveris" Message="Downloading Audiveris (the reader of sheet music, about 80 MB)..." Template="[1]" />
     </UI>
 
 <?if $(HasHub) = 1?>

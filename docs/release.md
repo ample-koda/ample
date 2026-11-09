@@ -75,6 +75,10 @@ The performance tests run **alone** (an xUnit collection that is not run in para
 4. Tag `ample-v<version>`; the release workflow builds the artefacts on Windows, runs `tools/smoke-package.ps1`, and attaches the files and `SHA256SUMS.txt` to a **draft** release. Sign them with `pwsh ample/tools/package.ps1 -Sign` on the machine that has the signing key (`ample keys generate` once; the passphrase comes from `AMPLE_VAULT_PASSPHRASE`), and check with `ample verify --file <artefact>`.
 5. The owner reads the draft, then publishes it.
 
+### The sample pack zips (only when a pack is added or changed)
+
+AMPLE Tune-up and `ample packs install` download the sample packs as zips that are **not** part of a release of the program. Steps: `node tools/fetch-audio-packs.mjs` (with `AMPLE_PACK_OUT` set to an empty working folder), then `node tools/build-sample-pack-zips.mjs <that folder> <zip folder>`, which writes one zip per pack and `packs-index.json` (SHA-256 and size of each zip) into `audio-packs/packs-index.json`, which the program embeds. Upload the zips to the release `audio-packs-1` of the public repository (`gh release create audio-packs-1 <zips> --repo ample-koda/ample`; a new set of zips gets a new tag and `SamplePacks.BaseUrl` follows) and copy them to get.ample-koda.dev/mirror/audio-packs/. The catalog in the program must be committed first: a zip whose hash is not in it never installs.
+
 ## Versions, channels and beta status (installer plan, INS00)
 
 This section holds the rules a release follows.

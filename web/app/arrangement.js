@@ -9,6 +9,7 @@ import { sectionAt } from '../lib/view-sections.mjs';
 import { sectionsOf } from './store.js';
 import { seamSpans, seamText } from '../lib/seam-spans.mjs';
 import { drawControl } from './control-lane.js';
+import { masterTakeOf } from '../lib/transport-model.mjs';
 import { download, drawPeaks, onPlayer, peaksOf, play, playerState, seekFraction, setLoop, stop, toggle } from './player.js';
 import { focusNode } from './canvas.js';
 import { gotoSource } from './panels.js';
@@ -23,12 +24,7 @@ const openTracks = new Set();
 let labelsObserver = null;
 
 const songBars = (nodes) => Math.max(16, ...nodes.flatMap((n) => n.parts.map((p) => p.at + p.length - 1)));
-const masterTake = () => {
-  const t = S.build.takes || {};
-  if (t.master) return t.master;
-  const last = flat().nodes.filter((n) => t[n.id]).pop();
-  return last ? t[last.id] : null;
-};
+const masterTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id), flat().nodes);
 
 export const writeParts = (node, parts, trimBars) => edit([
   { type: 'setParts', block: node.id, parts: parts.map((p) => ({ at: p.at, length: p.length, name: p.name || '' })) },

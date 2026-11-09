@@ -1,3 +1,4 @@
+import { isQuoted, quoteLiteral, unquoteLiteral } from '../lib/string-literal.mjs';
 import { aceDefaults, withEngineModel } from '../lib/ace-generation.mjs';
 import { propertiesIn, renderComponentUi, usesLayout } from './component-ui.js';
 import { liveOptions } from './component-live-ui.js';
@@ -480,14 +481,18 @@ export function renderProps() {
   Object.entries(params).forEach(([k, val]) => {
     if (effect || laidOut.has(k)) return;
     const meta = t && t.parameters ? t.parameters.find((p) => p.name === k) : null;
-    const display = meta && meta.multiline ? val.replace(/\\n/g, '\n') : val;
+    // a string is in "quotes" in the source, but the field shows the text itself (no quotes, no escapes) and puts the quotes back when it saves
+    const quoted = isQuoted(val);
+    const shown = quoted ? unquoteLiteral(val) : val;
+    const display = meta && meta.multiline && !quoted ? shown.replace(/\\n/g, '\n') : shown;
+    const toStored = (text) => ((quoted || (['file', 'sampleset'].includes(kindOf(k, meta)) && /[\s"]/.test(text))) && text !== '' ? quoteLiteral(text) : text);   // a path with a space needs its quotes even if it had none
     const clean = (value) => {
       const normalized = meta && !meta.multiline ? value.replace(/[\r\n]+/g, ' ') : value.replace(/\r\n/g, '\n');
-      return meta && meta.multiline ? normalized.replace(/\n/g, '\\n') : normalized;
+      return meta && meta.multiline && !quoted ? normalized.replace(/\n/g, '\\n') : normalized;
     };
     const save = async (value, inp) => {
       const next = clean(value);
-      if (!(await edit([{ type: 'setParameter', block: n.id, name: k, value: next }]))) inp.value = val;
+      if (!(await edit([{ type: 'setParameter', block: n.id, name: k, value: toStored(next) }]))) inp.value = display;
       else inp.value = next;
     };
     const fixed = fixedParams.includes(k);
@@ -496,7 +501,7 @@ export function renderProps() {
     const withChip = (control) => (binding ? el('div', {}, [control, propertyChip(n.id, k, binding, ro || locked)]) : control);
     const tip = locked ? 'Locked: unlock the block to change its parameters' : fixed ? `Fixed by the chosen model: a turbo model works with ${k} ${params[k]} only. Choose a Base or SFT model in the plugin settings to change it.` : (meta && meta.documentation ? meta.documentation : '');
     const conflict = fixed && String(n.params[k] ?? '').trim() !== '' && String(n.params[k]).trim() !== String(params[k]);   // stored value the turbo model refuses: stays editable so it can be repaired
-    const field0 = fieldFor(k, meta, display, { disabled: ro || locked, title: tip, tpl: n.tpl, params: n.params, save: (text) => edit([text === '' && ['file', 'sampleset', 'engine'].includes(kindOf(k, meta)) ? { type: 'removeParameter', block: n.id, name: k } : { type: 'setParameter', block: n.id, name: k, value: text }]) });
+    const field0 = fieldFor(k, meta, display, { disabled: ro || locked, title: tip, tpl: n.tpl, params: n.params, save: (text) => edit([text === '' && ['file', 'sampleset', 'engine'].includes(kindOf(k, meta)) ? { type: 'removeParameter', block: n.id, name: k } : { type: 'setParameter', block: n.id, name: k, value: toStored(text) }]) });
     let field = field0;
     if (field0 && fixed) {
       const noteId = `fixed-${n.id}-${k}`;

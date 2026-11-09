@@ -11,7 +11,7 @@ namespace Ample.Setup
     /// <summary>A fix the wizard can run: a pack that ample fetches itself, or a package installed with winget.</summary>
     internal sealed class Fix
     {
-        internal string Kind;      // "pack" or "winget"
+        internal string Kind;      // "pack" (download), "pack-remove" (take an installed sound pack away) or "winget"
         internal string Id;        // the pack name or the winget package id
         internal string Title;
         internal string Scope;     // winget: "user" or "machine"
@@ -50,6 +50,7 @@ namespace Ample.Setup
             try
             {
                 if (fix.Kind == "pack") return RunPack(fix, ample, home, report);
+                if (fix.Kind == "pack-remove") return RunPackRemove(fix, ample, home);
                 if (fix.Kind == "winget") return RunWinget(fix, report);
                 return "Unknown kind of fix: " + fix.Kind;
             }
@@ -80,6 +81,22 @@ namespace Ample.Setup
 
                 process.WaitForExit();
                 return process.ExitCode == 0 ? null : (last ?? "ample stopped with exit code " + process.ExitCode + ".");
+            }
+        }
+
+        // removes an installed sound pack: ample deletes only that pack's folder in the audio-packs folder of this user
+        private static string RunPackRemove(Fix fix, string ample, string home)
+        {
+            ProcessStartInfo start = new ProcessStartInfo(ample, "packs remove " + fix.Id + " --home \"" + home + "\"")
+            {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
+            };
+            using (Process process = Process.Start(start))
+            {
+                string text = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+                return process.ExitCode == 0 ? null : ((error + " " + text).Trim().Length > 0 ? (error + " " + text).Trim() : "ample stopped with exit code " + process.ExitCode + ".");
             }
         }
 

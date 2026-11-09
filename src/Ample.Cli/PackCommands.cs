@@ -50,7 +50,7 @@ internal static class PackCommands
         Option<string?> linkHome = new("--home") { Description = "The AMPLE user folder (default: AMPLE_HOME, else the local application data of the user)." };
         Command link = new("link", "Creates a junction to an existing audio-packs folder; it never copies packs.") { folder, linkHome };
         link.SetAction(parse => Link(output, parse.GetValue(folder)!, parse.GetValue(linkHome) ?? AmpleHome.DefaultPath()));
-        Argument<string> what = new("what") { Description = "What to install: soundfont (the General MIDI SoundFont, pinned by SHA-256) or koda-browser (the optional browser of the assistant)." };
+        Argument<string> what = new("what") { Description = "What to install: soundfont (the General MIDI SoundFont, pinned by SHA-256), koda-browser (the optional browser of the assistant) or audiveris (the reader of sheet music in a PDF or picture, unpacked for you)." };
         Option<string?> installHome = new("--home") { Description = "The AMPLE user folder (default: AMPLE_HOME, else the local application data of the user)." };
         Option<string?> from = new("--from") { Description = "Fetch from this base URL instead of the pinned one (a mirror; the SHA-256 is still checked). For koda-browser: the folder that holds the release manifest and the pack." };
         Option<bool> mirror = new("--mirror") { Description = "soundfont: fetch from the AMPLE mirror (get.ample-koda.dev) instead of the original host. The SHA-256 is still checked. Cannot be combined with --from." };
@@ -79,15 +79,42 @@ internal static class PackCommands
                 return await KodaBrowserInstall.RunAsync(output, parse.GetValue(installHome) ?? AmpleHome.DefaultPath(), version, baseUrl, parse.GetValue(driverOnly), null, token, progress);
             }
 
-            if (!string.Equals(parse.GetValue(what), "soundfont", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(parse.GetValue(what), "audiveris", StringComparison.OrdinalIgnoreCase))
             {
-                output.WriteLine("Only 'soundfont' and 'koda-browser' can be installed so far.");
+                if (Environment.IsPrivilegedProcess)
+                {
+                    output.WriteLine("Do not run this as an administrator or as root: Audiveris is unpacked for one person. Run it as yourself.");
+                    return 2;
+                }
+
+                return await AudiverisInstall.RunAsync(output, parse.GetValue(installHome) ?? AmpleHome.DefaultPath(), progress, token);
+            }
+
+            string target = parse.GetValue(what) ?? string.Empty;
+            if (string.Equals(target, "all", StringComparison.OrdinalIgnoreCase) || SamplePacks.Find(target) is not null)
+            {
+                return await SamplePacks.InstallAsync(output, parse.GetValue(installHome) ?? AmpleHome.DefaultPath(), target, parse.GetValue(mirror) ? SamplePacks.MirrorUrl : parse.GetValue(from), token, progress);
+            }
+
+            if (!string.Equals(target, "soundfont", StringComparison.OrdinalIgnoreCase))
+            {
+                output.WriteLine("Install 'soundfont', 'koda-browser', 'audiveris', a sample pack of 'ample packs available', or 'all' (every sample pack that is not installed yet).");
                 return 2;
             }
 
             return await PackInstall.SoundFontAsync(output, parse.GetValue(installHome) ?? AmpleHome.DefaultPath(), parse.GetValue(mirror) ? PackInstall.MirrorUrl : parse.GetValue(from), token, progress);
         });
+        Option<string?> availableHome = new("--home") { Description = "The AMPLE user folder (default: AMPLE_HOME, else the local application data of the user)." };
+        Option<bool> availableJson = new("--json") { Description = "Print the packs and whether each is installed as JSON (for the setup wizard)." };
+        Command available = new("available", "Lists the sample packs AMPLE can download, and which are installed.") { availableHome, availableJson };
+        available.SetAction(parse => SamplePacks.Available(output, parse.GetValue(availableHome) ?? AmpleHome.DefaultPath(), parse.GetValue(availableJson)));
+        Argument<string> removeWhat = new("pack") { Description = "The id of an installed sample pack to remove (see 'ample packs available')." };
+        Option<string?> removeHome = new("--home") { Description = "The AMPLE user folder (default: AMPLE_HOME, else the local application data of the user)." };
+        Command remove = new("remove", "Removes an installed sample pack (its folder in the user's audio-packs folder).") { removeWhat, removeHome };
+        remove.SetAction(parse => SamplePacks.Remove(output, parse.GetValue(removeHome) ?? AmpleHome.DefaultPath(), parse.GetValue(removeWhat)!));
         root.Subcommands.Add(install);
+        root.Subcommands.Add(available);
+        root.Subcommands.Add(remove);
         root.Subcommands.Add(list);
         root.Subcommands.Add(where);
         root.Subcommands.Add(link);

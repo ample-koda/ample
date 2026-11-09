@@ -7,7 +7,7 @@
  */
 export const FILE_KINDS = [
   { id: 'midi', label: 'MIDI file', ext: ['.mid', '.midi'], block: 'midi', param: 'file' },
-  { id: 'audio', label: 'Audio file', ext: ['.wav', '.flac', '.mp3', '.ogg', '.aif', '.aiff'], block: 'import-audio', param: 'file' },
+  { id: 'audio', label: 'Audio file', ext: ['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'], block: 'import-audio', param: 'file' },
   { id: 'soundfont', label: 'SoundFont', ext: ['.sf2'], block: 'gm', param: 'file' },
   { id: 'lyrics', label: 'Lyrics file', ext: ['.lyr', '.lrc', '.amplelrc', '.txt'], block: 'lyrics', param: 'file' },
   { id: 'sequence', label: 'Sequence', ext: ['.ampleseq', '.seq'], block: 'sequencer', param: 'file' },

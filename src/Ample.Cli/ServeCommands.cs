@@ -26,6 +26,7 @@ internal static class ServeCommands
     internal static IReadOnlyList<Command> Create(TextWriter output)
     {
         Option<string?> project = new("--project") { Description = "The project folder (default: the current folder)." };
+        Option<bool> create = new("--create") { Description = "Create the project in the project folder first when it is not a project yet (a new folder for a first run or a debug session in an IDE)." };
         Option<string?> root = new("--root") { Description = "The AMPLE folder (default: found from the current folder upwards)." };
         Option<string?> home = new("--home") { Description = "The AMPLE user data folder (default: AMPLE_HOME or the local application data folder)." };
         Option<int> port = new("--port") { Description = "Port on 127.0.0.1 (default: a free one).", DefaultValueFactory = _ => 0 };
@@ -47,7 +48,7 @@ internal static class ServeCommands
         Option<string?> agentReason = new("--agent-reason") { Description = "Reason for an agent-started server." };
         Option<bool> noHub = new("--no-hub") { Description = "Do not let the tray hub manage this server (also AMPLE_NO_HUB=1)." };
         Option<string?> openapi = new("--openapi") { Description = "Write the OpenAPI document to this file and exit (no project needed)." };
-        Command serve = new("serve", "Starts the local server with the web UI, the API and the help (127.0.0.1 only).") { project, root, home, port, maxUploadMb, forbidCapabilities, envAllow, noBrowser, visible, noTokenOutput, allowLan, login, allowAll, bind, parallelism, liteOnly, logFile, startedBy, agentName, agentReason, noHub, openapi };
+        Command serve = new("serve", "Starts the local server with the web UI, the API and the help (127.0.0.1 only).") { project, create, root, home, port, maxUploadMb, forbidCapabilities, envAllow, noBrowser, visible, noTokenOutput, allowLan, login, allowAll, bind, parallelism, liteOnly, logFile, startedBy, agentName, agentReason, noHub, openapi };
         serve.SetAction(async (p, t) =>
         {
             try
@@ -94,6 +95,18 @@ internal static class ServeCommands
                 }
 
                 string ample = (p.GetValue(root) is string r ? SpecRoot.At(r) : SpecRoot.Find(Directory.GetCurrentDirectory())).Path;
+                if (p.GetValue(create))
+                {
+                    string projectPath = Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory());
+                    if (!File.Exists(Path.Combine(projectPath, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile)))
+                    {
+                        using OpenProject made = await ProjectStore.CreateAsync(new Ample.Audio.IO.PhysicalFileSystem(), new Ample.Audio.IO.SystemClock(), new Ample.Audio.IO.GuidV7Generator(), projectPath, Path.GetFileName(projectPath.TrimEnd('/', '\\')), null, t);
+                        try { if (Ample.Server.DemoSong.SeedNew(projectPath, SpecRoot.Find(Directory.GetCurrentDirectory()).Path)) output.WriteLine($"Added the demo song {DemoSongRules.FileName}."); }
+                        catch (DirectoryNotFoundException) { /* no AMPLE folder with spec/ near the program: no demo */ }
+                        output.WriteLine($"Created a new project at {projectPath} (--create).");
+                    }
+                }
+
                 InstanceAgent? agent = source == "agent" ? new InstanceAgent(name!, reason!, null) : null;
                 Ample.Engine.Engine.BuildParallelism.ConfigureServer(p.GetValue(parallelism) ?? (int.TryParse(Environment.GetEnvironmentVariable("AMPLE_PARALLELISM"), out int fromEnvironment) ? fromEnvironment : null));
                 ServerOptions options = new(Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory()), ample, p.GetValue(port), null, p.GetValue(allowLan), p.GetValue(home) ?? Library.DefaultHome(), maxUploadMegabytes * 1024L * 1024) { StartedBy = source, Agent = agent, Login = p.GetValue(login), AllowAll = p.GetValue(allowAll), BindAddress = p.GetValue(bind), LiteOnly = p.GetValue(liteOnly), SeedDemo = true, NoHub = p.GetValue(noHub) || Environment.GetEnvironmentVariable("AMPLE_NO_HUB") == "1", Relaunch = RelaunchRecipe() };

@@ -507,7 +507,7 @@ internal static class AiEdit
             }
         }
 
-        throw new AmpleException("AMP5460", $"the block '{block}' keeps no sequence in the song (it has no 'sequence {{ ... }}' part).");
+        throw new AmpleException("AMP5460", $"the block '{block}' keeps no sequence in the song (it has no 'sequence {{ ... }}' part). If it reads a .ampleseq file (its 'file' line), edit that file: give the file as the path of ample_edit and use sequence_channel / sequence_row there without a block.");
     }
 
     /// <summary>Sets one row of one pattern of a sequence kept in the song, and nothing else: {"op":"sequence_row","block":"beat-bed","pattern":"groove","channel":"bell","text":"1:0:1:80:90"} (empty text removes the row). The channel must exist in the sequence.</summary>
@@ -592,12 +592,24 @@ internal static class AiEdit
     private static string SequenceChannel(string text, JsonObject e, SpecData spec, List<string> summary)
     {
         string block = Str(e, "block"), channel = Str(e, "channel"), rest = Norm(Str(e, "text")).Trim();
-        if (block.Length == 0 || channel.Length == 0 || rest.Length == 0)
+        if (rest.Length == 0)
         {
-            throw new AmpleException("AMP5460", "sequence_channel needs 'block', 'channel' and 'text' (the type and settings, like \"gm program=10 vol=-24\").");
+            rest = Norm(Str(e, "value")).Trim();   // the same thing under another name: an easy mistake, so it is understood
+        }
+
+        // a .ampleseq file: its channel lines are at the top of the file and there is no block
+        bool fileText = text.TrimStart().StartsWith("sequencer ", StringComparison.Ordinal);
+        if (channel.Length == 0 || rest.Length == 0 || (block.Length == 0 && !fileText))
+        {
+            throw new AmpleException("AMP5460", "sequence_channel needs 'channel' and 'text' (the type and settings, like \"gm program=10 vol=-24\"), and 'block' for a sequence kept in the song; for a .ampleseq file give the file as the path and no block. A channel that exists is changed (settings alone, like \"program=42\", only change those settings).");
         }
 
         List<string> lines = [.. text.Split('\n')];
+        if (fileText)
+        {
+            return SequenceChannelInFile(lines, channel, rest, summary);
+        }
+
         (int open, int close) = SequenceLines(lines, FindBlock(text, block, spec), block);
         int last = -1;
         for (int i = open + 1; i < close; i++)
@@ -605,7 +617,10 @@ internal static class AiEdit
             string trimmed = lines[i].Trim();
             if (trimmed == "channel " + channel || trimmed.StartsWith("channel " + channel + " ", StringComparison.Ordinal))
             {
-                throw new AmpleException("AMP5460", $"the sequence of '{block}' already has a channel '{channel}'.");
+                string pad0 = new(' ', lines[i].Length - lines[i].TrimStart().Length);
+                lines[i] = $"{pad0}channel {channel} {MergeSettings(trimmed.Length > ("channel " + channel).Length ? trimmed[("channel " + channel).Length..].Trim() : string.Empty, rest)}";
+                summary.Add($"sequence_channel: {block}: channel {channel} changed to {Cut(rest)}");
+                return string.Join('\n', lines);
             }
 
             if (trimmed.StartsWith("channel ", StringComparison.Ordinal))
@@ -623,6 +638,70 @@ internal static class AiEdit
         lines.Insert(last + 1, $"{pad}channel {channel} {rest}");
         summary.Add($"sequence_channel: {block}: channel {channel} {Cut(rest)}");
         return string.Join('\n', lines);
+    }
+
+    /// <summary>The channel lines of a .ampleseq file: a channel that exists is changed, a new one is added after the last channel line.</summary>
+    private static string SequenceChannelInFile(List<string> lines, string channel, string rest, List<string> summary)
+    {
+        int last = -1;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string trimmed = lines[i].Trim();
+            if (trimmed.StartsWith("pattern ", StringComparison.Ordinal))
+            {
+                break;   // the channel lines come before the first pattern
+            }
+
+            if (!trimmed.StartsWith("channel ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            last = i;
+            string head = "channel " + channel;
+            if (trimmed == head || trimmed.StartsWith(head + " ", StringComparison.Ordinal))
+            {
+                lines[i] = $"{head} {MergeSettings(trimmed.Length > head.Length ? trimmed[head.Length..].Trim() : string.Empty, rest)}";
+                summary.Add($"sequence_channel: channel {channel} changed to {Cut(rest)}");
+                return string.Join('\n', lines);
+            }
+        }
+
+        if (last < 0)
+        {
+            throw new AmpleException("AMP5460", "this sequence file has no channel line to put the new one after.");
+        }
+
+        lines.Insert(last + 1, $"channel {channel} {rest}");
+        summary.Add($"sequence_channel: channel {channel} {Cut(rest)}");
+        return string.Join('\n', lines);
+    }
+
+    /// <summary>The rest of a channel line after an edit: settings alone ("program=42 vol=-6") change or add only those keys of the old rest, anything that starts with a type ("gm program=40") replaces it.</summary>
+    private static string MergeSettings(string oldRest, string edit)
+    {
+        string[] editTokens = edit.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (editTokens.Length == 0 || !editTokens.All(t => t.Contains('=', StringComparison.Ordinal)))
+        {
+            return edit;
+        }
+
+        List<string> merged = [.. oldRest.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+        foreach (string token in editTokens)
+        {
+            string key = token[..token.IndexOf('=', StringComparison.Ordinal)];
+            int at = merged.FindIndex(t => t.StartsWith(key + "=", StringComparison.Ordinal));
+            if (at >= 0)
+            {
+                merged[at] = token;
+            }
+            else
+            {
+                merged.Add(token);
+            }
+        }
+
+        return string.Join(' ', merged);
     }
 
     private static string SetFlag(string text, JsonObject e, SpecData spec, List<string> summary)

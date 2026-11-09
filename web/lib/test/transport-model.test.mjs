@@ -84,3 +84,11 @@ test('a single running block says which step it is on and how far it is', () => 
   assert.equal(runningText({ score: { state: 'running', steps: [], fraction: 0 } }), ' · score');
   assert.equal(runningText({ a: { state: 'running', steps: [{ name: 'x' }], fraction: 0.5 }, b: { state: 'running' } }), ' · a, b');
 });
+
+test('a master block that is not called master wins over a later block that has audio', () => {
+  const nodes = [{ id: 'lead', tpl: 'synth' }, { id: 'backing', tpl: 'master' }, { id: 'late', tpl: 'synth' }];
+  const names = nodes.map((n) => n.id);
+  assert.equal(masterTakeOf({ lead: 'a', backing: 'b', late: 'c' }, names, nodes), 'b');
+  assert.equal(masterTakeOf({ lead: 'a', late: 'c' }, names, nodes), 'c');
+  assert.equal(masterTakeOf({ lead: 'a', late: 'c' }, names), 'c');
+});

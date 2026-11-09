@@ -23,4 +23,13 @@ public sealed class AiReadCacheTests : IDisposable
         File.WriteAllText(Path.Combine(task.ProjectDir, "extra.seq"), "channel kick drum\n");
         Assert.NotEqual(edited, AiService.WorkspaceStamp(task)); // a new file counts too
     }
+
+    [Fact]
+    public void A_new_turn_forgets_the_earlier_reads_so_the_model_gets_the_whole_answer_again()
+    {
+        AiTask task = new() { Workspace = folder };
+        task.ReadCache["song"] = ("stamp", 1);   // an earlier turn read the song
+        AiService.BeginTurnReads(task);
+        Assert.Empty(task.ReadCache);            // the first read of the new turn is answered in full, not with 'unchanged'
+    }
 }

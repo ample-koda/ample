@@ -184,10 +184,10 @@ export function offerAttachment({ onChange, dropTarget } = {}) {
   };
   const upload = async (file) => {
     const extension = (/\.[a-z0-9]+$/i.exec(file.name)?.[0] || '.wav').toLowerCase();
-    if (!['.wav', '.mp3', '.ogg', '.flac'].includes(extension)) { toast(`${file.name} is not a sound (wav, mp3, ogg or flac).`); return; }
+    if (!['.wav', '.mp3', '.ogg', '.flac', '.m4a'].includes(extension)) { toast(`${file.name} is not a sound (wav, mp3, m4a, ogg or flac).`); return; }
     try { await send(new Uint8Array(await file.arrayBuffer()), file.name, extension === '.wav' ? '' : extension); } catch (error) { toast(error.message || String(error)); }
   };
-  const pick = el('input', { type: 'file', accept: 'audio/*,.wav,.mp3,.ogg,.flac', multiple: true, hidden: true, id: 'offer-file' });
+  const pick = el('input', { type: 'file', accept: 'audio/*,.wav,.mp3,.ogg,.flac,.m4a', multiple: true, hidden: true, id: 'offer-file' });
   pick.onchange = async () => { for (const f of pick.files) await upload(f); pick.value = ''; };
   const add = el('button', { type: 'button', id: 'offer-add', textContent: '＋ Add audio...', title: 'Offer a sound to Codex: pick a file, or drag one onto this window', onclick: () => pick.click() });
   let recordings = 0;

@@ -34,7 +34,7 @@ public static class Routes
     private static readonly ConcurrentQueue<string> ProjectPreviewCacheOrder = new();
     private static readonly SemaphoreSlim EffectPreviewGate = new(2, 2);
     private static long EffectPreviewCacheBytes;
-    private static readonly string[] UploadExtensions = [".wav", ".mp3", ".flac", ".ogg", ".mid", ".midi", ".lyr", ".lrc", ".srt", ".txt", ".json", ".amplet", ".module", ".amplec", ".sf2", ".sf3", ".sfz"];
+    private static readonly string[] UploadExtensions = [".wav", ".mp3", ".flac", ".ogg", ".m4a", ".mid", ".midi", ".lyr", ".lrc", ".srt", ".txt", ".json", ".amplet", ".module", ".amplec", ".sf2", ".sf3", ".sfz", ".pdf", ".png", ".jpg", ".jpeg", ".webp"];
     /// <summary>The value of a file parameter as it is written in the song: a path with a space or another character that cannot stand bare is put in double quotes (with \" and \ escaped), so it stays one value.</summary>
 /// <summary>One graph edit of the document route, as an edit of the text. Shared by the single edit and by the atomic list of edits.</summary>
     private static EditResult RunDocEdit(ProjectSession s, AmpleDocument parsed, JsonElement b, JsonElement op)
@@ -106,7 +106,7 @@ public static class Routes
         return [.. VariantFieldPlanner.Fields(block, template).Where(field => field.Kind is "seed" or "renderer-seed").Select(field => field.Name)];
     }
 
-    private static readonly string[] CompressedAudioExtensions = [".mp3", ".ogg", ".flac"];
+    private static readonly string[] CompressedAudioExtensions = [".mp3", ".ogg", ".flac", ".m4a"];
 
     /// <summary>Decodes a compressed audio file (MP3, Ogg, FLAC) to 16-bit PCM WAV with ffmpeg, keeping the sample rate and channels. FLAC is lossless; MP3 and Ogg were lossy already, so the WAV holds exactly what they decode to and nothing is lost on top of that.</summary>
     private static async Task<byte[]> DecodeToWavAsync(byte[] data, string extension, CancellationToken cancellationToken)
@@ -795,7 +795,7 @@ public static class Routes
             string relative = c.Request.Query["path"].ToString().Replace('\\', '/').Trim('/');
             string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
             string extension = Path.GetExtension(relative).ToLowerInvariant();
-            string contentType = extension switch { ".wav" => "audio/wav", ".mp3" => "audio/mpeg", ".ogg" => "audio/ogg", ".flac" => "audio/flac", ".aif" or ".aiff" => "audio/aiff", _ => string.Empty };
+            string contentType = extension switch { ".wav" => "audio/wav", ".mp3" => "audio/mpeg", ".ogg" => "audio/ogg", ".m4a" => "audio/mp4", ".flac" => "audio/flac", ".aif" or ".aiff" => "audio/aiff", _ => string.Empty };
             if (relative.Split('/').Any(part => part.Equals(".ample", StringComparison.OrdinalIgnoreCase)) || contentType.Length == 0 || !s.Fs.FileExists(full) || HasProjectLink(s.Fs, s.Root, relative)) throw new AmpleException("AMP5243", "The project audio file does not exist or cannot be played.");
             return Results.File(s.Fs.OpenRead(full), contentType, enableRangeProcessing: true);
         });
@@ -2062,7 +2062,7 @@ public static class Routes
             Ample.Storage.Library.AssetRecord asset = s.Library.Asset(c.Request.Query["asset"].ToString()) ?? throw new AmpleException("AMP5291", "There is no such asset.");
             Ample.Storage.Library.Mount mount = s.Library.GetMount(asset.MountId);
             string extension = Path.GetExtension(asset.RelPath).ToLowerInvariant();
-            string contentType = extension switch { ".wav" => "audio/wav", ".mp3" => "audio/mpeg", ".ogg" => "audio/ogg", ".flac" => "audio/flac", ".aif" or ".aiff" => "audio/aiff", _ => string.Empty };
+            string contentType = extension switch { ".wav" => "audio/wav", ".mp3" => "audio/mpeg", ".ogg" => "audio/ogg", ".m4a" => "audio/mp4", ".flac" => "audio/flac", ".aif" or ".aiff" => "audio/aiff", _ => string.Empty };
             string root = Path.GetFullPath(mount.Path), full = Path.GetFullPath(Path.Combine(root, asset.RelPath));
             if (mount.State != "online" || contentType.Length == 0 || !full.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
             {
@@ -2785,7 +2785,19 @@ public static class Routes
         add("GET", "/api/ai/context/components", "ai", "For an AI task: the components a song of the proposal can see, every version with its seal, signature and deprecation, the contract of the default version and the problems of putting them together.", false, s is null ? null : (HttpContext c) => Ok(s.Ai.ComponentsTool(c.Request.Headers["X-Ample-Context"].ToString(), c.Request.Query["path"].ToString())));
         add("GET", "/api/ai/context/arrangement-lint", "ai", "For an AI task: which blocks of a song play in which bars, the density per bar and what looks wrong (silent bars, harmony without a bass, nothing that builds). Reads only the placements.", false, s is null ? null : (HttpContext c) => Ok(s.Ai.LintArrangement(c.Request.Headers["X-Ample-Context"].ToString(), c.Request.Query["path"].ToString())));
         add("GET", "/api/ai/context/check", "ai", "For an AI task: the errors and warnings that the proposal introduced (the ones the song did not have before); none means it can be handed in.", false, s is null ? null : (HttpContext c) => Ok(s.Ai.Check(c.Request.Headers["X-Ample-Context"].ToString(), c.Request.Query["path"].ToString())));
-        add("POST", "/api/ai/tasks/{id}/message", "ai", "Goes on with a proposal before it is accepted: while Codex works the message steers it, afterwards it asks for a change on top of the proposal as it is now.", true, s is null ? null : async (string id, HttpContext c) => { JsonElement b = await Body(c); return Ok(AiService.TaskJson(s.Ai.SendMessage(id, Str(b, "text"), b.TryGetProperty("hums", out JsonElement hm) && hm.ValueKind == JsonValueKind.Array ? [.. hm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("offered", out JsonElement of) && of.ValueKind == JsonValueKind.Array ? [.. of.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null), false)); });
+        add("POST", "/api/ai/attachments", "ai", "Keeps a file that the user attaches to a message to Koda or the assistant (the raw body of the request, ?name=file.png; at most 40 MB, no programs): the answer has the id that the message carries as one of its attachments. Pictures are shown to the model, other files are put in the working copy of the task.", true, s is null ? null : async (HttpContext c) =>
+        {
+            if (c.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+            {
+                limit.MaxRequestBodySize = AiAttachments.MaxBytes + 4096;
+            }
+
+            using MemoryStream body = new();
+            await c.Request.Body.CopyToAsync(body, c.RequestAborted);
+            AiAttachment kept = s.Ai.SaveAttachment(c.Request.Query["name"].ToString(), body.ToArray());
+            return Ok(new { id = kept.Id, name = kept.Name, size = kept.Size, kind = kept.IsImage ? "image" : "file" });
+        });
+        add("POST", "/api/ai/tasks/{id}/message", "ai", "Goes on with a proposal before it is accepted: while Codex works the message steers it, afterwards it asks for a change on top of the proposal as it is now.", true, s is null ? null : async (string id, HttpContext c) => { JsonElement b = await Body(c); return Ok(AiService.TaskJson(s.Ai.SendMessage(id, Str(b, "text"), b.TryGetProperty("hums", out JsonElement hm) && hm.ValueKind == JsonValueKind.Array ? [.. hm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("offered", out JsonElement of) && of.ValueKind == JsonValueKind.Array ? [.. of.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("attachments", out JsonElement attm) && attm.ValueKind == JsonValueKind.Array ? [.. attm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null), false)); });
         add("GET", "/api/ai/context/thought", "ai", "For an AI task: shows the user what the AI is thinking about right now (a short note that replaces the previous one).", false, s is null ? null : (HttpContext c) => Ok(AiService.SetThought(c.Request.Headers["X-Ample-Context"].ToString(), c.Request.Query["text"].ToString())));
         add("GET", "/api/ai/context/revision", "ai", "For an AI task: what one revision of the project history changed against the one before it, or the diff of one file of it.", false, s is null ? null : async (HttpContext c) => Ok(await s.Ai.RevisionToolAsync(c.Request.Query["id"].ToString(), c.Request.Query["path"].ToString(), c.RequestAborted)));
         add("GET", "/api/ai/context/changes-since", "ai", "For a resumed AI task: how the project changed since the working copy was based on it (overview), the diff of one file, or import=true to bring the project's version of a file into the copy.", false, s is null ? null : async (HttpContext c) => Ok(await s.Ai.ChangesSinceAsync(c.Request.Headers["X-Ample-Context"].ToString(), c.Request.Query["path"].ToString(), c.Request.Query["import"].ToString() == "true")));
@@ -2835,7 +2847,7 @@ public static class Routes
                 string[] titleWords = Str(b, "prompt").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6).ToArray();
                 sessionId = s.Ai.CreateAssistantSession(titleWords.Length == 0 ? "Assistant session" : string.Join(' ', titleWords), archiveConversation: false).Id;
             }
-            AiTaskRequest request = new(Opt(b, "kind") ?? "custom", Opt(b, "scope") ?? "file", Str(b, "prompt"), path, Opt(b, "song") ?? path, b.TryGetProperty("fromLine", out JsonElement fl) && fl.ValueKind == JsonValueKind.Number ? fl.GetInt32() : null, b.TryGetProperty("toLine", out JsonElement tl) && tl.ValueKind == JsonValueKind.Number ? tl.GetInt32() : null, Opt(b, "block"), Opt(b, "model"), b.TryGetProperty("hums", out JsonElement hm) && hm.ValueKind == JsonValueKind.Array ? [.. hm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("offered", out JsonElement of) && of.ValueKind == JsonValueKind.Array ? [.. of.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, Opt(b, "continueFrom"), Opt(b, "effort"), b.TryGetProperty("blocks", out JsonElement bl) && bl.ValueKind == JsonValueKind.Array ? [.. bl.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null) { Strict = b.TryGetProperty("strict", out JsonElement strict) && strict.ValueKind == JsonValueKind.True, Context = Opt(b, "context") == "saved" ? "saved" : "unsaved" };
+            AiTaskRequest request = new(Opt(b, "kind") ?? "custom", Opt(b, "scope") ?? "file", Str(b, "prompt"), path, Opt(b, "song") ?? path, b.TryGetProperty("fromLine", out JsonElement fl) && fl.ValueKind == JsonValueKind.Number ? fl.GetInt32() : null, b.TryGetProperty("toLine", out JsonElement tl) && tl.ValueKind == JsonValueKind.Number ? tl.GetInt32() : null, Opt(b, "block"), Opt(b, "model"), b.TryGetProperty("hums", out JsonElement hm) && hm.ValueKind == JsonValueKind.Array ? [.. hm.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("offered", out JsonElement of) && of.ValueKind == JsonValueKind.Array ? [.. of.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, Opt(b, "continueFrom"), Opt(b, "effort"), b.TryGetProperty("blocks", out JsonElement bl) && bl.ValueKind == JsonValueKind.Array ? [.. bl.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, b.TryGetProperty("attachments", out JsonElement attc) && attc.ValueKind == JsonValueKind.Array ? [.. attc.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null) { Strict = b.TryGetProperty("strict", out JsonElement strict) && strict.ValueKind == JsonValueKind.True, Context = Opt(b, "context") == "saved" ? "saved" : "unsaved" };
             AiTask task = await s.Ai.StartTaskAsync(request, AssistantBase(c), sessionId, c.RequestAborted);
             return Ok(AiService.TaskJson(task, false));
         });
@@ -3626,7 +3638,7 @@ public static class Routes
             if ((!showHidden && (name.StartsWith('.') || (name.Equals("ample.lock", StringComparison.Ordinal) && Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(session.Root).TrimEnd(Path.DirectorySeparatorChar), StringComparison.Ordinal)))) || session.Fs.GetLinkTarget(file) is not null) continue;   // ample.lock is kept by the program: it is shown only with hidden=1
             string relative = Path.GetRelativePath(session.Root, file).Replace('\\', '/');
             string extension = Path.GetExtension(name).ToLowerInvariant();
-            string kind = extension switch { ".amplet" => "song", ".module" => "module", ".wav" or ".mp3" or ".flac" or ".ogg" => "audio", ".mid" or ".midi" => "midi", ".lyr" or ".lrc" or ".srt" => "lyrics", _ => "file" };
+            string kind = extension switch { ".amplet" => "song", ".module" => "module", ".wav" or ".mp3" or ".flac" or ".ogg" or ".m4a" => "audio", ".mid" or ".midi" => "midi", ".lyr" or ".lrc" or ".srt" => "lyrics", _ => "file" };
             FileInfo info = new(file);
             children.Add(new ProjectTreeItem(name, relative, kind, info.Length, info.LastWriteTimeUtc, false, null));
         }

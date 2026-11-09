@@ -3,7 +3,7 @@
   "profiles": {
     "Studio (ample serve)": {
       "commandName": "Project",
-      "commandLineArgs": "serve"
+      "commandLineArgs": "serve --create --project vs-project"
     },
     "Remix (ample serve --lite-only)": {
       "commandName": "Project",

@@ -279,8 +279,12 @@ namespace Ample.Setup
             foreach (Finding f in findings) AddRow(f);
             healthRows.ResumeLayout();
             healthBar.Visible = false;
-            int open = findings.Count(f => f.Level != "ok"), fixable = findings.Count(f => f.Level != "ok" && f.Fix != null);
-            healthStatus.Text = open == 0 ? "Everything AMPLE needs is in place." : open + " thing(s) to look at" + (fixable > 0 ? "; tick what AMPLE may fix for you." : ".");
+            // the sound packs are optional downloads (and removals): they are not "things to look at"
+            Func<Finding, bool> isPack = x => x.Name.StartsWith("sound pack:", StringComparison.Ordinal);
+            int open = findings.Count(f => f.Level != "ok" && !isPack(f)), fixable = findings.Count(f => f.Level != "ok" && f.Fix != null && !isPack(f));
+            int packs = findings.Count(isPack);
+            string packNote = packs > 0 ? " Sound packs: optional, below." : "";
+            healthStatus.Text = (open == 0 ? "Everything AMPLE needs is in place." : open + " thing(s) to look at" + (fixable > 0 ? "; tick what AMPLE may fix for you." : ".")) + packNote;
             healthBusy = false;
             Show(page);
         }
@@ -292,7 +296,7 @@ namespace Ample.Setup
             {
                 string project = Directory.Exists(Path.Combine(home, "projects", "Welcome")) ? Path.Combine(home, "projects", "Welcome") : home;
                 Directory.CreateDirectory(project);
-                ProcessStartInfo start = new ProcessStartInfo(ample, "doctor \"" + project + "\" --env --assistant --json")
+                ProcessStartInfo start = new ProcessStartInfo(ample, "doctor \"" + project + "\" --env --assistant --packs --json")
                 {
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
                 };
@@ -335,10 +339,11 @@ namespace Ample.Setup
             Color colour = f.Level == "ok" ? Good : f.Level == "note" ? Warn : Bad;
             string glyph = f.Level == "ok" ? "✓" : f.Level == "note" ? "i" : "✕";
             string detail = f.Detail.Length > 70 ? f.Detail.Substring(0, 70) + "..." : f.Detail;
-            Panel row = new Panel { Width = 500, Height = f.Fix != null && f.Level != "ok" ? 66 : 24, Margin = new Padding(0, 0, 0, 2) };
+            bool choice = f.Fix != null && (f.Level != "ok" || f.Fix.Kind == "pack-remove");   // a sound pack that is installed offers its removal (unticked)
+            Panel row = new Panel { Width = 500, Height = choice ? 66 : 24, Margin = new Padding(0, 0, 0, 2) };
             row.Controls.Add(new Label { Text = glyph, ForeColor = colour, Font = new Font("Segoe UI Semibold", 10f), AutoSize = false, Size = new Size(20, 22), Location = new Point(0, 0) });
             row.Controls.Add(new Label { Text = f.Name + (detail.Length > 0 && f.Level != "ok" ? ": " + detail : ""), ForeColor = Ink, AutoSize = false, AutoEllipsis = true, Size = new Size(478, 22), Location = new Point(22, 1) });
-            if (f.Fix != null && f.Level != "ok")
+            if (choice)
             {
                 string size = f.Fix.SizeMb > 0 ? " (about " + f.Fix.SizeMb + " MB)" : "";
                 CheckBox box = new CheckBox { Text = f.Fix.Title + size + (f.Fix.Admin ? "  [needs administrator permission]" : ""), Tag = f.Fix, AutoSize = false, Size = new Size(476, 40), Location = new Point(22, 24), CheckAlign = ContentAlignment.TopLeft, TextAlign = ContentAlignment.TopLeft, ForeColor = f.Fix.Admin ? Warn : Ink, Checked = f.Fix.Kind == "pack" && f.Fix.Id == "soundfont" };

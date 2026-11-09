@@ -162,12 +162,14 @@ internal static class ComponentsApi
         string? name = body.TryGetProperty("name", out JsonElement n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
         bool addBlock = body.TryGetProperty("add", out JsonElement add) && add.ValueKind == JsonValueKind.True;
         string? alias = body.TryGetProperty("alias", out JsonElement al) && al.ValueKind == JsonValueKind.String && al.GetString() is { Length: > 0 } given ? given : null;
-        string full = Path.GetFullPath(Path.Combine(s.Root, file));
-        if (!full.StartsWith(Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase) || !File.Exists(full) || !file.EndsWith(ModuleService.ComponentExtension, StringComparison.OrdinalIgnoreCase))
+        bool builtIn = file.StartsWith(BuiltInComponents.Prefix, StringComparison.Ordinal);
+        if (builtIn && BuiltInComponents.Read(file) is null) throw new AmpleException("AMP5285", $"\"{file}\" is not a built-in component file.");
+        string full = builtIn ? file : Path.GetFullPath(Path.Combine(s.Root, file));
+        if (!builtIn && (!full.StartsWith(Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase) || !File.Exists(full) || !file.EndsWith(ModuleService.ComponentExtension, StringComparison.OrdinalIgnoreCase)))
             throw new AmpleException("AMP5285", $"\"{file}\" is not a component file of this project.");
         DocSession doc = await s.DocAsync(path, ct).ConfigureAwait(false);
-        file = Path.GetRelativePath(s.Root, full).Replace('\\', '/');   // the path as the project writes it, whatever was sent
-        ComponentImportAdd result = ComponentEmbedding.AddImport(doc.Text, file, name, addBlock, s.Spec, alias);
+        if (!builtIn) file = Path.GetRelativePath(s.Root, full).Replace('\\', '/');   // the path as the project writes it, whatever was sent
+        ComponentImportAdd result = ComponentEmbedding.AddImport(doc.Text, file, name, addBlock, s.Spec, alias, builtIn);
         string[] conflicts = [];
         if (result.Added.Count > 0)
         {

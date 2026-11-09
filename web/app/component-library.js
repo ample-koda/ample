@@ -93,10 +93,13 @@ function highlight(text, query) {
 
 function entryRow(entry, file, query) {
   const full = [`${entry.title}`, `${entry.name} · v${entry.version} · ${entry.seal}${entry.versions.length > 1 ? ` · ${entry.versions.length} versions` : ''}`, entry.processors?.length ? `Processors: ${entry.processors.join(', ')}` : '', entry.description, entry.tags?.length ? entry.tags.map((t) => `#${t}`).join(' ') : ''].filter(Boolean).join('\n');
+  const builtIn = !!file.builtIn;   // ships with AMPLE: always known by name, nothing to import and no file in the project to show
   const actions = el('span', { className: 'clib-acts' }, [
-    el('button', { type: 'button', className: 'primary', textContent: '＋', title: 'Import and add a block (the lines that will be written are shown first)', 'aria-label': `Import and add ${entry.title}`, onclick: (e) => { e.stopPropagation(); add({ ...entry, file: file.file }, true); } }),
-    el('button', { type: 'button', textContent: '⤓', title: 'Only import (writes just the import line)', 'aria-label': `Import ${entry.title}`, onclick: (e) => { e.stopPropagation(); add({ ...entry, file: file.file }, false); } }),
-    el('button', { type: 'button', textContent: '</>', title: 'Show the file', 'aria-label': `Show ${file.file}`, onclick: (e) => { e.stopPropagation(); document.dispatchEvent(new CustomEvent('ample:open-file', { detail: file.file })); } }),
+    el('button', { type: 'button', className: 'primary', textContent: '＋', title: builtIn ? 'Add a block (built in: no import line is needed)' : 'Import and add a block (the lines that will be written are shown first)', 'aria-label': `Import and add ${entry.title}`, onclick: (e) => { e.stopPropagation(); add({ ...entry, file: file.file }, true); } }),
+    ...(builtIn ? [] : [
+      el('button', { type: 'button', textContent: '⤓', title: 'Only import (writes just the import line)', 'aria-label': `Import ${entry.title}`, onclick: (e) => { e.stopPropagation(); add({ ...entry, file: file.file }, false); } }),
+      el('button', { type: 'button', textContent: '</>', title: 'Show the file', 'aria-label': `Show ${file.file}`, onclick: (e) => { e.stopPropagation(); document.dispatchEvent(new CustomEvent('ample:open-file', { detail: file.file })); } }),
+    ]),
   ]);
   const head = el('div', { className: 'tplitem', title: full, tabindex: '0', draggable: true }, [
     el('span', { className: `clib-ic ${entry.kind.toLowerCase()}`, textContent: KIND_ICON[entry.kind] || '◐', title: entry.kind }),

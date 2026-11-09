@@ -859,8 +859,10 @@ function showResultNow(kind, subject, result) {
   }
   relatedLines(subject, result.text, result.more);
   const back = S.undo.length ? [{ label: tx('undo.prev'), quiet: true, value: 'undo' }] : [];
-  setBubble('answer', answerBubble({ title: result.title, text: result.text, more: result.more, onAsk: followUp(subject, result.text, result.more), buttons: [{ label: tx('answer.thanks'), value: 'thanks', primary: true }, ...(result.action ? [{ label: tx('answer.do'), value: 'do', title: result.action }] : []), { label: tx('answer.more'), value: 'more' }, { label: tx('answer.ask'), value: 'ask' }, ...assistantButton(result.taskId), ...back] }, (v) => { if (v === 'open') openInAssistant(result.taskId); else if (v === 'more') askModel('explain', subject, 'Tell me more.'); else if (v === 'do') askModel('run', { ...subject, said: [result.text, result.more].filter(Boolean).join('\n').slice(0, 1500) }, `${tx('answer.do.ask')} ${result.action}`.trim()); else if (v === 'undo') undoneBubble(subject, false); else closeBubble(); }, () => closeBubble()), 'talk');
+  setBubble('answer', answerBubble({ title: result.title, text: result.text, more: result.more, onAsk: followUp(subject, result.text, result.more), buttons: [{ label: tx('answer.thanks'), value: 'thanks', primary: true }, ...(answerAction(result) ? [{ label: tx('answer.do'), value: 'do', title: answerAction(result) }] : []), { label: tx('answer.more'), value: 'more' }, { label: tx('answer.ask'), value: 'ask' }, ...assistantButton(result.taskId), ...back] }, (v) => { if (v === 'open') openInAssistant(result.taskId); else if (v === 'more') askModel('explain', subject, 'Tell me more.'); else if (v === 'do') askModel('run', { ...subject, said: [result.text, result.more].filter(Boolean).join('\n').slice(0, 1500) }, `${tx('answer.do.ask')} ${result.action}`.trim()); else if (v === 'undo') undoneBubble(subject, false); else closeBubble(); }, () => closeBubble()), 'talk');
 }
+// an answer that tells the person to press Do that always gets the button, also when the model forgot to give the action sentence
+const answerAction = (result) => result.action || (/do that/i.test(String(result.text || '') + ' ' + String(result.more || '')) ? (result.title || 'Apply what the answer suggests') : '');
 async function autoApply(result, subject) {
   lockRisk();
   clearGhosts(); hideInline();

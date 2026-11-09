@@ -13,7 +13,7 @@ import { initPlayLights } from './play-fx.js';
 import { stopTranscription } from './transcription.js';
 import { V, initViews, setView, updateBanner } from './views.js';
 import { initTabs } from './tabs.js';
-import { initSource, openProjectTextFile } from './source.js';
+import { initSource, openProjectTextFile, resetSourceFile } from './source.js';
 import { initProjectPanel, refreshProjectPanel, revealInProject } from './projectpanel.js';
 import { createSaveControl } from './savecontrol.js';
 import { mountStudioGallery } from './studio/index.js';
@@ -37,7 +37,7 @@ import { buildButton, failedBadge, masterTakeOf, playButton, playingLabel, runni
 import { liveActive, onLiveChange, stopLive } from './component-live.js';
 import { buildAndPlayClientPreview, cancelClientPreview, clientPreviewProgress, clientPreviewRunning } from './clientside-preview.js';
 
-const masterTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id));
+const masterTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id), flat().nodes);
 
 const songStatus = () => songState(flat().nodes, S.build.takes || {}, S.build.status || {});
 const transportContext = () => ({ hasDoc: !!S.doc, peek: !!S.peek && !S.peek.ai, errors: S.doc ? S.doc.diagnostics.filter((d) => d.severity === 'error').length : 0, building: !!S.build.running || clientPreviewRunning() });
@@ -163,7 +163,7 @@ function renderAll() {
 async function openProjectFile(path) {
   const extension = path.slice(path.lastIndexOf('.')).toLowerCase();
   const node = flat().nodes.find((item) => item.params?.file === path);
-  if (['.wav', '.flac', '.mp3', '.ogg', '.aif', '.aiff'].includes(extension)) { await playProjectFile(path); return; }
+  if (['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'].includes(extension)) { await playProjectFile(path); return; }
   if (['.mid', '.midi'].includes(extension)) {
     const details = await api.get(`/api/midi/info?file=${encodeURIComponent(path)}`);
     if (node) select(node.id);
@@ -171,7 +171,9 @@ async function openProjectFile(path) {
     return;
   }
   // a sequence file: the sequencer of the block that uses it, or the text of the file when no block uses it yet
-  if (extension === '.seq' || extension === '.ampleseq') { if (node?.tpl === 'sequencer') { (await import('./sequencer.js')).openSequencer(node.id); return; } await openProjectTextFile(path); return; }
+  if (extension === '.seq' || extension === '.ampleseq') { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) { await openProjectTextFile(path); return; }   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
+    // in the Source view a tab of a sequence file shows its text there (switching between the song and its sequence file); elsewhere it opens the sequencer
+    if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return; } await openProjectTextFile(path); return; }
   if (['.lyr', '.lrc', '.amplelrc'].includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return; }
   if (['.lyr', '.lrc', '.amplelrc', '.srt', '.txt', '.chords', '.md', '.csv', '.json', '.amplec'].includes(extension)) { await openProjectTextFile(path); return; }
   toast(`${path} is selected in the Project panel; no editor is registered for this file type.`);
@@ -223,7 +225,7 @@ function wire() {
   initProjects();
   onPlayer(renderPlaybackState);
   onLiveChange(() => renderPlaybackState());
-  document.addEventListener('ample:open', (e) => openDoc(e.detail).catch((x) => toast(x.message)));
+  document.addEventListener('ample:open', (e) => { resetSourceFile(); openDoc(e.detail).catch((x) => toast(x.message)); });
   document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => toast(x.message)));
   document.addEventListener('ample:reveal-file', (e) => revealInProject(e.detail));
   $('#lib-q').oninput = renderLib;

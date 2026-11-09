@@ -41,3 +41,14 @@ test('a template-declared long field uses the expanded editor and preserves line
   await page.locator('#dlg-btns button', { hasText: 'Apply' }).click();
   await expect.poll(async () => (await state(page)).text).toContain('pattern kick\\nsnare');
 });
+
+test('a string property shows its text without quotes and writes the quotes back (the source keeps them)', async ({ page }) => {
+  // the chords line gets its quotes through an edit, as a song written with quotes has them
+  expect(await page.evaluate(async () => { const m = await import('/app/store.js'); return m.edit([{ type: 'setParameter', block: 'chords', name: 'chords', value: JSON.stringify('Am F C G') }]); })).toBe(true);
+  await node(page, 'chords').locator('.nh .t').click();
+  const field = page.locator('#props .prop').filter({ has: page.locator('label', { hasText: /^chords/ }) }).locator('input:not([type="number"]):not([type="checkbox"]):not([type="range"]), textarea').first();
+  await expect(field).toHaveValue(/^[A-G][^"]*$/);   // no quotes in the field
+
+  await field.evaluate((e) => { const input = e as HTMLInputElement; input.value = 'Am F C G7'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+  await expect.poll(async () => (await state(page)).text).toContain('chords "Am F C G7"');
+});

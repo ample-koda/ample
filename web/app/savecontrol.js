@@ -54,7 +54,7 @@ export function createSaveControl({ compact = false } = {}) {
   const button = el('button', { type: 'button', className: 'savebtn', textContent: 'Save', title: 'Save (Ctrl+S)', 'aria-label': 'Save' });
   const more = el('button', { type: 'button', className: 'savemore', textContent: '▾', title: 'More: Save as, Revert, Export, Render block to file', 'aria-label': 'File menu', 'aria-haspopup': 'menu' });
   const root = el('span', { className: compact ? 'savectl compact' : 'savectl' }, compact ? [more] : [dot, button, more]);
-  const songTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id));
+  const songTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id), flat().nodes);
   const hasTake = () => !!(S.sel && S.build.takes && S.build.takes[S.sel]);
   const refresh = () => {
     const state = currentFileState();
