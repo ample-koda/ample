@@ -21,7 +21,11 @@ namespace Ample.Setup
             string mode = ValueOf(args, "--mode") ?? "fresh";
             if (mode != "update" && mode != "reconfigure") mode = "fresh";
             string runtime = ValueOf(args, "--runtime");
-            Application.Run(new Wizard(mode, runtime != "missing" && (runtime != null || RuntimeLooksInstalled())));
+            Wizard wizard = new Wizard(mode, runtime != "missing" && (runtime != null || RuntimeLooksInstalled()));
+            // --shot <png> [--page health|packs]: draws one page of the wizard into a picture and ends (for the documentation and for looking at a change without a person clicking through)
+            string shot = ValueOf(args, "--shot");
+            if (shot != null) wizard.Shown += (s, e) => wizard.CaptureAndClose(shot, ValueOf(args, "--page") ?? "packs", int.Parse(ValueOf(args, "--scroll") ?? "0"));
+            Application.Run(wizard);
             return 0;
         }
 

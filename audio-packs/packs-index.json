@@ -11,7 +11,8 @@
     "bytes": 382954,
     "files": 8,
     "sha256": "ae6a1906f9412ff370281c5e963ff7ab9c5982d672b8fb6db0b4ae7449c5b23d",
-    "asset": "big-rusty-drums.zip"
+    "asset": "big-rusty-drums.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "black-and-blue-basses",
@@ -26,7 +27,8 @@
     "bytes": 140530302,
     "files": 445,
     "sha256": "02289548ceb8d2f08bb2caf6f2b8b2c704457733f7ea4dde9c9c59b1fd4be847",
-    "asset": "black-and-blue-basses.zip"
+    "asset": "black-and-blue-basses.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "black-and-green-guitars",
@@ -40,7 +42,8 @@
     "bytes": 10745612,
     "files": 50,
     "sha256": "88071c3ff69da4f7d37aa2c598e3a806d0960eb803039f3f513e4e5429cbd9ad",
-    "asset": "black-and-green-guitars.zip"
+    "asset": "black-and-green-guitars.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "emilyguitar",
@@ -54,7 +57,8 @@
     "bytes": 3791528,
     "files": 21,
     "sha256": "7f0ba91cc8627b3916e216ecb21dcd8437b211af5971be3e1cce34681b7c1aa0",
-    "asset": "emilyguitar.zip"
+    "asset": "emilyguitar.zip",
+    "author": "D. Smolken (played and mapped), Karoryfer Samples"
   },
   {
     "id": "frankensnare",
@@ -68,7 +72,8 @@
     "bytes": 3667371,
     "files": 47,
     "sha256": "ac1a9452ae9b0dd280f34bc4d069dbae4c21dd40c4c4bdf8468387339c7f9306",
-    "asset": "frankensnare.zip"
+    "asset": "frankensnare.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "growlybass",
@@ -82,7 +87,8 @@
     "bytes": 40955554,
     "files": 115,
     "sha256": "f74c3b6303fa45a15d1da2d6ee9028d5a7ab77ec162078317c7ac818c085ac26",
-    "asset": "growlybass.zip"
+    "asset": "growlybass.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "headroom-piano",
@@ -96,7 +102,8 @@
     "bytes": 12763669,
     "files": 34,
     "sha256": "9abdf7ced8cd6ebeffb933bb73f6d85b1ff4a8689d274b3ac25885f505f1ccae",
-    "asset": "headroom-piano.zip"
+    "asset": "headroom-piano.zip",
+    "author": "Bengt Nilsson"
   },
   {
     "id": "meatbass",
@@ -111,7 +118,8 @@
     "bytes": 34268314,
     "files": 242,
     "sha256": "11b9dce052c4462eb83986f133606e157bf852b75e06b185cbfab7a71012b399",
-    "asset": "meatbass.zip"
+    "asset": "meatbass.zip",
+    "author": "Drogomir Smolken (played), Ludwik Zamenhof (recorded), Karoryfer Samples"
   },
   {
     "id": "naked-drums",
@@ -125,7 +133,8 @@
     "bytes": 1082653,
     "files": 15,
     "sha256": "24d339ded37129ba83b3ff0a4655256359d82ae3468f9ec23f7491bd73837111",
-    "asset": "naked-drums.zip"
+    "asset": "naked-drums.zip",
+    "author": "Wilkinson Audio"
   },
   {
     "id": "osiris-piano",
@@ -139,7 +148,8 @@
     "bytes": 29504764,
     "files": 55,
     "sha256": "042dca8a64b811a2b036ed0d8ffe03cb12dcd357e6ac050b8482fa543ac39b31",
-    "asset": "osiris-piano.zip"
+    "asset": "osiris-piano.zip",
+    "author": "Osiris Piano (sfzinstruments)"
   },
   {
     "id": "salamander-grand-piano",
@@ -153,7 +163,8 @@
     "bytes": 13388086,
     "files": 34,
     "sha256": "eee74157652b0c9220c52fe2615e41f2b0310977b46ad52f5e7bd5b2125accb1",
-    "asset": "salamander-grand-piano.zip"
+    "asset": "salamander-grand-piano.zip",
+    "author": "Alexander Holm"
   },
   {
     "id": "shinyguitar",
@@ -167,7 +178,8 @@
     "bytes": 33315619,
     "files": 147,
     "sha256": "09e55bad91fcb32cf3d7d0987c90e4ae2c3b6fa7ea51aaee0d4fcaca3b054a3d",
-    "asset": "shinyguitar.zip"
+    "asset": "shinyguitar.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "swirly-drums",
@@ -181,7 +193,8 @@
     "bytes": 35713168,
     "files": 363,
     "sha256": "79a8bfa06462d43ffb8a6bcab77e5ed2002a1c61a1dc8ef88186092532acb0d9",
-    "asset": "swirly-drums.zip"
+    "asset": "swirly-drums.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "the-hat-with-the-phat",
@@ -195,7 +208,8 @@
     "bytes": 5594668,
     "files": 39,
     "sha256": "29ce5ca5638d446916c9bfb80e3c1d6f231c57ffc4e1ee7786074ad4bf2d5670",
-    "asset": "the-hat-with-the-phat.zip"
+    "asset": "the-hat-with-the-phat.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "unruly-drums",
@@ -209,7 +223,8 @@
     "bytes": 37136591,
     "files": 175,
     "sha256": "c1a84eb899e31c6d8773f3473983479915dd2c34fc24081cdf95027e6ada8513",
-    "asset": "unruly-drums.zip"
+    "asset": "unruly-drums.zip",
+    "author": "Karoryfer Samples"
   },
   {
     "id": "virtuosity-drums",
@@ -224,7 +239,8 @@
     "bytes": 10480236,
     "files": 123,
     "sha256": "2888a7e58a9e102f72ce17160d9177c65798417f1046f9862dd5d89130af6cfb",
-    "asset": "virtuosity-drums.zip"
+    "asset": "virtuosity-drums.zip",
+    "author": "Austin McMahon (drums), Virtuosity Musical Instruments, Boston"
   },
   {
     "id": "vsco-2-ce",
@@ -239,6 +255,7 @@
     "bytes": 8872761,
     "files": 39,
     "sha256": "36ad0c762da7bb1b73c1e20b41173bb34cfd6b0096527d75df66d095357ca3e7",
-    "asset": "vsco-2-ce.zip"
+    "asset": "vsco-2-ce.zip",
+    "author": "Versilian Studios LLC; the upright piano was sampled by Simon Dalzell of Ivy Audio"
   }
 ]

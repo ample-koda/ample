@@ -16,7 +16,7 @@ namespace Ample.Setup
     /// The wizard window. Modes: <c>fresh</c> (after a first install), <c>update</c> (after an upgrade) and <c>reconfigure</c> (from the Start menu or the tray hub).
     /// Pages: welcome, sign-in (off, on, or a new user name and password), a health check with fixes, what to do now, and the result with live progress.
     /// </summary>
-    internal sealed class Wizard : Form
+    internal sealed partial class Wizard : Form
     {
         private static readonly Color Back = Color.FromArgb(24, 22, 38);
         private static readonly Color Card = Color.FromArgb(36, 33, 56);
@@ -99,6 +99,7 @@ namespace Ample.Setup
             if (mode != "reconfigure") pages.Add(WelcomePage());
             signInPage = SignInPage(); pages.Add(signInPage);
             healthPage = HealthPage(); pages.Add(healthPage);
+            packsPage = PacksPage(); pages.Add(packsPage);
             actionsPage = ActionsPage(); pages.Add(actionsPage);
             resultPage = ResultPage(); pages.Add(resultPage);
             foreach (Control p in pages) { p.Location = new Point(16, 68); p.Size = new Size(528, 258); p.Visible = false; Controls.Add(p); }
@@ -220,11 +221,13 @@ namespace Ample.Setup
             page = index;
             for (int i = 0; i < pages.Count; i++) pages[i].Visible = i == index;
             Control current = pages[index];
+            FitForPage(current);
             if (current == actionsPage && mode == "reconfigure" && true) { startAmple.Checked = LoginChanged; }
             if (current == healthPage && !healthStarted) { healthStarted = true; _ = RunDoctorAsync(); }
+            if (current == packsPage && !packsLoaded && !packsLoading) { _ = LoadPacksAsync(); }
             back.Visible = index > 0 && !finished && current != resultPage;
             next.Text = finished ? "Close" : current == actionsPage ? "Finish" : "Next";
-            next.Enabled = (current != resultPage || finished) && !(current == healthPage && healthBusy);
+            next.Enabled = (current != resultPage || finished) && !(current == healthPage && healthBusy) && !(current == packsPage && packsLoading);
             cancel.Visible = !finished;
             UpdateShield();
         }
@@ -246,6 +249,7 @@ namespace Ample.Setup
         {
             if (finished) { Close(); return; }
             if (pages[page] == signInPage && !ValidSignIn()) return;
+            if (pages[page] == packsPage && !ConfirmPackRemoval()) return;
             if (pages[page] != actionsPage) { Go(page + 1); return; }
             // the actions page: run the steps
             Go(pages.Count - 1);
@@ -253,6 +257,7 @@ namespace Ample.Setup
             string choice = Choice, name = user.Text.Trim(), secret = password.Text;
             bool doAmple = startAmple.Checked, doHub = startHub.Checked && runtimeOk && hubPresent;
             List<Fix> fixes = SelectedFixes;
+            fixes.AddRange(PackFixes());
             await Task.Run(() => RunSteps(choice, name, secret, fixes, doAmple, doHub));
             finished = true;
             cancel.Enabled = true;
@@ -296,7 +301,7 @@ namespace Ample.Setup
             {
                 string project = Directory.Exists(Path.Combine(home, "projects", "Welcome")) ? Path.Combine(home, "projects", "Welcome") : home;
                 Directory.CreateDirectory(project);
-                ProcessStartInfo start = new ProcessStartInfo(ample, "doctor \"" + project + "\" --env --assistant --packs --json")
+                ProcessStartInfo start = new ProcessStartInfo(ample, "doctor \"" + project + "\" --env --assistant --json")
                 {
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
                 };

@@ -46,7 +46,8 @@ public static class SequencerFiles
                 foreach (string key in new[] { "sample", "file" })
                 {
                     string v = c.Get(key);
-                    if (v.Length > 0 && ProjectPath.Resolve(projectRoot, v) is { } full && File.Exists(full)) more.Add(full);
+                    // a drum sample or a loop is a file of the project or, like a sample set, one of an installed pack (pack:free/swirly-drums/kit/kick.wav)
+                    if (v.Length > 0 && SampleSet.ResolveFolder(projectRoot, ampleRoot, v) is { } full && File.Exists(full)) more.Add(full);
                 }
 
                 string set = c.Get("set");
@@ -155,7 +156,7 @@ internal sealed class SequencerRenderer : IBlockRenderer
     private static short[] Load(RenderRequest r, string setting, string value, Dictionary<string, short[]> cache)
     {
         if (cache.TryGetValue(value, out short[]? known)) return known;
-        string full = ProjectPath.Resolve(r.ProjectRoot, value);
+        string full = SampleSet.ResolveFolder(r.ProjectRoot, r.AmpleRoot, value);   // pack: names a file of an installed pack, anything else a path in the project
         if (!File.Exists(full)) throw new AmpleException("AMP5380", $"The {setting} '{value}' is not in the project.");
         try
         {

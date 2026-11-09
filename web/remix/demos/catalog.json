@@ -1185,6 +1185,7 @@
       "comp-mixed/components/llama-choir.amplec",
       "comp-sidechain/song.amplet",
       "comp-sidechain/components/sidechain-pump.amplec",
+      "comp-voice-clean/song.amplet",
       "gm-sf2/song.amplet",
       "vocoder/song.amplet",
       "autotune/song.amplet",
