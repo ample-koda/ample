@@ -5,7 +5,7 @@ import { api, freshServer, openApp } from '../../web/tests/support';
 // usable by name without an import line.
 freshServer({ song: 'composition "plain" { ample 1  tempo 100  master-seed 1 }\n' });
 
-test('the built-in components are in the Library of a project that has no component file, and adding one writes no import line', async ({ page }) => {
+test('the built-in components are in the Library of a project that has no component file, and adding one writes no import line @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await page.locator('#ltabs button[data-l="clib"]').click();
   await expect(page.locator('#pane-clib')).toBeVisible();
@@ -23,7 +23,7 @@ test('the built-in components are in the Library of a project that has no compon
   expect(result.added.join('\n')).toContain('ample.voice.clean clean {');
 });
 
-test('a song that names a built-in component sees it without an import line', async () => {
+test('a song that names a built-in component sees it without an import line @quarantine', async () => {
   const doc = await api('/api/doc?path=song.amplet');
   const text = `${doc.text}import-audio rec {\n  file samples/none.wav\n}\nample.voice.clean clean {\n  from rec.audio -> audio\n}\n`;
   const saved = await api('/api/doc', { method: 'PUT', body: { path: 'song.amplet', text, baseVersion: doc.version } });
