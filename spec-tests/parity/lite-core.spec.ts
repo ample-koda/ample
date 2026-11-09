@@ -232,15 +232,27 @@ test('completion right after typing, hover and ctrl+click to a definition work i
   await page.keyboard.press('Control+z');
   // hover and ctrl+click on the name of a block in a from line
   const line = page.locator('#lite-editor .cm-line', { hasText: 'from lead.audio' }).first();
-  let box = (await line.boundingBox())!;
+  // the middle of the word "lead" as drawn on this machine (the width of a letter depends on the font, so a fixed distance from the start of the line hits another word on another machine)
+  const wordCentre = () => line.evaluate((element) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = (node.textContent ?? '').indexOf('lead');
+      if (at < 0) continue;
+      const range = document.createRange(); range.setStart(node, at); range.setEnd(node, at + 4);
+      const r = range.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }
+    return null;
+  });
+  let spot = (await wordCentre())!;
   await expect(async () => {   // the hover needs the answer of the language server and a pointer that moves over the name: move away and over it again until the tip shows
-    box = (await line.boundingBox())!;
-    await page.mouse.move(box.x + 20, box.y + box.height / 2);
-    await page.mouse.move(box.x + 74, box.y + box.height / 2, { steps: 4 });
+    spot = (await wordCentre())!;
+    await page.mouse.move(spot.x - 40, spot.y);
+    await page.mouse.move(spot.x, spot.y, { steps: 4 });
     await expect(page.locator('.lite-tip')).toBeVisible({ timeout: 2500 });
   }).toPass({ timeout: 20000 });
   await page.keyboard.down('Control');
-  await page.mouse.click(box.x + 74, box.y + box.height / 2);
+  await page.mouse.click(spot.x, spot.y);
   await page.keyboard.up('Control');
   await expect.poll(() => page.evaluate(() => getSelection()?.anchorNode?.textContent ?? ''), { timeout: 8000 }).toBe('lead');
 });
