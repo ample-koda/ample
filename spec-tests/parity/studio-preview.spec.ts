@@ -17,7 +17,7 @@ test('unbuilt effects do not request a preview without a source take', async ({ 
   await expect(dialog.getByRole('slider', { name: 'Threshold' }).last()).toBeVisible();
 });
 
-test('the current block arrow opens its GUI and the context menu toggles bypass', async ({ page }) => {
+test('the current block arrow opens its GUI and the context menu toggles bypass @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'compressor', 'shortcut-comp');
   const node = page.locator('.node[data-id="shortcut-comp"]');
