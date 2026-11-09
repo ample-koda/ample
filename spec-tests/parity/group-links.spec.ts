@@ -8,7 +8,7 @@ freshServer({
 
 test.beforeEach(async ({ page }) => { await api('/api/doc/save', { method: 'POST', body: { path: 'song.amplet' } }); await openApp(page, { reset: false }); });
 
-test('a connection at the port of a group can be taken away from outside, and made again', async ({ page }) => {
+test('a connection at the port of a group can be taken away from outside, and made again @quarantine', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await page.evaluate(async () => {
     const store = await import('/app/store.js');

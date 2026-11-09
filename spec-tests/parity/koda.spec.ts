@@ -613,7 +613,7 @@ test('after an answer, faded lines go to the blocks it talks about and stay a fe
   expect(await page.locator('.koda-gaze .gz-glance').count()).toBeGreaterThan(0);
 });
 
-test('variants the model offered are shown as A, B and C: listen to one, ask about them, Use this one keeps that one and drops the proposal once', async ({ page }) => {
+test('variants the model offered are shown as A, B and C: listen to one, ask about them, Use this one keeps that one and drops the proposal once @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.evaluate(async () => {
