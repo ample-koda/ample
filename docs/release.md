@@ -79,6 +79,8 @@ The performance tests run **alone** (an xUnit collection that is not run in para
 
 AMPLE Tune-up and `ample packs install` download the sample packs as zips that are **not** part of a release of the program. Steps: `node tools/fetch-audio-packs.mjs` (with `AMPLE_PACK_OUT` set to an empty working folder), then `node tools/build-sample-pack-zips.mjs <that folder> <zip folder>`, which writes one zip per pack and `packs-index.json` (SHA-256 and size of each zip) into `audio-packs/packs-index.json`, which the program embeds. Upload the zips to the release `audio-packs-1` of the public repository (`gh release create audio-packs-1 <zips> --repo ample-koda/ample`; a new set of zips gets a new tag and `SamplePacks.BaseUrl` follows) and copy them to get.ample-koda.dev/mirror/audio-packs/. The catalog in the program must be committed first: a zip whose hash is not in it never installs.
 
+The same zips also make the Debian package `ample-sample-packs` (`sh tools/build-sample-packs-deb.sh --zips <zips and packs-index.json> --out <folder>`, about 266 MB; it installs the packs in `/usr/share/ample/packs/<tier>/<id>`). Sign it with `tools/sign-release.ps1`, attach it (with its `.sig`) to every program release so that the apt update (`gh release download ... --pattern "*.deb"`) takes it along, and build the apt index with all the `.deb` files.
+
 ## Versions, channels and beta status (installer plan, INS00)
 
 This section holds the rules a release follows.

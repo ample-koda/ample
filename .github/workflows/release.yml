@@ -173,6 +173,15 @@ jobs:
           sh tools/build-deb.sh --version "$VERSION" --program "work/ample-${VERSION}-linux-x64" --out debs \
             --soundfont "$RUNNER_TEMP/ample-home/audio-packs/licensed/musescore-general/MuseScore_General.sf2" \
             --licence LICENSE
+      - name: Build the sample packs package (the pack zips come from the public release audio-packs-1; the build checks each against audio-packs/packs-index.json)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p packs
+          gh release download audio-packs-1 --repo ample-koda/ample --pattern '*.zip' --dir packs
+          cp audio-packs/packs-index.json packs/packs-index.json
+          sh tools/build-sample-packs-deb.sh --zips packs --out debs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: debs
@@ -249,8 +258,9 @@ jobs:
           sudo apt-get install -y ./extras/debs/*.deb
           ample --version
           ample doctor --env
-          dpkg --verify ample-koda ample-soundfont
-          sudo apt-get remove -y ample-koda ample-soundfont
+          dpkg --verify ample-koda ample-soundfont ample-sample-packs
+          test -d /usr/share/ample/packs/free/meatbass
+          sudo apt-get remove -y ample-koda ample-soundfont ample-sample-packs
           test ! -e /usr/lib/ample && test ! -e /usr/bin/ample
 
   draft:
