@@ -28,7 +28,7 @@ master master {
 `;
 freshServer({ song: SONG });
 
-test('three llama avatars keep the main thread of a slow phone mostly free and do not force layouts every frame @quarantine', async ({ page }) => {
+test('three llama avatars keep the main thread of a slow phone mostly free and do not force layouts every frame', async ({ page }) => {
   test.setTimeout(90000);
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page, { reset: false });

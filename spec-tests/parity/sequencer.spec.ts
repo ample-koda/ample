@@ -228,7 +228,7 @@ test('the looping player makes sound', async ({ page }) => {
   expect(peak).toBeGreaterThan(0);
 });
 
-test('Play pattern repeats the first place of the pattern @quarantine', async ({ page }) => {
+test('Play pattern repeats the first place of the pattern', async ({ page }) => {
   await openWorkspace(page);
   await page.locator('#sq-pattern-play').click();
   await expect(page.locator('#sq-range')).toContainText('repeat bars 1 to 2');

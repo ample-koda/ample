@@ -103,7 +103,7 @@ test('a multi-selection moves, resizes and deletes together', async ({ page }) =
   await expect.poll(() => notesOf('mula')).toBeUndefined();
 });
 
-test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an octave, and the new pitch is heard @quarantine', async ({ page }) => {
+test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an octave, and the new pitch is heard', async ({ page }) => {
   const panel = await openLite(page, 'arra', '1:0:1:60:96');
   const p = await at(panel, 0, 60);
   await page.mouse.click(p.x, p.y);

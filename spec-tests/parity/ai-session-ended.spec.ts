@@ -18,7 +18,7 @@ const makeTask = async (page) => {
   return task;
 };
 
-test('an ended session offers to resume the conversation, and the proposal stays @quarantine', async ({ page }) => {
+test('an ended session offers to resume the conversation, and the proposal stays', async ({ page }) => {
   test.setTimeout(240000);
   const task = await makeTask(page);
   const ended = await api(`/api/ai/tasks/${task.id}`);

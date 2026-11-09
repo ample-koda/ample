@@ -82,7 +82,7 @@ test('Preview song builds what is missing and plays the song', async ({ page }) 
   await expect(node(page, 'master').locator('.node-status')).toBeVisible();
 });
 
-test('a chosen bar range can be previewed @quarantine', async ({ page }) => {
+test('a chosen bar range can be previewed', async ({ page }) => {
   await bottomTab(page, 'arr');
   const r = (await page.locator('#arr .ruler').boundingBox())!;
   await page.mouse.move(r.x + 40, r.y + 8);

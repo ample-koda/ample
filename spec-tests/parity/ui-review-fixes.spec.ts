@@ -25,7 +25,7 @@ test('both history view toggles state their action and carry aria-pressed', asyn
   await expect(page.locator('#h-adv')).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('canvas keys do nothing while a dialog is open @quarantine', async ({ page }) => {
+test('canvas keys do nothing while a dialog is open', async ({ page }) => {
   await expect(node(page, 'chords')).toBeVisible();   // earlier tests of this file share the song: wait until the block is drawn
   await node(page, 'chords').locator('.nh .t').click();
   const x0 = (await node(page, 'chords').boundingBox())!.x;
