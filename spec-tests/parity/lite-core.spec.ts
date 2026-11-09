@@ -218,7 +218,7 @@ test('the note about unsealed components is not listed, and the list says why', 
   await expect(page.locator('#lite-problem-count')).toHaveText('none');
 });
 
-test('completion right after typing, hover and ctrl+click to a definition work in a song @quarantine', async ({ page }) => {
+test('completion right after typing, hover and ctrl+click to a definition work in a song', async ({ page }) => {
   await fresh(page);
   await useDemo(page, 'hello-melody');
   await expect(page.locator('#lite-problem-count')).toHaveText('none');
@@ -615,7 +615,7 @@ test('the word ample in the composition line has a colour of its own (a gradient
   expect(await egg.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('linear-gradient');
 });
 
-test('a link that was opened before and whose copy holds changes asks what to do: your copy or a fresh one @quarantine', async ({ page }) => {
+test('a link that was opened before and whose copy holds changes asks what to do: your copy or a fresh one', async ({ page }) => {
   await fresh(page);
   await page.goto(page.url().split('#')[0] + '#demo=hello-melody');
   await page.reload();
