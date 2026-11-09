@@ -113,6 +113,22 @@ public static class ComponentRegistry
 
         foreach (ComponentImport import in root.File.Imports) root.Imports.Add((import, Load(import.Target, import.Line, null, [songOrigin])));
 
+        // the components that ship with AMPLE are visible by name, without an import line: a song that names one gets its file as an implicit import
+        foreach (string file in BuiltInComponents.Mentioned(songText))
+        {
+            string target = BuiltInComponents.Prefix + file;
+            if (root.File.Imports.Any(i => string.Equals(i.Target, target, StringComparison.Ordinal))) continue;
+            if (!loaded.TryGetValue(target, out Node? shipped))
+            {
+                string? text = BuiltInComponents.Read(target);
+                if (text is null) continue;
+                shipped = new Node(target, text, ReadText(text, target));
+                loaded[target] = shipped;
+            }
+
+            root.Imports.Add((new ComponentImport(target, null, 0), shipped));
+        }
+
         List<Entry> VisibleOf(Node n)
         {
             if (n.Visible is not null) return n.Visible;

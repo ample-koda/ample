@@ -518,6 +518,60 @@ add('comp-mixed', 'A component with an instrument inside', 'Notes go in, a choir
 add('comp-sidechain', 'A pump as a component', 'The sidechain pump of the Sidechain demo as a component with two knobs.', 'Components', 'Intermediate', ['component', 'duck', 'sidechain', 'audio'],
   { 'song.amplet': comp('08-audio-sidechain.amplet'), 'components/sidechain-pump.amplec': comp('components/sidechain-pump.amplec') }, [KIT]);
 
+add('comp-voice-clean', 'Clean up a voice', 'Two components that ship with AMPLE, used by name without an import: Quick trim and Voice clean. A llama voice with a hiss behind it goes through them; mute the clean block to hear the hiss.', 'Components', 'Intermediate', ['component', 'built-in', 'voice', 'noise', 'denoise', 'gate'],
+  { 'song.amplet': `composition "Clean up a voice" { ample 1  tempo 84  master-seed 71 }
+
+# A voice with a hiss behind it (here the built-in llama and a noise synth, so no recording is needed), cleaned up by two components
+# that ship with AMPLE. They need no import line: their names are known in every song. Mute the clean block to hear the hiss.
+
+midi-clip chant at 1 for 8 {
+  bars 8
+  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 2:3:1:62:96 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90 5:0:2:57:100 5:2:2:64:106 6:0:4:69:112 7:0:2:67:100 7:2:2:64:96 8:0:4:57:104
+}
+
+delay-llama llama {
+  vowel auto(1:100, 3:30, 5:0, 7:60, 9:100)
+  mouth auto(1:15, 3:85, 6:95, 8:40, 9:20)
+  voice 40
+  glide 120 ms
+  vibrato 30%
+  echo 0%
+  gain -4 dB
+  from chant.notes -> notes
+}
+
+midi-clip hiss-notes at 1 for 8 {
+  bars 8
+  notes 1:0:4:90:40 2:0:4:90:40 3:0:4:90:40 4:0:4:90:40 5:0:4:90:40 6:0:4:90:40 7:0:4:90:40 8:0:4:90:40
+}
+
+synth hiss at 1 for 8 {
+  wave noise
+  gain -10 dB
+  from hiss-notes.notes -> notes
+}
+
+mixer dirty at 1 for 8 {
+  from llama.audio -> audio1
+  from hiss.audio -> audio2
+}
+
+ample.voice.trim trim at 1 for 8 {
+  skip 0s
+  from dirty.audio -> audio
+}
+
+ample.voice.clean clean at 1 for 8 {
+  noise 70%
+  gate -45dB
+  from trim.audio -> audio
+}
+
+master out {
+  from clean.audio -> audio
+}
+` });
+
 add('gm-sf2', 'A SoundFont of your own', 'The gm block plays a project SoundFont (an .sf2 file). This small one is an upright piano made of nine CC0 recordings; drop in your own .sf2 to change the sound.', 'Instruments', 'Intermediate', ['soundfont', 'sf2', 'gm', 'piano'], {
   'song.amplet': `composition "A SoundFont of your own" { ample 1  tempo 76  master-seed 31 }
 

@@ -48,3 +48,12 @@ export function liveMarks(items, textLines) {
   }
   return marks;
 }
+
+/**
+ * The failed blocks of the last build as text for Koda: a build error is not a parse problem, so the song check of the assistant may show none, and "fix the compile errors" would find
+ * nothing. Empty when nothing failed. At most 12 blocks; each with its message and the line it is blamed on.
+ */
+export function buildErrorsText(items) {
+  const rows = Object.entries(items || {}).slice(0, 12).map(([name, item]) => `- block ${name}: ${String(item.message ?? '').replace(/\s+/g, ' ').trim()}${item.text?.trim() ? ` (blamed on the line: ${String(item.text).trim().slice(0, 160)})` : ''}`);
+  return rows.length ? `\n\nThe last build failed in these blocks (a build error is not a parse problem, so the song check may show none: read the message, find its cause (often a line the user changed, see the changes below) and fix that; never answer that there are no compile errors while this list is here):\n${rows.join('\n')}` : '';
+}

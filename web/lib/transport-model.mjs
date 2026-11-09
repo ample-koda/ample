@@ -1,9 +1,11 @@
 // The pure part of the header transport (build, play, stop): what each button says and may do, what is out of date, what is playing and what failed.
 // No DOM here, so it is tested on its own (web/lib/test/transport-model.test.mjs). @ample:transport
 
-/** The take that stands for the whole song: the master block, else the last block that has one. */
-export function masterTakeOf(takes, names) {
+/** The take that stands for the whole song: the master block (also one that is not called master, found by its type when the nodes are given), else the last block that has one. */
+export function masterTakeOf(takes, names, nodes = []) {
   if (takes.master) return takes.master;
+  const master = nodes.filter((n) => n.tpl === 'master' && takes[n.id]).pop();
+  if (master) return takes[master.id];
   const last = names.filter((n) => takes[n]).pop();
   return last ? takes[last] : null;
 }

@@ -18,6 +18,8 @@ namespace Ample.Server.Lite;
 /// <param name="MaxKeptOutputs">The most finished builds kept at once.</param>
 /// <param name="BuildsPerMinute">How many builds one client may start in a minute (a client is a cookie and an address, both count).</param>
 /// <param name="BuildsPerHour">How many builds one client may start in an hour.</param>
+/// <param name="BuildsPerFiveMinutes">How many builds one client may start in 5 minutes (0 or less: no such limit).</param>
+/// <param name="BuildsPerFifteenMinutes">How many builds one client may start in 15 minutes (0 or less: no such limit).</param>
 /// <param name="DownloadsPerMinute">How many MP3/FLAC downloads one client may ask for in a minute.</param>
 /// <param name="DownloadsPerHour">How many MP3/FLAC downloads one client may ask for in an hour.</param>
 /// <param name="EncodedMegabytesPerHour">The encoded audio one client may download in an hour.</param>
@@ -76,7 +78,9 @@ public sealed record LiteLimits(
     int ShareMegabytesPerIpPerHour = 128,
     int MaxBuildMemoryMegabytes = 3000,
     int BuildMaxFiles = 0,
-    long BuildMaxProjectBytes = 0)
+    long BuildMaxProjectBytes = 0,
+    int BuildsPerFiveMinutes = 0,
+    int BuildsPerFifteenMinutes = 0)
 {
     /// <summary>The most files a build still accepts: <see cref="MaxFiles"/>, or <see cref="BuildMaxFiles"/> when that is higher. Lower MaxFiles later and set BuildMaxFiles to the old value: projects that exist keep building, new files cannot be added past MaxFiles.</summary>
     public int FilesAccepted => Math.Max(MaxFiles, BuildMaxFiles);
@@ -101,8 +105,10 @@ public sealed record LiteLimits(
         MaxOutputSeconds: 240,
         OutputMinutes: 5,
         MaxKeptOutputs: 8,
-        BuildsPerMinute: 4,
-        BuildsPerHour: 30,
+        BuildsPerMinute: 10,
+        BuildsPerFiveMinutes: 30,
+        BuildsPerFifteenMinutes: 100,
+        BuildsPerHour: 400,
         DownloadsPerMinute: 5,
         DownloadsPerHour: 30,
         EncodedMegabytesPerHour: 150,
@@ -136,6 +142,8 @@ public sealed record LiteLimits(
         {
             BuildsPerMinute = Number("AMPLE_LITE_BUILDS_PER_MINUTE", d.BuildsPerMinute),
             BuildsPerHour = Number("AMPLE_LITE_BUILDS_PER_HOUR", d.BuildsPerHour),
+            BuildsPerFiveMinutes = Number("AMPLE_LITE_BUILDS_PER_5_MINUTES", d.BuildsPerFiveMinutes),
+            BuildsPerFifteenMinutes = Number("AMPLE_LITE_BUILDS_PER_15_MINUTES", d.BuildsPerFifteenMinutes),
             SharesPerMinute = Number("AMPLE_LITE_SHARES_PER_MINUTE", d.SharesPerMinute),
             SharesPerHour = Number("AMPLE_LITE_SHARES_PER_HOUR", d.SharesPerHour),
             DownloadsPerMinute = Number("AMPLE_LITE_DOWNLOADS_PER_MINUTE", d.DownloadsPerMinute),

@@ -42,6 +42,8 @@ public sealed class ComponentDemoProjectTests
     [InlineData("09-audio-nested.amplet", "room__dreamEcho1_delay1", "room__gain1")]
     [InlineData("10-mixed-dream-piano.amplet", "voice__piano1", "voice__reverb1")]
     [InlineData("11-mixed-llama-choir.amplet", "choir__delay-llama1", "choir__reverb1")]
+    [InlineData("13-audio-voice-clean.amplet", "trim__cut1", "trim__fade2")]
+    [InlineData("13-audio-voice-clean.amplet", "clean__denoise1", "clean__deesser1")]
     public void An_audio_song_becomes_ordinary_blocks_without_a_problem(string song, string first, string second)
     {
         AmpleDocument doc = Expand(song);

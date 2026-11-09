@@ -273,22 +273,34 @@ export async function saveRecoveryDraftsForCheckpoint() {
   saveSourceDraft();
   const drafts = listRecoveryDrafts(localStorage, S.project?.id || '');
   const pending = [];
+  const conflicts = [];
   for (const draft of drafts) {
     if (draft.text === draft.baseText) { clearSourceDraft(draft.path); continue; }
     if (/\.amplet$/i.test(draft.path)) {
       let current;
       try { current = await api.get(`/api/doc?path=${encodeURIComponent(draft.path)}`); } catch (e) { if (/There is no file/.test(e.message)) continue; throw e; }   // moved or removed file: its draft stays, the checkpoint goes on
-      if (current.text !== draft.baseText && current.text !== draft.text) throw new Error(`Checkpoint stopped: ${draft.path} changed since its recovery draft. Review that file first.`);
+      if (current.text !== draft.baseText && current.text !== draft.text) { conflicts.push(draft.path); continue; }   // asked below, once for all of them
       pending.push({ draft, current, kind: 'song' });
     } else if (/^modules\/.*\.module$/i.test(draft.path)) {
       const current = await api.get(`/api/module/source?path=${encodeURIComponent(draft.path)}`);
-      if (current.text !== draft.baseText && current.text !== draft.text) throw new Error(`Checkpoint stopped: ${draft.path} changed since its recovery draft. Review that file first.`);
+      if (current.text !== draft.baseText && current.text !== draft.text) { conflicts.push(draft.path); continue; }   // asked below, once for all of them
       pending.push({ draft, current, kind: 'module' });
     } else {
       const current = await api.get(`/api/file?path=${encodeURIComponent(draft.path)}`);
-      if (current.text !== draft.baseText && current.text !== draft.text) throw new Error(`Checkpoint stopped: ${draft.path} changed since its recovery draft. Review that file first.`);
+      if (current.text !== draft.baseText && current.text !== draft.text) { conflicts.push(draft.path); continue; }   // asked below, once for all of them
       pending.push({ draft, current, kind: 'file' });
     }
+  }
+  if (conflicts.length) {
+    // a file changed on disk since its unsaved text was kept: the person chooses what the checkpoint does with it
+    const list = conflicts.map((path) => `- ${path}`).join('\n');
+    const choice = await ask('Unsaved text no longer fits the saved file', `These files changed since their unsaved text was kept:\n${list}\n\nWhat should the checkpoint do?`, [
+      { label: 'Checkpoint what is saved', value: 'skip', primary: true },
+      { label: 'Discard the unsaved text and checkpoint', value: 'discard' },
+      { label: 'Cancel', value: undefined },
+    ]);
+    if (!choice) throw new Error('Checkpoint cancelled: review those files first.');
+    if (choice === 'discard') for (const path of conflicts) clearSourceDraft(path);
   }
   for (const { draft, current, kind } of pending) {
     if (kind === 'song') {
@@ -372,6 +384,9 @@ export function showRecoveryDiff(path, savedText, draftText, when, kind) {
 }
 async function confirmEditorSwitch(path) {
   if (!SE.file || SE.text === SE.orig) return true;
+  // the text is already kept as a recovery draft of this file (Koda hands the files it changed over that way): going to another file loses nothing, so there is nothing to ask
+  const kept = getRecoveryDraft(localStorage, S.project?.id || '', SE.file);
+  if (kept && kept.text === SE.text) return true;
   const choice = await ask('Unsaved changes in this file', `${SE.file} has changes that are not applied. Keep a recovery draft and open ${path}, discard them, or stay here?`, [
     { label: 'Cancel', value: 'cancel' },
     { label: 'Save and open', value: 'save', primary: true },
@@ -411,6 +426,8 @@ async function loadFile(file) {
     const r = await api.get(`/api/file?path=${encodeURIComponent(file)}`);
     SE.text = await recoverSourceDraft(file, r.text);
     SE.orig = r.text;
+    // an unsaved draft is the working copy of the file too: its tab shows the unsaved mark, and a build that uses the file reads it (this is how the files that Koda changed arrive)
+    if (SE.text !== r.text) api.put('/api/wc', { path: file, text: SE.text }).catch(() => {});
   }
   rememberRecentFile(file);
   SE.diags = []; SE.allDiags = [];
@@ -419,7 +436,22 @@ async function loadFile(file) {
     SE.lsp = new LspClient(`file:///${encodeURIComponent(file)}`);
     SE.offline = false;
     SE.lsp.onDiagnostics = (d) => { SE.allDiags = d; showDiagnostics(); };
-    SE.lsp.onOffline = () => { if (SE.offline || !isSong()) return; SE.offline = true; toast('The language server is not reachable: only the checks of the browser are shown.'); localDiagnostics(); };
+    SE.lsp.onOffline = () => {
+      if (SE.offline || !isSong()) return;
+      SE.offline = true;
+      toast('The language server is not reachable: only the checks of the browser are shown. AMPLE keeps trying to reconnect.');
+      localDiagnostics();
+      // the socket drops when AMPLE restarts (a deploy) or the connection hiccups: try again every few seconds instead of staying offline until the page is reloaded
+      const client = SE.lsp;
+      let tries = 0;
+      const again = async () => {
+        if (SE.lsp !== client || client.closing || !isSong() || !SE.offline) return;
+        if (++tries > 20) return;
+        try { await client.open(SE.text); SE.sentText = SE.text; SE.offline = false; toast('The language server is back.'); }
+        catch { setTimeout(again, Math.min(15000, 2000 * tries)); }
+      };
+      setTimeout(again, 2000);
+    };
     SE.sentText = SE.text;
     SE.lsp.open(SE.text).catch(() => SE.lsp?.onOffline());
   }
@@ -1266,6 +1298,11 @@ export async function openProjectTextFile(path) {
   render();
 }
 
+/** Going to a song (its tab, the Project panel): the Source view shows that song again instead of a text file that was open before. */
+export function resetSourceFile() {
+  if (SE.file && SE.file !== S.path && !/\.amplet$/i.test(SE.file)) { SE.file = null; SE.loadedFor = ''; if (V.mode === 'src') render(); }   // already looking at Source: it shows the song at once
+}
+
 /** Ctrl+click on the value of a `melody` or `chords` line of a midi-clip opens the melody editor of that clip as a window; the view (code or blocks) stays as it is. */
 async function openMelodyAt(line, ch) {
   const all = lines(SE.text);
@@ -1693,9 +1730,9 @@ function sourceCompletions(text, line, before, ch) {
     let accepted = null, folder = false;
     if (channel) {
       const channelType = channel[1].toLowerCase();
-      if (parameterName === 'sample' && channelType === 'drum') accepted = ['.wav', '.flac', '.mp3', '.ogg', '.aif', '.aiff'];
+      if (parameterName === 'sample' && channelType === 'drum') accepted = ['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'];
       else if (parameterName === 'file' && channelType === 'gm') accepted = ['.sf2'];
-      else if (parameterName === 'file' && channelType === 'loop') accepted = ['.wav', '.flac', '.mp3', '.ogg', '.aif', '.aiff'];
+      else if (parameterName === 'file' && channelType === 'loop') accepted = ['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'];
       else if (parameterName === 'set' && ['bass', 'guitar', 'notes', 'piano'].includes(channelType)) folder = true;
     } else {
       const blockType = enclosingBlockType(text, line);
@@ -1768,8 +1805,10 @@ function drawComp() {
   const keep = c.style.display === 'block' ? c.scrollTop : 0;   // drawing again must not throw the list back to its top
   c.style.display = 'block';
   c.innerHTML = '';
+  // the name column is as wide as the longest name (at most 28 characters), so every description starts at the same place
+  c.style.setProperty('--cw', `${Math.max(8, Math.min(28, Math.max(...SE.comp.items.map((it) => String(it.label).length)) + 1))}ch`);
   SE.comp.items.forEach((it, i) => {
-    const d = el('div', { className: i === SE.comp.idx ? 'on' : '' }, [el('span', { textContent: it.label }), el('small', { textContent: it.detail || '' })]);
+    const d = el('div', { className: i === SE.comp.idx ? 'on' : '' }, [el('span', { textContent: it.label, title: it.label }), el('small', { textContent: it.detail || '' })]);
     d.onmousedown = (e) => { e.preventDefault(); SE.comp.idx = i; pickComp(); };
     c.append(d);
   });

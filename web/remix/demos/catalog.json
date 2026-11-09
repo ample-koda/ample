@@ -481,6 +481,25 @@
     ]
   },
   {
+    "id": "comp-voice-clean",
+    "name": "Clean up a voice",
+    "description": "Two components that ship with AMPLE, used by name without an import: Quick trim and Voice clean. A llama voice with a hiss behind it goes through them; mute the clean block to hear the hiss.",
+    "category": "Components",
+    "level": "Intermediate",
+    "tags": [
+      "component",
+      "built-in",
+      "voice",
+      "noise",
+      "denoise",
+      "gate"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
     "id": "gm-sf2",
     "name": "A SoundFont of your own",
     "description": "The gm block plays a project SoundFont (an .sf2 file). This small one is an upright piano made of nine CC0 recordings; drop in your own .sf2 to change the sound.",

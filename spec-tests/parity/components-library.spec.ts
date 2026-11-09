@@ -21,7 +21,7 @@ freshServer({
 const openLibrary = async (page) => {
   await page.locator('#ltabs button[data-l="clib"]').click();
   await expect(page.locator('#pane-clib')).toBeVisible();
-  await expect(page.locator('#clib-list .clib-entry')).toHaveCount(3);
+  await expect(page.locator('#clib-list .clib-entry')).toHaveCount(5);   // the three of the project and the two that ship with AMPLE
 };
 
 test('the library lists every component of the project, the imported one marked', async ({ page }) => {
@@ -66,19 +66,19 @@ test('adding shows the lines first, writes the import and a block, and the entry
 test('the library reads only the files that changed (the rest comes from the cache) and sees a new file after a scan', async ({ page }) => {
   await openApp(page, { reset: false });
   const first = await api('/api/components/library?path=song.amplet');
-  expect(first.files.length).toBe(3);
+  expect(first.files.length).toBe(5);   // three of the project and two that ship with AMPLE (not counted as scanned or cached)
   const second = await api('/api/components/library?path=song.amplet');
   expect(second.scanned).toBe(0);
   expect(second.cached).toBe(3);
   fs.writeFileSync(path.join(ownServer()!.folder, 'components', 'extra.amplec'), TAGGED.replace('tripleNotes', 'extraNotes').replace('triple-notes', 'extra-notes'));
   const third = await api('/api/components/library?path=song.amplet');
-  expect(third.files.length).toBe(4);
+  expect(third.files.length).toBe(6);
   expect(third.scanned).toBe(1);   // only the new file was read
   expect(third.cached).toBe(3);
   expect(third.files.flatMap((f: { components: { tags: string[] }[] }) => f.components.flatMap((c) => c.tags))).toContain('triplet');
   fs.rmSync(path.join(ownServer()!.folder, 'components', 'extra.amplec'));   // the other tests count three entries
   const fourth = await api('/api/components/library?path=song.amplet');
-  expect(fourth.files.length).toBe(3);
+  expect(fourth.files.length).toBe(5);
 });
 
 test('a component whose name is taken by other code offers an alias, and the import then works', async ({ page }) => {

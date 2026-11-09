@@ -341,7 +341,7 @@ export const songBars = (seq) => seq.clips.reduce((m, c) => Math.max(m, c.at + c
 export function check(seq) {
   const problems = [];
   for (const c of seq.clips) if (!seq.patterns.some((p) => p.name === c.pattern)) problems.push(`a clip names the pattern '${c.pattern}', which is not defined`);
-  for (const p of seq.patterns) for (const k of Object.keys(p.rows)) if (!seq.channels.some((c) => c.name === k)) problems.push(`the pattern '${p.name}' has a row for '${k}', which is not a channel`);
+  for (const p of seq.patterns) for (const k of Object.keys(p.rows)) if (!seq.channels.some((c) => c.name === (k.endsWith('.events') ? k.slice(0, -'.events'.length) : k))) problems.push(`the pattern '${p.name}' has a row for '${k}', which is not a channel`);
   return problems;
 }
 

@@ -268,7 +268,7 @@ public sealed partial class Library : IDisposable
             _ when file.EndsWith(".template.json", StringComparison.Ordinal) => AssetKind.Template,
             _ => ext switch
             {
-                ".wav" or ".flac" or ".mp3" or ".ogg" or ".aif" or ".aiff" => AssetKind.Sample,
+                ".wav" or ".flac" or ".mp3" or ".ogg" or ".m4a" or ".aif" or ".aiff" => AssetKind.Sample,
                 ".amplelrc" or ".lyr" or ".lrc" => AssetKind.Lyrics,
                 ".chords" => AssetKind.Chords,
                 ".module" => AssetKind.Module,

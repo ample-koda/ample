@@ -1,6 +1,7 @@
 // The bubbles of Koda: menu, thought cloud, choice, answer, draft, short note, warning and error. Every bubble has a close button; the text of the project (block names, answers) is always set as text, never as HTML.
 // The words of Koda itself come from koda-lang (English or Dutch). A builder returns the element; the layer places it. @ample:koda
 import { el } from './ui.js';
+import { kodaAttachField } from './attach.js';
 import { tx } from './koda-lang.js';
 import { groupChanges } from '../lib/koda-diff.mjs';
 
@@ -58,7 +59,7 @@ function steerControls({ steer, listen, stop }) {
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); send(); } e.stopPropagation(); };
   const quiet = (label, fn, extra = '') => el('button', { type: 'button', className: 'no' + extra, textContent: label, onclick: (e) => { e.stopPropagation(); fn(); } });
   return el('div', { className: 'tctl' }, [
-    ...(steer ? [el('div', { className: 'other' }, [input, el('button', { type: 'button', className: 'go', textContent: tx('thought.steer.send'), onclick: (e) => { e.stopPropagation(); send(); } })])] : []),
+    ...(steer ? [el('div', { className: 'other' }, [input, ...kodaAttachField(input), el('button', { type: 'button', className: 'go', textContent: tx('thought.steer.send'), onclick: (e) => { e.stopPropagation(); send(); } })])] : []),
     el('div', { className: 'trow' }, [quiet(tx('thought.listen'), listen), quiet(tx('thought.stop'), stop)]),
   ]);
 }
@@ -71,7 +72,7 @@ export function choiceBubble({ title, text, options = [], placeholder, other = t
   const send = () => { const typed = input.value.trim(); if (typed) onPick(typed); };
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); send(); } };
   focusSoon(input);   // on a computer the person types at once
-  return shell('choice', [tag(title || tx('choice.title')), ...(text ? [el('p', { textContent: text })] : []), ...(options.length ? [list] : []), ...(other ? [el('div', { className: 'other' }, [input, el('button', { type: 'button', className: 'go', textContent: submit ?? tx('choice.ok'), onclick: (e) => { e.stopPropagation(); send(); } })])] : [])], onClose);
+  return shell('choice', [tag(title || tx('choice.title')), ...(text ? [el('p', { textContent: text })] : []), ...(options.length ? [list] : []), ...(other ? [el('div', { className: 'other' }, [input, ...kodaAttachField(input), el('button', { type: 'button', className: 'go', textContent: submit ?? tx('choice.ok'), onclick: (e) => { e.stopPropagation(); send(); } })])] : [])], onClose);
 }
 
 /** An answer: a title, a short text, an optional longer one to unfold, and buttons (the values are 'thanks' and 'more' for the usual two). */
@@ -125,7 +126,7 @@ export function answerBubble({ title, text, more = '', source = null, label = ''
   const input = el('input', { placeholder: hint, 'aria-label': hint });
   const send = () => { const typed = input.value.trim(); if (typed) onAsk(typed); };
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); send(); } };
-  const row = el('div', { className: 'other', hidden: true }, [input, el('button', { type: 'button', className: 'go', textContent: tx('do.submit'), onclick: (e) => { e.stopPropagation(); send(); } })]);
+  const row = el('div', { className: 'other', hidden: true }, [input, ...kodaAttachField(input), el('button', { type: 'button', className: 'go', textContent: tx('do.submit'), onclick: (e) => { e.stopPropagation(); send(); } })]);
   const pick = (v) => { if (v === 'ask' && onAsk) { row.hidden = !row.hidden; if (!row.hidden) focusSoon(input); } else onPick(v); };
   if (askOpen && onAsk) { row.hidden = false; focusSoon(input); }
   // title and answer, and the details that unfold, sit in a scroll area of a limited height; the buttons stay in sight; the grip resizes (the bubble keeps hanging on Koda)
@@ -333,7 +334,7 @@ export function variantsBubble({ items, canOriginal = false, onHear, onAsk = nul
     try { answer.replaceChildren(...rich(await onAsk(typed, at, (line) => { answer.textContent = '… ' + line; }))); } catch (error) { answer.textContent = error?.message || tx('failed.text'); }
   };
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); send(); } };
-  const row = el('div', { className: 'other', hidden: true }, [input, el('button', { type: 'button', className: 'go', textContent: tx('do.submit'), onclick: (e) => { e.stopPropagation(); send(); } })]);
+  const row = el('div', { className: 'other', hidden: true }, [input, ...kodaAttachField(input), el('button', { type: 'button', className: 'go', textContent: tx('do.submit'), onclick: (e) => { e.stopPropagation(); send(); } })]);
   const choices = [{ label: tx('variants.use'), value: 'use', primary: true }, { label: tx('variants.again'), value: 'again' }, ...(onAsk ? [{ label: tx('answer.ask'), value: 'ask' }] : []), { label: tx('draft.no'), value: 'no', quiet: true }];
   return shell('draft', [tag(tx('variants.tag', { n: items.length })), el('div', { className: 'chgs vars' }, [tabs, body, el('div', { className: 'vplay' }, [listen, ...(orig ? [orig] : [])])]), answer,
     buttons(choices, (v) => { if (v === 'ask') { row.hidden = !row.hidden; if (!row.hidden) input.focus(); return; } onHear(null); onPick(v, at); }), row], onClose);

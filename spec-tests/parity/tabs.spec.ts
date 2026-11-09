@@ -156,3 +156,33 @@ test('a window of its own keeps the block library and the properties, and their 
   await expect(detached.locator('#left')).toBeVisible();
   await detached.close();
 });
+
+test('a file that Koda changed is opened as a tab with its text unsaved (a recovery draft), and the disk keeps the old text', async ({ page }) => {
+  // how Koda hands over the other files of a proposal: the proposed text becomes the unsaved draft of the file, and the file opens in a tab
+  await makeFile('notes/koda-changed.md', 'old text\n');
+  await page.evaluate(async () => {
+    const { saveRecoveryDraft } = await import('/lib/recovery-drafts.mjs');
+    const { S } = await import('/app/store.js');
+    saveRecoveryDraft(localStorage, S.project?.id || '', 'notes/koda-changed.md', 'text from Koda\n', 'old text\n', Date.now());
+  });
+  await open(page, 'notes/koda-changed.md');
+  const tab = page.locator('#tabbar .tab[data-path="notes/koda-changed.md"]');
+  await expect(tab).toBeVisible();
+  await expect(tab.locator('.tab-dot')).toBeVisible();
+  await expect.poll(() => page.locator('#se-ta').evaluate((e) => (e as HTMLTextAreaElement).value)).toBe('text from Koda\n');
+  expect((await api('/api/file?path=notes%2Fkoda-changed.md')).text).toBe('old text\n');
+});
+
+test('a file added as a tab (how Koda hands files over) shows its unsaved mark without opening it, and the Source view stays on the song', async ({ page }) => {
+  await makeFile('notes/koda-quiet.md', 'old\n');
+  await api('/api/wc', { method: 'PUT', body: { path: 'notes/koda-quiet.md', text: 'new from Koda\n' } });
+  const activeBefore = await page.locator('#tabbar .tab.on').getAttribute('data-path');
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('ample:add-tab', { detail: 'notes/koda-quiet.md' })));
+  const tab = page.locator('#tabbar .tab[data-path="notes/koda-quiet.md"]');
+  await expect(tab).toBeVisible();
+  await expect(tab.locator('.tab-dot')).toBeVisible({ timeout: 10000 });
+  expect(await page.locator('#tabbar .tab.on').getAttribute('data-path')).toBe(activeBefore);   // nothing was opened or switched to
+  await page.click('#vs-source');
+  await expect(page.locator('#se-title')).toHaveText(String(activeBefore));
+  await api('/api/wc/revert', { method: 'POST', body: { path: 'notes/koda-quiet.md' } });
+});

@@ -52,18 +52,30 @@ public sealed class LiteGovernor : IDisposable
     /// <param name="perMinute">How many are allowed a minute.</param>
     /// <param name="perHour">How many are allowed an hour.</param>
     /// <exception cref="LiteRejectedException">Too many (status 429, with the seconds to wait).</exception>
-    public void Spend(string kind, IReadOnlyList<string> keys, int perMinute, int perHour)
+    public void Spend(string kind, IReadOnlyList<string> keys, int perMinute, int perHour) =>
+        Spend(kind, keys, [(TimeSpan.FromMinutes(1), perMinute, "a minute"), (TimeSpan.FromHours(1), perHour, "an hour")]);
+
+    /// <summary>Counts one more of a kind for a client and refuses when any of the windows is full (a window of 0 or less is not used). The windows are at most an hour long.</summary>
+    /// <param name="kind">What is counted (build, download ...).</param>
+    /// <param name="keys">The keys of the client.</param>
+    /// <param name="rules">The windows: how long, how many are allowed in it, and how to call it in the message ("a minute", "5 minutes").</param>
+    /// <exception cref="LiteRejectedException">A window is full (status 429, with the seconds to wait).</exception>
+    public void Spend(string kind, IReadOnlyList<string> keys, IReadOnlyList<(TimeSpan Window, int Max, string Label)> rules)
     {
         ArgumentNullException.ThrowIfNull(keys);
+        ArgumentNullException.ThrowIfNull(rules);
         DateTime now = DateTime.UtcNow;
         lock (sync)
         {
             foreach (string key in keys)
             {
                 Queue<(DateTime At, long Weight)> queue = Window(kind + "|" + key, now);
-                (int minute, DateTime oldestMinute) = Count(queue, now.AddMinutes(-1));
-                if (minute >= perMinute) throw Slow(kind, "a minute", (int)Math.Ceiling((oldestMinute.AddMinutes(1) - now).TotalSeconds));
-                if (queue.Count >= perHour) throw Slow(kind, "an hour", (int)Math.Ceiling((queue.Peek().At.AddHours(1) - now).TotalSeconds));
+                foreach ((TimeSpan window, int max, string label) in rules)
+                {
+                    if (max <= 0) continue;
+                    (int used, DateTime oldest) = Count(queue, now - window);
+                    if (used >= max) throw Slow(kind, label, (int)Math.Ceiling((oldest + window - now).TotalSeconds));
+                }
             }
 
             foreach (string key in keys) Window(kind + "|" + key, now).Enqueue((now, 1));

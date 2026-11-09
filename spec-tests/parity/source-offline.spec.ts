@@ -77,3 +77,13 @@ test('# ample-ignore silences a note of the browser too, without the language se
   await expect(page.locator('#se-prob')).toContainText('"down"');
   await expect(page.locator('#se-prob')).not.toContainText('"up"');   // up is
 });
+
+test('the language server comes back by itself when its socket was down for a moment', async ({ page }) => {
+  let attempts = 0;
+  await page.routeWebSocket('**/lsp', (ws) => { attempts++; if (attempts <= 1) ws.close(); else ws.connectToServer(); });   // down once (a restart), then there
+  await openApp(page, { reset: false });
+  await page.click('#vs-source');
+  await expect(page.locator('#toast')).toContainText('keeps trying to reconnect');
+  await expect(page.locator('#toast')).toContainText('language server is back', { timeout: 20000 });
+  expect(attempts).toBeGreaterThan(1);
+});

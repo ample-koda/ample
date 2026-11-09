@@ -225,8 +225,9 @@ public static class ComponentEmbedding
     /// <param name="addBlock">True to add an instance.</param>
     /// <param name="spec">The language data.</param>
     /// <param name="alias">An alias for the import (<c>import "file" as alias</c>): the first segment of the exported names is replaced by it, which is how two components with the same name are told apart; or null.</param>
+    /// <param name="builtIn">True for a component that ships with AMPLE: no import line is written, only the instance.</param>
     /// <returns>The new text and what was added.</returns>
-    public static ComponentImportAdd AddImport(string songText, string importPath, string? componentName, bool addBlock, SpecData spec, string? alias = null)
+    public static ComponentImportAdd AddImport(string songText, string importPath, string? componentName, bool addBlock, SpecData spec, string? alias = null, bool builtIn = false)
     {
         ArgumentNullException.ThrowIfNull(songText);
         ArgumentNullException.ThrowIfNull(importPath);
@@ -235,7 +236,7 @@ public static class ComponentEmbedding
         List<string> lines = Lines(songText);
         List<string> added = [];
         string import = $"import \"{importPath.Trim()}\"" + (string.IsNullOrWhiteSpace(alias) ? string.Empty : $" as {alias.Trim()}");
-        if (!lines.Any(l => l.Trim() == import))
+        if (!builtIn && !lines.Any(l => l.Trim() == import))   // a built-in component needs no import line: its name is known to every song
         {
             int last = song.ComponentImports.Count > 0 ? song.ComponentImports.Max(i => i.Line) : -1;
             int project = lines.FindIndex(l => l.TrimStart().StartsWith("project ", StringComparison.Ordinal) || l.TrimStart().StartsWith("composition ", StringComparison.Ordinal));
@@ -265,8 +266,8 @@ public static class ComponentEmbedding
             added.Add("}");
         }
 
-        if (added.Count == 0) return new ComponentImportAdd(true, songText, "The song imports this file already.", [], null);
-        return new ComponentImportAdd(true, string.Join('\n', lines), block is null ? "Added the import." : $"Added the import and the block {block}.", added, block);
+        if (added.Count == 0) return new ComponentImportAdd(true, songText, builtIn ? "This component is built in: nothing needs to be imported." : "The song imports this file already.", [], null);
+        return new ComponentImportAdd(true, string.Join('\n', lines), builtIn ? $"Added the block {block}." : block is null ? "Added the import." : $"Added the import and the block {block}.", added, block);
     }
 
     private static int EndOfBlock(List<string> lines, int start)

@@ -129,6 +129,21 @@ internal static partial class ComponentLibrary
             files.Add(new { file = relative, name = Path.GetFileName(f), components = known.Components.Select(c => new { c.Name, c.Id, c.Title, c.Kind, c.Description, c.Tags, c.Version, c.Versions, c.Seal, c.Processors, imported = imported.Contains(c.Id), nameTaken = !imported.Contains(c.Id) && visibleNames.ContainsKey(c.Name), suggestedAlias = !imported.Contains(c.Id) && visibleNames.ContainsKey(c.Name) ? SuggestAlias(relative, firstSegments) : null }) });
         }
 
+        // the components that ship with AMPLE: in every project, shown after the project's own files; they need no import
+        foreach (string shipped in BuiltInComponents.Files)
+        {
+            string target = BuiltInComponents.Prefix + shipped;
+            string key = "builtin|" + shipped;
+            if (!Cache.TryGetValue(key, out Cached? known))
+            {
+                (IReadOnlyList<ComponentListing> listed, _) = ComponentCatalog.List(service, $"import \"{target}\"\n", spec);
+                Cache[key] = known = new Cached("builtin", [.. listed.Select(c => new LibraryComponent(c.Path, c.Id, c.Title, c.Kind, c.Description, c.Tags, c.DefaultVersion, [.. c.Versions.Select(v => v.Version)], "built in", c.Processors))]);
+            }
+
+            present.Add(key);
+            files.Add(new { file = target, name = "Built in: " + Path.GetFileNameWithoutExtension(shipped), builtIn = true, components = known.Components.Select(c => new { c.Name, c.Id, c.Title, c.Kind, c.Description, c.Tags, c.Version, c.Versions, c.Seal, c.Processors, imported = imported.Contains(c.Id), nameTaken = false, suggestedAlias = (string?)null }) });
+        }
+
         // forget the files that are gone, and keep the cache small (the working copies of assistant tasks come and go)
         foreach (string gone in Cache.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && !present.Contains(k)).ToList()) Cache.TryRemove(gone, out _);
         if (Cache.Count > MaxCached) foreach (string key in Cache.Keys.Take(Cache.Count - MaxCached).ToList()) Cache.TryRemove(key, out _);

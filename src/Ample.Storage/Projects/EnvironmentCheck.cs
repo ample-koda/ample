@@ -137,7 +137,7 @@ public static class EnvironmentCheck
         list.Add(Probe("ffmpeg (mp3 export)", "ffmpeg", "-version", FfmpegHint(env)));
 
         // 2b. Audiveris (optional: PDF/image score import via optical music recognition)
-        list.Add(Probe("Audiveris (score PDF/image import)", Environment.GetEnvironmentVariable("AMPLE_AUDIVERIS") is { Length: > 0 } configured ? configured : "Audiveris", "-version", "Audiveris (audiveris.org) is not found on the PATH. This is only needed for ample_import_score on a PDF or image (a .mid or .musicxml score needs it): install Audiveris and set AMPLE_AUDIVERIS to its executable, or put it on the PATH."));
+        list.Add(Probe("Audiveris (score PDF/image import)", Environment.GetEnvironmentVariable("AMPLE_AUDIVERIS") is { Length: > 0 } configured ? configured : AudiverisLocator.FindExe() ?? "Audiveris", "-version", "Audiveris (audiveris.org, the reader of sheet music in a PDF or a picture) is not installed. It is only needed for ample_import_score on a PDF or image: run `ample packs install audiveris` (the setup wizard and the installer offer it), or install it yourself and set AMPLE_AUDIVERIS to its executable."));
 
         // 2c. MuseScore (optional: MuseScore/Guitar Pro/Capella/Overture score import)
         list.Add(Probe("MuseScore (score file conversion)", Environment.GetEnvironmentVariable("AMPLE_MUSESCORE") is { Length: > 0 } configuredMuseScore ? configuredMuseScore : "MuseScore4", "-v", "MuseScore (musescore.org) is not found on the PATH. This is only needed for ample_import_score on a .mscz, Guitar Pro, Capella or Overture file: install MuseScore and set AMPLE_MUSESCORE to its executable, or put it on the PATH."));

@@ -5,6 +5,7 @@
 
 import { api } from './api.js';
 import { humAttachment, offerAttachment, previewAttachment } from './hum.js';
+import { fileAttachment } from './attach.js';
 import { S, applyAiBuild, applyText, enterAiPeek, notify, reloadDoc, subscribe } from './store.js';
 import { onPlayer, playerState, stop } from './player.js';
 import { ask, el, toast } from './ui.js';
@@ -253,6 +254,7 @@ export function openAiPrompt(options) {
   explain();
   const hum = humAttachment();
   const offer = offerAttachment({ dropTarget: box });
+  const files = fileAttachment({ dropTarget: box, pasteTarget: prompt });   // pictures and files (a screenshot of notes): shown to the assistant
   // earlier requests of this project: pick one to continue it (its prompt, result and changes go to Codex), or to tweak it
   let continueFrom = options.continueFrom || null;
   const earlierNote = el('p', { className: 'tx-hint', id: 'ai-earlier-note' });
@@ -279,7 +281,7 @@ export function openAiPrompt(options) {
     go.disabled = true;
     try {
       const sel = options.selection?.();
-      const task = await api.post('/api/ai/tasks', { sessionId: options.sessionId, kind: options.kind, context: contextSelect.value, scope: scope.value, prompt: prompt.value.trim(), path, song: options.song || S.path || path, fromLine: scope.value === 'selection' ? sel?.from : undefined, toLine: scope.value === 'selection' ? sel?.to : undefined, block: options.block, blocks: options.blocks, model: model.value || undefined, effort: effort.value || undefined, strict: strict.checked, hums: hum.ids(), offered: offer.ids(), continueFrom });
+      const task = await api.post('/api/ai/tasks', { sessionId: options.sessionId, kind: options.kind, context: contextSelect.value, scope: scope.value, prompt: prompt.value.trim(), path, song: options.song || S.path || path, fromLine: scope.value === 'selection' ? sel?.from : undefined, toLine: scope.value === 'selection' ? sel?.to : undefined, block: options.block, blocks: options.blocks, model: model.value || undefined, effort: effort.value || undefined, strict: strict.checked, hums: hum.ids(), offered: offer.ids(), attachments: files.ids(), continueFrom });
       box.close();
       openAiTask(task.id, options);
     } catch (error) { go.disabled = false; say(error); }
@@ -287,7 +289,7 @@ export function openAiPrompt(options) {
   prompt.addEventListener('keydown', (event) => { if (event.key === 'Enter' && event.ctrlKey) { event.preventDefault(); go.click(); } });
   body.append(
     el('p', { className: 'tx-lead', textContent: `The assistant proposes, AMPLE checks it, you decide: nothing in the project changes until you accept the proposal. ${options.path ? `On ${options.path}${options.contextLabel ? `, starting from ${options.contextLabel}` : options.block ? `, block ${options.block}` : ''}.` : ''}` }),
-    section('What should the assistant see?', contextRow), section('What do you want?', el('div', { className: 'hum-row' }, [earlier]), earlierNote, prompt, el('label', { className: 'tx-opt' }, [strict, el('span', {}, [el('b', { textContent: 'Strict mode' }), el('small', { textContent: 'Off by default: the assistant asks before accessing anything outside this task’s work folder. Turn on to keep the current strict boundary.' })])]), el('label', { className: 'tx-opt ai-model-choice' }, [el('span', {}, [el('b', { textContent: 'Model for this request' }), el('small', { textContent: 'This choice lasts for this request only.' })]), model, effort]), usage, el('div', { className: 'hum-row' }, [hum.button, hum.chips]), el('div', { className: 'hum-row' }, [offer.add, offer.record, offer.pick, offer.chips]), el('small', { className: 'tx-hint', textContent: 'Drag a sound onto this window, pick one, or record one: the assistant may use it, and you decide when you accept whether it comes along into the project.' }), el('small', { className: 'tx-hint', textContent: 'Hum or sing the notes you mean: AMPLE finds them (an attempt), you hear and approve them, and the assistant gets the melody and your raw recording.' })), section('Scope', scope, note, ...(selectionPreview ? [selectionPreview] : [])));
+    section('What should the assistant see?', contextRow), section('What do you want?', el('div', { className: 'hum-row' }, [earlier]), earlierNote, prompt, el('label', { className: 'tx-opt' }, [strict, el('span', {}, [el('b', { textContent: 'Strict mode' }), el('small', { textContent: 'Off by default: the assistant asks before accessing anything outside this task’s work folder. Turn on to keep the current strict boundary.' })])]), el('label', { className: 'tx-opt ai-model-choice' }, [el('span', {}, [el('b', { textContent: 'Model for this request' }), el('small', { textContent: 'This choice lasts for this request only.' })]), model, effort]), usage, el('div', { className: 'hum-row' }, [hum.button, hum.chips]), el('div', { className: 'hum-row' }, [files.add, offer.add, offer.record, offer.pick, files.pick, files.chips, offer.chips]), el('small', { className: 'tx-hint', textContent: 'Drag a sound onto this window, pick one, or record one: the assistant may use it, and you decide when you accept whether it comes along into the project.' }), el('small', { className: 'tx-hint', textContent: 'Hum or sing the notes you mean: AMPLE finds them (an attempt), you hear and approve them, and the assistant gets the melody and your raw recording.' })), section('Scope', scope, note, ...(selectionPreview ? [selectionPreview] : [])));
   showSelectionPreview();
   foot.append(go, el('button', { type: 'button', textContent: 'Cancel', onclick: () => box.close() }), el('span', { className: 'note', textContent: 'The assistant works in a temporary copy of the files in scope.' }));
   prompt.focus();
@@ -341,11 +343,13 @@ export async function renderAssistantPanel() {
       const recent = ordered[0];
       const isKoda = (session.tasks || []).some((task) => task.kind === 'koda') || session.title === 'Koda';
       // archived: the conversation ended (archived, rejected, accepted or failed); it may still be resumable while its thread and working copy are kept
-      const archived = !!recent && (recent.archived || ['cancelled', 'rejected', 'accepted', 'failed'].includes(recent.status));
+      // a Koda proposal that was only closed (rejected) stays in Active while it can still be resumed: it is the one the person comes back for
+      const archived = !!recent && (recent.archived || ['cancelled', 'accepted', 'failed'].includes(recent.status) || (recent.status === 'rejected' && !(isKoda && recent.resume === 'can')));
       const resume = recent?.resume === 'can' ? (archived ? 'can be resumed' : 'paused: can be resumed') : archived ? 'ended: cannot be resumed' : '';
       const open = el('button', { type: 'button', className: 'assistant-session' + (isKoda ? ' is-koda' : ''), onclick: () => recent ? openAiTask(recent.id, { sessionId: session.id }) : openAiPrompt({ sessionId: session.id, title: session.title, kind: 'custom', scope: 'project', hint: 'What would you like the assistant to do in this project?' }) }, [
         el('span', { className: 'assistant-session-title' + (isKoda ? ' is-koda' : ''), textContent: (isKoda ? '♪ ' : '') + session.title, title: isKoda ? 'Asked through Koda' : '' }),
-        el('span', { className: 'assistant-session-meta', textContent: recent ? `${recent.status === 'cancelled' ? 'archived' : recent.status} · ${recent.prompt}` : 'No requests yet' }),
+        el('span', { className: 'assistant-session-meta', textContent: recent ? `${recent.status === 'cancelled' ? 'archived' : recent.status} · ${shortText(recent.prompt)}` : 'No requests yet' }),
+        ...(ordered.length > 1 ? [el('span', { className: 'assistant-session-meta', textContent: 'Started with: ' + shortText(ordered[ordered.length - 1].prompt) })] : []),
         ...(resume ? [el('span', { className: 'assistant-session-resume ' + (recent.resume === 'can' ? 'can' : 'no'), textContent: resume })] : []),
         el('span', { className: 'assistant-session-meta', textContent: `${(session.tasks || []).length} request(s) · updated ${new Date(session.updated).toLocaleString()}` }),
       ]);
@@ -362,6 +366,8 @@ export async function renderAssistantPanel() {
     list.replaceChildren(el('p', { className: 'note', textContent: `Could not load assistant sessions: ${error.message || error}` }));
   }
 }
+
+const shortText = (text) => { const one = String(text || '').split(String.fromCharCode(10)).join(' ').trim(); return one.length > 140 ? one.slice(0, 137) + '...' : one; };
 
 // ---- the proposal wizard ----
 
@@ -384,7 +390,10 @@ preview.audio.preload = 'metadata';
 for (const ev of ['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata']) preview.audio.addEventListener(ev, () => preview.listeners.forEach((fn) => fn()));
 // the Stop button of the header knows when the proposal is heard
 for (const ev of ['play', 'pause', 'ended']) preview.audio.addEventListener(ev, () => { S.aiPlaying = !preview.audio.paused && !preview.audio.ended; notify(); });
-export function stopPreview() { preview.audio.pause(); preview.audio.removeAttribute('src'); preview.audio.load(); preview.url = ''; document.querySelectorAll('.ai-peek-audio').forEach((a) => { a.pause(); a.removeAttribute('src'); a.load(); }); }
+export function stopPreview() { preview.audio.pause(); preview.audio.removeAttribute('src'); preview.audio.load(); preview.url = ''; document.querySelectorAll('.ai-peek-audio').forEach((a) => { a.pause(); a.removeAttribute('src'); a.load(); });
+  // load() throws away the queued pause event, so the audio events never say that it stopped: say it here (the Stop button stayed lit)
+  if (S.aiPlaying) { S.aiPlaying = false; notify(); }
+}
 export function setPreviewLoop(on) { preview.audio.loop = on; document.querySelectorAll('.ai-peek-audio').forEach((audio) => { audio.loop = on; }); }
 export const previewPlaying = () => !preview.audio.paused;
 const hear = { want: false, started: false, timer: 0 };
@@ -480,6 +489,7 @@ export function syncPeekBar() {
   const barInput = el('input', { id: 'ai-peek-msg', type: 'text', placeholder: 'e.g. too loud: make it 20% quieter', 'aria-label': 'Message to Assistant', autocomplete: 'off', className: 'ai-peek-msg' });
   const barHum = humAttachment();
   const barOffer = offerAttachment({ dropTarget: bar });
+  const barFiles = fileAttachment({ dropTarget: bar, pasteTarget: barInput });
   const barSend = el('button', { id: 'ai-peek-send', type: 'button', textContent: 'Send' });
   const barStatus = el('span', { className: 'dim ai-peek-status' });
   const sendFromBar = async () => {
@@ -488,7 +498,7 @@ export function syncPeekBar() {
     barSend.disabled = true;
     try {
       stopPreview();
-      await api.post(`/api/ai/tasks/${taskId}/message`, { text, hums: barHum.take(), offered: barOffer.take() });
+      await api.post(`/api/ai/tasks/${taskId}/message`, { text, hums: barHum.take(), offered: barOffer.take(), attachments: barFiles.take() });
       barInput.value = '';
       barStatus.textContent = 'The assistant is changing the proposal...';
       for (let i = 0; i < 1200; i++) {
@@ -513,7 +523,7 @@ export function syncPeekBar() {
     el('button', { type: 'button', className: 'primary', id: 'ai-peek-back', textContent: '← Back to the proposal', title: 'Leave the preview and open the proposal window again (to accept or reject it)', onclick: () => { stopPreview(); import('./store.js').then((m) => m.leavePeek()).then(() => openAiTask(taskId)); } }),
     el('button', { type: 'button', textContent: 'Build and listen', title: 'Build the proposal in its temporary project and play it', onclick: async () => { await buildAndListen(taskId); await fill(); } }),
     slot,
-    el('div', { className: 'ai-peek-say' }, [barHum.button, barOffer.add, barOffer.record, barOffer.pick, barHum.chips, barOffer.chips, barInput, barSend, barStatus]));
+    el('div', { className: 'ai-peek-say' }, [barHum.button, barFiles.add, barOffer.add, barOffer.record, barOffer.pick, barFiles.pick, barHum.chips, barFiles.chips, barOffer.chips, barInput, barSend, barStatus]));
   host.after(bar);
   fill();
   // while Codex works again or a new build runs, nothing of the preview can be played: it stops, the controls are off and the bar says why
@@ -681,6 +691,7 @@ export function openAiTask(id, options = {}) {
   const archiveNow = el('button', { id: 'ai-archive-now', type: 'button', className: 'quiet', textContent: 'Archive', 'aria-label': 'Archive this conversation', title: 'Archive this conversation: the assistant session ends, the proposal and the working copy are kept and it can be resumed from the Assistant list while they are', hidden: true, onclick: () => post('/archive').then(poll).catch(say) });
   const msgHum = humAttachment();
   const msgOffer = offerAttachment({ dropTarget: box });
+  const msgFiles = fileAttachment({ dropTarget: box, pasteTarget: msgInput });
   // the advanced menu of the conversation: model, reasoning, compact now, how full the memory is and the usage of the account.
   // A small chip next to it shows the fill and the usage without getting in the way; the menu has the detail and the choices.
   const liveModel = el('select', { id: 'ai-live-model', 'aria-label': 'Model of this conversation' });
@@ -767,14 +778,14 @@ export function openAiTask(id, options = {}) {
   box.insertBefore(liveRow, foot);
   msgSend.title = 'Send (Ctrl+Enter)';
   msgInput.title = 'Send (Ctrl+Enter)'; msgInput.setAttribute('aria-description', 'Enter adds a new line. Ctrl+Enter or Alt+Enter sends.');
-  const msgTools = el('div', { className: 'ai-msg-tools' }, [msgHum.button, msgOffer.add, msgOffer.record, msgOffer.pick, msgHum.chips, msgOffer.chips]);
+  const msgTools = el('div', { className: 'ai-msg-tools' }, [msgFiles.add, msgHum.button, msgOffer.add, msgOffer.record, msgOffer.pick, msgFiles.pick, msgHum.chips, msgFiles.chips, msgOffer.chips]);
   const msgCompose = el('div', { className: 'ai-msg-compose' }, [msgInput, stopNow, archiveNow, msgSend]);
   const msgRow = el('div', { className: 'ai-msg', id: 'ai-msg' }, [msgTools, msgCompose]);
   const sendMessage = async (prompt = msgInput.value) => {
     const text = prompt.trim();
     if (!text) return;
     msgSend.disabled = true;
-    try { await api.post(`/api/ai/tasks/${id}/message`, { text, hums: msgHum.ids(), offered: msgOffer.ids() }); msgHum.take(); msgOffer.take(); msgInput.value = ''; growMsgInput(); tab = 'activity'; scrollActivity = true; shown = ''; poll(); } catch (error) { say(error); } finally { msgSend.disabled = false; msgInput.focus(); }
+    try { await api.post(`/api/ai/tasks/${id}/message`, { text, hums: msgHum.ids(), offered: msgOffer.ids(), attachments: msgFiles.ids() }); msgHum.take(); msgOffer.take(); msgFiles.take(); msgInput.value = ''; growMsgInput(); tab = 'activity'; scrollActivity = true; shown = ''; poll(); } catch (error) { say(error); } finally { msgSend.disabled = false; msgInput.focus(); }
   };
   msgSend.onclick = () => sendMessage();
   msgInput.onkeydown = (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.altKey || e.metaKey) && !e.isComposing) { e.preventDefault(); sendMessage(); } };

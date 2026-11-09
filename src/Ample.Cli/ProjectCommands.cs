@@ -74,10 +74,11 @@ internal static class ProjectCommands
         Option<bool> environment = new("--env") { Description = "Also check what the tools and the assistant need around the program (libraries, ffmpeg, Python, the sound font, disk space); what is missing goes to the project log with how to fix it." };
         Option<bool> assistant = new("--assistant") { Description = "Check whether Codex is usable for Koda (optional; never a failure): installed, signed in, and what that means." };
         Option<string?> sound = new("--sound") { Description = "Build this song (a path in the project) and report the sound of its blocks: silent, very quiet, clipping, not heard, and the loudness of the master, with suggested gains." };
+        Option<bool> samplePacks = new("--packs") { Description = "With --json: also list the downloadable sample packs, each installed (with a way to remove it) or not (with a way to download it)." };
         Option<bool> soundJson = new("--json") { Description = "With --sound, or with --env and --assistant: write the findings as JSON (the setup wizard reads them; each fixable finding carries its fix)." };
         Option<bool> soundFix = new("--fix") { Description = "With --sound: put the suggested effect blocks (normalize for a very quiet block, a lower volume for a clipping one) into the song; the journal keeps the old text." };
         Option<string?> soundRoot = new("--root") { Description = "The AMPLE folder with spec/ (default: found from the current folder upwards); used with --sound." };
-        Command command = new("doctor", "Checks a project folder without changing it; exit code 1 when there are errors.") { folder, environment, assistant, sound, soundRoot, soundJson, soundFix };
+        Command command = new("doctor", "Checks a project folder without changing it; exit code 1 when there are errors.") { folder, environment, assistant, sound, soundRoot, soundJson, soundFix, samplePacks };
         command.SetAction(async (parse, token) => await Run(output, async () =>
         {
             if (parse.GetValue(sound) is { Length: > 0 } soundSong)
@@ -87,7 +88,7 @@ internal static class ProjectCommands
 
             if (parse.GetValue(soundJson) && (parse.GetValue(environment) || parse.GetValue(assistant)))
             {
-                output.WriteLine(DoctorJson.Build(Path.GetFullPath(parse.GetValue(folder)!), parse.GetValue(environment), parse.GetValue(assistant)));
+                output.WriteLine(DoctorJson.Build(Path.GetFullPath(parse.GetValue(folder)!), parse.GetValue(environment), parse.GetValue(assistant), parse.GetValue(samplePacks)));
                 return 0;
             }
 

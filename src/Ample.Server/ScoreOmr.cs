@@ -14,8 +14,8 @@ internal static class ScoreOmr
 {
     internal static readonly string[] RecognizableExtensions = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"];
 
-    /// <summary>The Audiveris executable: AMPLE_AUDIVERIS, or "Audiveris" on the PATH.</summary>
-    internal static string Exe => Environment.GetEnvironmentVariable("AMPLE_AUDIVERIS") is { Length: > 0 } configured ? configured : "Audiveris";
+    /// <summary>The Audiveris executable: AMPLE_AUDIVERIS, else the one that <c>ample packs install audiveris</c> put in the AMPLE folder, else "Audiveris" on the PATH.</summary>
+    internal static string Exe => Environment.GetEnvironmentVariable("AMPLE_AUDIVERIS") is { Length: > 0 } configured ? configured : AudiverisLocator.FindExe() ?? "Audiveris";
 
     /// <summary>Runs Audiveris on <paramref name="source"/> and returns the MusicXML text it recognized. Scratch files are written under and removed from <paramref name="scratchRoot"/>.</summary>
     internal static string Recognize(string source, string scratchRoot, string projectRoot)

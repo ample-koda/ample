@@ -6,6 +6,7 @@ import { api, getToken } from './api.js';
 import { S, editSerial, notify, select, subscribe, undoHooks } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
+import { removeRecoveryDraft } from '../lib/recovery-drafts.mjs';
 
 const KIND = [
   ['song', /\.amplet$/i], ['module', /\.module$/i], ['component', /\.amplec$/i],
@@ -61,6 +62,7 @@ function activate(path) {
   T.active = path;
   save(); render();
   if (!(kindOf(path) === 'song' && path === S.path)) openFile(path);
+  else import('./source.js').then((m) => m.resetSourceFile());   // the song is open already: the Source view still has to leave a text file that was open there
 }
 
 async function refreshState() {
@@ -179,7 +181,7 @@ function tabMenu(x, y, path) {
   else {
     if (!mobile && !detachedPath()) items.push({ label: 'Open in a window', fn: () => detach(path) });
     items.push({ label: 'Save', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); refreshState(); } catch (e) { toast(e.message || String(e)); } } },
-      { label: 'Revert', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/revert' : '/api/wc/revert', { path }); refreshState(); if (path === S.path) document.dispatchEvent(new CustomEvent('ample:open', { detail: path })); } catch (e) { toast(e.message || String(e)); } } });
+      { label: 'Revert', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/revert' : '/api/wc/revert', { path }); try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable */ } refreshState(); if (path === S.path) document.dispatchEvent(new CustomEvent('ample:open', { detail: path })); } catch (e) { toast(e.message || String(e)); } } });
   }
   items.push({ label: 'Close', fn: () => closeTab(path) }, { label: 'Close others', fn: async () => { for (const t of [...T.tabs]) if (t.path !== path && !T.remote.has(t.path)) await closeTab(t.path); } },
     { label: 'Close saved', fn: async () => { for (const t of [...T.tabs]) if (!factsOf(t.path).dirty && t.path !== path && !T.remote.has(t.path)) await closeTab(t.path); } },
@@ -428,6 +430,10 @@ export function initTabs() {
   undoHooks.push(tabUndo);
   document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
   document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
+  // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
+  document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
+  // a tab for a file without opening it: what you look at stays (the files that Koda changed arrive like this, with their unsaved mark)
+  document.addEventListener('ample:add-tab', (e) => { if (!T.internal && e.detail) { add(e.detail); save(); render(); refreshState(); } });
   // the option "preview tabs" (Project settings): a single click in the Project panel opens a tab in italics that the next single click replaces; a double click or an edit keeps it
   document.addEventListener('ample:preview-file', (e) => {
     if (!previewOn()) return;

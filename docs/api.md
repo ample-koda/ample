@@ -6,7 +6,7 @@
 
 ## Starting it
 ```
-ample serve --project <folder> [--port N] [--no-browser] [--allow-lan] [--root <ample folder>]
+ample serve --project <folder> [--port N] [--no-browser] [--create] [--allow-lan] [--root <ample folder>]
 ample serve --openapi docs/api/openapi.json     # writes the OpenAPI document and exits
 ```
 The classic command prints the address and a launch address with the session token in the fragment (`#token=...`), which browsers never send to a server, and opens the browser by default. `ample serve` remains a foreground command. `ample open` attaches to or starts a server for a project; the former lock-and-summary operation is available as `ample project open`. `GET /api/ping` is an unauthenticated minimal liveness check used by the [instance registry](instance-registry.md); `POST /api/server/shutdown` requires the session token.

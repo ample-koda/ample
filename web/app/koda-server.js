@@ -9,6 +9,9 @@ import { addedBlocks } from '../lib/koda-draft.mjs';
 import { describeChanges } from '../lib/koda-diff.mjs';
 import { glanced } from '../lib/koda-glance.mjs';
 import { variantDrafts } from '../lib/koda-variants.mjs';
+import { saveRecoveryDraft } from '../lib/recovery-drafts.mjs';
+import { buildErrorsText } from '../lib/build-errors.mjs';
+import { kodaAttachments } from './attach.js';
 
 const wait = (ms, signal) => new Promise((resolve, reject) => {
   const timer = setTimeout(resolve, ms);
@@ -40,6 +43,15 @@ let lastTask = '', hanging = '', hangSince = 0, hooked = false, interrupted = fa
 const HANG_QUICK_MS = 5 * 60 * 1000;   // a next question within this time goes on without asking
 
 /** The open tabs and what changed in the ones with unsaved changes: Koda works on the unsaved text and knows the difference. */
+/** The blocks that failed in the last build, with the line they are blamed on when it is known: the build status of the blocks first (always there), the marks of the code as the extra. */
+function failedBlocks() {
+  const out = {};
+  for (const [name, v] of Object.entries(S.build?.status || {})) {
+    if (String(v?.status ?? '').toLowerCase() === 'failed') out[name] = { message: v.message, text: S.buildErrors?.items?.[name]?.text || '' };
+  }
+  for (const [name, item] of Object.entries(S.buildErrors?.items || {})) if (!out[name]) out[name] = item;
+  return out;
+}
 async function tabsContext(subject) { try { return await (await import('./tabs.js')).tabsContextForKoda(subject); } catch { return ''; } }
 
 // Bare metal mode (the third state of the draft / live switch): live, and the model is told to be quick and rough: assumptions instead of questions, a quick compile-style check, no waiting for a full build or render.
@@ -79,12 +91,14 @@ async function runTask(subject, text, mode, signal, onGlance, onThought, resume 
   let task;
   try {
     task = await api.post('/api/ai/tasks', {
-      sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + (bare ? BARE_TEXT : '') + await tabsContext(subject), path: activePath(), song: S.path, context: 'unsaved',
+      sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + (bare ? BARE_TEXT : '') + buildErrorsText(failedBlocks()) + await tabsContext(subject), path: activePath(), song: S.path, context: 'unsaved',
       fromLine: subject.kind === 'code' ? subject.startLine : undefined, toLine: subject.kind === 'code' ? subject.endLine : undefined, block: subject.kind === 'code' ? subject.block?.name : subject.block,
       continueFrom: resume && hanging ? hanging : undefined,
+      attachments: kodaAttachments().ids(),   // the pictures and files attached to this message (a screenshot of notes ...)
       ...requestParts(),   // the model and thinking level of this Koda session (nothing: the setting of the assistant)
     });
     lastTask = task.id;
+    kodaAttachments().take();   // they went with the task
     if (bare && liveHooks) { liveTask = task.id; lastLive = ''; liveBroken = false; userLines = []; liveHooks.start?.(); }
   } catch (error) { throw kodaFailure(error); }
   // every finished answer keeps the conversation hanging by itself: the next question within HANG_QUICK_MS goes on without a choice or a question
@@ -138,6 +152,29 @@ const answerOf = (task) => (task.answer?.text ? { title: task.answer.title || ''
 const titled = (summary) => { const t = splitTitle(withoutNoChange(splitCheck(String(summary || '').trim()).text)); const [text, more] = splitLong(...splitAnswer(t.text)); return { title: t.title, text, more }; };
 const first = (text) => { const t = withoutNoChange(splitCheck(String(text || '').trim()).text); const cut = t.search(/\n\s*\n/); return cut > 0 ? [t.slice(0, cut), t.slice(cut).trim()] : [t, '']; };
 
+/**
+ * Puts the proposed text of each file in the browser as unsaved text of that file (the same recovery draft the source editor keeps): nothing is written to the project, the file opens with the
+ * text marked unsaved, and Save all keeps it or closing the tab throws it away. A file that does not exist yet is made empty first (so it can be opened), its text is the draft.
+ * Returns the paths, or null when one of them could not be taken over (then the normal Accept is used).
+ */
+async function keepAsUnsaved(task, changes) {
+  const paths = [];
+  try {
+    const files = await api.get('/api/project/files');
+    for (const c of changes) {
+      const text = (await api.get(`/api/ai/tasks/${task.id}/text?path=${encodeURIComponent(c.path)}`)).text;
+      if (typeof text !== 'string') return null;
+      let base = '';
+      if (files.some((f) => f.path === c.path)) base = (await api.get(`/api/file?path=${encodeURIComponent(c.path)}`)).text ?? '';
+      else await api.put('/api/file', { path: c.path, text: '' });
+      saveRecoveryDraft(localStorage, S.project?.id || '', c.path, text, base, Date.now());
+      await api.put('/api/wc', { path: c.path, text });   // the working copy too: the tab shows the unsaved mark, a build reads it
+      paths.push(c.path);
+    }
+  } catch { return null; }
+  return paths;
+}
+
 async function resultOf(task, subject, instruction, fromQuestion = false) {
   if (!task.changes?.length) { const a = answerOf(task); return { kind: 'answer', title: a.title || subjectName(subject), text: a.text || 'Koda had nothing to add.', more: a.more }; }
   // the proposed text of the song, so the editor can show the suggestion in the text itself
@@ -171,6 +208,19 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
       return true;
     },
     async apply() {
+      // the other files Koda changed or made (a score, a component, a note) are not written: each comes into the editor as unsaved text and opens in a tab, so the person looks at it and saves it (Save all) or reverts it
+      const others = task.changes.filter((c) => c.path && c.path !== activePath() && !c.deleted);
+      if (others.length && !others.some((c) => /\.amplet$/i.test(c.path))) {
+        const unsaved = await keepAsUnsaved(task, others);
+        if (unsaved) {
+          if (proposed && task.changes.some((c) => c.path === activePath())) await applyText(proposed);
+          await api.post('/api/ai/tasks/' + task.id + '/reject', {}).catch(() => {});   // the server writes nothing: what Koda made lives in the editor until it is saved
+          await reloadDoc();
+          // a tab for each file, with the unsaved mark; nothing is opened, so the person stays where they were (the song)
+          for (const path of unsaved) document.dispatchEvent(new CustomEvent('ample:add-tab', { detail: path }));
+          return true;
+        }
+      }
       let r;
       try { r = await api.post(`/api/ai/tasks/${task.id}/accept`, {}); } catch (error) {
         // bare metal: the song in the editor already holds what the model made (the live view), so the project no longer matches the base of the proposal and Accept can refuse:
@@ -195,7 +245,7 @@ export const serverBackend = {
   /** The model or thinking level changed while Koda works: the conversation uses it from its next turn. */
   async applyModel(model, effort) { if (lastTask) await api.post(`/api/ai/tasks/${lastTask}/assistant`, { model: model || '', effort: effort || '' }).catch(() => {}); },
   /** Extra input for the task that is working now (it steers it). */
-  async steer(text) { if (!lastTask) throw new Error('Koda is not working on anything.'); await api.post(`/api/ai/tasks/${lastTask}/message`, { text }); },
+  async steer(text) { if (!lastTask) throw new Error('Koda is not working on anything.'); await api.post(`/api/ai/tasks/${lastTask}/message`, { text, attachments: kodaAttachments().take() }); },
   /** The person stops the turn that works: the conversation is kept and the next question goes on in it. */
   async interrupt() { if (!lastTask) return; interrupted = true; hanging = lastTask; hangSince = Date.now(); hooked = true; await api.post(`/api/ai/tasks/${lastTask}/interrupt`, {}).catch(() => { interrupted = false; }); },
   hangQuick() { return !!hanging && (hooked || Date.now() - hangSince < HANG_QUICK_MS); },

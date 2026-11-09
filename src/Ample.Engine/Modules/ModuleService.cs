@@ -56,6 +56,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     /// <param name="target">The name as written in the import (with or without the extension).</param>
     public string? ReadComponentFile(string target)
     {
+        if (target.StartsWith(BuiltInComponents.Prefix, StringComparison.Ordinal)) return BuiltInComponents.Read(target);   // a component that ships with AMPLE
         string name = target.EndsWith(ComponentExtension, StringComparison.OrdinalIgnoreCase) ? target : target + ComponentExtension;
         foreach (string candidate in new[] { name, "components/" + name, "modules/" + name, "templates/" + name })
         {
@@ -87,7 +88,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     /// <param name="spec">The language data.</param>
     /// <returns>The visible components; empty when the song neither declares nor imports any.</returns>
     public ComponentRegistryResult Components(string songText, SpecData spec) =>
-        MayHaveComponents.IsMatch(songText) ? ComponentRegistry.Resolve(songText, "song", ReadComponentFile, spec) : new ComponentRegistryResult([], [], []);
+        MayHaveComponents.IsMatch(songText) || BuiltInComponents.MentionedIn(songText) ? ComponentRegistry.Resolve(songText, "song", ReadComponentFile, spec) : new ComponentRegistryResult([], [], []);
 
     /// <summary>Expands the modules of a song text and the instances of its components.</summary>
     public ExpandedSong Expand(string songText, SpecData spec)
@@ -115,7 +116,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     {
         ArgumentNullException.ThrowIfNull(songText);
         ArgumentNullException.ThrowIfNull(read);
-        return ComponentsForEditors(songText, spec, MayHaveComponents.IsMatch(songText) ? ComponentRegistry.Resolve(songText, "song", t => read(t), spec) : new ComponentRegistryResult([], [], []));
+        return ComponentsForEditors(songText, spec, MayHaveComponents.IsMatch(songText) || BuiltInComponents.MentionedIn(songText) ? ComponentRegistry.Resolve(songText, "song", t => read(t), spec) : new ComponentRegistryResult([], [], []));
     }
 
     private static (IReadOnlyList<ComponentDefinition> Components, IReadOnlyList<Diagnostic> Issues) ComponentsForEditors(string songText, SpecData spec, ComponentRegistryResult registry)
@@ -241,7 +242,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
             if (u.Signature is not null && u.PublicKey is not null && u.Seal == SealState.Valid && !Ample.Storage.Security.SigningKeys.Verify(u.PublicKey, Encoding.UTF8.GetBytes(u.Payload), u.Signature))
                 notes.Add(new Diagnostic("AMP2210", Severity.Warning, line, 1, 2, $"The signature of {u.Name} {u.Version} does not match its content: it was not made by the key it names, or the content was changed.", "Do not trust it; ask the author for a fresh version.", null, null));
             if (u.Seal == SealState.Invalid) notes.Add(new Diagnostic("AMP2210", Severity.Warning, line, 1, 2, $"The seal of {u.Name} {u.Version} does not match: {u.SealReason}", "It counts as unsealed until it is sealed again.", null, null));
-            else if (u.Seal == SealState.Unsealed) notes.Add(new Diagnostic("AMP2211", Severity.Info, line, 1, 2, $"The component {u.Name} {u.Version} is not sealed: it builds, but it is a development version and nothing about it is trusted.", "Seal a version to make it immutable.", null, null));
+            else if (u.Seal == SealState.Unsealed && !u.Id.StartsWith(BuiltInComponents.IdPrefix, StringComparison.Ordinal)) notes.Add(new Diagnostic("AMP2211", Severity.Info, line, 1, 2, $"The component {u.Name} {u.Version} is not sealed: it builds, but it is a development version and nothing about it is trusted.", "Seal a version to make it immutable.", null, null));
             if (u.Deprecated is not null) notes.Add(new Diagnostic("AMP2220", Severity.Warning, line, 1, 2, $"The component {u.Name} {u.Version} is deprecated" + (u.Deprecated.Length > 0 ? ": " + u.Deprecated : "."), string.Empty, null, null));
         }
 

@@ -33,7 +33,8 @@ namespace Ample.Server;
 /// <param name="ContinueFrom">The id of an earlier AI request this one continues (its prompt, result and changes are handed to Codex).</param>
 /// <param name="Effort">The reasoning effort chosen for this request (low, medium, high, xhigh), "default" to let the model choose, or null for the server setting.</param>
 /// <param name="Blocks">The block IDs that form the initial focus when starting from a canvas selection or group.</param>
-internal sealed record AiTaskRequest(string Kind, string Scope, string Prompt, string Path, string Song, int? FromLine, int? ToLine, string? Block, string? Model, IReadOnlyList<string>? Hums = null, IReadOnlyList<string>? Offered = null, string? ContinueFrom = null, string? Effort = null, IReadOnlyList<string>? Blocks = null)
+/// <param name="Attachments">The files the user attached to the request (ids kept by the server: pictures are shown to the model, other files are put in the working copy).</param>
+internal sealed record AiTaskRequest(string Kind, string Scope, string Prompt, string Path, string Song, int? FromLine, int? ToLine, string? Block, string? Model, IReadOnlyList<string>? Hums = null, IReadOnlyList<string>? Offered = null, string? ContinueFrom = null, string? Effort = null, IReadOnlyList<string>? Blocks = null, IReadOnlyList<string>? Attachments = null)
 {
     /// <summary>What the task sees (plan/editor-tabs.md, part 5): <c>unsaved</c> (the default: the working copies of the open files, what is on the screen) or <c>saved</c> (the files on disk only).</summary>
     public string Context { get; init; } = "unsaved";
@@ -352,6 +353,9 @@ internal sealed class AiTask
 
     /// <summary>The hummed melodies the user handed to this task (ids of the recordings kept by the server).</summary>
     public List<string> Hums { get; } = [];
+
+    /// <summary>The pictures the user attached that the next turn (or steer) shows to the model: paths in the working copy, taken when the turn is sent.</summary>
+    public List<string> PendingImages { get; } = [];
 
     /// <summary>For each block of the last build check that did not build: why, a hint, what feeds it and its text.</summary>
     public JsonArray BuildDetails { get; set; } = [];
@@ -1406,6 +1410,7 @@ You are Koda, a small friendly helper inside AMPLE. The user asked about one blo
 - A file a block reads (a sequencer's `file`, lyrics, a score) is not in your copy but is in the project: read it with `ample_file` (location `project`, the path as the block names it) before you say you could not open it.
 - Never touch anything outside the subject unless the instruction needs it (for example a link to the master).
 - Several alternatives (variants, other instruments, beats): make all of them in this one working copy, each as copies of the source blocks (follow a compressor or EQ back to the instrument or sequencer) under new names, leave the original, change a sequencer's sound inside its `sequence { }` or `file` (never as loose song lines), keep every variant ready to use at normal level (never muted or turned down to keep the mix as it was), then call `ample_offer_variants` once.
+- A sequencer whose notes are in a `file` (a .ampleseq): its instruments are the `channel` lines at the top of that file. To change an instrument give the .ampleseq as the `path` of ample_edit and use `{"op":"sequence_channel","channel":"violin1","text":"program=42"}` (settings alone change only those settings; a type with settings, like `gm program=42 vol=-6`, replaces the rest of the line; no block). One call with all the channels changes them all. In a song that keeps its sequence inside (`sequence { }`) the same op takes the `block`. When you rotate or swap instruments, read the old programs first and give every channel its new one in the same call. The `lanes` line of the sequencer in the song (`lane1=violin1 ...`) names the CHANNELS of the file: never write an instrument name there that is not a channel (a `contrabass` lane stops the build); rename nothing, change the `program` of the channel instead.
 - A sequencer: change only the channel, pattern or row the user asked about, with the edits sequence_row and sequence_channel of ample_edit (never rewrite the whole sequence). Keep every other channel, pattern, clip and row exactly as it is, never write into the row of a channel you were not asked about (a gm or notes row is a melody: leave it), a note of a gm or notes row is bar:beat:length:pitch:velocity with the beat from 0 to 3.99 (the next bar starts with 2:0, never 1:4), so check every row you write; and when you add a channel or a beat, also connect its output (a lane or the block output) the way the other channels are, so it is heard.
 - A singing voice from notes (a chant, ooh/aah, a choir of hums): the `delay-llama` block (notes in; `vowel` a letter, 0-100 or a curve; `voice`, `mouth`, `glide`, `unison`, `echo`), or a sequencer channel of type `llama`.
 - Pitch bend: a midi-clip has `bend auto(...)` (percent of `bend_range`, 2 by default) and a note can have `;bend=<cents>`; every instrument that plays the notes bends with it. Any audio bends with a `pitch` block whose `semitones` is a curve, `auto(1:0, 4:12)` (or percent with `range`).
@@ -1415,6 +1420,7 @@ You are Koda, a small friendly helper inside AMPLE. The user asked about one blo
 - A rewind, pull-up or "scratch back" (the music stops, only a scratch is heard, the music goes on from an earlier place of the same sound): use the `rewind` block, never the `scratch` block (that one only moves the record per step). Its `events` are written in the time of the block, for example `at 6s scratch 2s back 5s; at 14s scratch 1s back 2s` (a negative back skips forward); take the length of the sample from ample_analyze_audio and keep the events inside it. For the most realistic sound connect a real scratch sample to its `fx` input: find one with ample_find_samples, fetch it with ample_fetch_sample, copy it into the project with ample_copy_file (source=workspace/assets/web/<file>, destination samples/<file>; the block cannot read assets/web), bring it in with an import-audio block whose file is that project path and connect that block to `fx`. `smear` (the record kicks into gear after the scratch) and `brake` (it slows down before) are in milliseconds; `hardness` and `blend` soften the cuts. An effect on the scratches alone: rewind.region -> effect.region_in, effect.region -> region-merge.region, rewind.audio -> region-merge.body (the effect gets no audio input).
 - A real sample the song needs (a DJ scratch, a vinyl crackle, a foley sound, a riser): call ample_sample_sources, find the sound with ample_find_samples (no browser or sign-in needed), and fetch it yourself with ample_fetch_sample (AMPLE reads the licence and only lets CC0 or public domain through); never invent a source or claim a licence you have not seen, and never buy anything. An effect-based stand-in is allowed but must be called a stand-in.
 - A beat, drum pattern or groove: use the beats catalogue (the tool ample_beats, 160+ ready grooves) and never invent a basic pattern from nothing. Search it in small steps (genre, mood, tempo of the song), take a beat that fits, and copy its pattern into the song or the sequence; if the user asks to use the catalogue, always do that, and say which beat you took. A different request must give a different beat, not the same basic one again.
+- Sheet music as a PDF or a picture that the user attached (its pages are pictures you can see, in attachments/): read the notes from the pictures yourself and write them into the song (a melody line, chords, or a midi-clip / sequence with note_add and sequence_row; ask nothing, say in one line which assumptions you made, such as the key and the tempo). ample_import_score needs Audiveris (OMR), which is usually not installed: if it answers AMP5464, do not stop there, carry on from the pictures.
 - A MIDI or score file the person wants editable, in parts or in segments ("make it editable", "split it", "I want to change the notes"): never copy its notes into the song by hand and never say the notes are too many to embed. Run ample_import_score on it (the file is in the project, or stage a fetched one with ample_copy_file first): it writes a .ampleseq with one channel per part and one pattern per N bars, and that file keeps every note. Then replace the `midi` block (and the `midi-render` that plays it) by a `sequencer` block with `file sequences/<name>.ampleseq` (lanes for the parts to treat separately), connect its output to whatever the old block fed (the master or a mixer), set the project tempo to the tempo the import reports, run ample_check, and say how many parts, notes and bars it has. Keep the original MIDI file in the project.
 - Writing notes shorter, with formulas and helpers ("find patterns", "less notes to write", "generate it with a formula"): the sound you calculate must be EXACTLY the same, so work in this order. (1) ample_find_patterns on the clip or on the sequencer channel: it looks for a rhythm that repeats with pitches, velocities and other settings that cycle, and every candidate it gives was already worked out and compared with the original (verified=true). (2) Apply a verified candidate: for a midi-clip put the expression in its notes (set_param), for a sequencer channel write the formula row it gives (a row that starts with =; sequence_row for a sequence kept in the song, or the .ampleseq file). (3) Prove it with ample_resolve_notes (block with compare_block, or expression with compare_expression): replace only when compare.same is true, and keep the original as a temporary clip until then. (4) For structure the finder cannot use (a motif that rises by a step, a motif transposed per bar, an arpeggio from chords) write a helper in the song (ample_docs name=language/14-helpers-types-and-dynamic) and prove it the same way. set(pitch=..., velocity=..., pan=..., ...) writes any setting of a note as a value or a list that cycles over the notes. Never replace notes by a formula you did not prove the same. If nothing shorter exists, say that in plain words (the music is not mathematical, or only a little) and leave the notes alone.
 - Real samples first: there is almost never a reason to leave a sound on the built-in synth voice. A `drums` block always gets a `kit` (a sample folder of the project such as samples/drums-full; list the project's samples folders first and take the one that fits the style, never leave `kit` empty, which plays the built-in sound), and a bass, keys, pad, guitar or strings voice is a `gm` block with a SoundFont program (`file pack:musescore-general`, a fitting `program`) or a sample set, not a bare `synth`, `bass` or `piano` block, unless the person asked for a synthetic sound. Before you use a drum voice in a pattern (kick, snare, hat, tom ...) check that the kit has a sample for it (the folder lists its files); a voice the kit lacks gets a `map` or `fallback` kit, or a real sample you find (ample_find_samples, ample_fetch_sample), or another voice. When you change or add a sound, say which real sample set it plays.
@@ -2288,7 +2294,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         - When a request asks for something that changes over time (a speed that slows down, an effect that grows, a fade) or something you cannot find: `ample_lookup topic=howto query=<word>` first (automation syntax and what accepts it, fades, speed, sections, sidechain), then `topic=diagnostic`/`search`. If it is not possible directly, do the closest workable thing and say plainly what it is; do not give up with "the docs have no syntax".
         - `ample_present`: let the user HEAR something: choose a musically useful slice of a block or master when that is the clearest preview; use the full render when the user asks for the full song or when a full listen is the sensible comparison. Slices use from/to in seconds or unit=bars. Present either the proposal (source=proposal) or the current project (source=current). The requested range is returned without an arbitrary duration cap, so never silently truncate a requested full-song preview. It appears in the task window as a card with a player; give it a label and say why, including the selected range when it is a slice. Use it when you are not sure which instrument, block or part the user means (present the candidates and say which you chose), to let them compare before and after, or to let them check a result. What you presented is remembered: ample_history lists it.
         - `ample_history`: what the user asked before in this project, what came out and whether it was accepted (the user may say "like before", "continue what we did", "undo that last thing"): `ample_history` lists the newest, `id=<id>` gives one in full with its changes. Look there before you say you do not know what they mean.
-        - `ample_answer`: when the task is a question from Koda (the user asks what something is or does), deliver the answer with this tool: `title` (3 to 6 words), `answer` (at most three sentences) and `details` (markdown the user can unfold: bullets with the impact of each thing, a heading Summary at the end, a small table where facts line up). Do not repeat the answer in your final message. `action` (optional): one short sentence for what the Do that button would do, only when your answer suggests a concrete change to the song; leave it out when the answer only explains, then the button is not shown.
+        - `ample_answer`: when the task is a question from Koda (the user asks what something is or does), deliver the answer with this tool: `title` (3 to 6 words), `answer` (at most three sentences) and `details` (markdown the user can unfold: bullets with the impact of each thing, a heading Summary at the end, a small table where facts line up). Do not repeat the answer in your final message. `action` (optional): one short sentence for what the Do that button would do, whenever your answer suggests a concrete change to the song (never write that the user can press Do that unless you give it, the button only exists with it); leave it out when the answer only explains, then the button is not shown.
         - `ample_revision`: a saved point (revision) of the project history, when the user points at one in the History tab: `id=<revision id>` says what it changed against the point before it, `path=<file>` adds that file's diff. A branch name such as garage is a line of the history, not a block of the song.
         - `ample_changes_since`: only in a RESUMED conversation (the AMPLE NOTE says so): what the project did since your working copy was based on it. No arguments is the overview, path=<file> that file's diff, path with import=true brings the project's version into your copy (merged with your edits). Look only at the files the new request needs.
         - `ample_lookup`: more when you need it. topic=units (what dB, %, ms, s, Hz, bars mean; how "20% quieter" converts to dB), topic=parameter name=type.parameter (unit, range, how to write it, what a change reaches), topic=impact name=<block> (what feeds it, what is rendered again when you change it, the files it reads), topic=search query=<word> (which block types, parameters and documents mention it). `ample_block_types type=<id>` lists every parameter with its unit, min, max, default and what it does.
@@ -2422,7 +2428,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             task.ThreadId = thread?["thread"]?["id"]?.GetValue<string>() ?? throw new AmpleException("AMP5453", "Codex did not start a thread.");
             sessionStore.SaveTask(task);
             task.Add("info", $"Codex started ({task.Identity}, {ModeLabel(task.Mode)}).");
-            string failure = await TurnAsync(task, "Do the task described in TASK.md: " + task.Request.Prompt.Trim() + (task.Request.Kind == "koda" ? $"\n(The song of this task is `{task.Request.Song}`: read it with ample_song or ample_file, location project (the default) and exactly that path.)" : string.Empty) + AttachHums(task, task.Request.Hums) + OfferFiles(task, task.Request.Offered) + AttachMemory(task), policy).ConfigureAwait(false);
+            string failure = await TurnAsync(task, "Do the task described in TASK.md: " + task.Request.Prompt.Trim() + (task.Request.Kind == "koda" ? $"\n(The song of this task is `{task.Request.Song}`: read it with ample_song or ample_file, location project (the default) and exactly that path.)" : string.Empty) + AttachHums(task, task.Request.Hums) + OfferFiles(task, task.Request.Offered) + AttachFiles(task, task.Request.Attachments) + AttachMemory(task), policy).ConfigureAwait(false);
             if (failure.Length == 0)
             {
                 failure = await RepairAsync(task, policy).ConfigureAwait(false);
@@ -2560,6 +2566,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                     task.Compacting = false;
                     task.Compactions++;
                     task.ContextUsed = 0;
+                    task.ReadCache.Clear();   // the summary no longer holds the answers it read: the next read must give them again
                     task.Add("info", $"Codex compacted its conversation ({task.Compactions}x): older steps are summarized, the proposal and its files are unchanged.");
                 }
 
@@ -2627,8 +2634,15 @@ Answer in English, whatever language the question is in, unless the user asks fo
     }
 
     /// <summary>One turn of work in the Codex session: the text is sent, and the answer is waited for. Returns an empty text, or why the turn did not finish.</summary>
+    /// <summary>
+    /// A new turn forgets what the earlier turns read: the conversation of the model may no longer hold those answers (a thread that was started again after a restart, or a compacted one),
+    /// and "unchanged since your last read" without the answer would leave it with nothing (Koda said it had no blocks to edit). Repeated reads inside one turn are still answered shortly.
+    /// </summary>
+    internal static void BeginTurnReads(AiTask task) => task.ReadCache.Clear();
+
     private static async Task<string> TurnAsync(AiTask task, string text, AiPolicy policy)
     {
+        BeginTurnReads(task);
         task.TurnActive = true;
         try
         {
@@ -2653,7 +2667,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         task.MessageText.Clear();
         task.Reasoning.Clear();
         task.BraveSearchCount = 0;
-        JsonNode? started = await task.Rpc!.RequestAsync("turn/start", new JsonObject { ["threadId"] = task.ThreadId, ["input"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text + Delivery }), ["effort"] = EffortOf(task, policy), ["model"] = task.ModelNow is { Length: > 0 } nowModel && !string.Equals(nowModel, "default", StringComparison.OrdinalIgnoreCase) ? nowModel : null, ["summary"] = "auto" }, TimeSpan.FromSeconds(60), task.Cancel.Token).ConfigureAwait(false);
+        JsonNode? started = await task.Rpc!.RequestAsync("turn/start", new JsonObject { ["threadId"] = task.ThreadId, ["input"] = InputOf(task, text + Delivery), ["effort"] = EffortOf(task, policy), ["model"] = task.ModelNow is { Length: > 0 } nowModel && !string.Equals(nowModel, "default", StringComparison.OrdinalIgnoreCase) ? nowModel : null, ["summary"] = "auto" }, TimeSpan.FromSeconds(60), task.Cancel.Token).ConfigureAwait(false);
         task.TurnId = started?["turn"]?["id"]?.GetValue<string>() ?? string.Empty;
         task.LastNotification = DateTimeOffset.UtcNow;
         while (true)
@@ -2773,6 +2787,30 @@ Answer in English, whatever language the question is in, unless the user asks fo
         // a sequence kept in a block of the song: a row of notes that cannot be read stops the build of that block, so it counts as a problem of the proposal
         foreach (BlockNode block in doc.Blocks.Where(b => b.Type == "sequencer"))
         {
+            // a sequencer that reads a .ampleseq: its lanes must name channels of that file (a lane renamed to an instrument that is no channel stops the build: "the lane 2 names 'contrabass', which is not a channel")
+            string? lanesText = block.Parameters.FirstOrDefault(p => p.Name == "lanes")?.Value;
+            string? seqFile = block.Parameters.FirstOrDefault(p => p.Name == "file")?.Value?.Trim().Trim('"');
+            if (!string.IsNullOrWhiteSpace(lanesText) && !string.IsNullOrWhiteSpace(seqFile) && seqFile.EndsWith(".ampleseq", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    foreach (string folder in new[] { root, s.Root })
+                    {
+                        string full = Path.GetFullPath(Path.Combine(folder, seqFile));
+                        if (full.StartsWith(Path.GetFullPath(folder), StringComparison.Ordinal) && File.Exists(full))
+                        {
+                            SequenceFile.Parse(File.ReadAllText(full)).ParseLanes(lanesText);
+                            break;
+                        }
+                    }
+                }
+                catch (AmpleException ex)
+                {
+                    string laneKey = $"error {ex.DiagnosticCode}: {block.Name}: {ex.Message} (the lanes of a sequencer name the channels of its .ampleseq: to change an instrument change the program of the channel in that file, or swap lanes only between channels that exist)";
+                    found.TryAdd(laneKey, laneKey);
+                }
+            }
+
             string? embedded = block.Parameters.FirstOrDefault(p => p.Name == "sequence")?.Value;
             if (string.IsNullOrWhiteSpace(embedded))
             {
@@ -3673,6 +3711,94 @@ Answer in English, whatever language the question is in, unless the user asks fo
     public string HumFile(string id) => id.Length == 12 && id.All(Uri.IsHexDigit) && File.Exists(Path.Combine(HumDir, id + ".wav")) ? Path.Combine(HumDir, id + ".wav") : throw new AmpleException("AMP5470", "There is no such recording (it may have been removed).");
 
     /// <summary>Gives the recordings the user attached to Codex: the raw audio in its working folder (assets/hum), and a line in the instruction that says so.</summary>
+    private AiAttachments? attachmentStore;
+
+    /// <summary>Keeps a file the user attached (a screenshot, a score, a text) and returns the id that the message carries.</summary>
+    internal AiAttachment SaveAttachment(string? name, byte[] data) => (attachmentStore ??= new AiAttachments(Path.Combine(s.Root, ".ample", "ai", "attachments"))).Save(name, data);
+
+    /// <summary>
+    /// What the user attached to a message: every file is copied into the working copy (attachments/), a picture is also queued for the next turn so that the model sees it,
+    /// and the note that names them is returned for the text of the message.
+    /// </summary>
+    private string AttachFiles(AiTask task, IEnumerable<string>? ids)
+    {
+        if (ids is null)
+        {
+            return string.Empty;
+        }
+
+        AiAttachments store = attachmentStore ??= new AiAttachments(Path.Combine(s.Root, ".ample", "ai", "attachments"));
+        List<string> lines = [];
+        foreach (string id in ids.Distinct(StringComparer.Ordinal).Take(AiAttachments.MaxPerMessage))
+        {
+            AiAttachment? file = store.Find(id);
+            if (file is null)
+            {
+                continue;
+            }
+
+            string dir = Path.Combine(task.Workspace, "attachments");
+            Directory.CreateDirectory(dir);
+            string target = Path.Combine(dir, file.Name);
+            for (int n = 2; File.Exists(target); n++)
+            {
+                target = Path.Combine(dir, Path.GetFileNameWithoutExtension(file.Name) + "-" + n.ToString(System.Globalization.CultureInfo.InvariantCulture) + Path.GetExtension(file.Name));
+            }
+
+            File.Copy(file.Path, target);
+            if (file.IsImage)
+            {
+                lock (task.PendingImages)
+                {
+                    task.PendingImages.Add(target);
+                }
+
+                lines.Add($"- {Path.GetFileName(target)}: a picture, you can see it (it is also in the working copy: attachments/{Path.GetFileName(target)})");
+            }
+            else if (string.Equals(Path.GetExtension(target), ".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                // sheet music and other PDFs: the pages become pictures, because the model can look at pictures
+                IReadOnlyList<string> pages = AiAttachments.RenderPdf(target, dir);
+                if (pages.Count > 0)
+                {
+                    lock (task.PendingImages)
+                    {
+                        task.PendingImages.AddRange(pages);
+                    }
+
+                    lines.Add($"- attachments/{Path.GetFileName(target)}: a PDF (for example sheet music); its {pages.Count} page(s) are pictures that you can see (attachments/{Path.GetFileNameWithoutExtension(target)}-page-N.png); read the music from those pictures yourself: ample_import_score needs Audiveris, which this machine usually does not have");
+                }
+                else
+                {
+                    lines.Add($"- attachments/{Path.GetFileName(target)} ({file.Size} bytes): a PDF that could not be turned into pictures on this machine; read it from the working copy if you have a tool for it");
+                }
+            }
+            else
+            {
+                lines.Add($"- attachments/{Path.GetFileName(target)} ({file.Size} bytes): read it from the working copy");
+            }
+        }
+
+        return lines.Count == 0 ? string.Empty : "\n\nThe user attached:\n" + string.Join('\n', lines);
+    }
+
+    /// <summary>The input of a turn: the text, and the pictures that were attached since the last turn.</summary>
+    private static JsonArray InputOf(AiTask task, string text)
+    {
+        JsonArray input = new(new JsonObject { ["type"] = "text", ["text"] = text });
+        lock (task.PendingImages)
+        {
+            foreach (string image in task.PendingImages)
+            {
+                input.Add(new JsonObject { ["type"] = "localImage", ["path"] = image });
+            }
+
+            task.PendingImages.Clear();
+        }
+
+        return input;
+    }
+
     private string AttachHums(AiTask task, IEnumerable<string>? ids)
     {
         List<string> added = [];
@@ -4264,10 +4390,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
     }
 
     /// <summary>The user goes on with a proposal: while Codex works the message steers it, afterwards it asks for a change on top of the proposal as it is now (the proposal is kept, extended and checked again).</summary>
-    public AiTask SendMessage(string id, string text, IEnumerable<string>? hums = null, IEnumerable<string>? offered = null)
-        => SendMessageCore(id, text, hums, offered, false);
+    public AiTask SendMessage(string id, string text, IEnumerable<string>? hums = null, IEnumerable<string>? offered = null, IEnumerable<string>? attachments = null)
+        => SendMessageCore(id, text, hums, offered, false, false, attachments);
 
-    private AiTask SendMessageCore(string id, string text, IEnumerable<string>? hums, IEnumerable<string>? offered, bool continuation, bool alreadyLogged = false)
+    private AiTask SendMessageCore(string id, string text, IEnumerable<string>? hums, IEnumerable<string>? offered, bool continuation, bool alreadyLogged = false, IEnumerable<string>? attachments = null)
     {
         AiTask task = GetTask(id);
         string clean = text.Trim();
@@ -4286,7 +4412,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         sessionStore.SaveTask(task);
         sessionStore.UpdateTask(task);
         string humNote = AttachHums(task, hums);
-        clean += humNote + OfferFiles(task, offered);
+        clean += humNote + OfferFiles(task, offered) + AttachFiles(task, attachments);
         if (task.Status is "running" or "waiting-approval" or "validating" && !task.TurnActive && task.PostTurn)
         {
             // Codex has finished its turn and AMPLE is checking and building the result: there is no turn to steer. The message is kept and goes to Codex as soon as that is done.
@@ -4305,7 +4431,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             {
                 try
                 {
-                    await task.Rpc.RequestAsync("turn/steer", new JsonObject { ["threadId"] = task.ThreadId, ["expectedTurnId"] = task.TurnId, ["input"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = clean }) }, TimeSpan.FromSeconds(30), CancellationToken.None).ConfigureAwait(false);
+                    await task.Rpc.RequestAsync("turn/steer", new JsonObject { ["threadId"] = task.ThreadId, ["expectedTurnId"] = task.TurnId, ["input"] = InputOf(task, clean) }, TimeSpan.FromSeconds(30), CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is AmpleException or TimeoutException or IOException)
                 {
@@ -4316,7 +4442,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                         {
                             AiPolicy policy = AiPolicy.Read();
                             task.BraveSearchCount = 0;
-                            JsonNode? started = await task.Rpc.RequestAsync("turn/start", new JsonObject { ["threadId"] = task.ThreadId, ["input"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = clean + Delivery }), ["effort"] = EffortOf(task, policy), ["model"] = task.ModelNow is { Length: > 0 } nowModel && !string.Equals(nowModel, "default", StringComparison.OrdinalIgnoreCase) ? nowModel : null, ["summary"] = "auto" }, TimeSpan.FromSeconds(60), CancellationToken.None).ConfigureAwait(false);
+                            JsonNode? started = await task.Rpc.RequestAsync("turn/start", new JsonObject { ["threadId"] = task.ThreadId, ["input"] = InputOf(task, clean + Delivery), ["effort"] = EffortOf(task, policy), ["model"] = task.ModelNow is { Length: > 0 } nowModel && !string.Equals(nowModel, "default", StringComparison.OrdinalIgnoreCase) ? nowModel : null, ["summary"] = "auto" }, TimeSpan.FromSeconds(60), CancellationToken.None).ConfigureAwait(false);
                             task.TurnId = started?["turn"]?["id"]?.GetValue<string>() ?? string.Empty;
                             task.Add("info", "Codex was between two turns: your message started a new turn.");
                             return;

@@ -101,6 +101,10 @@ alex.notes.tripleNotes introTriple stable at 2 for 3 {
 
 Namespaces are logical paths, independent of files. One file can hold components in several namespaces; several files can add to one namespace. `import "file.amplec" [as alias]` makes the components of a file available (the alias replaces the first segment of their names: `fx1.notes.tripleNotes`; the Library tab and `ample_component_library` propose one when a name is taken) (found like modules: project, linked folders, packs, the user library); `reexport <path> as <path>` offers a symbol (or a namespace with `.*`) of an import again, keeping its canonical id, version and provenance. Cycles are errors (AMP2217). The same exported path for two different canonical ids is AMP2213 and needs an explicit alias; **the last import never wins**.
 
+### Built-in components
+
+Some components ship with AMPLE (the files in `content/components`, embedded in the product): `ample.voice.clean` (low-cut, denoise, gate and de-esser behind three knobs) and `ample.voice.trim` (skip the first seconds, stop at a second, fade the ends). Every song sees them **by name, without an import line**: when the text of a song names one, the registry adds its file as an implicit import. They are in the Library tab of every project under "Built in" (the plus button adds a block and writes no import). Their ids start with `ample.builtin.`, their versions are fixed (a better sound is a new version, so a song never changes by itself, requirement R-A) and they raise no AMP2211 note. A project file with the same name still wins the usual conflict rules (AMP2212 to AMP2214).
+
 ## 6. Deprecation and migration
 
 ```

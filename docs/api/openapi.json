@@ -341,6 +341,31 @@
         }
       }
     },
+    "/api/ai/attachments": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Keeps a file that the user attaches to a message to Koda or the assistant (the raw body of the request, ?name=file.png; at most 40 MB, no programs): the answer has the id that the message carries as one of its attachments. Pictures are shown to the model, other files are put in the working copy of the task.",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/ai/browser/input": {
       "post": {
         "tags": [

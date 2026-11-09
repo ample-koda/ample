@@ -126,7 +126,7 @@ public static class LiteApi
             try
             {
                 // the rate limits first (cheap, before the files are read), then the files, then the place in the queue
-                governor.Spend("build", keys, lim.BuildsPerMinute, lim.BuildsPerHour);
+                governor.Spend("build", keys, [(TimeSpan.FromMinutes(1), lim.BuildsPerMinute, "a minute"), (TimeSpan.FromMinutes(5), lim.BuildsPerFiveMinutes, "5 minutes"), (TimeSpan.FromMinutes(15), lim.BuildsPerFifteenMinutes, "15 minutes"), (TimeSpan.FromHours(1), lim.BuildsPerHour, "an hour")]);
                 (string entry, List<LiteFile> files) = await Read(context, lim, blobs).ConfigureAwait(false);
                 if (context.Request.Query["stream"] == "1") return await StreamBuild(context, spec, libraryHome, entry, files, lim, outputs, governor, keys, isolation).ConfigureAwait(false);
                 using IDisposable slot = await governor.EnterBuildAsync(keys, null, context.RequestAborted).ConfigureAwait(false);

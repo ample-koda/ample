@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../Ample.Core.Abstractions/Ample.Core.Abstractions.csproj" />
+    <EmbeddedResource Include="..\..\content\components\*.amplec" LogicalName="components/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
