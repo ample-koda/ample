@@ -699,7 +699,7 @@ test('the line of Koda does not point into the void when its target is scrolled 
   expect(seen.shown).toBe(true);
 });
 
-test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply @quarantine', async ({ page }) => {
+test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.evaluate(async () => {
@@ -729,13 +729,13 @@ test('draft or live: a pill in the bubble until the first reply; live applies th
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBe('1');
   await page.keyboard.press('Control+k');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
-  await page.locator('#koda-layer .riskpill').click({ force: true });   // Koda moves about in live mode, so it is never 'stable'
+  await page.locator('#koda-layer .riskpill').dispatchEvent('click');   // Koda moves about in live mode, so a mouse click can miss the pill: click it without the mouse
   // the third state: bare metal (live, quick and rough), remembered as 2 and tinted
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('data-mode', 'bare');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('#koda-layer')).toHaveAttribute('data-mode', 'bare');
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBe('2');
-  await page.locator('#koda-layer .riskpill').click({ force: true });
+  await page.locator('#koda-layer .riskpill').dispatchEvent('click');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'false');
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBeNull();
 });
