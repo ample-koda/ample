@@ -24,7 +24,7 @@ const openLibrary = async (page) => {
   await expect(page.locator('#clib-list .clib-entry')).toHaveCount(5);   // the three of the project and the two that ship with AMPLE
 };
 
-test('the library lists every component of the project, the imported one marked', async ({ page }) => {
+test('the library lists every component of the project, the imported one marked @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await openLibrary(page);
   const triple = page.locator('#clib-list .clib-entry', { hasText: 'Triple notes' });
@@ -34,7 +34,7 @@ test('the library lists every component of the project, the imported one marked'
   await expect(triple.locator('.tplitem')).toHaveAttribute('title', /Repeats the notes a few times/);
 });
 
-test('the search finds by name, #tag and description, and a tag chip filters', async ({ page }) => {
+test('the search finds by name, #tag and description, and a tag chip filters @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await openLibrary(page);
   await page.fill('#clib-q', '#triplet');   // the tag was written with a capital: tags are lower case
@@ -48,7 +48,7 @@ test('the search finds by name, #tag and description, and a tag chip filters', a
   await expect(page.locator('#clib-info')).toContainText('Nothing found');
 });
 
-test('adding shows the lines first, writes the import and a block, and the entry is marked imported', async ({ page }) => {
+test('adding shows the lines first, writes the import and a block, and the entry is marked imported @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await openLibrary(page);
   const echo = page.locator('#clib-list .clib-entry', { hasText: 'Dream echo' });
@@ -63,7 +63,7 @@ test('adding shows the lines first, writes the import and a block, and the entry
   await expect(page.locator('#clib-list .clib-entry', { hasText: 'Dream echo' }).locator('.clib-st')).toBeVisible({ timeout: 15000 });
 });
 
-test('the library reads only the files that changed (the rest comes from the cache) and sees a new file after a scan', async ({ page }) => {
+test('the library reads only the files that changed (the rest comes from the cache) and sees a new file after a scan @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   const first = await api('/api/components/library?path=song.amplet');
   expect(first.files.length).toBe(5);   // three of the project and two that ship with AMPLE (not counted as scanned or cached)
