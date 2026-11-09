@@ -76,7 +76,7 @@ test('the add-block menu lists categories A to Z, and effect groups contain alph
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).blocks.length).toBe(before + 1);
 });
 
-test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back @quarantine', async ({ page }) => {
+test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = node(page, 'drums');
   const grip = block.locator('.size-grip');
@@ -233,7 +233,7 @@ test('the notes of a block are the comment above it in the song', async ({ page 
   await expect.poll(async () => ((await api('/api/doc?path=song.amplet')).text as string)).toMatch(/# keep the bass low\n# and simple\nbass bass /);
 });
 
-test('the outputs node of a group can be moved, and stays where it was put @quarantine', async ({ page }) => {
+test('the outputs node of a group can be moved, and stays where it was put', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await page.evaluate(async () => {
     const store = await import('/app/store.js');
