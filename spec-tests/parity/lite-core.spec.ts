@@ -620,7 +620,10 @@ test('a link that was opened before and whose copy holds changes asks what to do
   await page.goto(page.url().split('#')[0] + '#demo=hello-melody');
   await page.reload();
   await expect(page.locator('#lite-tour')).toBeVisible();
-  await page.click('#lite-tour-skip');   // open it without building
+  await expect(async () => {   // the question about an earlier copy can come up just now and covers the tour: answer it (a new fresh copy) and skip again
+    if (await page.locator('#lite-dialog').isVisible()) await page.click('#lite-dialog-cancel', { timeout: 2000 });
+    await page.click('#lite-tour-skip', { timeout: 2000 });   // open it without building
+  }).toPass({ timeout: 20000 });
   await expect(page.locator('#lite-tour')).toBeHidden();
   await typeAtEnd(page, '\n# my own change');
   await expect(page.locator('#lite-saved')).toHaveText('saved on this browser');
