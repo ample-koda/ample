@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => { await openApp(page, { reset: false }); awa
 
 // the song may still be loading when this runs, and loading it again clears the selection: select again until the selection is still there a moment later
 const select = (page, ids: string[]) => expect(async () => {
-  await page.evaluate(async (names) => { const s = await import('/app/store.js'); names.forEach((n, i) => s.select(n, i > 0)); }, ids);
+  await page.evaluate(async (names) => { const s = await import('/app/store.js'); names.forEach((n, i) => s.select(n, i > 0)); s.notifySelection(); s.notify(); }, ids);   // the Save button listens to these two, as the canvas calls them after a click
   await page.waitForTimeout(400);
   expect(await page.evaluate(async (names) => { const s = await import('/app/store.js'); return names.every((n) => s.S.selSet.has(n)); }, ids)).toBe(true);
 }).toPass({ timeout: 20000 });
