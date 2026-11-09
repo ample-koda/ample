@@ -245,8 +245,9 @@ test('the outputs node of a group can be moved, and stays where it was put', asy
   });
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const out = node(page, 'out');
-  const before = (await out.boundingBox())!;
-  const head = (await out.locator('.node-nameplate, .t').first().boundingBox())!;
+  const measured = async (target: import('@playwright/test').Locator) => { let found: { x: number; y: number; width: number; height: number } | null = null; await expect.poll(async () => { found = await target.boundingBox(); return found !== null; }).toBe(true); return found!; };   // the canvas can draw the block again just now
+  const before = await measured(out);
+  const head = await measured(out.locator('.node-nameplate, .t').first());
   await page.mouse.move(head.x + head.width / 2, head.y + head.height / 2);
   await page.mouse.down(); await page.mouse.move(head.x + head.width / 2 + 90, head.y + head.height / 2 + 60, { steps: 6 }); await page.mouse.up();
   await expect.poll(async () => { const box = await out.boundingBox(); return box ? box.x - before.x : 0; }).toBeGreaterThan(40);
