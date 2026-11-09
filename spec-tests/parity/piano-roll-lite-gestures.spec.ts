@@ -111,6 +111,7 @@ test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an oct
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:60:96');
   await page.keyboard.press('Shift+ArrowUp');
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:61:96');
+  await page.waitForTimeout(200);   // the preview of a moved note is throttled (90 ms): a key that comes sooner is moved but not heard
   await page.keyboard.press('Control+ArrowUp');
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:73:96');
   await expect.poll(async () => (await calls(panel)).some((c) => c.pitch === 73)).toBe(true);   // the preview of the new pitch is started a moment after the note has moved
