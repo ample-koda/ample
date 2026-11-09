@@ -80,6 +80,8 @@ test('a block can be made smaller or bigger by its grip, the size is kept and a 
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = node(page, 'drums');
   const grip = block.locator('.size-grip');
+  await expect(block.locator('.node-status')).toBeVisible({ timeout: 30000 });   // the first build of the song ends with a status on the block and draws it again: drag after that, not in the middle of it
+  await page.waitForTimeout(500);
   let before = 0;
   await expect(async () => {   // the grip shows while the pointer is over the block and fades in: hold it when it stands still, and try again if the drag did not take hold
     await block.hover();
