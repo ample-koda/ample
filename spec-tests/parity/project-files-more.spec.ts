@@ -235,7 +235,7 @@ test('the folder path scales: it folds its early parts and keeps only the Up but
   await expect(crumb.locator('.crumb-part.current')).toHaveText('sequences');
 });
 
-test('a deep folder path folds its early parts into a menu before it falls back to the Up button @quarantine', async ({ page }) => {
+test('a deep folder path folds its early parts into a menu before it falls back to the Up button', async ({ page }) => {
   await openPanel(page);
   await page.evaluate(() => { const key = Object.keys(localStorage).find((k) => k.startsWith('ample.project-panel.'))!; localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) || '{}'), folder: 'deep/one/two/three/four' })); });
   await page.reload();
@@ -248,7 +248,7 @@ test('a deep folder path folds its early parts into a menu before it falls back 
   await crumb.evaluate((node, width) => { (node as HTMLElement).style.flex = `0 0 ${width}px`; }, full - 40);
   await expect(crumb.locator('.crumb-more')).toBeVisible();   // early parts folded
   await expect(crumb.locator('.crumb-part.current')).toHaveText('four');
-  expect(await crumb.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await expect.poll(() => crumb.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);   // the fold settles a frame after the menu button shows
   await crumb.locator('.crumb-more').click();
   const folded = ((await crumb.locator('.crumb-more').getAttribute('title')) || '').split(' / ');
   expect(folded.length).toBeGreaterThan(0);

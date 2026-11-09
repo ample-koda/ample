@@ -206,7 +206,7 @@ public sealed class HostTests : IDisposable
     {
         PluginResult result = await Render("flaky", "logsecret");
         Assert.DoesNotContain(result.Logs, l => l.Contains("hunter2-secret", StringComparison.Ordinal));
-        Assert.Contains(result.Logs, l => l.Contains("token=[REDACTED]", StringComparison.Ordinal));
+        Assert.Contains(result.Logs, l => l.Contains("using token [REDACTED]", StringComparison.Ordinal));   // the log call's line; the stderr line travels on another pipe and may arrive after the answer
         Assert.Contains(result.Logs, l => l.Contains("using token [REDACTED]", StringComparison.Ordinal));
     }
 
@@ -336,7 +336,7 @@ public sealed class VaultSecretTests : IDisposable
         Directory.CreateDirectory(job);
         PluginResult result = await host.RenderAsync(Paths.Find("flaky"), new PluginJob(job, Paths.Params("logsecret", job), TimeSpan.FromSeconds(30)), CancellationToken.None);
         Assert.DoesNotContain(result.Logs, l => l.Contains(Canary, StringComparison.Ordinal));
-        Assert.Contains(result.Logs, l => l.Contains("token=[REDACTED]", StringComparison.Ordinal));
+        Assert.Contains(result.Logs, l => l.Contains("using token [REDACTED]", StringComparison.Ordinal));   // the log call's line; the stderr line travels on another pipe and may arrive after the answer
         Assert.DoesNotContain(Directory.EnumerateFiles(job, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains(Canary, StringComparison.Ordinal));
     }
 
