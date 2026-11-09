@@ -1,0 +1,244 @@
+[
+  {
+    "id": "big-rusty-drums",
+    "tier": "free",
+    "title": "Big Rusty Drums (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Close microphones, medium velocity, first round robin of each drum.",
+    "instruments": [
+      "kit"
+    ],
+    "bytes": 382954,
+    "files": 8,
+    "sha256": "ae6a1906f9412ff370281c5e963ff7ab9c5982d672b8fb6db0b4ae7449c5b23d",
+    "asset": "big-rusty-drums.zip"
+  },
+  {
+    "id": "black-and-blue-basses",
+    "tier": "free",
+    "title": "Black and Blue Basses (Karoryfer Samples), Baby Blue",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Baby Blue electric bass, regular playing, forte, first round robin; one file per note. Also darkblack: a darker, more aggressive bass from the same repo, chromatic across 25 notes, 4 dynamic layers (p/mp/mf/f, word-labelled so mapped by hand like Growlybass), round robin.",
+    "instruments": [
+      "babyblue",
+      "darkblack"
+    ],
+    "bytes": 140530302,
+    "files": 445,
+    "sha256": "02289548ceb8d2f08bb2caf6f2b8b2c704457733f7ea4dde9c9c59b1fd4be847",
+    "asset": "black-and-blue-basses.zip"
+  },
+  {
+    "id": "black-and-green-guitars",
+    "tier": "free",
+    "title": "Black and Green Guitars (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "The green guitar, ordinary playing, mezzo-forte, first round robin; one file per note.",
+    "instruments": [
+      "green-electric"
+    ],
+    "bytes": 10745612,
+    "files": 50,
+    "sha256": "88071c3ff69da4f7d37aa2c598e3a806d0960eb803039f3f513e4e5429cbd9ad",
+    "asset": "black-and-green-guitars.zip"
+  },
+  {
+    "id": "emilyguitar",
+    "tier": "free",
+    "title": "Emily guitar (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Epiphone Emily the Strange electric guitar, mezzo-forte, first round robin; one file per note.",
+    "instruments": [
+      "emily"
+    ],
+    "bytes": 3791528,
+    "files": 21,
+    "sha256": "7f0ba91cc8627b3916e216ecb21dcd8437b211af5971be3e1cce34681b7c1aa0",
+    "asset": "emilyguitar.zip"
+  },
+  {
+    "id": "frankensnare",
+    "tier": "free",
+    "title": "Frankensnare (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "A dedicated snare collection (many sizes/types); this set is the 14\" type-A snare's basic hit, top mic, full depth (11 velocity layers x 4 round robins) - a tight, modern snare to layer over or swap into another kit for a punchier hit.",
+    "instruments": [
+      "snare"
+    ],
+    "bytes": 3667371,
+    "files": 47,
+    "sha256": "ac1a9452ae9b0dd280f34bc4d069dbae4c21dd40c4c4bdf8468387339c7f9306",
+    "asset": "frankensnare.zip"
+  },
+  {
+    "id": "growlybass",
+    "tier": "free",
+    "title": "Growlybass (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "An aggressive bass for the low end under a metal guitar. Dynamics are dynamic-mark folders (pp/p/f/ff), not numeric velocity, so 4 separate rules map them to layers 1-4 by hand; 4 round robins each, 7 notes (a2 c3 e2 a3 c4 a4 c5).",
+    "instruments": [
+      "sustain"
+    ],
+    "bytes": 40955554,
+    "files": 115,
+    "sha256": "f74c3b6303fa45a15d1da2d6ee9028d5a7ab77ec162078317c7ac818c085ac26",
+    "asset": "growlybass.zip"
+  },
+  {
+    "id": "headroom-piano",
+    "tier": "licensed",
+    "title": "Headroom Piano",
+    "license": "Creative Commons Attribution 4.0 (CC BY 4.0): free to use, also commercially, when you credit the author",
+    "description": "Close microphones, level 3 of 5, one file per third note.",
+    "instruments": [
+      "headroom"
+    ],
+    "bytes": 12763669,
+    "files": 34,
+    "sha256": "9abdf7ced8cd6ebeffb933bb73f6d85b1ff4a8689d274b3ac25885f505f1ccae",
+    "asset": "headroom-piano.zip"
+  },
+  {
+    "id": "meatbass",
+    "tier": "free",
+    "title": "Meatbass double bass (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Pizzicato, second velocity layer, first round robin; one file per note. \"pizzicato-deep\" is the same articulation with full depth (4 velocity layers x 4 round robins) instead.",
+    "instruments": [
+      "pizzicato",
+      "pizzicato-deep"
+    ],
+    "bytes": 34268314,
+    "files": 242,
+    "sha256": "11b9dce052c4462eb83986f133606e157bf852b75e06b185cbfab7a71012b399",
+    "asset": "meatbass.zip"
+  },
+  {
+    "id": "naked-drums",
+    "tier": "licensed",
+    "title": "Naked Drums (Wilkinson Audio)",
+    "license": "CC BY 4.0 (attribution required)",
+    "description": "A large multi-mic ARIA-SFZ kit built from nested #include/#define macros, not a plain filename scheme; its round robins are spelled as words (one..ten) with 3 unexplained hash-suffixed takes each, which does not fit this tool's numeric round-robin extraction. Took velocity depth only (5 layers, round robin 'one'): close/bottom mic kick, close-room mic snare, dedicated hi-hat mic. The full kit also has far more pieces (toms, multiple cymbals, several room/overhead mic blends) left unmapped.",
+    "instruments": [
+      "kit"
+    ],
+    "bytes": 1082653,
+    "files": 15,
+    "sha256": "24d339ded37129ba83b3ff0a4655256359d82ae3468f9ec23f7491bd73837111",
+    "asset": "naked-drums.zip"
+  },
+  {
+    "id": "osiris-piano",
+    "tier": "free",
+    "title": "Osiris Piano",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Upright piano, sustain, noisy variant, microphone A, second velocity layer; one file per natural note.",
+    "instruments": [
+      "upright"
+    ],
+    "bytes": 29504764,
+    "files": 55,
+    "sha256": "042dca8a64b811a2b036ed0d8ffe03cb12dcd357e6ac050b8482fa543ac39b31",
+    "asset": "osiris-piano.zip"
+  },
+  {
+    "id": "salamander-grand-piano",
+    "tier": "licensed",
+    "title": "Salamander Grand Piano V3",
+    "license": "Creative Commons Attribution 3.0 Unported (CC BY 3.0): free to use, also commercially, when you credit the author",
+    "description": "Velocity layer 8 of 16, one file per minor third; AMPLE moves the nearest sample to the note that is played.",
+    "instruments": [
+      "grand"
+    ],
+    "bytes": 13388086,
+    "files": 34,
+    "sha256": "eee74157652b0c9220c52fe2615e41f2b0310977b46ad52f5e7bd5b2125accb1",
+    "asset": "salamander-grand-piano.zip"
+  },
+  {
+    "id": "shinyguitar",
+    "tier": "free",
+    "title": "Shinyguitar (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "A second electric guitar tone, distinct from Black and Green Guitars and Emily Guitar - sparse note sampling (9 notes, major-third spacing: a2 c3 e2 a3 c4 a4 c5 a5 c6), but full velocity/round-robin depth (4 layers x 4 RR) per note. Also has an 'acoustic' set from the same repo.",
+    "instruments": [
+      "electric"
+    ],
+    "bytes": 33315619,
+    "files": 147,
+    "sha256": "09e55bad91fcb32cf3d7d0987c90e4ae2c3b6fa7ea51aaee0d4fcaca3b054a3d",
+    "asset": "shinyguitar.zip"
+  },
+  {
+    "id": "swirly-drums",
+    "tier": "free",
+    "title": "Swirly Drums (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "A world-percussion/extended-cymbal kit, not a standard acoustic rock kick (no plain kick, only cajon/marching/buzz variants): cajon kick front mic (13x4), snare top mic (12x4), closed hat (12x4), open hat (14x4), crash (12x4), ride (15x4), djembe (12x4). Use as a percussion layer, not a full metal kit.",
+    "instruments": [
+      "kit"
+    ],
+    "bytes": 35713168,
+    "files": 363,
+    "sha256": "79a8bfa06462d43ffb8a6bcab77e5ed2002a1c61a1dc8ef88186092532acb0d9",
+    "asset": "swirly-drums.zip"
+  },
+  {
+    "id": "the-hat-with-the-phat",
+    "tier": "free",
+    "title": "The Hat With The Phat (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "A dedicated 20\" hi-hat with more articulations than a usual kit's hi-hat: closed edge (4 layers x 4 RR) and open bow (5 layers x 4 RR), both default branch is master not main.",
+    "instruments": [
+      "hihat"
+    ],
+    "bytes": 5594668,
+    "files": 39,
+    "sha256": "29ce5ca5638d446916c9bfb80e3c1d6f231c57ffc4e1ee7786074ad4bf2d5670",
+    "asset": "the-hat-with-the-phat.zip"
+  },
+  {
+    "id": "unruly-drums",
+    "tier": "free",
+    "title": "Unruly Drums (Karoryfer Samples)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Main close/out mic per piece, full velocity layers and round robins of the natural (non-brush, non-choke) hit: kick out/clean (8 layers x 4 RR), snare top/center (8x4), hi-hat close mic tip (7x4 closed and open), crash close mic bow (5x4), ride close mic bow (8x4). No toms in this kit.",
+    "instruments": [
+      "kit"
+    ],
+    "bytes": 37136591,
+    "files": 175,
+    "sha256": "c1a84eb899e31c6d8773f3473983479915dd2c34fc24081cdf95027e6ada8513",
+    "asset": "unruly-drums.zip"
+  },
+  {
+    "id": "virtuosity-drums",
+    "tier": "free",
+    "title": "Virtuosity Drums (jazz kit)",
+    "license": "CC0 1.0 (public domain dedication)",
+    "description": "Middle microphone. Snare and toms: velocity layer 8 of 16; kick, hi-hat, ride and crash: layer 3 of 4, first round robin.",
+    "instruments": [
+      "jazz-kit",
+      "studio-kit"
+    ],
+    "bytes": 10480236,
+    "files": 123,
+    "sha256": "2888a7e58a9e102f72ce17160d9177c65798417f1046f9862dd5d89130af6cfb",
+    "asset": "virtuosity-drums.zip"
+  },
+  {
+    "id": "vsco-2-ce",
+    "tier": "free",
+    "title": "VSCO 2 Community Edition (Versilian Studios)",
+    "license": "CC0 1.0 (public domain dedication, from the LICENSE file of the repository)",
+    "description": "Upright piano (dynamic layer 2 of 3, first round robin) and violin ensemble pizzicato (velocity 2). Credit to the authors is encouraged, not required.",
+    "instruments": [
+      "upright-piano",
+      "violin-pizzicato"
+    ],
+    "bytes": 8872761,
+    "files": 39,
+    "sha256": "36ad0c762da7bb1b73c1e20b41173bb34cfd6b0096527d75df66d095357ca3e7",
+    "asset": "vsco-2-ce.zip"
+  }
+]
