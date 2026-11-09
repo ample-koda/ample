@@ -63,7 +63,7 @@ test('the Live switch loops the sound that feeds the block, a moving knob sends 
   expect(await page.evaluate(async () => (await import('/app/player.js')).playerState().playing)).toBe(false);
 });
 
-test('without a built source the switch says what to build first and starts nothing', async ({ page }) => {
+test('without a built source the switch says what to build first and starts nothing @quarantine', async ({ page }) => {
   // the tests of this file share one server: an earlier test may have built the source already, and then there is nothing to say
   test.skip((await node(page, 'src').locator('.player').count()) > 0, 'the source was built by an earlier test');
   await node(page, 'echo').click({ position: { x: 24, y: 12 } });

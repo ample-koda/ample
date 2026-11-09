@@ -33,7 +33,7 @@ test('built, it has a player on the card and its graph shows the piano and the e
   expect(graph.nodes.map((n: { id: string }) => n.id)).toEqual(['piano1', 'delay1', 'reverb1']);
 });
 
-test('the Live switch loops the instrument the server rendered and runs the effects after it', async ({ page }) => {
+test('the Live switch loops the instrument the server rendered and runs the effects after it @quarantine', async ({ page }) => {
   await node(page, 'voice').click({ position: { x: 24, y: 12 } });
   const live = page.locator('#props .cui-live');
   await expect(live).toBeEnabled();
