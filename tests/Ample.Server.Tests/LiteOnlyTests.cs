@@ -170,7 +170,7 @@ public sealed class LiteOnlyTests : IAsyncLifetime, IDisposable
     {
         JsonElement limits = JsonDocument.Parse(await http.GetStringAsync("/api/remix/limits")).RootElement;
         Assert.True(limits.GetProperty("public").GetBoolean());
-        Assert.Equal(4, limits.GetProperty("buildsPerMinute").GetInt32());
+        Assert.Equal(LiteLimits.Public.BuildsPerMinute, limits.GetProperty("buildsPerMinute").GetInt32());
         Assert.Equal(LiteLimits.Public.MaxProjectBytes, limits.GetProperty("maxProjectBytes").GetInt64());
     }
 
@@ -193,9 +193,9 @@ public sealed class LiteOnlyTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task The_fifth_build_in_a_minute_is_refused_and_says_how_long_to_wait()
+    public async Task The_build_over_the_limit_in_a_minute_is_refused_and_says_how_long_to_wait()
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < LiteLimits.Public.BuildsPerMinute; i++)
         {
             using HttpResponseMessage ok = await http.PostAsync("/api/remix/build", Form());
             Assert.Equal(HttpStatusCode.OK, ok.StatusCode);

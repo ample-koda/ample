@@ -63,7 +63,10 @@ test('the Live switch loops the sound that feeds the block, a moving knob sends 
   expect(await page.evaluate(async () => (await import('/app/player.js')).playerState().playing)).toBe(false);
 });
 
-test('without a built source the switch says what to build first and starts nothing @quarantine', async ({ page }) => {
+test('without a built source the switch says what to build first and starts nothing', async ({ page }) => {
+  // the tests of this file share one server: an earlier test may have built the source already, and then there is nothing to say
+  const built = await expect(node(page, 'src').locator('.player')).toHaveCount(1, { timeout: 4000 }).then(() => true, () => false);   // its player is drawn a moment after the page is ready
+  test.skip(built, 'the source was built by an earlier test');
   await node(page, 'echo').click({ position: { x: 24, y: 12 } });
   await page.locator('#props .cui-live').click();
   await expect(page.locator('#toast')).toContainText('Build src first');

@@ -1,0 +1,41 @@
+/** Cleans up a voice recording: rumble out, noise down, quiet gaps closed, harsh s sounds softened. */
+#[DisplayName("Voice clean")]
+#[Category("Audio effects")]
+#[Tags("voice", "recording", "noise", "cleanup", "gate", "deesser")]
+component ample.voice.clean version 1.0.0 current {
+  id "ample.builtin.voice-clean"
+
+  input audio: Audio
+
+  #[MinValue(0%), MaxValue(100%)]
+  property noise: Percent = 50%
+
+  #[MinValue(-70dB), MaxValue(-20dB)]
+  property gate: Gain = -50dB
+
+  #[MinValue(-50dB), MaxValue(-10dB)]
+  property sibilance: Gain = -30dB
+
+  output audio: Audio
+
+  ui {
+    row {
+      knob noise label "Noise" size l tint blue
+      knob gate label "Gate" size l tint orange
+      knob sibilance label "S sounds" size l tint green
+    }
+    meter audio
+    card {
+      knob noise size s
+      knob gate size s
+    }
+  }
+
+  process {
+    emit audio
+      |> filter(type=highpass, cutoff=80Hz)
+      |> denoise(sensitivity=noise)
+      |> gate(threshold=gate)
+      |> deesser(threshold=sibilance)
+  }
+}

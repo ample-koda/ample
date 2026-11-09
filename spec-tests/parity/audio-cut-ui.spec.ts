@@ -3,6 +3,10 @@ import * as path from 'node:path';
 import { test, expect, Page } from '@playwright/test';
 import { api, chooseMenu, freshServer, openApp } from '../../web/tests/support';
 
+// a box that is there: the canvas and the panels are drawn again now and then, and a measurement taken in between finds nothing
+const boxOf = async (target: import('@playwright/test').Locator) => { let found: { x: number; y: number; width: number; height: number } | null = null; await expect.poll(async () => { found = await target.boundingBox(); return found !== null; }).toBe(true); return found!; };
+
+
 // The controls on the blocks that cut and fit audio and the mixer lanes (a server of their own, apart from the rendering specs in audio-cut.spec.ts).
 function wav(samples: number[], rate = 44100): Buffer {
   const b = Buffer.alloc(44 + samples.length * 2);
@@ -31,7 +35,7 @@ test('a mixer grows lanes when its grip is dragged down', async ({ page }) => {
   const inputs = () => page.evaluate(async () => { const store = await import('/app/store.js'); return store.flat().nodes.find((n: { id: string }) => n.id === 'mix')!.ins.length; });
   expect(await inputs()).toBe(6);
   await block.hover();
-  const box = (await block.locator('.size-grip').boundingBox())!;
+  const box = (await boxOf(block.locator('.size-grip')));
   await page.mouse.move(box.x + 7, box.y + 7); await page.mouse.down(); await page.mouse.move(box.x + 7, box.y + 7 + 160, { steps: 24 });
   await page.mouse.up();
   await expect.poll(inputs).toBeGreaterThan(6);
@@ -43,11 +47,11 @@ test('while the grip of a mixer is dragged the new lanes show at once', async ({
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = page.locator('.node[data-id="mix"]');
   await block.hover();
-  const box = (await block.locator('.size-grip').boundingBox())!;
-  const before = (await block.boundingBox())!.height;
+  const box = (await boxOf(block.locator('.size-grip')));
+  const before = (await boxOf(block)).height;
   await page.mouse.move(box.x + 7, box.y + 7); await page.mouse.down(); await page.mouse.move(box.x + 7, box.y + 7 + 160, { steps: 24 });
   await expect(block.locator('.ghost-lane').first()).toBeVisible();
-  expect((await block.boundingBox())!.height).toBeGreaterThan(before + 20);
+  expect((await boxOf(block)).height).toBeGreaterThan(before + 20);
   await page.mouse.up();
   await expect(block.locator('.ghost-lane')).toHaveCount(0);
 });
@@ -111,14 +115,15 @@ test('a volume block is small, and its faders open in a window', async ({ page }
   await setSong(page, `${song('')}volume vol at 1 for 1 {\n  from src.audio -> audio\n  left_gain -6 dB\n}\n`);
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = page.locator('.node[data-id="vol"]');
-  expect((await block.boundingBox())!.height).toBeLessThan(260);
+  expect((await boxOf(block)).height).toBeLessThan(260);
   await expect(block.locator('.volume-summary')).toContainText('L -6 dB');
   await expect(block.locator('.volume-fader, input[type=range]')).toHaveCount(0);   // the faders are not on the block
   await block.getByRole('button', { name: /^Open the faders of/ }).click();
   const pop = block.locator('.volume-pop');
   await expect(pop).toBeVisible();
   await expect(pop.getByRole('button', { name: /Live preview/ })).toBeVisible();
-  const size = (await block.boundingBox())!.height;
+  let size = 0;
+  await expect.poll(async () => { size = (await block.boundingBox())?.height ?? 0; return size; }).toBeGreaterThan(0);   // the block can be drawn again just now: wait until it has a place
   await pop.getByText('Mute L').click();   // using the faders does not close them
   await expect(pop).toBeVisible();
   await expect.poll(async () => (await block.boundingBox())?.height).toBe(size);   // the faders hang over what is below: the block itself keeps its size
@@ -133,7 +138,7 @@ test('points of an automation curve can be dragged and removed with a right clic
   await expect(dots).toHaveCount(3);
   const readout = () => page.locator('#dlg .auto-source').textContent();
   const before = await readout();
-  const box = (await dots.nth(1).boundingBox())!;
+  const box = (await boxOf(dots.nth(1)));
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 6 }); await page.mouse.up();
   expect(await readout()).not.toBe(before);   // the point followed the pointer all the way
@@ -151,15 +156,15 @@ test('the faders of a volume block stay open while the canvas is zoomed with the
   await block.getByRole('button', { name: /^Open the faders of/ }).click();
   const pop = block.locator('.volume-pop');
   await expect(pop).toBeVisible();
-  const before = (await pop.boundingBox())!.width;
-  const box = (await block.boundingBox())!;
+  const before = (await boxOf(pop)).width;
+  const box = (await boxOf(block));
   await page.mouse.move(box.x + box.width / 2, box.y + 10);
   await page.mouse.wheel(0, -300);
   await page.waitForTimeout(400);
   await expect(pop).toBeVisible();
-  expect((await pop.boundingBox())!.width).toBeGreaterThan(before);   // zoomed in with the faders open
+  expect((await boxOf(pop)).width).toBeGreaterThan(before);   // zoomed in with the faders open
   // with the pointer on the faders themselves
-  const faders = (await pop.boundingBox())!;
+  const faders = (await boxOf(pop));
   await page.mouse.move(faders.x + faders.width / 2, faders.y + faders.height / 2);
   await page.mouse.wheel(0, -200);
   await page.waitForTimeout(400);

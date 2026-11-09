@@ -5,9 +5,14 @@ import { freshServer, openApp, srcText } from '../../web/tests/support';
 freshServer({ song: 'composition "p" { ample 1  tempo 100  master-seed 3 }\nmidi-clip chords {\n  chords Am F C G\n  bars 8\n}\npiano keys pinned@2.1 at 1 for 8 {\n  gain -9\n  humanize 18\n  from chords.notes -> notes\n}\n' });
 test.beforeEach(async ({ page }) => { await openApp(page, { reset: false }); await page.locator('#ltabs button[data-l="tpl"]').click(); });
 
-const select = (page, ids: string[]) => page.evaluate(async (names) => { const s = await import('/app/store.js'); names.forEach((n, i) => s.select(n, i > 0)); }, ids);
+// the song may still be loading when this runs, and loading it again clears the selection: select again until the selection is still there a moment later
+const select = (page, ids: string[]) => expect(async () => {
+  await page.evaluate(async (names) => { const s = await import('/app/store.js'); names.forEach((n, i) => s.select(n, i > 0)); s.notifySelection(); s.notify(); }, ids);   // the Save button listens to these two, as the canvas calls them after a click
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(async (names) => { const s = await import('/app/store.js'); return names.every((n) => s.S.selSet.has(n)); }, ids)).toBe(true);
+}).toPass({ timeout: 20000 });
 
-test('selected blocks are saved as a template with a setting, added again under free names at another bar, and deleted @quarantine', async ({ page }) => {
+test('selected blocks are saved as a template with a setting, added again under free names at another bar, and deleted', async ({ page }) => {
   await select(page, ['chords', 'keys']);
   await expect(page.locator('#tpl-save')).toBeEnabled();
   await page.locator('#tpl-save').click();
@@ -78,8 +83,9 @@ test('a block can be saved as a switch (on or off when the template is used), an
   expect(await page.evaluate(async () => (await import('/app/store.js')).S.doc.text)).toMatch(/piano keys-\d+ pinned@2\.1 at 1 for 8 disabled \{/);
 });
 
-test('a project template can be dragged onto the board: a preview hangs at the pointer, letting go opens the form, which can be cancelled or confirmed @quarantine', async ({ page }) => {
+test('a project template can be dragged onto the board: a preview hangs at the pointer, letting go opens the form, which can be cancelled or confirmed', async ({ page }) => {
   await select(page, ['chords', 'keys']);
+  await expect(page.locator('#tpl-save')).toBeEnabled();
   await page.locator('#tpl-save').click();
   const win = page.locator('dialog.ample-win');
   await win.locator('input[aria-label="Template name"]').fill('Dragged');

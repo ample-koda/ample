@@ -14,7 +14,7 @@ public sealed class CliVersionTests
 
         Assert.Equal(0, exitCode);
         Assert.Matches("^AMPLE \\d+\\.\\d+\\.\\d+ \\(beta, commit [^)]+\\)$", version);   // any version: a release raises the number, the shape stays
-        string shape = System.Text.RegularExpressions.Regex.Replace(version.Replace(CliVersionInfo.Current[26..^1], "<commit>", StringComparison.Ordinal), "^AMPLE \\d+\\.\\d+\\.\\d+", "AMPLE <version>");
+        string shape = System.Text.RegularExpressions.Regex.Replace(version, "^AMPLE \\d+\\.\\d+\\.\\d+ \\(beta, commit [^)]+\\)$", "AMPLE <version> (beta, commit <commit>)");   // the number of digits of the version and of the commit may change
         await GoldenFile.VerifyAsync(shape);
     }
 }

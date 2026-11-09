@@ -18,7 +18,7 @@ const makeTask = async (page) => {
   return task;
 };
 
-test('an ended session offers to resume the conversation, and the proposal stays @quarantine', async ({ page }) => {
+test('an ended session offers to resume the conversation, and the proposal stays', async ({ page }) => {
   test.setTimeout(240000);
   const task = await makeTask(page);
   const ended = await api(`/api/ai/tasks/${task.id}`);
@@ -31,7 +31,7 @@ test('an ended session offers to resume the conversation, and the proposal stays
   const back = await api(`/api/ai/tasks/${task.id}`);
   expect(back.status).toBe('ready');
   expect(back.sessionEnded).toBe(false);
-  expect(back.log.some((l) => /resumed/i.test(l.text))).toBe(true);
+  await expect.poll(async () => ((await api(`/api/ai/tasks/${task.id}`)).log as { text: string }[]).some((l) => /resumed/i.test(l.text)), { timeout: 15000 }).toBe(true);   // the note comes a moment after the session is back
   await api(`/api/ai/tasks/${task.id}/reject`, { method: 'POST', body: {} });
 });
 

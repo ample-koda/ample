@@ -111,8 +111,10 @@ test('closing the last tab opens a new blank song; opening another song removes 
   await page.locator('#tabbar .tab .tab-x').first().click();
   await expect(page.locator('#tabbar .tab[data-path="Untitled.amplet"].on')).toBeVisible({ timeout: 10000 });
   await page.evaluate(async () => { const s = await import('/app/store.js'); await s.applyText(`${s.S.doc.text}# my first change\n`); });
-  await page.keyboard.press('Control+s');
-  await expect(page.locator('#untitled-name')).toBeVisible();
+  await expect(async () => {   // the shortcut can arrive before the edit has landed: press it again until the question for the name shows
+    await page.keyboard.press('Control+s');
+    await expect(page.locator('#untitled-name')).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15000 });
   await page.locator('#untitled-name').fill('my-first');
   await page.getByRole('button', { name: 'Save', exact: true }).last().click();
   await expect(page.locator('#tabbar .tab[data-path="my-first.amplet"].on')).toBeVisible({ timeout: 10000 });

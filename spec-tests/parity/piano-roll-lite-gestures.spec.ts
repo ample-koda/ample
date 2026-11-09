@@ -103,7 +103,7 @@ test('a multi-selection moves, resizes and deletes together', async ({ page }) =
   await expect.poll(() => notesOf('mula')).toBeUndefined();
 });
 
-test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an octave, and the new pitch is heard @quarantine', async ({ page }) => {
+test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an octave, and the new pitch is heard', async ({ page }) => {
   const panel = await openLite(page, 'arra', '1:0:1:60:96');
   const p = await at(panel, 0, 60);
   await page.mouse.click(p.x, p.y);
@@ -111,9 +111,10 @@ test('Shift+arrows move the selection by a step or a semitone, Ctrl+Up by an oct
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:60:96');
   await page.keyboard.press('Shift+ArrowUp');
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:61:96');
+  await page.waitForTimeout(200);   // the preview of a moved note is throttled (90 ms): a key that comes sooner is moved but not heard
   await page.keyboard.press('Control+ArrowUp');
   await expect.poll(() => notesOf('arra')).toBe('1:1:1:73:96');
-  expect((await calls(panel)).some((c) => c.pitch === 73)).toBe(true);
+  await expect.poll(async () => (await calls(panel)).some((c) => c.pitch === 73)).toBe(true);   // the preview of the new pitch is started a moment after the note has moved
 });
 
 test('holding the pointer past the right edge keeps scrolling while a note is dragged', async ({ page }) => {

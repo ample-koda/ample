@@ -19,8 +19,15 @@ function wavFixture() {
 async function connect(page, fromId: string, toId: string) {
   const from = page.locator(`.node[data-id="${fromId}"] .port.out`).first();
   const to = page.locator(`.node[data-id="${toId}"] .port.in`).first();
-  await from.scrollIntoViewIfNeeded(); await to.scrollIntoViewIfNeeded();
-  const a = (await from.boundingBox())!, b = (await to.boundingBox())!;
+  let a!: { x: number; y: number; width: number; height: number }, b!: typeof a;
+  await expect(async () => {   // the canvas can draw the blocks again while this runs: take the ports again until both are there and still
+    await from.scrollIntoViewIfNeeded(); await to.scrollIntoViewIfNeeded();
+    const first = (await from.boundingBox())!, second = (await to.boundingBox())!;
+    await page.waitForTimeout(150);
+    const again = (await from.boundingBox())!, secondAgain = (await to.boundingBox())!;
+    expect(again.x).toBe(first.x); expect(again.y).toBe(first.y); expect(secondAgain.x).toBe(second.x); expect(secondAgain.y).toBe(second.y);
+    a = again; b = secondAgain;
+  }).toPass({ timeout: 15000 });
   await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await page.mouse.down();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await page.mouse.up();
 }
@@ -114,7 +121,7 @@ test('convolution previews its impulse locally and updates while playing', async
   expect(impulseRequests).toBe(3);
 });
 
-test('live local preview changes the running EQ during a held knob drag @quarantine', async ({ page }) => {
+test('live local preview changes the running EQ during a held knob drag', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__ampleParamUpdates = 0;
     (window as any).__amplePointerTrace = [];
@@ -262,7 +269,7 @@ test('inserting EQ creates a neutral editable effect block after an audio source
   await expect(dialog.locator('.studio-chain-manager')).toHaveCount(0);
 });
 
-test('an effect node Advanced opens its own controls and an unconnected generator labels its own take @quarantine', async ({ page }) => {
+test('an effect node Advanced opens its own controls and an unconnected generator labels its own take', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'eq', 'root-eq');
   await addTemplateBlock(page, 'reverb', 'downstream-reverb');

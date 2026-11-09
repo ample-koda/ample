@@ -76,18 +76,25 @@ test('the add-block menu lists categories A to Z, and effect groups contain alph
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).blocks.length).toBe(before + 1);
 });
 
-test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back @quarantine', async ({ page }) => {
+test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = node(page, 'drums');
-  await block.hover();
   const grip = block.locator('.size-grip');
-  const box = (await grip.boundingBox())!;
-  const before = (await block.boundingBox())!.width;
-  await page.mouse.move(box.x + 7, box.y + 7);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 7 - 60, box.y + 7, { steps: 5 });
-  await expect(block.locator('.node-status')).toBeHidden();   // the status tag does not show while the grip is dragged
-  await page.mouse.up();
+  await expect(block.locator('.node-status')).toBeVisible({ timeout: 30000 });   // the first build of the song ends with a status on the block and draws it again: drag after that, not in the middle of it
+  await page.waitForTimeout(500);
+  let before = 0;
+  await expect(async () => {   // the grip shows while the pointer is over the block and fades in: hold it when it stands still, and try again if the drag did not take hold
+    await block.hover();
+    await expect(grip).toBeVisible({ timeout: 2000 });
+    await page.waitForTimeout(300);
+    const box = (await grip.boundingBox())!;
+    before = (await block.boundingBox())!.width;
+    // the middle of the grip: after Fit the block is drawn at about half its size, the grip is 7 pixels wide and its corner is rounded, so a point 7 pixels from its edge is outside it
+    await grip.hover({ timeout: 3000 });
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2, { steps: 5 });
+    try { await expect(block.locator('.node-status')).toBeHidden({ timeout: 2000 }); } finally { await page.mouse.up(); }   // the status tag does not show while the grip is dragged
+  }).toPass({ timeout: 25000 });
   await expect(block).toBeVisible();
   await expect(block.locator('.node-status')).toBeVisible();
   await expect.poll(async () => (await block.boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThan(before - 20);
@@ -227,7 +234,7 @@ test('the notes of a block are the comment above it in the song', async ({ page 
   await expect.poll(async () => ((await api('/api/doc?path=song.amplet')).text as string)).toMatch(/# keep the bass low\n# and simple\nbass bass /);
 });
 
-test('the outputs node of a group can be moved, and stays where it was put @quarantine', async ({ page }) => {
+test('the outputs node of a group can be moved, and stays where it was put', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await page.evaluate(async () => {
     const store = await import('/app/store.js');
@@ -238,8 +245,9 @@ test('the outputs node of a group can be moved, and stays where it was put @quar
   });
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const out = node(page, 'out');
-  const before = (await out.boundingBox())!;
-  const head = (await out.locator('.node-nameplate, .t').first().boundingBox())!;
+  const measured = async (target: import('@playwright/test').Locator) => { let found: { x: number; y: number; width: number; height: number } | null = null; await expect.poll(async () => { found = await target.boundingBox(); return found !== null; }).toBe(true); return found!; };   // the canvas can draw the block again just now
+  const before = await measured(out);
+  const head = await measured(out.locator('.node-nameplate, .t').first());
   await page.mouse.move(head.x + head.width / 2, head.y + head.height / 2);
   await page.mouse.down(); await page.mouse.move(head.x + head.width / 2 + 90, head.y + head.height / 2 + 60, { steps: 6 }); await page.mouse.up();
   await expect.poll(async () => { const box = await out.boundingBox(); return box ? box.x - before.x : 0; }).toBeGreaterThan(40);

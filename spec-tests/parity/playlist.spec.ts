@@ -142,13 +142,23 @@ test.describe('arrangement sections', () => {
     expect(await viewLines(page)).toEqual([]);
   });
 
-  test('arrangement sections: each section is one undo step @quarantine', async ({ page }) => {
+  test('arrangement sections: each section is one undo step', async ({ page }) => {
     const ruler = page.locator('#arr .ruler');
     await ruler.click({ button: 'right', position: { x: 40, y: 8 } });
     await chooseMenu(page, /^New section at bars/);
     await dialog(page, 'OK', ['A']);
     await expect(page.locator('#arr .arr-section')).toHaveCount(1);
-    await ruler.click({ button: 'right', position: { x: 300, y: 8 } });
+    // a section is 8 bars long and may not overlap the first (bars 1 to 8): look for a place on the ruler whose menu offers a section from bar 9 on (the width of a bar depends on the screen)
+    const rulerWidth = (await ruler.boundingBox())!.width;
+    let at = 0;
+    for (const part of [0.5, 0.6, 0.7, 0.8, 0.9, 0.97]) {
+      await ruler.click({ button: 'right', position: { x: Math.round(rulerWidth * part), y: 8 } });
+      const label = await page.locator('#menu div', { hasText: /^New section at bars/ }).first().textContent();
+      at = Number(/bars (\d+)/.exec(label ?? '')?.[1] ?? 0);
+      if (at >= 9) break;
+      await page.keyboard.press('Escape');
+    }
+    expect(at).toBeGreaterThanOrEqual(9);
     await chooseMenu(page, /^New section at bars/);
     await dialog(page, 'OK', ['B']);
     await expect(page.locator('#arr .arr-section')).toHaveCount(2);

@@ -63,7 +63,7 @@ test('an answer can be followed by a question of your own, which goes with what 
   expect(asked.said.length).toBeGreaterThan(5);
 });
 
-test('a patch over several blocks is grouped per block, starts with the neon button, and with many blocks the groups are pages @quarantine', async ({ page }) => {
+test('a patch over several blocks is grouped per block, starts with the neon button, and with many blocks the groups are pages', async ({ page }) => {
   await page.evaluate(async () => {
     const { draftBubble } = await import('/app/koda-bubbles.js');
     const calls: string[] = [];
@@ -307,7 +307,7 @@ test('the language of Koda is a project setting in the project settings: Dutch w
   await page.evaluate(() => import('/app/koda-lang.js').then((m) => m.saveKodaLanguage('en')));
 });
 
-test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays while the block is selected and fades when it is not @quarantine', async ({ page }) => {
+test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays while the block is selected and fades when it is not', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   const koda = await page.locator('#koda-layer .pet').boundingBox();
@@ -365,7 +365,7 @@ test('Ctrl+Shift and drag adds more things to look at, letting go on a linked on
   await expect.poll(async () => (await state(page)).emotion, { timeout: 4000 }).toBe('happy');
 });
 
-test('shaking Koda itself throws the lines off one after the other, the newest first @quarantine', async ({ page }) => {
+test('shaking Koda itself throws the lines off one after the other, the newest first', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await expect(page.locator('#koda-layer .bub')).toContainText('I am Koda');   // the hello comes after a second: let it come and go first
@@ -411,7 +411,7 @@ test('shaking Koda itself throws the lines off one after the other, the newest f
   expect(smiled).toBe(true);
 });
 
-test('Koda sways to the beat of whatever plays, and settles when it stops @quarantine', async ({ page }) => {
+test('Koda sways to the beat of whatever plays, and settles when it stops', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.keyboard.press('Escape');
@@ -639,7 +639,7 @@ test('variants the model offered are shown as A, B and C: listen to one, ask abo
   await expect(bubble.locator('.vt')).toHaveCount(3, { timeout: 8000 });
   await expect(bubble.locator('.vt').first()).toContainText('Sound 1');
   await expect(bubble.locator('.vbody')).toContainText('beat 1');
-  await bubble.locator('.vt').nth(1).click({ force: true });
+  await bubble.locator('.vt').nth(1).dispatchEvent('click');   // Koda moves about: a mouse click can miss the tab
   await expect(bubble.locator('.vbody')).toContainText('beat 2');
   await expect(bubble.locator('.vlisten').first()).toContainText('Listen to B');
   await expect(bubble.locator('.vt').nth(1)).toBeVisible();
@@ -648,7 +648,7 @@ test('variants the model offered are shown as A, B and C: listen to one, ask abo
   await page.keyboard.press('Enter');
   await expect(bubble.locator('.vans')).toContainText('Done: other beats please');
   await expect(bubble.locator('.vt')).toHaveCount(2);   // the proposal went on: new variants replace the old ones
-  await bubble.getByRole('button', { name: 'Use this one' }).click({ force: true });
+  await bubble.getByRole('button', { name: 'Use this one' }).dispatchEvent('click');
   await expect(page.locator('#koda-layer .bub.k-draft')).toContainText('beat 1');
   expect(await page.evaluate(() => (window as any).__discarded.length)).toBe(0);   // the proposal is dropped when the chosen one is applied, not before
 });
@@ -699,7 +699,7 @@ test('the line of Koda does not point into the void when its target is scrolled 
   expect(seen.shown).toBe(true);
 });
 
-test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply @quarantine', async ({ page }) => {
+test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.evaluate(async () => {
@@ -729,13 +729,13 @@ test('draft or live: a pill in the bubble until the first reply; live applies th
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBe('1');
   await page.keyboard.press('Control+k');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
-  await page.locator('#koda-layer .riskpill').click({ force: true });   // Koda moves about in live mode, so it is never 'stable'
+  await page.locator('#koda-layer .riskpill').dispatchEvent('click');   // Koda moves about in live mode, so a mouse click can miss the pill: click it without the mouse
   // the third state: bare metal (live, quick and rough), remembered as 2 and tinted
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('data-mode', 'bare');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('#koda-layer')).toHaveAttribute('data-mode', 'bare');
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBe('2');
-  await page.locator('#koda-layer .riskpill').click({ force: true });
+  await page.locator('#koda-layer .riskpill').dispatchEvent('click');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'false');
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBeNull();
 });

@@ -1,0 +1,31 @@
+/** Cuts a recording at the start and at the end: skips the first seconds (the click of pressing record), stops at a chosen second and fades both ends. The length of the audio does not change: what is cut away becomes silence at the end. */
+#[DisplayName("Quick trim")]
+#[Category("Audio effects")]
+#[Tags("voice", "recording", "trim", "cut", "fade")]
+component ample.voice.trim version 1.0.0 current {
+  id "ample.builtin.voice-trim"
+
+  input audio: Audio
+
+  property skip: Duration = 0.5s
+
+  # a second after the end of the recording means: do not stop early
+  property stop: Duration = 600s
+
+  output audio: Audio
+
+  ui {
+    row {
+      field skip label "Skip at start"
+      field stop label "Stop at"
+    }
+    meter audio
+  }
+
+  process {
+    emit audio
+      |> cut(start=skip, end=stop)
+      |> fade(direction=out, start=stop - skip - 0.1s, length=0.1s)
+      |> fade(direction=in, start=0s, length=0.05s)
+  }
+}

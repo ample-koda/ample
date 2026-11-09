@@ -218,7 +218,7 @@ test('the note about unsealed components is not listed, and the list says why', 
   await expect(page.locator('#lite-problem-count')).toHaveText('none');
 });
 
-test('completion right after typing, hover and ctrl+click to a definition work in a song @quarantine', async ({ page }) => {
+test('completion right after typing, hover and ctrl+click to a definition work in a song', async ({ page }) => {
   await fresh(page);
   await useDemo(page, 'hello-melody');
   await expect(page.locator('#lite-problem-count')).toHaveText('none');
@@ -232,11 +232,27 @@ test('completion right after typing, hover and ctrl+click to a definition work i
   await page.keyboard.press('Control+z');
   // hover and ctrl+click on the name of a block in a from line
   const line = page.locator('#lite-editor .cm-line', { hasText: 'from lead.audio' }).first();
-  const box = (await line.boundingBox())!;
-  await page.mouse.move(box.x + 74, box.y + box.height / 2);
-  await expect(page.locator('.lite-tip')).toBeVisible({ timeout: 8000 });
+  // the middle of the word "lead" as drawn on this machine (the width of a letter depends on the font, so a fixed distance from the start of the line hits another word on another machine)
+  const wordCentre = () => line.evaluate((element) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = (node.textContent ?? '').indexOf('lead');
+      if (at < 0) continue;
+      const range = document.createRange(); range.setStart(node, at); range.setEnd(node, at + 4);
+      const r = range.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }
+    return null;
+  });
+  let spot = (await wordCentre())!;
+  await expect(async () => {   // the hover needs the answer of the language server and a pointer that moves over the name: move away and over it again until the tip shows
+    spot = (await wordCentre())!;
+    await page.mouse.move(spot.x - 40, spot.y);
+    await page.mouse.move(spot.x, spot.y, { steps: 4 });
+    await expect(page.locator('.lite-tip')).toBeVisible({ timeout: 2500 });
+  }).toPass({ timeout: 20000 });
   await page.keyboard.down('Control');
-  await page.mouse.click(box.x + 74, box.y + box.height / 2);
+  await page.mouse.click(spot.x, spot.y);
   await page.keyboard.up('Control');
   await expect.poll(() => page.evaluate(() => getSelection()?.anchorNode?.textContent ?? ''), { timeout: 8000 }).toBe('lead');
 });
@@ -599,12 +615,15 @@ test('the word ample in the composition line has a colour of its own (a gradient
   expect(await egg.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('linear-gradient');
 });
 
-test('a link that was opened before and whose copy holds changes asks what to do: your copy or a fresh one @quarantine', async ({ page }) => {
+test('a link that was opened before and whose copy holds changes asks what to do: your copy or a fresh one', async ({ page }) => {
   await fresh(page);
   await page.goto(page.url().split('#')[0] + '#demo=hello-melody');
   await page.reload();
   await expect(page.locator('#lite-tour')).toBeVisible();
-  await page.click('#lite-tour-skip');   // open it without building
+  await expect(async () => {   // the question about an earlier copy can come up just now and covers the tour: answer it (a new fresh copy) and skip again
+    if (await page.locator('#lite-dialog').isVisible()) await page.click('#lite-dialog-cancel', { timeout: 2000 });
+    await page.click('#lite-tour-skip', { timeout: 2000 });   // open it without building
+  }).toPass({ timeout: 20000 });
   await expect(page.locator('#lite-tour')).toBeHidden();
   await typeAtEnd(page, '\n# my own change');
   await expect(page.locator('#lite-saved')).toHaveText('saved on this browser');
@@ -613,7 +632,7 @@ test('a link that was opened before and whose copy holds changes asks what to do
   await expect(page.locator('#lite-dialog-title')).toHaveText('You already have a copy');
   await page.click('#lite-dialog-ok');   // Open my copy
   await expect(page.locator('#lite-editor .cm-content')).toContainText('my own change');
-  await page.click('#lite-tour-skip').catch(() => {});
+  await page.click('#lite-tour-skip', { timeout: 3000 }).catch(() => {});   // the tour may not be there: without a short limit this click waits for the whole test
   await page.reload();
   await expect(page.locator('#lite-dialog')).toBeVisible();
   await page.click('#lite-dialog-cancel');   // New fresh copy

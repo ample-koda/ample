@@ -217,7 +217,9 @@ test('the open folder has an Up button, clickable parts and Alt+Up to go back up
   await crumb.locator('.crumb-part').first().click();
   await expect(crumb.locator('.crumb-up')).toBeDisabled();
   await sequences.click();
+  await expect(crumb.locator('.crumb-part.current')).toHaveText('sequences');   // the crumb is drawn again after the click: focus the new one
   await crumb.locator('.crumb-part.current').focus();
+  await expect(crumb.locator('.crumb-part.current')).toBeFocused();
   await page.keyboard.press('Alt+ArrowUp');
   await expect(crumb.locator('.crumb-up')).toBeDisabled();
 });
@@ -235,7 +237,7 @@ test('the folder path scales: it folds its early parts and keeps only the Up but
   await expect(crumb.locator('.crumb-part.current')).toHaveText('sequences');
 });
 
-test('a deep folder path folds its early parts into a menu before it falls back to the Up button @quarantine', async ({ page }) => {
+test('a deep folder path folds its early parts into a menu before it falls back to the Up button', async ({ page }) => {
   await openPanel(page);
   await page.evaluate(() => { const key = Object.keys(localStorage).find((k) => k.startsWith('ample.project-panel.'))!; localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) || '{}'), folder: 'deep/one/two/three/four' })); });
   await page.reload();
@@ -243,12 +245,13 @@ test('a deep folder path folds its early parts into a menu before it falls back 
   await openPanel(page);
   const crumb = page.locator('.project-breadcrumb');
   await expect(crumb.locator('.crumb-part.current')).toHaveText('four');
+  await crumb.evaluate((node) => { (node as HTMLElement).style.flex = '0 0 4000px'; });   // room for all of it, whatever the width of the panel is on this machine
   await expect(crumb.locator('.crumb-more')).toHaveCount(0);   // all of it fits
   const full = await crumb.evaluate((node) => Math.ceil([...node.children].reduce((sum, child) => sum + child.getBoundingClientRect().width + 2, 0)));   // the width the whole path needs
   await crumb.evaluate((node, width) => { (node as HTMLElement).style.flex = `0 0 ${width}px`; }, full - 40);
   await expect(crumb.locator('.crumb-more')).toBeVisible();   // early parts folded
   await expect(crumb.locator('.crumb-part.current')).toHaveText('four');
-  expect(await crumb.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await expect.poll(() => crumb.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);   // the fold settles a frame after the menu button shows
   await crumb.locator('.crumb-more').click();
   const folded = ((await crumb.locator('.crumb-more').getAttribute('title')) || '').split(' / ');
   expect(folded.length).toBeGreaterThan(0);

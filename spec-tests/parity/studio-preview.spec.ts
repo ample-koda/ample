@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { addTemplateBlock, chooseMenu, freshServer, openApp } from '../../web/tests/support';
 
+// a box that is there: the canvas and the panels are drawn again now and then, and a measurement taken in between finds nothing
+const boxOf = async (target: import('@playwright/test').Locator) => { let found: { x: number; y: number; width: number; height: number } | null = null; await expect.poll(async () => { found = await target.boundingBox(); return found !== null; }).toBe(true); return found!; };
+
+
 freshServer();
 
 test('unbuilt effects do not request a preview without a source take', async ({ page }) => {
@@ -24,8 +28,8 @@ test('the current block arrow opens its GUI and the context menu toggles bypass'
   const arrow = node.getByRole('button', { name: 'Advanced', exact: true });
   await expect(arrow).toBeVisible();
   await expect(node.locator('.node-toolbar')).toContainText('COMPRESSOR');
-  const versionBox = (await node.locator('.node-toolbar .cls').boundingBox())!, arrowBox = (await arrow.boundingBox())!;
-  expect(arrowBox.x - versionBox.x - versionBox.width).toBeLessThan(12);
+  // both boxes are taken together; the canvas can draw the block again between two measurements, then one of them is gone: measure again
+  await expect.poll(async () => { const v = await node.locator('.node-toolbar .cls').boundingBox(), a = await arrow.boundingBox(); return v && a ? a.x - v.x - v.width : Number.POSITIVE_INFINITY; }).toBeLessThan(12);
   await arrow.click();
   await expect(page.locator('#studio')).toBeVisible();
   await page.locator('#studio').getByRole('button', { name: 'Close advanced controls' }).click();
@@ -37,7 +41,7 @@ test('the current block arrow opens its GUI and the context menu toggles bypass'
   await expect.poll(() => page.evaluate(() => (window as any).AMPLE_STATE.doc.blocks.find((block: any) => block.name === 'shortcut-comp').parameters.find((param: any) => param.name === 'enabled')?.value)).toBe('on');
 });
 
-test('properties put source beside the title and Advanced at the far right @quarantine', async ({ page }) => {
+test('properties put source beside the title and Advanced at the far right', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'heading-comp');
   await page.locator('.node[data-id="heading-comp"]').click();
@@ -45,7 +49,7 @@ test('properties put source beside the title and Advanced at the far right @quar
   const title = heading.locator('.prop-heading-title');
   const source = heading.getByRole('button', { name: 'Edit in source' });
   const advanced = heading.getByRole('button', { name: 'Open advanced controls' });
-  const titleBox = (await title.boundingBox())!, sourceBox = (await source.boundingBox())!, advancedBox = (await advanced.boundingBox())!, headingBox = (await heading.boundingBox())!;
+  const titleBox = (await boxOf(title)), sourceBox = (await boxOf(source)), advancedBox = (await boxOf(advanced)), headingBox = (await boxOf(heading));
   expect(sourceBox.x).toBeGreaterThan(titleBox.x + titleBox.width);
   expect(advancedBox.x).toBeGreaterThan(sourceBox.x + sourceBox.width + 20);
   expect(headingBox.x + headingBox.width - advancedBox.x - advancedBox.width).toBeLessThan(20);
@@ -53,7 +57,7 @@ test('properties put source beside the title and Advanced at the far right @quar
   await expect(page.locator('#se')).toBeVisible();
 });
 
-test('an audio node lists its connected effects and focuses the chosen block and properties @quarantine', async ({ page }) => {
+test('an audio node lists its connected effects and focuses the chosen block and properties', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'chain-source');
   await addTemplateBlock(page, 'eq', 'chain-eq');
@@ -90,14 +94,17 @@ test('the right-click menu adds EQ after an audio block', async ({ page }) => {
   await expect(page.locator('.node[data-id="managed-source"]').getByRole('button', { name: 'Go to effects of managed-source' })).toBeVisible();
 });
 
-test('double-clicking a node title renames inline and picks a unique name @quarantine', async ({ page }) => {
+test('double-clicking a node title renames inline and picks a unique name', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'compressor', 'target');
   await addTemplateBlock(page, 'reverb', 'reserved');
   const node = page.locator('.node[data-id="target"]');
   await page.getByRole('button', { name: 'Fit', exact: true }).click();   // earlier tests of this file left blocks on the canvas
-  await node.locator('.nh .t').dblclick();
   const editor = node.getByRole('textbox', { name: 'Rename block' });
+  await expect(async () => {   // the canvas can still be drawn again after Fit and swallow the double click: click again until the name editor is there
+    await node.locator('.nh .t').dblclick();
+    await expect(editor).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
   await editor.fill('reserved');
   await editor.press('Enter');
   await expect(page.locator('.node[data-id="reserved-2"]')).toBeVisible();
@@ -138,7 +145,7 @@ test('a knob pointer gesture commits once and can be undone once', async ({ page
   const knob = page.locator('#studio').getByRole('slider', { name: 'Threshold' }).last();
   const before = Number(await knob.getAttribute('aria-valuenow'));
   const undoBefore = await page.evaluate(async () => (await import('/app/store.js')).S.undo.length);
-  const box = (await knob.boundingBox())!;
+  const box = (await boxOf(knob));
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 56, box.y + box.height / 2 - 32, { steps: 5 });

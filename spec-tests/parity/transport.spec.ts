@@ -40,19 +40,21 @@ test('the Build button says that unsaved changes are built too', async ({ page }
   await expect(page.locator('#btn-build')).toHaveAttribute('title', /Unsaved changes are built too/);
 });
 
-test('Loop is in the header, the chosen bars can be played from it, and the song audio is in the file menu @quarantine', async ({ page }) => {
+test('Loop is in the header, the chosen bars can be played from it, and the song audio is in the file menu', async ({ page }) => {
   await page.click('#btn-play-options');   // Loop moved into the play options menu
   await page.click('#btn-loop');
   await expect.poll(async () => (await playerState(page)).loop).toBe(true);
   await expect(page.locator('#btn-loop')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#btn-play-range')).toBeHidden();
   await bottomTab(page, 'arr');
-  const r = (await page.locator('#arr .ruler').boundingBox())!;
-  await page.mouse.move(r.x + 40, r.y + 8);
-  await page.mouse.down();
-  await page.mouse.move(r.x + 140, r.y + 8, { steps: 3 });
-  await page.mouse.up();
-  await expect(page.locator('#btn-play-range')).toBeVisible();
+  await expect(async () => {   // the ruler is drawn again while the tab opens and a drag that began before that chooses nothing: drag again until the button for the chosen bars shows
+    const r = (await page.locator('#arr .ruler').boundingBox())!;
+    await page.mouse.move(r.x + 40, r.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(r.x + 140, r.y + 8, { steps: 3 });
+    await page.mouse.up();
+    await expect(page.locator('#btn-play-range')).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
   await expect(page.locator('#btn-play-range')).toContainText('bars');
   await page.click('#btn-play-range');
   await expect.poll(async () => (await playerState(page)).playing).toBe(true);
