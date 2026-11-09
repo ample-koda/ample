@@ -501,7 +501,7 @@ export function renderProps() {
     const withChip = (control) => (binding ? el('div', {}, [control, propertyChip(n.id, k, binding, ro || locked)]) : control);
     const tip = locked ? 'Locked: unlock the block to change its parameters' : fixed ? `Fixed by the chosen model: a turbo model works with ${k} ${params[k]} only. Choose a Base or SFT model in the plugin settings to change it.` : (meta && meta.documentation ? meta.documentation : '');
     const conflict = fixed && String(n.params[k] ?? '').trim() !== '' && String(n.params[k]).trim() !== String(params[k]);   // stored value the turbo model refuses: stays editable so it can be repaired
-    const field0 = fieldFor(k, meta, display, { disabled: ro || locked, title: tip, tpl: n.tpl, params: n.params, save: (text) => edit([text === '' && ['file', 'sampleset', 'engine'].includes(kindOf(k, meta)) ? { type: 'removeParameter', block: n.id, name: k } : { type: 'setParameter', block: n.id, name: k, value: toStored(text) }]) });
+    const field0 = fieldFor(k, meta, display, { disabled: ro || locked, title: tip, tpl: n.tpl, params: n.params, save: (text) => edit([text === '' && ['file', 'sampleset', 'engine'].includes(kindOf(k, meta)) ? { type: 'removeParameter', block: n.id, name: k } : { type: 'setParameter', block: n.id, name: k, value: kindOf(k, meta) === 'engine' ? text : toStored(text) }]) });   // the engine field writes its own quotes
     let field = field0;
     if (field0 && fixed) {
       const noteId = `fixed-${n.id}-${k}`;
