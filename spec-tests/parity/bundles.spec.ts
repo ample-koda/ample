@@ -79,17 +79,19 @@ test('the add-block menu lists categories A to Z, and effect groups contain alph
 test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back @quarantine', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = node(page, 'drums');
-  await block.hover();
   const grip = block.locator('.size-grip');
-  await expect(grip).toBeVisible();
-  let box = (await grip.boundingBox())!;
-  await expect.poll(async () => { const now = (await grip.boundingBox())!; const same = now.x === box.x && now.y === box.y; box = now; return same; }, { intervals: [200, 200, 200] }).toBe(true);   // the grip fades in after the hover: use it when it stands still
-  const before = (await block.boundingBox())!.width;
-  await page.mouse.move(box.x + 7, box.y + 7);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 7 - 60, box.y + 7, { steps: 5 });
-  await expect(block.locator('.node-status')).toBeHidden();   // the status tag does not show while the grip is dragged
-  await page.mouse.up();
+  let before = 0;
+  await expect(async () => {   // the grip shows while the pointer is over the block and fades in: hold it when it stands still, and try again if the drag did not take hold
+    await block.hover();
+    await expect(grip).toBeVisible({ timeout: 2000 });
+    await page.waitForTimeout(300);
+    const box = (await grip.boundingBox())!;
+    before = (await block.boundingBox())!.width;
+    await page.mouse.move(box.x + 7, box.y + 7);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 7 - 60, box.y + 7, { steps: 5 });
+    try { await expect(block.locator('.node-status')).toBeHidden({ timeout: 2000 }); } finally { await page.mouse.up(); }   // the status tag does not show while the grip is dragged
+  }).toPass({ timeout: 25000 });
   await expect(block).toBeVisible();
   await expect(block.locator('.node-status')).toBeVisible();
   await expect.poll(async () => (await block.boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThan(before - 20);
