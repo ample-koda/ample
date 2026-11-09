@@ -232,9 +232,13 @@ test('completion right after typing, hover and ctrl+click to a definition work i
   await page.keyboard.press('Control+z');
   // hover and ctrl+click on the name of a block in a from line
   const line = page.locator('#lite-editor .cm-line', { hasText: 'from lead.audio' }).first();
-  const box = (await line.boundingBox())!;
-  await page.mouse.move(box.x + 74, box.y + box.height / 2);
-  await expect(page.locator('.lite-tip')).toBeVisible({ timeout: 8000 });
+  let box = (await line.boundingBox())!;
+  await expect(async () => {   // the hover needs the answer of the language server and a pointer that moves over the name: move away and over it again until the tip shows
+    box = (await line.boundingBox())!;
+    await page.mouse.move(box.x + 20, box.y + box.height / 2);
+    await page.mouse.move(box.x + 74, box.y + box.height / 2, { steps: 4 });
+    await expect(page.locator('.lite-tip')).toBeVisible({ timeout: 2500 });
+  }).toPass({ timeout: 20000 });
   await page.keyboard.down('Control');
   await page.mouse.click(box.x + 74, box.y + box.height / 2);
   await page.keyboard.up('Control');
