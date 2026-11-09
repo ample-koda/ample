@@ -23,6 +23,7 @@ song.amplet (Welcome to AMPLE) is the song that opens. Every other demo is in it
 - comp-nesting/song.amplet: Components that call components (Components, Advanced)
 - comp-mixed/song.amplet: A component with an instrument inside (Components, Advanced)
 - comp-sidechain/song.amplet: A pump as a component (Components, Intermediate)
+- comp-voice-clean/song.amplet: Clean up a voice (Components, Intermediate)
 - gm-sf2/song.amplet: A SoundFont of your own (Instruments, Intermediate)
 - vocoder/song.amplet: Vocoder: the llama talks through a synth (Advanced, Advanced)
 - autotune/song.amplet: Autotune on a voice (Advanced, Intermediate)

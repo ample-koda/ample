@@ -23,9 +23,23 @@ export function initToken() {
     token = m ? m[1] : '';
   }
   document.cookie = 'ample-token=; path=/; max-age=0; SameSite=Strict';   // the name of an older version: it would only confuse which session a tab belongs to
-  if (token) document.cookie = `ample-token-${location.port || (location.protocol === 'https:' ? '443' : '80')}-${token.slice(0, 16)}=${token}; path=/; SameSite=Strict`;
+  if (token) document.cookie = `ample-token-${location.port || (location.protocol === 'https:' ? '443' : '80')}-${token.slice(0, 16)}=${token}; path=/; max-age=604800; SameSite=Strict`;
+  forgetOldTokenCookies(token ? `ample-token-${location.port || (location.protocol === 'https:' ? '443' : '80')}-${token.slice(0, 16)}` : '');
   if (!token) goToSignInIfAvailable();
   return token;
+}
+
+/**
+ * Every sign-in makes a cookie with a new name (the name holds the start of the token), and none of them ever expired: after many sign-ins the Cookie header of a request
+ * grew past what nginx reads over HTTP/1.1 (8 KB), and the language-server WebSocket was answered with a 400. Only the cookie of this session is kept.
+ */
+const KEEP_OTHER_TOKEN_COOKIES = 4;
+function forgetOldTokenCookies(current) {
+  try {
+    // the cookies of other sessions may still be in use by another tab (the server takes any valid one), so the newest few stay and only the pile of old ones goes
+    const others = document.cookie.split(';').map((pair) => pair.split('=')[0].trim()).filter((name) => name.startsWith('ample-token-') && name !== current);
+    for (const name of others.slice(0, Math.max(0, others.length - KEEP_OTHER_TOKEN_COOKIES))) document.cookie = `${name}=; path=/; max-age=0; SameSite=Strict`;
+  } catch { /* cookies may be blocked: nothing to clean then */ }
 }
 
 /** A tab without any token cannot work: when the server has a sign-in, go straight to it instead of waiting for the first failing call. */

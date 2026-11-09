@@ -15,16 +15,30 @@ export async function loadCatalog(fetchFn = fetch) {
 }
 
 /** Fetches every file of a demo (its own files and the assets it names) as [{path, text}] or [{path, blob}]. */
-export async function demoFiles(demo, fetchFn = fetch) {
-  // the files of the demo itself are asked again every time (a demo can change in a release; the browser may still hold an older answer), the sounds keep the cache they are given
+export async function demoFiles(demo, fetchFn = fetch, { concurrency = 8, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  // the files of the demo itself are asked again every time (a demo can change in a release; the browser may still hold an older answer), the sounds keep the cache they are given.
+  // A demo can hold over a hundred files: asked all at once, the server's limit on simultaneous requests of one visitor answers 429 to the surplus (the demo then seemed to lack a file).
+  // So a few at a time, and a 429 or 503 is asked again after a short wait.
   const get = async (url, path, options = undefined) => {
-    const response = await fetchFn(url, options);
+    let response;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      // a 429 that came earlier may sit in the browser cache for an hour (the server marks every answer of the sounds cacheable): the second try goes around the cache
+      response = await fetchFn(url, attempt === 0 ? options : { ...(options || {}), cache: 'reload' });
+      if (response.ok || (response.status !== 429 && response.status !== 503)) break;
+      await wait(300 * (attempt + 1));
+    }
     if (!response.ok) throw new Error(`The demo "${demo.name}" is missing "${path}".`);
     return isText(path) ? { path, text: await response.text() } : { path, blob: await response.blob() };
   };
-  const own = demo.files.map((path) => get(`/remix/demos/${demo.id}/${path}`, path, { cache: 'no-cache' }));
-  const shared = demo.assets.flatMap((a) => a.files.map((file) => get(`/remix/assets/${a.pack}/${file}`, `${a.to}/${file}`)));
-  return Promise.all([...own, ...shared]);
+  const jobs = [
+    ...demo.files.map((path) => () => get(`/remix/demos/${demo.id}/${path}`, path, { cache: 'no-cache' })),
+    ...demo.assets.flatMap((a) => a.files.map((file) => () => get(`/remix/assets/${a.pack}/${file}`, `${a.to}/${file}`))),
+  ];
+  const results = new Array(jobs.length);
+  let next = 0;
+  const worker = async () => { while (next < jobs.length) { const at = next++; results[at] = await jobs[at](); } };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, jobs.length)) }, worker));
+  return results;
 }
 
 /** The demos that match a search text and a category (empty means all); the text looks in the name, description, tags and level. */

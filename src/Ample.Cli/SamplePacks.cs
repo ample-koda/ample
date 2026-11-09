@@ -16,7 +16,12 @@ namespace Ample.Cli;
 /// <param name="Files">The number of files in it.</param>
 /// <param name="Sha256">The SHA-256 of the zip, pinned in this program.</param>
 /// <param name="Asset">The file name of the zip on the download server.</param>
-internal sealed record SamplePack(string Id, string Tier, string Title, string License, string Description, string[] Instruments, long Bytes, int Files, string Sha256, string Asset);
+/// <param name="Author">Who made the recordings (the credit line of a pack that asks for one).</param>
+internal sealed record SamplePack(string Id, string Tier, string Title, string License, string Description, string[] Instruments, long Bytes, int Files, string Sha256, string Asset, string Author = "")
+{
+    /// <summary>True when the licence asks that songs made with the pack credit its author (CC BY): most people do not want that, so it is always shown.</summary>
+    internal bool CreditRequired => Tier == "licensed";
+}
 
 /// <summary>
 /// The sample packs AMPLE can download (<c>ample packs available</c>, <c>ample packs install &lt;id&gt;</c>, <c>ample packs remove &lt;id&gt;</c>): the catalog is part of this program with the SHA-256 of every zip,
@@ -73,7 +78,7 @@ internal static class SamplePacks
             string asset = Text(e, "asset");
             if (!ValidId(id) || tier is not ("free" or "licensed") || sha.Length != 64 || !ValidId(Path.GetFileNameWithoutExtension(asset)) || !asset.EndsWith(".zip", StringComparison.Ordinal)) continue;
             string[] instruments = e.TryGetProperty("instruments", out JsonElement i) && i.ValueKind == JsonValueKind.Array ? [.. i.EnumerateArray().Select(x => x.GetString() ?? string.Empty).Where(x => x.Length > 0)] : [];
-            list.Add(new SamplePack(id, tier, Text(e, "title").Length > 0 ? Text(e, "title") : id, Text(e, "license"), Text(e, "description"), instruments, e.TryGetProperty("bytes", out JsonElement b) && b.TryGetInt64(out long bytes) ? bytes : 0, e.TryGetProperty("files", out JsonElement f) && f.TryGetInt32(out int files) ? files : 0, sha.ToLowerInvariant(), asset));
+            list.Add(new SamplePack(id, tier, Text(e, "title").Length > 0 ? Text(e, "title") : id, Text(e, "license"), Text(e, "description"), instruments, e.TryGetProperty("bytes", out JsonElement b) && b.TryGetInt64(out long bytes) ? bytes : 0, e.TryGetProperty("files", out JsonElement f) && f.TryGetInt32(out int files) ? files : 0, sha.ToLowerInvariant(), asset, Text(e, "author")));
         }
 
         return list;
@@ -100,7 +105,7 @@ internal static class SamplePacks
         IReadOnlyList<SamplePack> packs = catalog ?? Catalog;
         if (json)
         {
-            output.WriteLine(JsonSerializer.Serialize(packs.Select(p => new { id = p.Id, tier = p.Tier, title = p.Title, license = p.License, description = p.Description, instruments = p.Instruments, bytes = p.Bytes, installed = IsInstalled(home, p), installedBytes = SizeOnDisk(home, p) }), JsonOut));
+            output.WriteLine(JsonSerializer.Serialize(packs.Select(p => new { id = p.Id, tier = p.Tier, title = p.Title, license = p.License, author = p.Author, creditRequired = p.CreditRequired, description = p.Description, instruments = p.Instruments, bytes = p.Bytes, installed = IsInstalled(home, p), installedBytes = SizeOnDisk(home, p) }), JsonOut));
             return 0;
         }
 

@@ -32,6 +32,39 @@ test('a missing file of a demo is said by name', async () => {
   await assert.rejects(demoFiles(demo, fakeFetch({})), /Hello melody.*song\.amplet/);
 });
 
+test('a demo with many files is asked a few files at a time, and a 429 is asked again', async () => {
+  const demo = { id: 'big', name: 'Big demo', files: Array.from({ length: 40 }, (_, i) => `f${i}.amplet`), assets: [] };
+  let running = 0, peak = 0;
+  const seen = {};
+  const crowded = async (url) => {
+    running++; peak = Math.max(peak, running);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    running--;
+    seen[url] = (seen[url] || 0) + 1;
+    if (url.endsWith('f7.amplet') && seen[url] < 3) return new Response('slow down', { status: 429 });   // the server's limit: answered twice, then fine
+    return new Response('x');
+  };
+  const files = await demoFiles(demo, crowded, { concurrency: 8, wait: async () => {} });
+  assert.equal(files.length, 40);
+  assert.deepEqual(files.map((f) => f.path), demo.files);   // in the order of the demo
+  assert.ok(peak <= 8, `at most 8 at once, saw ${peak}`);
+  assert.equal(seen['/remix/demos/big/f7.amplet'], 3);
+});
+
+test('after a 429 the next try goes around the browser cache (a cached 429 would answer again)', async () => {
+  const demo = { id: 'cached', name: 'Cached demo', files: [], assets: [{ pack: 'bass', to: 'samples/bass', files: ['a2.wav'] }] };
+  const modes = [];
+  const fetchFn = async (url, options) => { modes.push(options?.cache ?? 'default'); return modes.length === 1 ? new Response('', { status: 429 }) : new Response(new Uint8Array([1])); };
+  const files = await demoFiles(demo, fetchFn, { wait: async () => {} });
+  assert.equal(files[0].path, 'samples/bass/a2.wav');
+  assert.deepEqual(modes, ['default', 'reload']);
+});
+
+test('a file that stays at 429 is said by name in the end', async () => {
+  const demo = { id: 'busy', name: 'Busy demo', files: ['a.amplet'], assets: [] };
+  await assert.rejects(demoFiles(demo, async () => new Response('', { status: 429 }), { wait: async () => {} }), /Busy demo.*a\.amplet/);
+});
+
 test('search looks in the name, description, tags and level; a category narrows', () => {
   assert.deepEqual(filterDemos(catalog.map((d) => ({ assets: [], ...d }))).length, 3);
   assert.deepEqual(filterDemos(catalog, { query: 'llama' }).map((d) => d.id), ['llama']);

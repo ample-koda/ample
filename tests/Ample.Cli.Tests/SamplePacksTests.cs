@@ -144,6 +144,20 @@ public sealed class SamplePackDoctorTests : IDisposable
     private static SamplePack Pack(string id, string tier = "free") => new(id, tier, "Pack " + id, tier == "free" ? "CC0 1.0" : "CC BY 4.0", "a pack", [], 50L * 1024 * 1024, 3, new string('a', 64), id + ".zip");
 
     [Fact]
+    public void The_author_and_the_credit_requirement_are_read_from_the_catalog_and_shown_as_json()
+    {
+        string json = "[{\"id\":\"a-pack\",\"tier\":\"licensed\",\"title\":\"A\",\"license\":\"CC BY 4.0\",\"author\":\"Some Author\",\"sha256\":\"" + new string('a', 64) + "\",\"asset\":\"a-pack.zip\"},{\"id\":\"b-pack\",\"tier\":\"free\",\"sha256\":\"" + new string('b', 64) + "\",\"asset\":\"b-pack.zip\"}]";
+        IReadOnlyList<SamplePack> catalog = SamplePacks.Parse(json);
+        Assert.True(catalog[0].CreditRequired);
+        Assert.Equal("Some Author", catalog[0].Author);
+        Assert.False(catalog[1].CreditRequired);
+        StringWriter output = new();
+        SamplePacks.Available(output, Path.Combine(Path.GetTempPath(), "ample-no-such-home"), true, catalog);
+        Assert.Contains("\"creditRequired\": true", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("\"author\": \"Some Author\"", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_missing_pack_is_a_note_with_a_download_and_an_installed_one_is_ok_with_a_removal()
     {
         SamplePack here = Pack("here"), missing = Pack("missing", "licensed");
