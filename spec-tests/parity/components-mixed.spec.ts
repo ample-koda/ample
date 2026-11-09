@@ -33,14 +33,21 @@ test('built, it has a player on the card and its graph shows the piano and the e
   expect(graph.nodes.map((n: { id: string }) => n.id)).toEqual(['piano1', 'delay1', 'reverb1']);
 });
 
-test('the Live switch loops the instrument the server rendered and runs the effects after it @quarantine', async ({ page }) => {
+test('the Live switch loops the instrument the server rendered and runs the effects after it', async ({ page }) => {
   await node(page, 'voice').click({ position: { x: 24, y: 12 } });
   const live = page.locator('#props .cui-live');
   await expect(live).toBeEnabled();
+  const alreadyBuilt = (await node(page, 'voice').locator('.player').count()) > 0;   // the tests of this file share one server: an earlier test may have built the block
   await live.click();
-  await expect(page.locator('#toast')).toContainText('Build voice first');   // never builds by itself
-  await page.evaluate(async () => { await (await import('/app/store.js')).build(); });
-  await expect(node(page, 'voice').locator('.player')).toHaveCount(1, { timeout: 60000 });
+  if (alreadyBuilt) {
+    await expect(live).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
+    await live.click();
+    await expect(live).toHaveAttribute('aria-pressed', 'false', { timeout: 10000 });
+  } else {
+    await expect(page.locator('#toast')).toContainText('Build voice first');   // never builds by itself
+    await page.evaluate(async () => { await (await import('/app/store.js')).build(); });
+    await expect(node(page, 'voice').locator('.player')).toHaveCount(1, { timeout: 60000 });
+  }
   await node(page, 'voice').click({ position: { x: 24, y: 12 } });
   await page.locator('#props .cui-live').click();
   await expect(page.locator('#props .cui-live')).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });

@@ -40,7 +40,7 @@ test('the Build button says that unsaved changes are built too', async ({ page }
   await expect(page.locator('#btn-build')).toHaveAttribute('title', /Unsaved changes are built too/);
 });
 
-test('Loop is in the header, the chosen bars can be played from it, and the song audio is in the file menu @quarantine', async ({ page }) => {
+test('Loop is in the header, the chosen bars can be played from it, and the song audio is in the file menu', async ({ page }) => {
   await page.click('#btn-play-options');   // Loop moved into the play options menu
   await page.click('#btn-loop');
   await expect.poll(async () => (await playerState(page)).loop).toBe(true);
