@@ -82,10 +82,13 @@ test('a group says built when its blocks are built, and its waveform is drawn', 
     (await import('/app/canvas.js')).groupSelected();
   });
   const group = page.locator('.node.grp').last();
-  await expect(group.locator('.node-status')).toHaveAttribute('title', /^not built/);
+  // the tests of this file share one server: an earlier test may have built one of the two blocks, then the group says "1 of 2 built" instead of "not built"
+  const fully = (title: string) => !/^not built/.test(title) && !(/^(d+) of (d+) built/.test(title) && title.replace(/^(d+) of (d+) built.*$/, '$1') !== title.replace(/^(d+) of (d+) built.*$/, '$2'));
+  const statusOf = async () => (await group.locator('.node-status').getAttribute('title')) ?? '';
+  await expect.poll(async () => fully(await statusOf())).toBe(false);   // not all of it is built yet
   await group.click({ button: 'right', position: { x: 20, y: 36 } });
   await chooseMenu(page, 'Build & export', 'Build the group');
-  await expect(group.locator('.node-status')).toHaveAttribute('title', /built|cache hit/, { timeout: 30000 });
+  await expect.poll(async () => fully(await statusOf()), { timeout: 30000 }).toBe(true);   // all of it is built (or reused)
   // something is drawn on the waveform
   await expect.poll(() => group.locator('.player canvas').evaluate((c: HTMLCanvasElement) => { const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data; return d.some((v, i) => i % 4 === 3 && v > 0); })).toBe(true);
 });
