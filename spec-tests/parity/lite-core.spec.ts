@@ -617,7 +617,7 @@ test('a link that was opened before and whose copy holds changes asks what to do
   await expect(page.locator('#lite-dialog-title')).toHaveText('You already have a copy');
   await page.click('#lite-dialog-ok');   // Open my copy
   await expect(page.locator('#lite-editor .cm-content')).toContainText('my own change');
-  await page.click('#lite-tour-skip').catch(() => {});
+  await page.click('#lite-tour-skip', { timeout: 3000 }).catch(() => {});   // the tour may not be there: without a short limit this click waits for the whole test
   await page.reload();
   await expect(page.locator('#lite-dialog')).toBeVisible();
   await page.click('#lite-dialog-cancel');   // New fresh copy
