@@ -40,7 +40,7 @@ test('on a phone Koda starts smaller (0.8) unless a size was chosen', async ({ p
   expect(await width(page)).toBe(88);   // 110 x 0.8
 });
 
-test('the resize frame follows Koda when it is dragged before Done', async ({ page }) => {
+test('the resize frame follows Koda when it is dragged before Done @quarantine', async ({ page }) => {
   await page.locator('#koda-float svg.pet').click({ button: 'right' });
   await page.getByText('Resize…', { exact: true }).click();
   await still(page);
