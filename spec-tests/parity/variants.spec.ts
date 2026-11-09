@@ -111,6 +111,9 @@ test('field choices are previewed before rendering and recorded in the take plan
 
 test('making variants without selected fields refuses before rendering @quarantine', async ({ page }) => {
   await page.locator('#v-target').selectOption('master');
+  await expect(page.locator('.variant-field').first()).toBeVisible();
+  await page.locator('.variant-field input').evaluateAll((boxes) => boxes.forEach((box) => { const input = box as HTMLInputElement; if (input.checked) { input.checked = false; input.dispatchEvent(new Event('change', { bubbles: true })); } }));   // a field can be ticked from the start: this test is about none
+  await expect(page.locator('.variant-field input:checked')).toHaveCount(0);
   await page.click('#v-make');
   await expect(page.locator('#v-status')).toContainText('Select at least one field');
   await expect(page.locator('#vgrid .card')).toHaveCount(0);

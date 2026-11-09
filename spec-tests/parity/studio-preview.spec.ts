@@ -96,8 +96,11 @@ test('double-clicking a node title renames inline and picks a unique name @quara
   await addTemplateBlock(page, 'reverb', 'reserved');
   const node = page.locator('.node[data-id="target"]');
   await page.getByRole('button', { name: 'Fit', exact: true }).click();   // earlier tests of this file left blocks on the canvas
-  await node.locator('.nh .t').dblclick();
   const editor = node.getByRole('textbox', { name: 'Rename block' });
+  await expect(async () => {   // the canvas can still be drawn again after Fit and swallow the double click: click again until the name editor is there
+    await node.locator('.nh .t').dblclick();
+    await expect(editor).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
   await editor.fill('reserved');
   await editor.press('Enter');
   await expect(page.locator('.node[data-id="reserved-2"]')).toBeVisible();

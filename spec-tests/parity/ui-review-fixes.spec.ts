@@ -26,6 +26,7 @@ test('both history view toggles state their action and carry aria-pressed', asyn
 });
 
 test('canvas keys do nothing while a dialog is open @quarantine', async ({ page }) => {
+  await expect(node(page, 'chords')).toBeVisible();   // earlier tests of this file share the song: wait until the block is drawn
   await node(page, 'chords').locator('.nh .t').click();
   const x0 = (await node(page, 'chords').boundingBox())!.x;
   await page.click('#btn-cp');
@@ -39,7 +40,7 @@ test('canvas keys do nothing while a dialog is open @quarantine', async ({ page 
   await expect(page.locator('#dlg')).toHaveJSProperty('open', false);
   await page.locator('body').focus();
   await page.keyboard.press('ArrowRight');
-  await expect.poll(async () => (await node(page, 'chords').boundingBox())!.x).toBeGreaterThan(x0);
+  await expect.poll(async () => (await node(page, 'chords').boundingBox())?.x ?? 0).toBeGreaterThan(x0);
 });
 
 test('graph revisions are keyboard reachable: Enter selects, the menu key opens the menu', async ({ page }) => {

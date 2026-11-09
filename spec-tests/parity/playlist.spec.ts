@@ -148,7 +148,8 @@ test.describe('arrangement sections', () => {
     await chooseMenu(page, /^New section at bars/);
     await dialog(page, 'OK', ['A']);
     await expect(page.locator('#arr .arr-section')).toHaveCount(1);
-    await ruler.click({ button: 'right', position: { x: 300, y: 8 } });
+    const rulerWidth = (await ruler.boundingBox())!.width;   // far from the first section on any screen width
+    await ruler.click({ button: 'right', position: { x: Math.round(rulerWidth * 0.7), y: 8 } });
     await chooseMenu(page, /^New section at bars/);
     await dialog(page, 'OK', ['B']);
     await expect(page.locator('#arr .arr-section')).toHaveCount(2);
