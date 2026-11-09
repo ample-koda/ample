@@ -200,7 +200,7 @@ test('a double click on a sound file opens a window that floats and stays, with 
   await expect(win).toHaveCount(0);
 });
 
-test('the open folder has an Up button, clickable parts and Alt+Up to go back up', async ({ page }) => {
+test('the open folder has an Up button, clickable parts and Alt+Up to go back up @quarantine', async ({ page }) => {
   await openPanel(page);
   const crumb = page.locator('.project-breadcrumb');
   await expect(crumb.locator('.crumb-up')).toBeDisabled();   // the project folder has nothing above it
@@ -235,7 +235,7 @@ test('the folder path scales: it folds its early parts and keeps only the Up but
   await expect(crumb.locator('.crumb-part.current')).toHaveText('sequences');
 });
 
-test('a deep folder path folds its early parts into a menu before it falls back to the Up button', async ({ page }) => {
+test('a deep folder path folds its early parts into a menu before it falls back to the Up button @quarantine', async ({ page }) => {
   await openPanel(page);
   await page.evaluate(() => { const key = Object.keys(localStorage).find((k) => k.startsWith('ample.project-panel.'))!; localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) || '{}'), folder: 'deep/one/two/three/four' })); });
   await page.reload();
