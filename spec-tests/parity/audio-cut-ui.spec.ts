@@ -118,7 +118,8 @@ test('a volume block is small, and its faders open in a window', async ({ page }
   const pop = block.locator('.volume-pop');
   await expect(pop).toBeVisible();
   await expect(pop.getByRole('button', { name: /Live preview/ })).toBeVisible();
-  const size = (await block.boundingBox())!.height;
+  let size = 0;
+  await expect.poll(async () => { size = (await block.boundingBox())?.height ?? 0; return size; }).toBeGreaterThan(0);   // the block can be drawn again just now: wait until it has a place
   await pop.getByText('Mute L').click();   // using the faders does not close them
   await expect(pop).toBeVisible();
   await expect.poll(async () => (await block.boundingBox())?.height).toBe(size);   // the faders hang over what is below: the block itself keeps its size

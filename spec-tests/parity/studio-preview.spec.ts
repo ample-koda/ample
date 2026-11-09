@@ -24,8 +24,8 @@ test('the current block arrow opens its GUI and the context menu toggles bypass'
   const arrow = node.getByRole('button', { name: 'Advanced', exact: true });
   await expect(arrow).toBeVisible();
   await expect(node.locator('.node-toolbar')).toContainText('COMPRESSOR');
-  const versionBox = (await node.locator('.node-toolbar .cls').boundingBox())!, arrowBox = (await arrow.boundingBox())!;
-  expect(arrowBox.x - versionBox.x - versionBox.width).toBeLessThan(12);
+  // both boxes are taken together; the canvas can draw the block again between two measurements, then one of them is gone: measure again
+  await expect.poll(async () => { const v = await node.locator('.node-toolbar .cls').boundingBox(), a = await arrow.boundingBox(); return v && a ? a.x - v.x - v.width : Number.POSITIVE_INFINITY; }).toBeLessThan(12);
   await arrow.click();
   await expect(page.locator('#studio')).toBeVisible();
   await page.locator('#studio').getByRole('button', { name: 'Close advanced controls' }).click();
