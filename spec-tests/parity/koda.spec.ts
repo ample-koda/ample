@@ -93,7 +93,9 @@ test('a patch over several blocks is grouped per block, starts with the neon but
   expect(calls).toContain('focus:echo');
   expect(calls).toContain('2:false');
   expect(calls).toContain('hear:true');
-  expect(calls[calls.length - 1]).toBe('pick:keep');
+  // keep is the choice made after the neon button was heard; when the pointer leaves, hearing stops (hear:false) and that may come before or after the click is handled
+  expect(calls.indexOf('pick:keep')).toBeGreaterThan(calls.indexOf('hear:true'));
+  expect(calls.filter((call: string) => call.startsWith('pick:'))).toEqual(['pick:keep']);
 });
 
 test('up to three blocks of a patch are shown together, each with a switch for the whole block', async ({ page }) => {
