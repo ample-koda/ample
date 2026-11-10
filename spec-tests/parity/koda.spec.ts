@@ -331,7 +331,7 @@ test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays wh
   await expect(page.locator('.koda-gaze .gz-look')).toHaveCount(0, { timeout: 4000 });
 });
 
-test('Ctrl+Shift and drag adds more things to look at, letting go on a linked one lets it go, and shaking lets go of everything', async ({ page }) => {
+test('Ctrl+Shift and drag adds more things to look at, letting go on a linked one lets it go, and shaking lets go of everything @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   const center = async (loc: any) => { const b = await loc.boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };

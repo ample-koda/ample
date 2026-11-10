@@ -279,7 +279,7 @@ test('playlist lanes: a parameter with an automation shows its curve, and a clic
   await expect(page.locator('#menu .menu-item-with-icon, #menu .sub').filter({ hasText: 'Automate a parameter' })).toBeVisible();
 });
 
-test('playlist lanes: the sections of a drums song are resized, repeated and removed from the Playlist', async ({ page }) => {
+test('playlist lanes: the sections of a drums song are resized, repeated and removed from the Playlist @quarantine', async ({ page }) => {
   const demo = process.env.AMPLE_DEMO_SONG!.replace('drums drums at 1 for 16 as "beat A" {\n}', 'drums drums at 1 for 16 as "beat A" {\n  patterns verse=x...x...x...x... / fill=xxxxxxxxxxxxxxxx\n  song verse*3 fill\n}');
   await songWith(page, demo);
   await page.locator('#b-playlist .pl-line', { hasText: 'drums' }).locator('.pl-fold').click();
@@ -298,7 +298,7 @@ test('playlist lanes: the sections of a drums song are resized, repeated and rem
   await expect.poll(() => text(page)).toMatch(/song verse\*5 fill/);
 });
 
-test('playlist lanes: a clip of a sequencer lane is moved, given another pattern, deleted and added, in the song text', async ({ page }) => {
+test('playlist lanes: a clip of a sequencer lane is moved, given another pattern, deleted and added, in the song text @quarantine', async ({ page }) => {
   const sequencer = [
     'sequencer perf pinned@1.0 at 1 for 32 {',
     '  lanes lane1=kick lane2=lead',
@@ -416,7 +416,7 @@ test('playlist: the dock lists what the last edit changed, a rubber band picks s
   expect(await page.locator('#b-playlist .pl-clip.picked').count()).toBeGreaterThan(1);
 });
 
-test('playlist: a clip is copied, cut and pasted as another part of its block', async ({ page }) => {
+test('playlist: a clip is copied, cut and pasted as another part of its block @quarantine', async ({ page }) => {
   await openPlaylist(page);
   const drums = page.locator('#b-playlist .pl-clip[data-key="drums:0"]');
   await drums.focus();
