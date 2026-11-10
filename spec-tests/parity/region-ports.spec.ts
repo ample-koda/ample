@@ -75,11 +75,16 @@ test('an effect shows its loop seam ports only when a region is connected, or wh
   await expect(page.locator('.node[data-id="rain"] .port.out.region')).toHaveCount(1);
   await expect(seamIn).toHaveCount(0);
   await expect(page.locator('.node[data-id="room"] .port.out.region')).toHaveCount(0);
-  const dot = await page.locator('.node[data-id="rain"] .port.out.region').boundingBox();
-  await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(dot!.x + 60, dot!.y + 40, { steps: 4 });
-  await expect(seamIn).toHaveCount(1);
+  const regionPort = page.locator('.node[data-id="rain"] .port.out.region');
+  await expect(async () => {   // the board can be drawn again just now: take the port where it is, and drag again until the seam ports show
+    await page.mouse.up();   // let go of a drag that did not take hold, before the next try
+    await regionPort.scrollIntoViewIfNeeded();
+    const dot = (await regionPort.boundingBox())!;
+    await page.mouse.move(dot.x + dot.width / 2, dot.y + dot.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(dot.x + 60, dot.y + 40, { steps: 4 });
+    await expect(seamIn).toHaveCount(1, { timeout: 2000 });
+  }).toPass({ timeout: 20000 });
   await page.mouse.up();
   await expect(seamIn).toHaveCount(0);
 });
