@@ -226,6 +226,20 @@ export function rowsOf(seq, pattern) {
 /** The song bar that plays at an output bar: inside or after the loop range the range repeats. */
 export const sourceBar = (seq, bar) => (seq.loop && bar >= seq.loop.at ? seq.loop.at + ((bar - seq.loop.at) % seq.loop.bars) : bar);
 
+/** Moves a pattern to another place in the row of tabs. A variation has to stay after the pattern it is made from: a move that would break that gives null. */
+export function movePattern(seq, name, toIndex) {
+  const at = seq.patterns.findIndex((p) => p.name === name);
+  if (at < 0) return seq;
+  const to = Math.max(0, Math.min(seq.patterns.length - 1, toIndex));
+  if (at === to) return seq;
+  const out = copy(seq);
+  const [moved] = out.patterns.splice(at, 1);
+  out.patterns.splice(to, 0, moved);
+  const place = new Map(out.patterns.map((p, i) => [p.name, i]));
+  if (out.patterns.some((p) => p.from && (place.get(p.from) ?? -1) > place.get(p.name))) return null;
+  return out;
+}
+
 export function renamePattern(seq, from, to) {
   if (!NAME.test(to) || seq.patterns.some((p) => p.name === to)) return null;
   const out = copy(seq);

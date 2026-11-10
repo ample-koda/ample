@@ -264,7 +264,8 @@ test('a channel can be heard in the rack: a sample, and an instrument with its p
   expect(requests.at(-1)).toMatchObject({ program: 38, file: 'pack:musescore-general' });
   expect((requests.at(-1)!.notes as Array<{ pitch: number }>)[0].pitch).toBe(36);   // a bass program is tried low
   // the rack keeps its scroll place when something is changed
-  await page.evaluate(() => { const rack = document.querySelector('#sq-rack') as HTMLElement; rack.style.maxHeight = '120px'; rack.style.overflow = 'auto'; rack.scrollTop = 80; });
+  await page.addStyleTag({ content: '#sq-rack { max-height: 120px; overflow: auto; }' });   // a style sheet, so the rack is still short when the workspace is drawn again
+  await page.evaluate(() => { (document.querySelector('#sq-rack') as HTMLElement).scrollTop = 80; });
   await page.locator('#sq-rack .sqchannel').last().getByLabel(/^Bank/).fill('0');
   await page.locator('#sq-rack .sqchannel').last().getByLabel(/^Bank/).dispatchEvent('change');
   await expect.poll(() => page.evaluate(() => (document.querySelector('#sq-rack') as HTMLElement).scrollTop)).toBeGreaterThan(0);

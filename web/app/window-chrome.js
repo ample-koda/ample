@@ -3,8 +3,8 @@
 // The state lives in panel.dataset.window ('' | 'collapsed' | 'max'); the CSS in pianoroll-lite.css does the layout, so the saved left/top/width/height are never touched.
 import { el } from './ui.js';
 
-/** The small AMPLE icon (the A with its eighth note) that stands in front of the AMPLE Jam name. */
-export const jamIcon = () => el('img', { className: 'jam-icon', src: 'assets/icon/ample-small.svg', alt: '', width: 16, height: 16, decoding: 'async' });
+/** The small AMPLE Jam icon (the AMPLE logo with a J where the A is, and its eighth note) that stands in front of the AMPLE Jam name. */
+export const jamIcon = () => el('img', { className: 'jam-icon', src: 'assets/icon/jam-small.svg', alt: '', width: 16, height: 16, decoding: 'async' });
 /** Gives a button the icon and the name: <img> AMPLE Jam. */
 export function withJamIcon(button) { button.replaceChildren(jamIcon(), ' AMPLE Jam'); return button; }
 
