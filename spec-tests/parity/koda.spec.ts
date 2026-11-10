@@ -93,7 +93,9 @@ test('a patch over several blocks is grouped per block, starts with the neon but
   expect(calls).toContain('focus:echo');
   expect(calls).toContain('2:false');
   expect(calls).toContain('hear:true');
-  expect(calls[calls.length - 1]).toBe('pick:keep');
+  // keep is the choice made after the neon button was heard; when the pointer leaves, hearing stops (hear:false) and that may come before or after the click is handled
+  expect(calls.indexOf('pick:keep')).toBeGreaterThan(calls.indexOf('hear:true'));
+  expect(calls.filter((call: string) => call.startsWith('pick:'))).toEqual(['pick:keep']);
 });
 
 test('up to three blocks of a patch are shown together, each with a switch for the whole block', async ({ page }) => {
@@ -353,7 +355,8 @@ test('Ctrl+Shift and drag adds more things to look at, letting go on a linked on
   expect(subject.items).toHaveLength(2);
   await drag(two, ['Control', 'Shift']);
   await expect(page.locator('.koda-gaze .gz-look:not([style*="opacity: 0"])')).toHaveCount(1, { timeout: 4000 });
-  // shaken: everything is let go of, Koda is puzzled and then smiles
+  // shaken: everything is let go of, Koda is puzzled and then smiles; the smile is short, so the emotions are written down while it happens
+  await page.evaluate(async () => { const { kodaState } = await import('/app/koda.js'); (window as any).__emotions = []; setInterval(() => (window as any).__emotions.push(kodaState().emotion), 40); });
   const k = await center(page.locator('#koda-layer .pet'));
   await page.mouse.move(k.x, k.y);
   await page.keyboard.down('Control');
@@ -362,7 +365,7 @@ test('Ctrl+Shift and drag adds more things to look at, letting go on a linked on
   await page.mouse.up();
   await page.keyboard.up('Control');
   await expect(page.locator('.koda-gaze .gz-look')).toHaveCount(0, { timeout: 4000 });
-  await expect.poll(async () => (await state(page)).emotion, { timeout: 4000 }).toBe('happy');
+  await expect.poll(async () => page.evaluate(() => (window as any).__emotions.includes('happy')), { timeout: 4000 }).toBe(true);
 });
 
 test('shaking Koda itself throws the lines off one after the other, the newest first', async ({ page }) => {
