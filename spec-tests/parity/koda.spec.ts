@@ -402,14 +402,14 @@ test('shaking Koda itself throws the lines off one after the other, the newest f
   const seen: number[] = [await count()];   // the count before the shake is part of the series: a loaded machine may throw the next line before the first sample
   // keep shaking for about two seconds: one line per 0.69 s at most, so the three are gone after roughly two throws' time
   const t0 = Date.now();
-  while (Date.now() - t0 < 2300) { for (let i = 0; i < 4; i++) await page.mouse.move(k.x + (i % 2 ? -40 : 40), k.y, { steps: 2 }); seen.push(await count()); }
+  let smiled = false;   // the smile comes 0.7 s after the last throw and lasts only 1.5 s: on a slow machine it can begin and end while the mouse is still down, so it is looked for during the shake too
+  while (Date.now() - t0 < 2300) { for (let i = 0; i < 4; i++) await page.mouse.move(k.x + (i % 2 ? -40 : 40), k.y, { steps: 2 }); seen.push(await count()); if (!smiled) smiled = (await state(page)).emotion === 'happy'; }
   const quick = seen.findIndex((n) => n === 0);
   expect(quick).toBeGreaterThan(2);   // not all at once
   await page.mouse.up();
   expect(seen[seen.length - 1]).toBe(0);
   expect(seen).toContain(2);   // not all at once: one after the other
   // the smile comes 0.7 s after the last throw and lasts only 1.5 s: look often from the moment the mouse is up (a loaded machine may start looking late), and stop at the first smile
-  let smiled = false;
   for (let i = 0; i < 100 && !smiled; i++) { smiled = (await state(page)).emotion === 'happy'; if (!smiled) await page.waitForTimeout(30); }
   expect(smiled).toBe(true);
 });

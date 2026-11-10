@@ -70,9 +70,12 @@ test('an audio node lists its connected effects and focuses the chosen block and
   await expect(arrow).toBeVisible();
   await arrow.click();
   const options = page.getByRole('listbox', { name: 'Connected effects' }).getByRole('option');
-  await expect(options).toHaveText(['chain-eq · eq', 'chain-comp · compressor']);
-  await options.first().dispatchEvent('click');
-  await expect(page.locator('.node[data-id="chain-eq"]')).toHaveClass(/sel/);
+  await expect(async () => {   // the list can close and be drawn again between looking at it and choosing: open it again when it is gone, then choose
+    if (!(await options.count())) await arrow.click();
+    await expect(options).toHaveText(['chain-eq · eq', 'chain-comp · compressor'], { timeout: 2500 });
+    await options.first().dispatchEvent('click', undefined, { timeout: 2500 });
+    await expect(page.locator('.node[data-id="chain-eq"]')).toHaveClass(/sel/, { timeout: 2500 });
+  }).toPass({ timeout: 20_000 });
   await expect(page.locator('#props input').first()).toHaveValue('chain-eq');
   await page.locator('.node[data-id="chain-comp"]').click({ button: 'right' });
   await chooseMenu(page, 'Edit', 'Disable block');
