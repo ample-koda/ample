@@ -3953,6 +3953,30 @@ Answer in English, whatever language the question is in, unless the user asks fo
         };
     }
 
+    /// <summary>The other file of the proposal that holds the first line of an 'old' text of a trial edit, or null.</summary>
+    internal static string? FileWithTextOfTrial(IReadOnlyDictionary<string, string> proposed, string rel, JsonArray trial)
+    {
+        foreach (JsonNode? edit in trial)
+        {
+            string old = edit is JsonObject o && o["old"] is JsonValue v ? v.ToString().Replace("\r\n", "\n", StringComparison.Ordinal) : string.Empty;
+            string first = old.Split('\n').FirstOrDefault(l => l.Trim().Length > 0)?.Trim() ?? string.Empty;
+            if (first.Length < 8)
+            {
+                continue;
+            }
+
+            foreach ((string path, string text) in proposed)
+            {
+                if (!string.Equals(path, rel, StringComparison.OrdinalIgnoreCase) && text.Contains(first, StringComparison.Ordinal))
+                {
+                    return path;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private async Task<JsonObject> ListenCoreAsync(string token, string block, string with, string? trialPath, JsonArray? trial, Action<Takebank, string, AmpleDocument>? capture, bool forceRender, CancellationToken ct)
     {
         AiTask task = ContextTokens.TryGetValue(token, out AiTask? t) ? t : throw new AmpleException("AMP5458", "This task is no longer running.");
@@ -3988,7 +4012,17 @@ Answer in English, whatever language the question is in, unless the user asks fo
                     throw new AmpleException("AMP5458", $"{rel} is not a text file of the proposal, so the trial edits cannot be tried on it.");
                 }
 
-                AiEdit.Result tried = AiEdit.Apply(current, trial, s.Spec);
+                AiEdit.Result tried;
+                try
+                {
+                    tried = AiEdit.Apply(current, trial, s.Spec);
+                }
+                catch (AmpleException ex) when (ex.DiagnosticCode == "AMP5460" && FileWithTextOfTrial(proposed, rel, trial) is { } other)
+                {
+                    // the text is in another file of the proposal, typically the .ampleseq of a sequencer whose instruments are not in the song: say where it is
+                    throw new AmpleException("AMP5460", $"{ex.Message} That text is in {other}, not in {rel}: give {other} as the `path` of the edit (an instrument of a sequencer is changed there with op sequence_channel).");
+                }
+
                 proposed[rel] = tried.Text;
                 trialSummary = [.. tried.Summary];
             }

@@ -3,7 +3,7 @@
 
 import { api } from './api.js';
 import { $, activatable, ask, el, showMenu, toast } from './ui.js';
-import { S, editHistory, enterEditPeek, enterPeek, goLine, leavePeek, loadHistory, notify, reloadDoc, restoreEditPeek, save, saveForCheckpoint } from './store.js';
+import { S, editHistory, enterEditPeek, enterPeek, goLine, leavePeek, loadHistory, notify, reloadDoc, restoreEditPeek, save, saveForCheckpoint, CheckpointDraftConflict, resolveCheckpointDraft } from './store.js';
 import { dangerousAct } from './dangerous.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { compareRefs, fmtTime, histModel, lineChain, lineChildren, lineParent, shortId, visibleNodes } from './history-model.js';
@@ -60,12 +60,24 @@ export async function checkpoint() {
   const name = el('input', { placeholder: 'name (empty = "checkpoint")' });
   const ok = await ask('Checkpoint', 'All recoverable source drafts and the current song or module are saved first. AMPLE then makes one checkpoint containing the saved work.', [{ label: 'Cancel', value: false }, { label: 'Save all work and checkpoint', value: true, primary: true }], [name]);
   if (!ok) return;
-  try {
-    await (await import('./source.js')).saveRecoveryDraftsForCheckpoint();
-    await saveForCheckpoint();
-    const r = await api.post('/api/history/checkpoint', { message: name.value.trim() || 'checkpoint' });
-    toast(r.created ? 'Checkpoint taken.' : 'Nothing changed since the last checkpoint.');
-  } catch (e) { toast(e.message); }
+  // a recovery copy in this browser that differs from the file stops the checkpoint: the person chooses what happens to it, then the checkpoint goes on
+  for (let round = 0; round < 20; round++) {
+    try {
+      await (await import('./source.js')).saveRecoveryDraftsForCheckpoint();
+      await saveForCheckpoint();
+      const r = await api.post('/api/history/checkpoint', { message: name.value.trim() || 'checkpoint' });
+      toast(r.created ? 'Checkpoint taken.' : 'Nothing changed since the last checkpoint.');
+      return;
+    } catch (e) {
+      if (!(e instanceof CheckpointDraftConflict)) { toast(e.message); return; }
+      const options = [{ label: 'Cancel', value: 'cancel' }, { label: 'Open the file', value: 'open' }, { label: 'Use the saved file', value: 'discard' }];
+      if (!e.isModule) options.push({ label: 'Keep my browser copy', value: 'keep', primary: true });
+      const choice = await ask('Checkpoint stopped', `${e.path} in this browser is not the same as the file on the server. Open it to look first, keep the copy of this browser (it is saved as the file), or use the saved file (the copy of this browser is thrown away).`, options);
+      if (choice === 'open') { document.dispatchEvent(new CustomEvent(/\.amplet$/i.test(e.path) ? 'ample:open' : 'ample:open-file', { detail: e.path })); return; }
+      if (choice !== 'keep' && choice !== 'discard') return;
+      try { await resolveCheckpointDraft(e.path, choice); } catch (error) { toast(error.message); return; }
+    }
+  }
 }
 
 export async function goToNode(id) {

@@ -11,7 +11,7 @@ import { collectBuildErrors } from '../lib/build-errors.mjs';
 import { parseView, withoutViewText, writeView } from '../lib/view-lines.mjs';
 import { sizes } from './geometry.js';
 import { setBarBeats } from '../lib/meter.mjs';
-import { consumeRecoveryAcceptance, decide, listWorkRecords, parseRecord, workRecord } from '../lib/work-state.mjs';
+import { consumeRecoveryAcceptance, decide, listWorkRecords, parseRecord, removeWorkRecord, workRecord } from '../lib/work-state.mjs';
 
 export const S = {
   project: null,
@@ -732,6 +732,25 @@ export async function save() {
   } catch (e) { fail(e); }
 }
 
+/** A checkpoint stops when the recovery copy of a file in this browser differs from the file on the server: the person decides (see resolveCheckpointDraft). */
+export class CheckpointDraftConflict extends Error {
+  constructor(path, isModule) { super(`Checkpoint stopped: ${path} differs from its browser recovery buffer. Open and review that file first.`); this.path = path; this.isModule = isModule; }
+}
+
+/** The choice of the person for a recovery copy that stopped a checkpoint: 'keep' saves the browser copy as the file, 'discard' throws the browser copy away (the saved file stays). */
+export async function resolveCheckpointDraft(path, choice) {
+  const project = S.project?.id || '';
+  const record = listWorkRecords(localStorage, project).find((r) => r.path === path);
+  if (choice === 'keep' && record) {
+    const current = await api.get(`/api/doc?path=${encodeURIComponent(path)}`);
+    if (current.text !== record.text) {
+      await api.put('/api/doc', { path, text: record.text, baseVersion: current.version });
+      await api.post('/api/doc/save', { path, suppressCheckpoint: true });   // the checkpoint that goes on takes this saved text
+    }
+  }
+  try { removeWorkRecord(localStorage, project, path); } catch { /* storage may be blocked */ }
+}
+
 /** Saves the current working documents without creating per-file auto-checkpoints; the caller creates one checkpoint after the whole batch succeeds. */
 export async function saveForCheckpoint() {
   await editsDone();
@@ -745,7 +764,7 @@ export async function saveForCheckpoint() {
         ? await api.get(`/api/module/doc?path=${encodeURIComponent(record.path)}`)
         : await api.get(`/api/doc?path=${encodeURIComponent(record.path)}`);
     } catch (e) { if (/There is no file/.test(e.message)) continue; throw e; }   // a draft of a file that was moved or removed is not a reason to stop the checkpoint (the draft stays)
-    if (record.text !== current.text) throw new Error(`Checkpoint stopped: ${record.path} differs from its browser recovery buffer. Open and review that file first.`);
+    if (record.text !== current.text) throw new CheckpointDraftConflict(record.path, module);
     if (!current.dirty) continue;
     if (module) await api.post('/api/module/doc/save', { path: record.path });
     else await api.post('/api/doc/save', { path: record.path, suppressCheckpoint: true });
