@@ -3891,16 +3891,27 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 return ready;
             }
 
-            if (!task.RunningTools.TryGetValue(key, out running!))
+            if (task.RunningTools.TryGetValue(key, out running!) && running.IsCompleted)
+            {
+                // it has finished and only its own clean-up has not run yet: an answer that nobody collected is handed over, in every other case this call is a new run
+                task.RunningTools.Remove(key);
+                if (!task.AbandonedTools.Remove(key)) running = null!;
+            }
+
+            if (running is null)
             {
                 CancellationToken stop = task.Cancel.Token;
                 running = Task.Run(() => work(stop), stop);
                 task.RunningTools[key] = running;
+                Task<JsonObject> own = running;
                 _ = running.ContinueWith(_ =>
                 {
                     lock (task.RunningTools)
                     {
-                        task.RunningTools.Remove(key);
+                        if (task.RunningTools.TryGetValue(key, out Task<JsonObject>? now) && ReferenceEquals(now, own))
+                        {
+                            task.RunningTools.Remove(key);   // not the entry of a newer run of the same call
+                        }
                     }
 
                     MemoryRelief.CollectWhenLarge();   // a build leaves large buffers behind
