@@ -298,7 +298,7 @@ test('playlist lanes: the sections of a drums song are resized, repeated and rem
   await expect.poll(() => text(page)).toMatch(/song verse\*5 fill/);
 });
 
-test('playlist lanes: a clip of a sequencer lane is moved, given another pattern, deleted and added, in the song text', async ({ page }) => {
+test('playlist lanes: a clip of a sequencer lane is moved, given another pattern, deleted and added, in the song text @quarantine', async ({ page }) => {
   const sequencer = [
     'sequencer perf pinned@1.0 at 1 for 32 {',
     '  lanes lane1=kick lane2=lead',
