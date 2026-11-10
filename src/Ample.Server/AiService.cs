@@ -3916,6 +3916,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             lock (task.RunningTools)
             {
                 task.ReadyTools.Remove(key);   // the caller has the answer now
+                task.AbandonedTools.Remove(key);   // and nobody has to keep it: without this a call that gave up earlier could store the same answer a moment later, for the next call
             }
 
             return await running.ConfigureAwait(false);
@@ -3932,7 +3933,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 {
                     lock (task.RunningTools)
                     {
-                        task.AbandonedTools.Remove(key);
+                        if (!task.AbandonedTools.Remove(key)) return;   // somebody took the answer meanwhile
                         task.ReadyTools[key] = done.IsCompletedSuccessfully ? done.Result : new JsonObject { ["ok"] = false, ["built"] = false, ["why"] = done.Exception?.GetBaseException().Message ?? "The measuring call was stopped." };
                     }
                 }, TaskScheduler.Default);

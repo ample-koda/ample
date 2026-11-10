@@ -183,10 +183,12 @@ public sealed class AiPollAndBudgetTests
         {
             MethodInfo method = typeof(AiService).GetMethod("WithinToolBudgetAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             int runs = 0;
+            // the work ends when the test says so, not after some time: on a slow machine a timer could end it before the second call or never in time for the third
+            TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
             Func<CancellationToken, Task<JsonObject>> work = async stop =>
             {
                 Interlocked.Increment(ref runs);
-                await Task.Delay(600, stop);
+                await release.Task.WaitAsync(stop);
                 return new JsonObject { ["ok"] = true, ["n"] = runs };
             };
             Task<JsonObject> Call() => (Task<JsonObject>)method.Invoke(null, [task.ContextToken, "k", work, CancellationToken.None])!;
@@ -195,12 +197,14 @@ public sealed class AiPollAndBudgetTests
             Assert.True(first["pending"]!.GetValue<bool>());
             JsonObject joined = await Call();   // still running: joins the same work, and also gives up in time
             Assert.True(joined["pending"]!.GetValue<bool>());
-            await Task.Delay(800);
+            release.SetResult();
             JsonObject result = await Call();   // finished meanwhile: the answer is handed over, nothing runs again
+            for (int i = 0; i < 50 && result["pending"]?.GetValue<bool>() == true; i++) { await Task.Delay(100); result = await Call(); }   // the result is stored a moment after the work ends
             Assert.True(result["ok"]!.GetValue<bool>());
             Assert.Equal(1, runs);
+            release = new(TaskCreationOptions.RunContinuationsAsynchronously);   // the new run waits again
             JsonObject again = await Call();    // a new identical call is a new run
-            Assert.True(again["pending"]!.GetValue<bool>());
+            Assert.True(again["pending"]?.GetValue<bool>() == true, again.ToJsonString() + " runs=" + runs);
             Assert.Equal(2, runs);
         }
         finally

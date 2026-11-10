@@ -58,7 +58,9 @@ public static partial class LiteBuilder
         Stopwatch clock = Stopwatch.StartNew();
         using LiteWorkspace workspace = LiteWorkspace.Create(libraryHome, files);
         using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        limit.CancelAfter(TimeSpan.FromSeconds(limits.BuildSeconds));
+        // a limit of no seconds stops the build at once; a timer of zero seconds only fires a moment later, and a fast build could be done before it
+        if (limits.BuildSeconds <= 0) limit.Cancel();
+        else limit.CancelAfter(TimeSpan.FromSeconds(limits.BuildSeconds));
         List<LiteDiagnostic> found = [];
         try
         {
