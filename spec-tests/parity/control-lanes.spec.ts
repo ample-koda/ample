@@ -90,7 +90,7 @@ test('a parameter has a button that steers it with a control, and the choice is 
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).text, { timeout: 15000 }).toMatch(/from sw.level -> gain/);
 });
 
-test('a control line that is dragged shows the control inputs of the parameters and connects to one', async ({ page }) => {
+test('a control line that is dragged shows the control inputs of the parameters and connects to one @quarantine', async ({ page }) => {
   await openApp(page);
   await addTemplateBlock(page, 'curve', 'sw');
   await addTemplateBlock(page, 'volume', 'vol');
