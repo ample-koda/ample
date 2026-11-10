@@ -291,7 +291,7 @@ export function openPianoRollLite(blockId, options = {}) {
       state.glow = (state.glow ?? 0) * 0.85 + energy * 0.15;
       panel.style.setProperty('--glow-pulse', Math.min(1, 0.2 + 0.3 * swell * accent + 0.5 * state.glow).toFixed(3));
     } else { state.glow = 0; panel.style.removeProperty('--glow-pulse'); }
-    Object.assign(panel.dataset, { loop: state.bracket ? `${state.bracket.start}-${state.bracket.end}` : '', playhead: String(Math.round(state.playhead)), pxBeat: state.pxBeat.toFixed(2), tool: state.tool, snapTicks: String(Math.round(beats() * ppq)), scrollX: String(Math.round(state.scrollX)), hidden: String(list.filter(hasHiddenData).length), mode: state.mode, gridRows: state.mode === 'grid' ? gridList().join(',') : '', gridRowH: String(state.gridRowH), muted: [...state.muted].sort((a, b) => a - b).join(','), gridScrollY: String(Math.round(state.gridScrollY)), stepTicks: String(stepLen()), scrollY: String(Math.round(state.scrollY)), rowH: state.rowH.toFixed(2), snap: state.snap, follow: state.followPaused ? 'paused' : state.follow ? 'on' : 'off', lit: [...state.litNotes].join(','), litKeys: [...litKeysNow()].sort((a, b) => a - b).join(','), selected: [...state.selected].sort((a, b) => a - b).join(',') });
+    Object.assign(panel.dataset, { loop: state.bracket ? `${state.bracket.start}-${state.bracket.end}` : '', playhead: String(Math.round(state.playhead)), pxBeat: state.pxBeat.toFixed(2), ghosts: String(options.ghostRows?.length ?? ''), tool: state.tool, snapTicks: String(Math.round(beats() * ppq)), scrollX: String(Math.round(state.scrollX)), hidden: String(list.filter(hasHiddenData).length), mode: state.mode, gridRows: state.mode === 'grid' ? gridList().join(',') : '', gridRowH: String(state.gridRowH), muted: [...state.muted].sort((a, b) => a - b).join(','), gridScrollY: String(Math.round(state.gridScrollY)), stepTicks: String(stepLen()), scrollY: String(Math.round(state.scrollY)), rowH: state.rowH.toFixed(2), snap: state.snap, follow: state.followPaused ? 'paused' : state.follow ? 'on' : 'off', lit: [...state.litNotes].join(','), litKeys: [...litKeysNow()].sort((a, b) => a - b).join(','), selected: [...state.selected].sort((a, b) => a - b).join(',') });
     hint.hidden = !(model.notes.length === 0 && !state.hintDismissed) || state.mode === 'grid';
     markView(false);
     status.textContent = `${model.notes.length} note${model.notes.length === 1 ? '' : 's'} · ${endBars()} bar${endBars() === 1 ? '' : 's'}${state.selected.size ? ` · ${state.selected.size} selected` : ''}${locked ? ' · read-only' : ''}`;
@@ -770,6 +770,13 @@ export function openPianoRollLite(blockId, options = {}) {
   }
   function ghostList() {
     if (!state.showGhosts) return [];
+    // the other voices of a sequencer pattern: read-only outlines in their own colour; a click on one opens that voice
+    if (options.ghostRows) {
+      return options.ghostRows.map((row, i) => {
+        let m; try { m = parse(`"${row.text}"`, ppq); } catch { return null; }
+        return { clipId: row.id, title: row.title, open: row.open, chordSource: false, color: row.color || GHOST_COLORS[i % GHOST_COLORS.length], notes: absolute(m).map((nn) => ({ pitch: nn.pitch, at: nn.at, length: Math.max(1, nn.length), velocity: nn.velocity })) };
+      }).filter(Boolean);
+    }
     const myOffset = clipOffsetBars(flat().nodes.find((n) => n.id === node.id) ?? node);
     return ghostSources().map((src, i) => {
       loadGhost(src);
@@ -1285,7 +1292,7 @@ export function openPianoRollLite(blockId, options = {}) {
   grid.addEventListener('dblclick', (event) => {
     if (locked || state.mode === 'grid' || ['slice', 'delete', 'playback', 'zoom'].includes(state.tool)) return;
     const { x, y } = local(event, grid), n = noteAt(x, y);
-    if (!n) { const g = state.showGhosts ? ghostHit(x, y) : null; if (g) goTo(g.clipId, false); return; }
+    if (!n) { const g = state.showGhosts ? ghostHit(x, y) : null; if (g) { if (g.open) g.open(); else goTo(g.clipId, false); } return; }
     const group = rowsBySelection(), next = velocityRows(model, group.length > 1 && state.selected.has(n.index) ? group : rowOf(n), 100);
     if (next !== model) { model = next; commit(next); requestDraw(); }
   });
