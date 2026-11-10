@@ -6,6 +6,7 @@
 import { api } from './api.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
+import { notesIn, thumbRects } from '../lib/seq-notes.mjs';
 import { gmProgramName, parseGmProgram } from '../lib/gm-programs.mjs';
 import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } from './store.js';
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
@@ -21,7 +22,7 @@ import { unlockAudio, startLoopPlayer, stopLoopPlayer, setLoopRange, seekLoopPla
 import { barAt, barOfClick, barSeconds, rangeFromDrag, rangeSeconds } from '../lib/loop-model.mjs';
 import {
   TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseSeq,
-  removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
+  movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
 const Q = { blockId: null, embedded: false, path: '', seq: null, snapshot: '', original: '', undo: [], redo: [], pattern: null, clip: -1, barPx: 30, error: '', busy: false, range: null, cursor: 1, repeat: true, live: true, stale: true, builtTake: null, status: '', wroteLive: false, liveBusy: false, liveAgain: false };
@@ -506,12 +507,60 @@ function paintRack(host, locked) {
 }
 
 // ---------- the patterns ----------
+/** A small picture of the notes of a row: one bar per note, the high ones at the top. */
+function thumbOf(text, bars, colour) {
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'sqthumb'); svg.setAttribute('viewBox', '0 0 100 24'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
+  for (const r of thumbRects(text, bars)) {
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('x', String(r.x * 100)); rect.setAttribute('y', String(1 + r.y * 19)); rect.setAttribute('width', String(Math.max(0.8, r.w * 100))); rect.setAttribute('height', '3');
+    rect.setAttribute('fill', colour || 'currentColor'); rect.setAttribute('opacity', String(0.4 + Math.min(127, r.velocity) / 127 * 0.6));
+    svg.append(rect);
+  }
+  return el('span', { className: 'sqthumbwrap' }, [svg]);
+}
+let draggingPattern = null;   // the name of the pattern tab that is being dragged (to another place in the row, or onto a track of the playlist)
+/** The menu of a pattern tab: the same actions as the buttons beside the tabs, which it presses. */
+function patternMenu(event, p, locked) {
+  const press = (id) => () => { Q.pattern = p.name; render(); document.getElementById(id)?.click(); };
+  showMenu(event.clientX, event.clientY, [
+    { head: p.name },
+    ...(locked ? [] : [{ label: 'Rename...', fn: press('sq-pattern-rename') }, { label: 'Duplicate', fn: press('sq-pattern-copy') }, { label: 'Variation', fn: press('sq-pattern-variation') }]),
+    { label: 'Play pattern', fn: press('sq-pattern-play') },
+    ...(locked ? [] : ['-', { label: 'Delete', danger: true, fn: press('sq-pattern-delete') }]),
+  ]);
+}
+const isNoteChannel = (c) => c.type !== 'drum' && c.type !== 'loop' && c.type !== 'guitar';
+/** How many notes a pattern has in all its rows of notes. */
+const patternNotes = (p) => { const rows = rowsOf(Q.seq, p); return Q.seq.channels.filter(isNoteChannel).reduce((sum, c) => sum + notesIn(rows[c.name] ?? ''), 0); };
+const patternColour = (p, i) => (/^#[0-9a-f]{6}$/i.test(p.color) ? p.color : colorOf(i));
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 function paintPatterns(host, locked) {
   const box = el('div', { className: 'sqpatterns', id: 'sq-patterns' });
   const tabs = el('div', { className: 'sqtabs', role: 'tablist' });
   Q.seq.patterns.forEach((p, i) => {
-    const tab = el('button', { className: `sqtab${p.name === Q.pattern ? ' on' : ''}`, textContent: p.name, role: 'tab', 'aria-selected': String(p.name === Q.pattern), onclick: () => { Q.pattern = p.name; render(); } });
+    const tab = el('button', { className: `sqtab${p.name === Q.pattern ? ' on' : ''}`, textContent: p.name, role: 'tab', 'aria-selected': String(p.name === Q.pattern), onclick: () => { if (Q.pattern === p.name) return; Q.pattern = p.name; render(); } });
     tab.dataset.pattern = p.name;
+    tab.addEventListener('contextmenu', (event) => { event.preventDefault(); patternMenu(event, p, locked); });
+    if (!locked) {
+      tab.addEventListener('dblclick', () => { Q.pattern = p.name; document.getElementById('sq-pattern-rename')?.click(); });
+      tab.draggable = true;
+      tab.addEventListener('dragstart', (event) => { draggingPattern = p.name; event.dataTransfer.effectAllowed = 'copyMove'; event.dataTransfer.setData('text/plain', p.name); });
+      tab.addEventListener('dragend', () => { draggingPattern = null; });
+      tab.addEventListener('dragover', (event) => { if (!draggingPattern || draggingPattern === p.name) return; event.preventDefault(); event.dataTransfer.dropEffect = 'move'; });
+      tab.addEventListener('drop', (event) => {
+        if (!draggingPattern) return;
+        event.preventDefault();
+        const moved = movePattern(Q.seq, draggingPattern, i);
+        draggingPattern = null;
+        if (moved) commit(moved); else toast('A variation stays after the pattern it is made from.');
+      });
+    }
+    const made = patternNotes(p);
+    tab.dataset.count = String(made);   // shown behind the name by the style sheet, so the text of the tab stays its name
+    tab.title = `${p.name} · ${plural(p.bars, 'bar')} · ${plural(made, 'note')}`;
+    tab.setAttribute('aria-label', p.name);
+    tab.style.setProperty('--pc', patternColour(p, i));
     tab.style.borderBottomColor = p.color || colorOf(i);
     tabs.append(tab);
   });
@@ -527,6 +576,11 @@ function paintPatterns(host, locked) {
   ]);
   box.append(el('div', { className: 'row' }, [tabs, buttons]));
   if (!current) { box.append(el('p', { className: 'note', textContent: 'No pattern yet: make one with New.' })); host.append(box); return; }
+  const currentIndex = Q.seq.patterns.indexOf(current);
+  const jamOpeners = new Map();   // channel name -> opens the Jam of that row (filled while the rows are made)
+  const withNotes = () => Q.seq.channels.filter((c) => isNoteChannel(c) && jamOpeners.has(c.name) && notesIn(rowsOf(Q.seq, current)[c.name] ?? '') > 0);
+  box.append(el('div', { className: 'sqpatternhead', id: 'sq-pattern-head', style: `--pc:${patternColour(current, currentIndex)}` }, [el('span', { className: 'sqdot', 'aria-hidden': 'true' }), el('strong', { textContent: current.name }), el('span', { className: 'note', id: 'sq-pattern-summary', textContent: `${plural(current.bars, 'bar')} · ${plural(patternNotes(current), 'note')}` }),
+    el('button', { className: 'sqjamall', id: 'sq-jam-all', textContent: 'Jam all voices', disabled: locked || !Q.seq.channels.some((c) => isNoteChannel(c) && notesIn(rowsOf(Q.seq, current)[c.name] ?? '') > 0), title: 'Open the Jam on the first voice with notes; the other voices show behind it as outlines in their own colour, and a click on one opens that voice', onclick: () => withNotes()[0] && jamOpeners.get(withNotes()[0].name)() })]));
   const colour = el('input', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(current.color) ? current.color : colorOf(Q.seq.patterns.indexOf(current)), disabled: locked, 'aria-label': 'Colour of the pattern' });
   colour.onchange = () => commit(setPattern(Q.seq, current.name, { color: colour.value }));
   const bars = el('input', { type: 'number', className: 'seqn', id: 'sq-pattern-bars', value: current.bars, min: 1, max: 64, disabled: locked, 'aria-label': 'Bars of the pattern' });
@@ -534,9 +588,10 @@ function paintPatterns(host, locked) {
   box.append(el('div', { className: 'row' }, [el('label', { textContent: 'bars' }), bars, el('label', { textContent: 'colour' }), colour, ...(current.from ? [el('span', { className: 'note', id: 'sq-from', textContent: `variation of ${current.from}` })] : [])]));
   const rows = rowsOf(Q.seq, current);
   // a row per channel: steps for a drum, a roll for notes, a switch for a loop
-  Q.seq.channels.forEach((c) => {
+  Q.seq.channels.forEach((c, channelIndex) => {
     const row = el('div', { className: `seqrow sqgridrow${current.from && !(c.name in current.rows) ? ' inherited' : ''}` });
     row.dataset.voice = c.name;
+    row.style.setProperty('--vc', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : colorOf(channelIndex));   // the colour of the channel, the same as in the list on the left
     row.append(el('span', { className: 'seqname', textContent: c.name, title: c.type === 'gm' && Number(c.settings.bank ?? 0) === 0 ? `gm · ${gmProgramName(Number(c.settings.program ?? 0))}` : c.type }));
     const text = rows[c.name] ?? '';
     const own = c.name in current.rows;
@@ -582,9 +637,19 @@ function paintPatterns(host, locked) {
         box.append(row);
         return;
       }
-      row.append(el('span', { className: 'note', textContent: `${count} note${count === 1 ? '' : 's'}` }), withJamIcon(el('button', { className: 'sqlite', textContent: 'AMPLE Jam', disabled: locked, title: 'Jam on the notes of this channel in this pattern: draw, paint, slice and hear them as you go', onclick: () => {
-        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite('sq-' + c.name + '·' + current.name, { sequencerBlock: Q.blockId || '', pseudo: { id: 'sq-' + c.name + '·' + current.name, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => { Q.undo.push(Q.seq); Q.redo = []; Q.seq = setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()); refreshSaveControls(); return true; }, onClose: render, instrument: c.type === 'gm' ? { file: c.settings.file || '', bank: c.settings.bank ?? 0, program: c.settings.program ?? 0 } : null }));
-      } })));
+      const ghostRowsOf = (self) => withNotes().filter((o) => o !== self).map((o) => ({ id: 'sq-' + o.name, title: o.name, color: /^#[0-9a-f]{6}$/i.test(o.color) ? o.color : colorOf(Q.seq.channels.indexOf(o)), text: rowsOf(Q.seq, current)[o.name] ?? '', open: () => jamOpeners.get(o.name)?.() }));
+      const openJam = () => {
+        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite('sq-' + c.name + '·' + current.name, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), pseudo: { id: 'sq-' + c.name + '·' + current.name, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => { Q.undo.push(Q.seq); Q.redo = []; Q.seq = setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()); refreshSaveControls(); return true; }, onClose: render, instrument: c.type === 'gm' ? { file: c.settings.file || '', bank: c.settings.bank ?? 0, program: c.settings.program ?? 0 } : null }));
+      };
+      jamOpeners.set(c.name, openJam);
+      const jam = withJamIcon(el('button', { className: 'sqlite', disabled: locked, 'aria-label': 'AMPLE Jam', title: 'Jam on the notes of this channel in this pattern: draw, paint, slice and hear them as you go', onclick: openJam }));
+      jam.lastChild.remove();   // the icon alone: the count and the picture of the row open the Jam as well
+      const summary = el('span', { className: 'note sqopen', textContent: `${count} note${count === 1 ? '' : 's'}`, title: locked ? '' : `Open ${c.name} in AMPLE Jam` });
+      const picture = thumbOf(text, current.bars, row.style.getPropertyValue('--vc'));
+      picture.title = locked ? '' : `Open ${c.name} in AMPLE Jam`;
+      for (const part of [summary, picture]) part.addEventListener('click', () => { if (!locked) openJam(); });
+      if (!count) row.classList.add('silent');
+      row.append(summary, picture, jam);
     }
     box.append(row);
   });
@@ -689,6 +754,15 @@ function paintPlaylist(host, locked) {
       const p = Q.seq.patterns.find((x) => x.name === Q.pattern);
       Q.clip = Q.seq.clips.length;
       commit(addClip(Q.seq, Q.pattern, bar, p?.bars ?? 1, t));
+    };
+    lane.ondragover = (event) => { if (locked || !draggingPattern) return; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; };
+    lane.ondrop = (event) => {
+      if (locked || !draggingPattern) return;
+      event.preventDefault();
+      const name = draggingPattern, p = Q.seq.patterns.find((x) => x.name === name);
+      draggingPattern = null;
+      Q.clip = Q.seq.clips.length;
+      commit(addClip(Q.seq, name, Math.max(1, Math.floor((event.clientX - lane.getBoundingClientRect().left) / px) + 1), p?.bars ?? 1, t));
     };
     lane.oncontextmenu = (event) => { if (event.target !== lane) return; event.preventDefault(); trackMenu(event, t, Math.floor((event.clientX - lane.getBoundingClientRect().left) / px) + 1, locked); };
     Q.seq.clips.forEach((c, index) => {

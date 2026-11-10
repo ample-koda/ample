@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="AMPLE Jam">
+  <title>AMPLE Jam (small sizes)</title>
+  <!-- the AMPLE icon with a J where the A is: the same tile, grid, neon strokes and a bold teal eighth note (a head, a stem and a flag); used in front of the name AMPLE Jam -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1226"/>
+      <stop offset="1" stop-color="#241a4a"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2de2ff"/>
+      <stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="clip"><rect x="8" y="8" width="240" height="240" rx="58"/></clipPath>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="58" fill="url(#tile)"/>
+  <g clip-path="url(#clip)" stroke="#ff4fd8" stroke-opacity=".6" stroke-width="6">
+    <path d="M8 222H248M8 238H248"/>
+  </g>
+  <path d="M96 62 H146 M146 62 V146 Q146 198 100 198 Q66 198 52 164" transform="translate(14 -2)" fill="none" stroke="url(#neon)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <g filter="url(#glow)">
+    <ellipse cx="190" cy="92" rx="21" ry="15" fill="#19e3c8" transform="rotate(-20 190 92)"/>
+    <path d="M207 86 V32 q24 4 28 34" fill="none" stroke="#19e3c8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
