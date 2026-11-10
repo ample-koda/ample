@@ -235,129 +235,129 @@ public static partial class NotePipeline
             // three rounds: what a helper gives back (worked out from its body) is known to the helpers that call it in the next round
             for (int round = 0; round < 3; round++)
             {
-            constantInfos.Clear();
-            pending.Clear();
-            foreach (Decl d in all)
-            {
-                if (d.Node is ConstDeclNode cd)
+                constantInfos.Clear();
+                pending.Clear();
+                foreach (Decl d in all)
                 {
-                    VarInfo info = ConstantInfo(cd.Name);
-                    Mark(d, cd.NameStart, cd.NameEnd, info);
-                    Mark(d, cd.Start, Math.Min(cd.NameStart, cd.Start + 3), info, true);
-                    foreach (WordNode w in Descendants(cd.Value).OfType<WordNode>().Where(w => constants.ContainsKey(w.Text) && !string.Equals(w.Text, cd.Name, StringComparison.OrdinalIgnoreCase))) Mark(d, w.Start, w.End, ConstantInfo(w.Text));
-                    continue;
-                }
-
-                if (d.Node is not HelperDeclNode h) continue;
-                List<Dictionary<string, VarInfo>> scopes = [new Dictionary<string, VarInfo>(StringComparer.Ordinal)];
-                List<string> returnTypes = [];
-                foreach (ParamNode p in h.Params)
-                {
-                    VarInfo info = new(p.Name, "parameter") { Declared = p.Type };
-                    scopes[0][p.Name] = info;
-                    int at = d.Text.IndexOf(p.Name, Math.Max(0, p.Start), StringComparison.Ordinal);
-                    if (at >= 0) Mark(d, at, at + p.Name.Length, info);
-                }
-
-                void References(Node? n)
-                {
-                    if (n is null) return;
-                    foreach (WordNode w in Descendants(n).Prepend(n).OfType<WordNode>())
+                    if (d.Node is ConstDeclNode cd)
                     {
-                        for (int i = scopes.Count - 1; i >= 0; i--)
+                        VarInfo info = ConstantInfo(cd.Name);
+                        Mark(d, cd.NameStart, cd.NameEnd, info);
+                        Mark(d, cd.Start, Math.Min(cd.NameStart, cd.Start + 3), info, true);
+                        foreach (WordNode w in Descendants(cd.Value).OfType<WordNode>().Where(w => constants.ContainsKey(w.Text) && !string.Equals(w.Text, cd.Name, StringComparison.OrdinalIgnoreCase))) Mark(d, w.Start, w.End, ConstantInfo(w.Text));
+                        continue;
+                    }
+
+                    if (d.Node is not HelperDeclNode h) continue;
+                    List<Dictionary<string, VarInfo>> scopes = [new Dictionary<string, VarInfo>(StringComparer.Ordinal)];
+                    List<string> returnTypes = [];
+                    foreach (ParamNode p in h.Params)
+                    {
+                        VarInfo info = new(p.Name, "parameter") { Declared = p.Type };
+                        scopes[0][p.Name] = info;
+                        int at = d.Text.IndexOf(p.Name, Math.Max(0, p.Start), StringComparison.Ordinal);
+                        if (at >= 0) Mark(d, at, at + p.Name.Length, info);
+                    }
+
+                    void References(Node? n)
+                    {
+                        if (n is null) return;
+                        foreach (WordNode w in Descendants(n).Prepend(n).OfType<WordNode>())
                         {
-                            if (scopes[i].TryGetValue(w.Text, out VarInfo? v)) { Mark(d, w.Start, w.End, v); goto next; }
+                            for (int i = scopes.Count - 1; i >= 0; i--)
+                            {
+                                if (scopes[i].TryGetValue(w.Text, out VarInfo? v)) { Mark(d, w.Start, w.End, v); goto next; }
+                            }
+
+                            if (constants.ContainsKey(w.Text)) Mark(d, w.Start, w.End, ConstantInfo(w.Text));
+                            next:;
+                        }
+                    }
+
+                    void Block(StmtBlock block, string? loopVar = null, ForStmt? loop = null)
+                    {
+                        scopes.Add(new Dictionary<string, VarInfo>(StringComparer.Ordinal));
+                        if (loopVar is not null && loop is not null)
+                        {
+                            VarInfo info = new(loopVar, "loop variable");
+                            (List<string> fromTypes, string o) = Infer(loop.From, scopes.Take(scopes.Count - 1).ToList(), d);
+                            if (loop.To is not null) { foreach (string t in fromTypes) if (!info.Types.Contains(t)) info.Types.Add(t); info.Origin = "the start of the range"; }
+                            else { foreach (string? t in fromTypes.Select(ElementOf)) if (t is not null && !info.Types.Contains(t)) info.Types.Add(t); info.Origin = "the items of " + o; }
+                            scopes[^1][loopVar] = info;
+                            int at = d.Text.IndexOf(loopVar, loop.Start + 3, StringComparison.Ordinal);
+                            if (at >= 0) Mark(d, at, at + loopVar.Length, info);
                         }
 
-                        if (constants.ContainsKey(w.Text)) Mark(d, w.Start, w.End, ConstantInfo(w.Text));
-                    next:;
-                    }
-                }
-
-                void Block(StmtBlock block, string? loopVar = null, ForStmt? loop = null)
-                {
-                    scopes.Add(new Dictionary<string, VarInfo>(StringComparer.Ordinal));
-                    if (loopVar is not null && loop is not null)
-                    {
-                        VarInfo info = new(loopVar, "loop variable");
-                        (List<string> fromTypes, string o) = Infer(loop.From, scopes.Take(scopes.Count - 1).ToList(), d);
-                        if (loop.To is not null) { foreach (string t in fromTypes) if (!info.Types.Contains(t)) info.Types.Add(t); info.Origin = "the start of the range"; }
-                        else { foreach (string? t in fromTypes.Select(ElementOf)) if (t is not null && !info.Types.Contains(t)) info.Types.Add(t); info.Origin = "the items of " + o; }
-                        scopes[^1][loopVar] = info;
-                        int at = d.Text.IndexOf(loopVar, loop.Start + 3, StringComparison.Ordinal);
-                        if (at >= 0) Mark(d, at, at + loopVar.Length, info);
-                    }
-
-                    foreach (Node s in block.Statements)
-                    {
-                        switch (s)
+                        foreach (Node s in block.Statements)
                         {
-                            case LetStmt l:
-                                {
-                                    References(l.Value);
-                                    VarInfo info = new(l.Name, l.Mutable ? "var" : "let") { ValueText = Cut(d, l.Value.Start, l.Value.End) };
-                                    if (l.Type is not null) info.Declared = l.Type;
-                                    else { (List<string> t, string o) = Infer(l.Value, scopes, d); info.Types.AddRange(t); info.Origin = o; }
-                                    scopes[^1][l.Name] = info;
-                                    int at = d.Text.IndexOf(l.Name, l.Start + 3, StringComparison.Ordinal);
-                                    if (at >= 0) Mark(d, at, at + l.Name.Length, info);
-                                    Mark(d, l.Start, l.Start + 3, info, true);
-                                    break;
-                                }
-
-                            case AssignStmt a:
-                                {
-                                    References(a.Value);
-                                    VarInfo? target = null;
-                                    for (int i = scopes.Count - 1; i >= 0 && target is null; i--) { if (scopes[i].TryGetValue(a.Name, out VarInfo? hit)) target = hit; }
-                                    if (target is not null)
+                            switch (s)
+                            {
+                                case LetStmt l:
                                     {
-                                        if (target.Declared is null) foreach (string t in Infer(a.Value, scopes, d).Types) if (!target.Types.Contains(t)) target.Types.Add(t);
-                                        Mark(d, a.Start, a.Start + a.Name.Length, target);
+                                        References(l.Value);
+                                        VarInfo info = new(l.Name, l.Mutable ? "var" : "let") { ValueText = Cut(d, l.Value.Start, l.Value.End) };
+                                        if (l.Type is not null) info.Declared = l.Type;
+                                        else { (List<string> t, string o) = Infer(l.Value, scopes, d); info.Types.AddRange(t); info.Origin = o; }
+                                        scopes[^1][l.Name] = info;
+                                        int at = d.Text.IndexOf(l.Name, l.Start + 3, StringComparison.Ordinal);
+                                        if (at >= 0) Mark(d, at, at + l.Name.Length, info);
+                                        Mark(d, l.Start, l.Start + 3, info, true);
+                                        break;
                                     }
 
-                                    break;
-                                }
+                                case AssignStmt a:
+                                    {
+                                        References(a.Value);
+                                        VarInfo? target = null;
+                                        for (int i = scopes.Count - 1; i >= 0 && target is null; i--) { if (scopes[i].TryGetValue(a.Name, out VarInfo? hit)) target = hit; }
+                                        if (target is not null)
+                                        {
+                                            if (target.Declared is null) foreach (string t in Infer(a.Value, scopes, d).Types) if (!target.Types.Contains(t)) target.Types.Add(t);
+                                            Mark(d, a.Start, a.Start + a.Name.Length, target);
+                                        }
 
-                            case IfStmt f:
-                                foreach ((Node cond, StmtBlock body) in f.Branches) { References(cond); Block(body); }
-                                if (f.Otherwise is not null) Block(f.Otherwise);
-                                break;
-                            case ForStmt fs:
-                                References(fs.From);
-                                References(fs.To);
-                                Block(fs.Body, fs.Var, fs);
-                                break;
-                            case RepeatStmt rs:
-                                References(rs.Count);
-                                Block(rs.Body);
-                                break;
-                            case WhileStmt ws:
-                                References(ws.Cond);
-                                References(ws.Max);
-                                Block(ws.Body);
-                                break;
-                            case ReturnStmt r:
-                                References(r.Value);
-                                if (r.Value is not null) foreach (string t in Infer(r.Value, scopes, d).Types) if (!returnTypes.Contains(t)) returnTypes.Add(t);
-                                break;
-                            case EmitStmt em:
-                                References(em.Value);
-                                if (!returnTypes.Contains("Notes")) returnTypes.Add("Notes");
-                                break;
-                            case ExprStmt ex:
-                                References(ex.Value);
-                                if (ReferenceEquals(block, h.Body) && ReferenceEquals(s, block.Statements[^1])) foreach (string t in Infer(ex.Value, scopes, d).Types) if (!returnTypes.Contains(t)) returnTypes.Add(t);   // the last expression is the value
-                                break;
+                                        break;
+                                    }
+
+                                case IfStmt f:
+                                    foreach ((Node cond, StmtBlock body) in f.Branches) { References(cond); Block(body); }
+                                    if (f.Otherwise is not null) Block(f.Otherwise);
+                                    break;
+                                case ForStmt fs:
+                                    References(fs.From);
+                                    References(fs.To);
+                                    Block(fs.Body, fs.Var, fs);
+                                    break;
+                                case RepeatStmt rs:
+                                    References(rs.Count);
+                                    Block(rs.Body);
+                                    break;
+                                case WhileStmt ws:
+                                    References(ws.Cond);
+                                    References(ws.Max);
+                                    Block(ws.Body);
+                                    break;
+                                case ReturnStmt r:
+                                    References(r.Value);
+                                    if (r.Value is not null) foreach (string t in Infer(r.Value, scopes, d).Types) if (!returnTypes.Contains(t)) returnTypes.Add(t);
+                                    break;
+                                case EmitStmt em:
+                                    References(em.Value);
+                                    if (!returnTypes.Contains("Notes")) returnTypes.Add("Notes");
+                                    break;
+                                case ExprStmt ex:
+                                    References(ex.Value);
+                                    if (ReferenceEquals(block, h.Body) && ReferenceEquals(s, block.Statements[^1])) foreach (string t in Infer(ex.Value, scopes, d).Types) if (!returnTypes.Contains(t)) returnTypes.Add(t);   // the last expression is the value
+                                    break;
+                            }
                         }
+
+                        scopes.RemoveAt(scopes.Count - 1);
                     }
 
-                    scopes.RemoveAt(scopes.Count - 1);
+                    Block(h.Body);
+                    if (h.Returns is null) inferredReturns[h.Name] = returnTypes;
                 }
-
-                Block(h.Body);
-                if (h.Returns is null) inferredReturns[h.Name] = returnTypes;
-            }
             }
 
             foreach ((Decl d, int start, int end, VarInfo info, bool keyword) in pending) Spot(d, start, end, info, keyword);

@@ -177,7 +177,7 @@ public static class ComponentChecker
             issues.Add(new ComponentIssue(d.HeaderLine, 0, 1, "AMP2230", Severity.Error, "An Audio input has no fallback: leave it unconnected (optional true) and the processors that read it are skipped.", string.Empty));
         if (d.Outputs.Count == 0) issues.Add(new ComponentIssue(d.HeaderLine, 0, 1, "AMP2208", Severity.Error, $"The component \"{d.Name}\" has no output: add output notes: Notes (or output audio: Audio).", string.Empty));
         else if (d.Outputs.Count > 1 && !d.IsAudio) issues.Add(new ComponentIssue(d.Outputs[1].Line, 0, 1, "AMP2219", Severity.Error, "A component has one output in this version.", "Split it in two components, or make the second a property."));
-        if (d.ProcessLine < 0) issues.Add(new ComponentIssue(d.HeaderLine, 0, 1, "AMP2208", Severity.Error, $"The component \"{d.Name}\" has no process { "{ ... }" }: it says what the component makes.", "Add process { emit source }."));
+        if (d.ProcessLine < 0) issues.Add(new ComponentIssue(d.HeaderLine, 0, 1, "AMP2208", Severity.Error, $"The component \"{d.Name}\" has no process {"{ ... }"}: it says what the component makes.", "Add process { emit source }."));
 
         foreach (ComponentPort input in d.Inputs.Where(i => i.Fallback is not null))
         {
