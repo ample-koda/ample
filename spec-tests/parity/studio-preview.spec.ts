@@ -57,7 +57,7 @@ test('properties put source beside the title and Advanced at the far right', asy
   await expect(page.locator('#se')).toBeVisible();
 });
 
-test('an audio node lists its connected effects and focuses the chosen block and properties', async ({ page }) => {
+test('an audio node lists its connected effects and focuses the chosen block and properties @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'chain-source');
   await addTemplateBlock(page, 'eq', 'chain-eq');

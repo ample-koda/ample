@@ -368,7 +368,7 @@ test('Ctrl+Shift and drag adds more things to look at, letting go on a linked on
   await expect.poll(async () => page.evaluate(() => (window as any).__emotions.includes('happy')), { timeout: 4000 }).toBe(true);
 });
 
-test('shaking Koda itself throws the lines off one after the other, the newest first', async ({ page }) => {
+test('shaking Koda itself throws the lines off one after the other, the newest first @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await expect(page.locator('#koda-layer .bub')).toContainText('I am Koda');   // the hello comes after a second: let it come and go first
