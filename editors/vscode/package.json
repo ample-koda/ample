@@ -2,7 +2,7 @@
   "name": "ample-vscode",
   "displayName": "AMPLE",
   "description": "Language support for AMPLE songs (.amplet): diagnostics, completion, hover, rename, formatting and more from the AMPLE language server.",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "publisher": "ample",
   "license": "UNLICENSED",
   "private": true,

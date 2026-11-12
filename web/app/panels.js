@@ -101,12 +101,31 @@ function wirePaletteTip(item) {
   item.addEventListener('blur', hide);
 }
 
+const readList = (key) => { try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+const writeList = (key, list) => { try { localStorage.setItem(key, JSON.stringify(list)); } catch { /* storage may be blocked */ } };
+
 export function renderLib() {
   const q = $('#lib-q').value.toLowerCase();
   const box = $('#lib');
   box.innerHTML = '';
   const sorted = [...S.templates].sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
   const cats = [...new Set(sorted.map((t) => t.category))];
+  // favourites (a star on an item, kept in this browser) and the blocks that were added last come first
+  const favs = new Set(readList('ample.lib.fav')), recent = readList('ample.lib.recent');
+  const special = (title, ids, id) => {
+    const items = ids.map((tid) => sorted.find((t) => t.id === tid)).filter((t) => t && (!q || `${t.title} ${t.description}`.toLowerCase().includes(q)));
+    if (!items.length) return;
+    const d = el('details', { open: true, className: 'lib-special', id });
+    d.append(el('summary', { textContent: `${title} (${items.length})` }));
+    items.forEach((t) => {
+      const it = el('div', { className: 'tplitem', draggable: true, 'data-tpl': t.id, tabindex: '0' }, [el('span', { className: 'tpl-title', textContent: t.title })]);
+      it.ondragstart = (e) => e.dataTransfer.setData('text/plain', t.id);
+      it.ondblclick = () => { const r = $('#cv').getBoundingClientRect(); addBlock(t.id, (r.width / 2 - S.view.x) / S.view.k - W / 2, (r.height / 2 - S.view.y) / S.view.k - 30); };
+      d.append(it);
+    });
+    box.append(d);
+  };
+  special('★ Favourites', [...favs], 'lib-fav'); special('Recent', recent.filter((tid) => !favs.has(tid)), 'lib-recent');
   cats.forEach((cat) => {
     const items = sorted.filter((t) => t.category === cat && (!q || `${t.title} ${t.description}`.toLowerCase().includes(q)));
     if (!items.length) return;
@@ -116,6 +135,7 @@ export function renderLib() {
       const tip = `${t.description || ''}${t.description ? '\n\n' : ''}Drag on the canvas to add`;
       const it = el('div', { className: 'tplitem fancy-tip', draggable: true, 'data-tpl': t.id, 'data-tip': tip, tabindex: '0' });
       wirePaletteTip(it);
+      it.append(el('button', { type: 'button', className: `tplstar${favs.has(t.id) ? ' on' : ''}`, textContent: '★', title: favs.has(t.id) ? 'Remove from the favourites' : 'Add to the favourites', 'aria-pressed': String(favs.has(t.id)), 'aria-label': `Favourite: ${t.title}`, onclick: (e) => { e.stopPropagation(); writeList('ample.lib.fav', favs.has(t.id) ? [...favs].filter((x) => x !== t.id) : [...favs, t.id]); renderLib(); } }));
       it.append(el('span', { className: 'tpl-title', textContent: t.title }), el('small', {}, [el('span', { className: `cls ${t.class} tpl-version`, textContent: `${t.class} v${t.version}` })]));
       if (t.component) {
         // the status of the default version at a glance: sealed or not, and deprecated

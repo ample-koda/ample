@@ -4,6 +4,9 @@ import { $, showMenu, toast } from './ui.js';
 import { api, connectEvents, initToken } from './api.js';
 import { S, bakeDynamicHelpers, quiet, redo, build, dirty, flat, graphBroken, loadHistory, loadProject, notify, onBlockProgress, onBuildProgress, openDoc, readOnly, refreshInputs, reloadDoc, save, select, stopBuild, subscribe, subscribeSelection, undo, errors } from './store.js';
 import { applyView, initCanvas, paintSelection, renderGraph } from './canvas.js';
+import { initKeymap } from './keymap.js';
+import { initMixerView } from './mixer-view.js';
+import { initBuildProgress } from './build-progress.js';
 import { refreshMounts, renderBottom, renderFiles, renderLib, renderPlugins, renderProps, renderStructure, setBottomTab } from './panels.js';
 import { initLayout } from './layout.js';
 import { initHistory, renderBranches, renderDetail, renderEditHistory, renderHistory, renderHistoryHeader } from './history.js';
@@ -211,6 +214,9 @@ function wire() {
     else if ((e.key === 'b' || e.key === 'B') && e.ctrlKey && !e.shiftKey) { e.preventDefault(); if (!$('#btn-build').disabled) build(); }
   });
   initHistory();
+  initKeymap();
+  initMixerView();
+  initBuildProgress();
   initHelpMenu();
   initSelectionGuard();
   initMobile();

@@ -29,9 +29,10 @@ test('master GUI previews ceiling changes and A/B locally using the upstream tak
   await openApp(page, { reset: false });
   await node(page, 'master').locator('.studio-advanced-node').click();
   await expect(page.getByRole('region', { name: 'Master controls' })).toBeVisible();
-  await page.getByRole('button', { name: 'Build and use input', exact: true }).click();
   const preview = page.getByRole('button', { name: 'Live local preview', exact: true });
-  await expect(preview).toBeEnabled();
+  const buildInput = page.getByRole('button', { name: 'Build and use input', exact: true });
+  // the panel builds its input by itself when it opens; the button is for when that has not happened
+  await expect(async () => { if (await buildInput.isEnabled()) await buildInput.click(); await expect(preview).toBeEnabled({ timeout: 2000 }); }).toPass({ timeout: 60000 });
   const serverRenders: string[] = [];
   page.on('request', (request) => { if (request.method() === 'POST' && /\/api\/(build|effects\/preview)(?:\?|$)/.test(request.url())) serverRenders.push(request.url()); });
   await page.getByRole('button', { name: '↻ Loop', exact: true }).click();

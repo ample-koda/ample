@@ -42,7 +42,7 @@ test('the llama window has keys that light up for a touch and for a MIDI input',
   await expect(keys.locator('.vkb-key[data-pitch="64"]')).not.toHaveClass(/on/);
 });
 
-test('the dock moves into the Advanced window while it is open (a modal dialog) and plays the llama with its knobs', async ({ page }) => {
+test('the dock stays in the page while the Advanced window (a floating window, not modal) is open and plays the llama with its knobs', async ({ page }) => {
   await openApp(page, { reset: false });
   await page.locator('#btn-keys').click();
   const dock = page.locator('#keys-dock');
@@ -50,13 +50,13 @@ test('the dock moves into the Advanced window while it is open (a modal dialog) 
   await node(page, 'llama').getByRole('button', { name: 'Advanced', exact: true }).evaluate((b: HTMLElement) => b.click());
   // one keyboard at a time: the window leaves its own keys out while the dock is open
   await expect(page.locator('#studio[open] .llama-keys .vkb')).toBeHidden();
-  // the dock is inside the open dialog now, so it can be used
-  await expect(page.locator('#studio[open] #keys-dock')).toHaveCount(1);
+  // the window floats and does not make the page inert, so the dock stays where it is and can be used
+  await expect(page.locator('body > #keys-dock')).toHaveCount(1);
   await expect(dock.locator('.keys-target')).toContainText('Delay Llama');
   await dock.getByRole('button', { name: 'Maximize the keyboard' }).click();
   await expect(dock.locator('.keys-knobs .studio-panel-control')).not.toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(page.locator('#studio[open]')).toHaveCount(0);
-  // the window is closed: the dock is back in the page
+  await expect(page.locator('dialog.studio-floating[open]')).toHaveCount(0);
+  // the window is closed: the dock is still in the page
   await expect(page.locator('body > #keys-dock')).toHaveCount(1);
 });

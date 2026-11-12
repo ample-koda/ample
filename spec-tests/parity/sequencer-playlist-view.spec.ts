@@ -19,7 +19,8 @@ test.beforeEach(async ({ page }) => {
 
 test('Fit puts the whole song in view without scrolling sideways', async ({ page }) => {
   const scrolls = () => page.locator('#sq-playlist .sqscroll').evaluate((el) => el.scrollWidth - el.clientWidth);
-  expect(await scrolls()).toBeGreaterThan(0);   // 52 bars at the normal zoom do not fit
+  for (let i = 0; i < 6; i++) await page.getByTitle('Zoom in').click();   // the sequencer opens fitted: zoom in until 52 bars do not fit
+  await expect.poll(scrolls).toBeGreaterThan(0);
   await page.locator('#sq-zoom-fit').click();
   await expect.poll(scrolls).toBeLessThanOrEqual(2);
 });

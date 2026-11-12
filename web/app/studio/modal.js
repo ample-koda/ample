@@ -29,7 +29,9 @@ import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectG
 import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
 
-let active = null;
+let active = null;   // the window that was used last
+const windows = new Map();   // block id -> window: several panels can be open at once, as floating windows
+let topZ = 40, cascade = 0;
 
 function numericValue(value, unit) {
   const text = String(value).trim().replace(unit || '\u0000', '').trim();
@@ -77,7 +79,7 @@ function renderHeader(state) {
   state.ab.disabled = !canRenderedPreview(panel) && !(panel.type === 'master' && canLocalPreview(panel));
   state.ab.title = canRenderedPreview(panel) ? `Compare ${panel.title} with its bypassed input` : 'Select an effect and build its upstream input before comparing';
   if (panel.definitions.some((definition) => definition.name === 'enabled')) {
-    state.bypassHost.append(led({ label: 'Effect enabled', value: (panel.getParams().enabled ?? 'on') === 'on', disabled: panel.readOnly, onCommit: (value) => panel.commit('enabled', value ? 'on' : 'off') }));
+    state.bypassHost.append(led({ label: 'Effect enabled', title: 'Effect enabled: the light is lit while this block is on; press it to switch the block off (it passes the sound through)', value: (panel.getParams().enabled ?? 'on') === 'on', disabled: panel.readOnly, onCommit: (value) => panel.commit('enabled', value ? 'on' : 'off') }));
   }
 }
 
@@ -117,7 +119,7 @@ function renderBodyNow(state) {
   const params = panel.getParams();
   state.displayedParams = { ...params }; state.localChanges.clear();
   const definitions = panel.definitions;
-  const bespoke = renderStudioPanel(panel.type, { params, definitions, preview: panel.preview, commit: panel.commit, commitMany: panel.commitMany, block: panel.block, readOnly: panel.readOnly, tempo: panel.tempo, inputBuffer: panel.takeId ? () => decodedInput(`${panel.block}:${panel.takeId}`, () => fetchTakeAudio(panel.takeId)) : null, renderedBuffer: panel.takeId && panel.realPreview ? async (values) => decodePreviewBlob(await panel.realPreview(values, panel.takeId)) : null });
+  const bespoke = renderStudioPanel(panel.type, { type: panel.type, params, definitions, preview: panel.preview, commit: panel.commit, commitMany: panel.commitMany, block: panel.block, readOnly: panel.readOnly, tempo: panel.tempo, inputBuffer: panel.takeId ? () => decodedInput(`${panel.block}:${panel.takeId}`, () => fetchTakeAudio(panel.takeId)) : null, renderedBuffer: panel.takeId && panel.realPreview ? async (values) => decodePreviewBlob(await panel.realPreview(values, panel.takeId)) : null });
   if (bespoke) { body.append(bespoke); if (panel.type === 'master' && state.masterLevels) bespoke.setMasterLevels(state.masterLevels); }
   else definitions.forEach((definition) => {
     if (definition.name === 'enabled') return; // the header already shows the "Effect enabled" switch
@@ -257,11 +259,15 @@ function renderTransport(state) {
     const local = el('button', { type: 'button', textContent: 'Live local preview', disabled: true, title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
     const rendered = el('button', { type: 'button', textContent: 'Play rendered effect', disabled: true, title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
     if (panel.buildInput) {
-      const buildInput = el('button', { type: 'button', textContent: panel.buildLabel || 'Build input', disabled: panel.readOnly });
+      const buildInput = el('button', { type: 'button', className: 'studio-build-input', textContent: panel.buildLabel || 'Build input', disabled: panel.readOnly });
       buildInput.onclick = async () => {
         buildInput.disabled = true; status.textContent = panel.buildLabel === 'Build block' ? 'Building this block…' : 'Building the upstream input…';
-        try { state.takeId = await panel.buildInput() || state.takeId; renderBody(state); renderTransport(state); }
-        catch (error) { status.textContent = error.message; buildInput.disabled = false; }
+        // the input is built when the window opens: Cancel stops waiting for it (the build itself goes on in the background and is used the next time)
+        state.buildCancelled = false;
+        const cancel = el('button', { type: 'button', className: 'studio-cancel-build', textContent: 'Cancel', title: 'Stop waiting for the build', onclick: () => { state.buildCancelled = true; cancel.remove(); status.textContent = 'Cancelled. Press Build to use the input when it is ready.'; buildInput.disabled = false; } });
+        status.after(cancel);
+        try { const take = await panel.buildInput(); if (state.buildCancelled) return; cancel.remove(); state.takeId = take || state.takeId; renderBody(state); renderTransport(state); }
+        catch (error) { cancel.remove(); if (state.buildCancelled) return; status.textContent = error.message; buildInput.disabled = false; }
       };
       if (!effectControls) footer.append(inputPlay); footer.append(buildInput, status);
     } else {
@@ -329,10 +335,57 @@ function renderTransport(state) {
   }).catch((error) => { if (scrubHost.isConnected) scrubHost.textContent = `Waveform unavailable: ${error.message}`; });
 }
 
+/** Brings a window to the front and makes it the one that Esc and the song redraw talk to. */
+function raise(state) { active = state; state.dialog.style.zIndex = String(++topZ); }
+
+/** A panel is a floating window (not a modal dialog): placed next to the others, draggable by its header, and it remembers its place per block. */
+function floatWindow(state) {
+  const dialog = state.dialog;
+  if (!matchMedia('(min-width:701px)').matches) return;   // a phone keeps the full-screen panel
+  const key = `ample.studio.pos.${state.block}`;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* storage may be blocked */ }
+  const rect = dialog.getBoundingClientRect(), n = Math.max(0, windows.size - 1);
+  const place = (left, top) => { dialog.style.left = `${Math.min(Math.max(0, left), Math.max(0, innerWidth - 140))}px`; dialog.style.top = `${Math.min(Math.max(0, top), Math.max(0, innerHeight - 60))}px`; };
+  dialog.style.inset = 'auto'; dialog.style.position = 'fixed'; dialog.style.margin = '0';
+  place(saved ? saved.left : Math.round((innerWidth - rect.width) / 2 + n * 28), saved ? saved.top : Math.round(Math.max(16, (innerHeight - rect.height) / 2 + n * 28)));
+  const header = dialog.querySelector('.studio-dialog-header');
+  if (header) {
+    header.style.cursor = 'grab';
+    header.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || event.target.closest('button, input, select, textarea')) return;
+      const start = dialog.getBoundingClientRect(), dx = event.clientX - start.left, dy = event.clientY - start.top;
+      header.setPointerCapture(event.pointerId);
+      const move = (e) => place(e.clientX - dx, e.clientY - dy);
+      const up = () => {
+        header.removeEventListener('pointermove', move); header.removeEventListener('pointerup', up);
+        try { localStorage.setItem(key, JSON.stringify({ left: parseInt(dialog.style.left, 10), top: parseInt(dialog.style.top, 10) })); } catch { /* storage may be blocked */ }
+      };
+      header.addEventListener('pointermove', move); header.addEventListener('pointerup', up);
+    });
+  }
+  dialog.addEventListener('pointerdown', () => raise(state), true);
+  dialog.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !event.defaultPrevented) { event.stopPropagation(); dialog.close(); } });   // Esc closes the window that has the focus
+  dialog.addEventListener('focusin', () => { active = state; });
+}
+
+/** A panel with an upstream input that is not built yet builds it when it opens (not the block itself, which can be an expensive voice). Cancel stops waiting. */
+function autoBuild(state) {
+  if (!state.dialog.open || state.autoBuilt) return;
+  const panel = panelState(state);
+  if (panel.takeId || !panel.buildInput || panel.readOnly || panel.buildLabel === 'Build block') return;
+  const button = state.footer.querySelector('.studio-build-input');
+  if (!button || button.disabled) return;
+  state.autoBuilt = true;
+  button.click();
+}
+
 export function openStudioPanel(options) {
-  if (active?.dialog.open) active.dialog.close();
-  const dialog = el('dialog', { id: 'studio', className: 'studio-dialog', 'aria-labelledby': 'studio-title' });
-  const title = el('strong', { id: 'studio-title', textContent: (options.title || options.type).toUpperCase() });
+  const existing = windows.get(options.block);
+  if (existing?.dialog.open) { raise(existing); return existing.dialog; }   // the same block again: its window comes to the front
+  const suffix = [...windows.values()].some((w) => w.dialog.open) ? `-${++cascade}` : '';   // the first window keeps the id studio (a window that was just closed is still in the map until its close event has come)
+  const dialog = el('dialog', { id: `studio${suffix}`, className: 'studio-dialog studio-floating', 'aria-labelledby': `studio-title${suffix}` });
+  const title = el('strong', { id: `studio-title${suffix}`, textContent: (options.title || options.type).toUpperCase() });
   const block = el('span', { className: 'note', textContent: `block ${options.block}` });
   const close = el('button', { type: 'button', textContent: '×', 'aria-label': 'Close advanced controls' });
   const bypassHost = el('span', { className: 'studio-dialog-bypass' });
@@ -393,31 +446,29 @@ export function openStudioPanel(options) {
   if (commitMany) state.commitMany = (values) => { const result = commitMany(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
   state.wrapCommit = (commitEffect) => (name, value) => { const result = commitEffect(name, value); Promise.resolve(result).then(() => scheduleLocalUpdate(name)).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
   state.wrapCommitMany = (commitEffects) => (values) => { const result = commitEffects(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
-  active = state; renderBody(state);
+  active = state; windows.set(options.block, state); renderBody(state);
   renderTransport(state);
   close.onclick = () => dialog.close();
-  let backdropDown = false;
-  const outside = (event) => { const rect = dialog.getBoundingClientRect(); return event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom); };
-  dialog.addEventListener('pointerdown', (event) => { backdropDown = outside(event); });
-  dialog.addEventListener('click', (event) => { if (backdropDown && outside(event)) dialog.close(); backdropDown = false; });
   dialog.onclose = () => {
     clearTimeout(state.localRefreshTimer); state.denoiseAbort?.abort(); state.localGeneration++;
     const panel = panelState(state);
     body.querySelectorAll('.studio-eq-panel, .studio-live-panel').forEach((panel) => panel.dispose?.());
     state.unsubscribePlayer?.();
-    const current = active === state;
+    const current = true;
     if (current && (state.auditioning || (state.startedPlayback && playerState().take === panel.takeId))) stop();
     if (current && state.loopChanged) { if (state.originalLoopRegion) setLoopRegion(state.originalLoopRegion); else setLoop(state.originalLoop); }
-    dialog.remove(); if (active === state) active = null;
+    dialog.remove(); windows.delete(options.block); if (active === state) active = [...windows.values()].pop() ?? null;
   };
-  dialog.showModal();
-  loadSelectedInput(state);
+  dialog.show();
+  floatWindow(state); raise(state);
+  loadSelectedInput(state).then(() => autoBuild(state));
   return dialog;
 }
 
 let redrawAfterDrag = false;
-const redraw = () => {
-  if (!active?.dialog.open) return;
+const redraw = () => { for (const w of [...windows.values()]) redrawOne(w); };
+const redrawOne = (active) => {
+  if (!active.dialog.open) return;
   if (active.type === 'convolution' && active.previewMode === 'live' && active.inputTakeId === panelState(active).takeId) {
     const params = panelState(active).getParams(), changed = new Set([...Object.keys(params), ...Object.keys(active.displayedParams)].filter((name) => String(params[name]) !== String(active.displayedParams[name])));
     if ([...changed].every((name) => active.localChanges.has(name))) return;
@@ -451,3 +502,7 @@ subscribe(() => {
 
   redraw();
 });
+// Esc closes the window that was used last (a modal dialog on top of it, such as a question, takes the Esc first)
+// (the window in front is found from the z-order, not from `active`, which is only updated when the close event of the last window has come)
+const topWindow = () => [...windows.values()].filter((w) => w.dialog.open).sort((a, b) => Number(a.dialog.style.zIndex || 0) - Number(b.dialog.style.zIndex || 0)).pop() ?? null;
+document.addEventListener('keydown', (event) => { if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('dialog:modal')) return; topWindow()?.dialog.close(); });

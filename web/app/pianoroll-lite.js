@@ -249,7 +249,10 @@ export function openPianoRollLite(blockId, options = {}) {
   const sbH = el('div', { className: 'mls-sb mls-sb-h', hidden: true, 'aria-hidden': 'true' }, [el('i')]), sbV = el('div', { className: 'mls-sb mls-sb-v', hidden: true, 'aria-hidden': 'true' }, [el('i')]);
   const body = el('div', { className: 'mls-body' }, [el('div', { className: 'mls-corner' }), ruler, keys, grid, laneCorner, velocity, sbH, sbV, hint, helpCard]);
   const lanesCtl = createJamLanes({ panel, node, ppq, bar, locked, keyW: () => keyW, width: () => gridW(), xOf: (tick) => xOf(tick), atOf: (x) => atOf(x), requestDraw: () => requestDraw(), announce: (text) => { status.textContent = text; } });
-  panel.append(title, toolbar, strip, body, lanesCtl.element, review.element, touchStrip, status);
+  // the key of every tool is written on its button, and the voices behind the notes are named in their colours
+  for (const [toolId, button] of toolButtons) { const key = TOOLS.find((t) => t.id === toolId)?.key; if (key) button.append(el('i', { className: 'mls-toolkey', textContent: key.toUpperCase(), 'aria-hidden': 'true' })); }
+  const legend = options.ghostRows?.length ? el('div', { className: 'mls-legend', role: 'note', 'aria-label': 'The voices behind the notes' }, [el('span', { className: 'note', textContent: 'Behind:' }), ...options.ghostRows.map((row) => el('span', { className: 'mls-legend-item' }, [el('i', { className: 'mls-legend-dot', style: `background:${row.color}` }), row.title]))]) : null;
+  panel.append(title, toolbar, strip, body, lanesCtl.element, review.element, touchStrip, ...(legend ? [legend] : []), status);
   document.body.append(panel);
   // the drag position is kept as a transform (see "floating" below); the window chrome slides the panel sideways through this when it changes width
   let offX = 0, offY = 0;
@@ -332,7 +335,7 @@ export function openPianoRollLite(blockId, options = {}) {
     for (const note of list) {
       const x = xOf(note.at), width = Math.max(3, (note.length / ppq) * state.pxBeat), y = yOf(note.pitch);
       if (x + width < 0 || x > w || y + state.rowH < 0 || y > h) continue;
-      const fill = velocityColor(note.velocity), selected = state.selected.has(note.index), outside = note.at >= end;
+      const fill = options.voiceColor ? shadeOf(options.voiceColor, note.velocity) : velocityColor(note.velocity), selected = state.selected.has(note.index), outside = note.at >= end;
       drawPianoRollNote(c, note, { x, y: y + 1, width, height: state.rowH - 2 }, { alpha: (outside ? 0.4 : 1) * (state.groupFilter && note.grp !== state.groupFilter ? 0.3 : 1), fill, shade: shadeHsl(fill, -18), selected, highContrast: high, drum: note.channel === 9 });
       if (note.grp) { c.fillStyle = GROUP_COLORS[(note.grp - 1) % GROUP_COLORS.length]; c.fillRect(x, y + 1, Math.min(3, width), state.rowH - 2); }
       if (state.litNotes.has(note.index)) { c.fillStyle = '#fff'; c.globalAlpha = 0.55; c.fillRect(x, y + 1, width, state.rowH - 2); c.globalAlpha = 1; }
@@ -751,6 +754,8 @@ export function openPianoRollLite(blockId, options = {}) {
   const selectKeys = (keys) => { state.selected = new Set(rows().filter((row) => keys.has(`${row.at}:${row.pitch}`)).map((row) => row.index)); };
   const keysOfRows = (list, dTick = 0, dPitch = 0) => new Set(list.map((row) => `${row.at + dTick}:${row.pitch + dPitch}`));
   // ---- the clips behind this one (ghosts): other midi-clips that overlap in the arrangement, drawn as faint outlines under the notes, read-only ----
+  /** The colour of a voice, a little darker for a soft note (the notes of a sequencer pattern take the colour of their channel). */
+  const shadeOf = (hex, velocity) => { const n = parseInt(String(hex).replace('#', ''), 16); if (!Number.isFinite(n)) return velocityColor(velocity); const f = 0.55 + 0.45 * Math.min(127, velocity) / 127; return `rgb(${Math.round(((n >> 16) & 255) * f)}, ${Math.round(((n >> 8) & 255) * f)}, ${Math.round((n & 255) * f)})`; };
   const GHOST_COLORS = ['#e0a030', '#30c0e0', '#c060e0', '#60e090', '#e05060'];
   const isRollable = (n) => n?.tpl === 'midi-clip' && !n.params.chords && !n.params.melody && !/^\s*notes\s*\{/.test(n.params.notes ?? '');
   const clipOffsetBars = (n) => (n.parts?.length ? Math.min(...n.parts.map((p) => p.at)) : 1);

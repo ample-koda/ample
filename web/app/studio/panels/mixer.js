@@ -4,8 +4,10 @@ import { registerStudioPanel } from './registry.js';
 
 const parts = (value, fallback) => String(value || fallback).trim().split(/\s+/);
 function mixerPanel(context) {
+  const isBus = context.type === 'bus';   // a bus and a mixer share the faders; the panel says which one it is
   const gains = parts(context.params.gains, '0 0 0 0'), pans = parts(context.params.pan, 'c c c c');
-  const root = el('section', { className: 'studio-effect-panel studio-mixer-panel', 'aria-label': 'Mixer channels' });
+  const root = el('section', { className: `studio-effect-panel studio-mixer-panel ${isBus ? 'studio-bus-panel' : 'studio-mixer-only'}`, 'aria-label': isBus ? 'Bus channels' : 'Mixer channels' });
+  root.append(el('p', { className: 'studio-mixer-kind', textContent: isBus ? 'Bus: adds up the sounds that are connected to it' : 'Mixer: four channels, one level and one pan each' }));
   const strips = el('div', { className: 'studio-mixer-strips' });
   for (let index = 0; index < 4; index++) {
     const range = el('input', { type: 'range', min: '-60', max: '48', step: '1', value: String(Number(gains[index]) || 0), disabled: context.readOnly, 'aria-label': `Input ${index + 1} gain`, title: 'Input gain in decibels' });

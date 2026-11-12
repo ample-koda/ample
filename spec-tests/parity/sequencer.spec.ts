@@ -264,11 +264,11 @@ test('a channel can be heard in the rack: a sample, and an instrument with its p
   expect(requests.at(-1)).toMatchObject({ program: 38, file: 'pack:musescore-general' });
   expect((requests.at(-1)!.notes as Array<{ pitch: number }>)[0].pitch).toBe(36);   // a bass program is tried low
   // the rack keeps its scroll place when something is changed
-  await page.addStyleTag({ content: '#sq-rack { max-height: 120px; overflow: auto; }' });   // a style sheet, so the rack is still short when the workspace is drawn again
-  await page.evaluate(() => { (document.querySelector('#sq-rack') as HTMLElement).scrollTop = 80; });
+  await page.addStyleTag({ content: '#sq .sqbody { max-height: 120px; overflow: auto; }' });   // a style sheet, so the workspace is still short when it is drawn again (the rack and the rows are one grid in .sqbody)
+  await page.evaluate(() => { (document.querySelector('#sq .sqbody') as HTMLElement).scrollTop = 80; });
   await page.locator('#sq-rack .sqchannel').last().getByLabel(/^Bank/).fill('0');
   await page.locator('#sq-rack .sqchannel').last().getByLabel(/^Bank/).dispatchEvent('change');
-  await expect.poll(() => page.evaluate(() => (document.querySelector('#sq-rack') as HTMLElement).scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => (document.querySelector('#sq .sqbody') as HTMLElement).scrollTop)).toBeGreaterThan(0);
 });
 
 test('a sound dropped on a channel replaces its sample, and on the rack it makes a new channel', async ({ page }) => {

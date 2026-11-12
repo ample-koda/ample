@@ -7,6 +7,7 @@ import { api } from './api.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
 import { notesIn, thumbRects } from '../lib/seq-notes.mjs';
+import { activeChannels } from '../lib/seq-activity.mjs';
 import { gmProgramName, parseGmProgram } from '../lib/gm-programs.mjs';
 import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } from './store.js';
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
@@ -25,7 +26,9 @@ import {
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
-const Q = { blockId: null, embedded: false, path: '', seq: null, snapshot: '', original: '', undo: [], redo: [], pattern: null, clip: -1, barPx: 30, error: '', busy: false, range: null, cursor: 1, repeat: true, live: true, stale: true, builtTake: null, status: '', wroteLive: false, liveBusy: false, liveAgain: false };
+/** PAT plays the chosen pattern again and again, SONG plays the playlist (what Play did before); remembered in this browser. */
+const loadPlayMode = () => { try { return localStorage.getItem('ample.sq.playMode') === 'pattern' ? 'pattern' : 'song'; } catch { return 'song'; } };
+const Q = { playMode: loadPlayMode(), blockId: null, embedded: false, path: '', seq: null, snapshot: '', original: '', undo: [], redo: [], pattern: null, clip: -1, barPx: 30, error: '', busy: false, range: null, cursor: 1, repeat: true, live: true, stale: true, builtTake: null, status: '', wroteLive: false, liveBusy: false, liveAgain: false };
 const COLORS = ['#e8505b', '#f2994a', '#f2c94c', '#6fcf97', '#56ccf2', '#7c83fd', '#bb6bd9'];
 const dirty = () => !!Q.seq && formatSeq(Q.seq) !== Q.snapshot;
 const colorOf = (index) => COLORS[index % COLORS.length];
@@ -59,6 +62,8 @@ export async function openSequencer(blockId) {
   Q.seq = parsed.seq ?? { channels: [], patterns: [], clips: [], sections: [], markers: [], loop: null };
   Q.pattern = Q.seq.patterns[0]?.name ?? null;
   setView('seq');
+  foldBottom();   // the playlist of the sequencer is the main screen: the Arrangement panel under it folds away while it is open
+  requestAnimationFrame(fitIfTooWide);   // and a long song is zoomed out until the whole song is in view (a short one keeps the usual zoom)
 }
 
 /** The sequencer editor, when it is open: its block, whether the sequence is kept in the song, and whether it has changes that were not applied. Otherwise null. */
@@ -198,6 +203,16 @@ async function setLanes(lanes) {
   await edit([text ? { type: 'setParameter', block: Q.blockId, name: 'lanes', value: text } : { type: 'removeParameter', block: Q.blockId, name: 'lanes' }]);
 }
 
+/** On opening: when the song is wider than the playlist, zoom out until all of it is in view; it never zooms in (the Fit button does that too). */
+function fitIfTooWide() {
+  const scroll = $('#sq-playlist .sqscroll');
+  if (!scroll || !Q.seq) return;
+  const total = Math.max(16, songBars(Q.seq) + 4), px = Math.floor((scroll.clientWidth - 4) / total);
+  if (px >= 4 && px < Q.barPx) { Q.barPx = px; render(); }
+}
+let bottomWasOpen = null;
+function foldBottom() { const bottom = document.querySelector('#bottom'); if (!bottom) return; if (bottomWasOpen === null) bottomWasOpen = !bottom.classList.contains('min'); bottom.classList.add('min'); const toggle = document.querySelector('#b-min'); if (toggle) toggle.textContent = '▴'; }
+function unfoldBottom() { if (bottomWasOpen === null) return; const bottom = document.querySelector('#bottom'); if (bottom && bottomWasOpen) { bottom.classList.remove('min'); const toggle = document.querySelector('#b-min'); if (toggle) toggle.textContent = '▾'; } bottomWasOpen = null; }
 async function leave(applyIt) {
   if (applyIt && Q.error) { toast('Fix the file first: ' + Q.error); return; }
   if (applyIt) { if (dirty()) await writeFile(); } else if (dirty() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }]))) return;
@@ -206,11 +221,24 @@ async function leave(applyIt) {
     if (Q.embedded) { const line = headerLineOf(Q.blockId); if (line !== undefined) await applyText(withEmbedded(S.doc.text, line, Q.original)); } else await api.put('/api/file', { path: Q.path, text: Q.original });
     Q.wroteLive = false; refreshInputs().catch(() => {});
   }
+  unfoldBottom();
   setView('blocks');
 }
 
 /** The scroll places of the workspace: they survive the redraw that follows every change. */
-const SCROLLERS = ['#sq-rack', '#sq-patterns', '#sq-playlist', '.sqscroll'];
+const SCROLLERS = ['.sqbody', '#sq-rack', '#sq-patterns', '#sq-playlist', '.sqscroll'];
+/** On a desktop the rack and the rows of the pattern are one grid (the style sheet makes #sq-rack, .sqmain and #sq-patterns display: contents): the card of a channel and its row of the chosen pattern sit on one line, like the channel rack of FL Studio. The DOM stays what it was. */
+function placeRack(rack, main) {
+  const put = (node, row, column) => { if (node) { node.style.gridRow = String(row); node.style.gridColumn = String(column); } };
+  put(rack.querySelector('h4'), 1, 1); put(rack.querySelector('#sq-add-channel'), 2, 1);
+  const box = main.querySelector('#sq-patterns');
+  if (box) { put(box.firstElementChild, 1, 2); put(box.querySelector('#sq-pattern-head'), 2, 2); put(box.querySelector(':scope > p.note'), 2, 2); }
+  const cards = [...rack.querySelectorAll(':scope > .sqchannel')], rows = box ? [...box.querySelectorAll(':scope > .sqgridrow')] : [];
+  cards.forEach((card, i) => put(card, 3 + i, 1));
+  rows.forEach((row, i) => put(row, 3 + i, 2));
+  put(rack.querySelector(':scope > p.note'), 3 + cards.length, 1);
+  for (const wide of main.querySelectorAll(':scope > :not(#sq-patterns)')) wide.style.gridColumn = '1 / -1';   // the playlist, the lanes and the messages use the whole width
+}
 function scrollPlaces(root) {
   const places = SCROLLERS.map((selector) => [selector, root.querySelector(selector)?.scrollTop ?? 0, root.querySelector(selector)?.scrollLeft ?? 0]);
   return { places, self: [root.scrollTop, root.scrollLeft], parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null };
@@ -228,6 +256,7 @@ function restoreScroll(root, saved) {
 /** One line that says what the transport does now, and what to do next. */
 function hintText() {
   const playing = loopState().playing;
+  if (Q.playMode === 'pattern' && !Q.range) return `${playing ? '▶ ' : ''}PAT: the pattern ${Q.pattern ?? ''} repeats, from its first place in the playlist. SONG plays the whole song. ${Q.live ? 'A change you make while it plays comes in at the next loop.' : 'Changes are heard the next time you press Play.'} Space plays and stops.`;
   const range = Q.range ? `bars ${Q.range.at} to ${Q.range.at + Q.range.bars - 1}` : null;
   const where = range ? `The chosen part (${range}) ${Q.repeat ? 'repeats' : 'plays once'}` : `The whole song ${Q.repeat ? 'repeats' : 'plays once'}`;
   const change = Q.live ? 'A change you make while it plays comes in at the next loop.' : 'Changes are heard the next time you press Play.';
@@ -253,6 +282,10 @@ function render() {
     undoButton, redoButton, deleteClipButton,
     el('button', { id: Q.embedded ? 'sq-extract' : 'sq-embed', textContent: Q.embedded ? '⤒ Extract to a file...' : '⤓ Keep in the song', title: Q.embedded ? 'Write this sequence to a file of the project and use that file instead' : 'Keep this sequence in the song itself, in the block (the file stays where it is)', disabled: locked, onclick: () => (Q.embedded ? extractSequence() : embedSequence()).catch((error) => toast(error.message || String(error))) }),
     el('span', { className: 'sqtransport' }, [
+      el('span', { className: 'sqmode', role: 'group', 'aria-label': 'Play mode' }, [
+        el('button', { id: 'sq-mode-pat', textContent: 'PAT', className: Q.playMode === 'pattern' ? 'on' : '', 'aria-pressed': String(Q.playMode === 'pattern'), title: 'Pattern: the chosen pattern repeats, from its first place in the playlist', onclick: () => setPlayMode('pattern') }),
+        el('button', { id: 'sq-mode-song', textContent: 'SONG', className: Q.playMode === 'song' ? 'on' : '', 'aria-pressed': String(Q.playMode === 'song'), title: 'Song: the playlist plays, the whole song or the bars chosen on the ruler', onclick: () => setPlayMode('song') }),
+      ]),
       el('button', { id: 'sq-play', className: 'primary', textContent: '▶ Play', title: Q.stale || !Q.builtTake ? 'Build what changed, then play (Space). It starts at the first of the chosen bars, or at the bar you clicked on the ruler, or at bar 1.' : 'Play (Space). It starts at the first of the chosen bars, or at the bar you clicked on the ruler, or at bar 1.', onclick: () => playNow().catch((e) => { setStatus(''); toast(e.message || String(e)); }) }),
       el('button', { id: 'sq-stop', textContent: '■ Stop', title: 'Stop playing', disabled: !loopState().playing, onclick: () => stopNow() }),
       el('button', { id: 'sq-repeat', className: Q.repeat ? 'on' : '', textContent: '⟳ Loop', 'aria-pressed': String(Q.repeat), title: 'On: when it reaches the end it starts again (the chosen bars, or the whole song when none are chosen). Off: it plays once and stops.', onclick: () => { Q.repeat = !Q.repeat; setLoopRange(loopSeconds(), Q.repeat).catch(() => {}); render(); } }),
@@ -278,6 +311,7 @@ function render() {
   const lanes = el('div', { className: 'sqlanes', id: 'sq-lanes' });
   main.append(lanes);
   paintLanes(lanes);
+  placeRack(rack, main);
   startTick();
   restoreScroll(root, savedScroll);
   const problems = check(Q.seq);
@@ -286,7 +320,18 @@ function render() {
 
 // ---------- playing: a repeat range, a playhead and live changes (plan sequencer-live) ----------
 const tempo = () => S.doc?.project?.tempo ?? 120;
-const loopSeconds = () => (Q.range ? rangeSeconds(Q.range, tempo(), Infinity) : null);
+/** The bars that PAT repeats: the first place of the chosen pattern in the playlist (null when it is in no clip). */
+const patternRange = () => { const clip = Q.seq?.clips.find((c) => c.pattern === Q.pattern); return clip ? { at: clip.at, bars: clip.bars } : null; };
+/** The part that repeats: the bars chosen on the ruler, else (in PAT) the chosen pattern, else the whole song. */
+const effectiveRange = () => Q.range || (Q.playMode === 'pattern' ? patternRange() : null);
+const loopSeconds = () => { const range = effectiveRange(); return range ? rangeSeconds(range, tempo(), Infinity) : null; };
+function setPlayMode(mode) {
+  if (Q.playMode === mode) return;
+  Q.playMode = mode;
+  try { localStorage.setItem('ample.sq.playMode', mode); } catch { /* storage may be blocked */ }
+  render();
+  if (loopState().playing) playNow().catch((e) => toast(e.message || String(e)));   // the music follows the switch
+}
 
 /** Makes sure there is a take of the block that matches the file: writes the file and builds the block when something changed. */
 async function ensureTake() {
@@ -307,9 +352,11 @@ async function ensureTake() {
 async function playNow() {
   unlockAudio();
   if (Q.error) { toast('Fix the file first: ' + Q.error); return; }
+  if (Q.playMode === 'pattern' && !effectiveRange()) { toast(`Put the pattern "${Q.pattern ?? ''}" in the playlist first: PAT plays it from its first place there (SONG plays the whole song).`); return; }
   setStatus(Q.stale || !Q.builtTake ? 'building...' : '');
   const take = await ensureTake();
-  const from = Q.range ? (Q.range.at - 1) * barSeconds(tempo()) : (Q.cursor - 1) * barSeconds(tempo());
+  const range = effectiveRange();
+  const from = range ? (range.at - 1) * barSeconds(tempo()) : (Q.cursor - 1) * barSeconds(tempo());
   await startLoopPlayer(take, { from, loop: loopSeconds(), looping: Q.repeat });
   setStatus('');
 }
@@ -373,8 +420,16 @@ function startTick() {
   tickFrame = requestAnimationFrame(frame);
 }
 
+/** The light next to a channel follows what plays at the playhead (a note, a drum step, a loop). */
+function paintLights(st) {
+  const lights = document.querySelectorAll('#sq-rack .sqlight');
+  if (!lights.length) return;
+  const on = st.playing ? activeChannels(Q.seq, barAt(st.position, tempo())) : new Set();
+  lights.forEach((light) => light.classList.toggle('on', on.has(light.dataset.channel)));
+}
 function paintPlayhead() {
   const st = loopState();
+  paintLights(st);
   const hint = $('#sq-hint');
   if (hint) { const text = hintText(); if (hint.textContent !== text) hint.textContent = text; }
   const head = $('#sq-playhead');
@@ -475,7 +530,7 @@ function paintRack(host, locked) {
     type.onchange = () => commit(setChannel(Q.seq, c.name, { type: type.value }));
     const toggle = (key, label, title) => el('button', { className: `sqtoggle${c.settings[key] === 'on' ? ' on' : ''}`, textContent: label, title, disabled: locked, 'aria-pressed': String(c.settings[key] === 'on'), onclick: () => commit(setChannel(Q.seq, c.name, { [key]: c.settings[key] === 'on' ? null : 'on' })) });
     const number = (key, label, min, max, fallback) => { const input = el('input', { type: 'number', className: 'seqn', value: c.settings[key] ?? fallback, min, max, title: label, disabled: locked, 'aria-label': `${label} of ${c.name}` }); input.onchange = () => commit(setChannel(Q.seq, c.name, { [key]: String(Math.max(min, Math.min(max, Math.round(Number(input.value) || 0)))) })); return input; };
-    row.append(color, name, type, toggle('mute', 'M', `Mute ${c.name}`), toggle('solo', 'S', `Solo ${c.name}`), number('vol', 'Level in dB', -60, 12, 0), number('pan', 'Pan', -32, 32, 0),
+    row.append(el('span', { className: 'sqlight', 'data-channel': c.name, title: 'Lights up while this channel sounds', 'aria-hidden': 'true' }), color, name, type, toggle('mute', 'M', `Mute ${c.name}`), toggle('solo', 'S', `Solo ${c.name}`), number('vol', 'Level in dB', -60, 12, 0), number('pan', 'Pan', -32, 32, 0),
       el('button', { className: 'seqx', textContent: '✕', title: `Remove ${c.name} (its rows go too)`, disabled: locked, onclick: async () => { await setLanes(lanesWithout(lanesNow(), c.name)); commit(removeChannel(Q.seq, c.name)); } }));
     const details = el('div', { className: 'sqdetails' });
     // the General MIDI program: type a number or a name (the browser suggests the names), the name of the chosen instrument is shown under the row
@@ -541,7 +596,7 @@ function paintPatterns(host, locked) {
   const box = el('div', { className: 'sqpatterns', id: 'sq-patterns' });
   const tabs = el('div', { className: 'sqtabs', role: 'tablist' });
   Q.seq.patterns.forEach((p, i) => {
-    const tab = el('button', { className: `sqtab${p.name === Q.pattern ? ' on' : ''}`, textContent: p.name, role: 'tab', 'aria-selected': String(p.name === Q.pattern), onclick: () => { if (Q.pattern === p.name) return; Q.pattern = p.name; render(); } });
+    const tab = el('button', { className: `sqtab${p.name === Q.pattern ? ' on' : ''}`, textContent: p.name, role: 'tab', 'aria-selected': String(p.name === Q.pattern), onclick: () => { if (Q.pattern === p.name) return; Q.pattern = p.name; render(); if (Q.playMode === 'pattern' && loopState().playing) playNow().catch((e) => toast(e.message || String(e))); } });
     tab.dataset.pattern = p.name;
     tab.addEventListener('contextmenu', (event) => { event.preventDefault(); patternMenu(event, p, locked); });
     if (!locked) {
@@ -643,7 +698,7 @@ function paintPatterns(host, locked) {
       }
       const ghostRowsOf = (self) => withNotes().filter((o) => o !== self).map((o) => ({ id: 'sq-' + o.name, title: o.name, color: /^#[0-9a-f]{6}$/i.test(o.color) ? o.color : colorOf(Q.seq.channels.indexOf(o)), text: rowsOf(Q.seq, current)[o.name] ?? '', open: () => jamOpeners.get(o.name)?.() }));
       const openJam = () => {
-        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite('sq-' + c.name + '·' + current.name, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), pseudo: { id: 'sq-' + c.name + '·' + current.name, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => { Q.undo.push(Q.seq); Q.redo = []; Q.seq = setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()); refreshSaveControls(); return true; }, onClose: render, instrument: c.type === 'gm' ? { file: c.settings.file || '', bank: c.settings.bank ?? 0, program: c.settings.program ?? 0 } : null }));
+        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite('sq-' + c.name + '·' + current.name, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), voiceColor: /^#[0-9a-f]{6}$/i.test(c.settings.color ?? '') ? c.settings.color : colorOf(Q.seq.channels.indexOf(c)), pseudo: { id: 'sq-' + c.name + '·' + current.name, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => { Q.undo.push(Q.seq); Q.redo = []; Q.seq = setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()); refreshSaveControls(); return true; }, onClose: render, instrument: c.type === 'gm' ? { file: c.settings.file || '', bank: c.settings.bank ?? 0, program: c.settings.program ?? 0 } : null }));
       };
       jamOpeners.set(c.name, openJam);
       const jam = withJamIcon(el('button', { className: 'sqlite', disabled: locked, 'aria-label': 'AMPLE Jam', title: 'Jam on the notes of this channel in this pattern: draw, paint, slice and hear them as you go', onclick: openJam }));
@@ -734,6 +789,11 @@ function paintPlaylist(host, locked) {
       render();
     };
   };
+  // the wheel scrolls the playlist sideways, Ctrl + wheel zooms (around the left edge)
+  scroll.addEventListener('wheel', (event) => {
+    if (event.ctrlKey) { event.preventDefault(); Q.barPx = Math.round(Math.min(80, Math.max(4, Q.barPx * (event.deltaY < 0 ? 1.15 : 0.87)))); render(); }
+    else if (!event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX) && scroll.scrollWidth > scroll.clientWidth) { event.preventDefault(); scroll.scrollLeft += event.deltaY; }
+  }, { passive: false });
   scroll.append(ruler);
   const sections = el('div', { className: 'sqsections' });
   sections.style.width = `${width}px`;

@@ -11,6 +11,7 @@ export function knob(options) {
   let startX = 0;
   let startY = 0;
   let active = false;
+  let bubble = null;   // the value next to the knob while it is dragged
   const size = options.size || 82;
   const decimals = options.decimals || 0;
   const svg = document.createElementNS(ns, 'svg');
@@ -47,18 +48,20 @@ export function knob(options) {
     indicator.setAttribute('d', `M${x1} ${y1}L${x2} ${y2}`);
     const formatted = options.format ? options.format(value) : formatValue(value, decimals, options.unit || '');
     readout.textContent = formatted;
+    if (bubble) bubble.textContent = formatted;
     svg.setAttribute('aria-valuenow', String(value)); svg.setAttribute('aria-valuetext', formatted);
   };
   const preview = (next) => { value = snap(clamp(next, options.min, options.max), options.step || 0, options.min, options.max); draw(); if (options.onPreview) options.onPreview(value); };
   const commit = () => { if (options.onCommit && !options.disabled) options.onCommit(value); };
   // the drag ends on the window too: a knob that is drawn again while it is dragged (a card of a block that redraws itself) loses its pointer events, and without this the hidden cursor stays hidden
   const end = () => { window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); window.removeEventListener('blur', end); if (!active) return; const gone = !svg.isConnected; clearDrag(); if (gone && value !== startValue) commit(); };
-  const clearDrag = () => { if (!active) return; active = false; document.body.classList.remove('studio-dragging'); };
+  const clearDrag = () => { if (!active) return; bubble?.remove(); bubble = null; active = false; document.body.classList.remove('studio-dragging'); };
   svg.onpointerdown = (event) => {
     if (options.disabled || event.button !== 0) return;
     if (event.altKey) { event.preventDefault(); preview(options.defaultValue); commit(); return; }   // Alt+click: back to the default
     active = true; startValue = value; dragPosition = normalize(value, options.min, options.max, options.scale); startX = event.clientX; startY = event.clientY;
     svg.setPointerCapture(event.pointerId); document.body.classList.add('studio-dragging'); event.preventDefault();
+    bubble = el('span', { className: 'studio-knob-bubble', role: 'status', textContent: readout.textContent }); root.append(bubble);
     window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);   // bubbling: the knob's own handler commits first window.addEventListener('blur', end);
   };
   svg.onpointermove = (event) => {

@@ -220,7 +220,7 @@ dialog.mls-panel select option:checked { background: color-mix(in srgb, var(--ac
 .vkb-key.white.on { background: linear-gradient(var(--acc, #4ad6ff), #2a8fb0); color: #fff; }
 .vkb-key.black.on { background: linear-gradient(var(--acc, #4ad6ff), #1f6f8c); }
 .vkb-name { pointer-events: none; }
-.keys-dock { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(920px, 96vw); z-index: 40; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel, #1b1f24); box-shadow: 0 8px 30px #0008; }
+.keys-dock { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(920px, 96vw); z-index: 900; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel, #1b1f24); box-shadow: 0 8px 30px #0008; }
 .keys-dock.idle .keys-target { color: var(--dim); }
 .keys-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .keys-target { flex: 1; font-size: 12px; }
