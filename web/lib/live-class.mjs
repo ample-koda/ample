@@ -31,3 +31,9 @@ export const liveClassOf = (id) => (T[id] || ['unknown', ''])[0];
 
 /** The one-line reason a block does not play live, or '' when it does. */
 export const whyNotLive = (id) => (T[id] || ['unknown', ''])[1];
+
+// Blocks that play live but whose window has its own preview path (the parametric EQ draws and plays itself, Delay Llama has its own live engine), and blocks without a live graph
+// that the Advanced window still previews from a browser render of the input (denoise, and the master with its limiter and meter).
+const OWN_PREVIEW = new Set(['peq', 'delay-llama']), RENDERED_LOCALLY = new Set(['denoise', 'master']);
+/** Whether the Advanced window previews this block in the browser on the take that feeds it (replaces the hard-coded set of the window, local-preview chunk 8.4). */
+export const hasLocalPreview = (id) => (liveClassOf(id) === 'live' && !OWN_PREVIEW.has(id)) || RENDERED_LOCALLY.has(id);

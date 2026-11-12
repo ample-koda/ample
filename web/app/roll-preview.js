@@ -3,6 +3,9 @@ import { parseEffectiveGranularSeed } from '../lib/clientside-granular.mjs';
 import { S, flat } from './store.js';
 import { resolveRollInstrument, rollConsumers, rollVoiceKey } from '../lib/roll-instrument.mjs';
 import { renderSynthChannels } from '../lib/clientside-synth.mjs';
+import { synthLive } from './synth-live.js';
+import { pianoLive } from './piano-live.js';
+import { cacheFile, cacheable, cachedVelocity, sampleKey, sharedSampleCache } from '../lib/sf-sample-cache.mjs';
 import { renderPianoChannels } from '../lib/clientside-piano.mjs';
 import { renderBassChannels } from '../lib/clientside-bass.mjs';
 import { renderSamplerChannels } from '../lib/clientside-sampler.mjs';
@@ -50,6 +53,8 @@ export function createRollPreview(clipId, ppq, onStatus) {
       }
       // a Delay Llama is sung live by its worklet: it is loaded here, nothing is rendered in advance
       if (next?.node.tpl === 'delay-llama') await llamaLive(liveAudioContext());
+      if (next?.node.tpl === 'piano') await pianoLive(liveAudioContext()).catch(() => {});
+      if (next?.node.tpl === 'synth') await synthLive(liveAudioContext()).catch(() => {});   // the synth worklet is ready before the first note
     })();
     try { await preparing; } catch { if (mine === generation) { route = null; signature = ''; announce(false); } }
     finally { if (mine === generation) preparing = null; }
@@ -79,9 +84,27 @@ export function createRollPreview(clipId, ppq, onStatus) {
       const ticks = Math.round(beats * 120 / bpm * 1_000_000);
       if (ticks < 1 || ticks > 4_000_000) throw new Error('This SoundFont sustain exceeds the bounded audition window.');
       const body = { file: String(params.file || 'pack:musescore-general').replace(/^"|"$/g, ''), bank: note.bank ?? Number(params.bank || 0), program: note.program ?? Number(params.program || 0), channel: note.channel ?? Number(params.channel || 0), gain: Number(params.gain || 0), limiter: params.limiter || 'soft', notes: [{ bar: 1, tick: 0, ticks, ppq: 1_000_000, pitch: note.pitch, velocity: note.velocity }] };
+      // opt-in (localStorage ample.sf2.local = 1): the pack General MIDI SoundFont is rendered in the browser with SpessaSynth, no server round trip (4.8; 6 to 14 dB quieter than the server, see live-sf2.spec.ts)
+      let localOn = true; try { localOn = localStorage.getItem('ample.sf2.local') !== '0'; } catch { /* no storage */ }   // on unless the viewer opted out
+      if (localOn && body.file === 'pack:musescore-general') {
+        try {
+          const { localSf2 } = await import('../lib/sf2-local.js');
+          const rendered = await localSf2(ctx.sampleRate, getToken());
+          const [l, r] = rendered.render({ program: body.program, bank: body.bank, channel: body.channel, pitch: note.pitch, velocity: note.velocity, seconds: beats * 60 / bpm, tail: 0.75, gainDb: body.gain || 0 });
+          const buffer = ctx.createBuffer(2, l.length, ctx.sampleRate); buffer.copyToChannel(l, 0); buffer.copyToChannel(r, 1);
+          return buffer;
+        } catch { /* the pack is not served here or the SoundFont would not load: the server renders it */ }
+      }
+      // a pack's note rendered before is kept in the browser (IndexedDB, velocity in four layers, length in 50 ms steps): no round trip the next time, also in another session
+      const cached = cacheable(body.file) ? await cacheFile(body.file, async (folder) => { const r = await fetch(`/api/project/tree?path=${encodeURIComponent(folder)}&depth=0`, { headers: { 'X-Ample-Token': getToken() } }); return r.ok ? (await r.json()).children || [] : []; }).catch(() => null) : null, cacheKey = cached ? sampleKey({ file: cached, bank: body.bank, program: body.program, channel: body.channel, pitch: note.pitch, velocity: note.velocity, ticks }) : null, cache = cacheKey ? await sharedSampleCache() : null;
+      const stored = cache && await cache.get(cacheKey).catch(() => null);
+      if (stored) return ctx.decodeAudioData(stored.slice(0));
+      if (cacheKey) { body.notes[0].velocity = cachedVelocity(note.velocity); body.notes[0].ticks = Math.max(1, Math.round(ticks / 50_000)) * 50_000; }   // render what the key says, so a later hit sounds the same
       const result = await fetch('/api/gm/audition', { method: 'POST', headers: { 'X-Ample-Token': getToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
       if (!result.ok) throw new Error('The configured SoundFont could not be auditioned.');
-      return ctx.decodeAudioData(await result.arrayBuffer());
+      const wav = await result.arrayBuffer();
+      if (cache) cache.put(cacheKey, wav.slice(0)).catch(() => {});
+      return ctx.decodeAudioData(wav);
     }
     if (choice.kind === 'llama') {
       // the Delay Llama sings the note in the browser with the voice of the engine
@@ -112,6 +135,7 @@ export function createRollPreview(clipId, ppq, onStatus) {
   async function warm(ctx, note, bpm) {
     if (!route || disposed) return null;
     note = voiceNote(note);
+    if ((route.node.tpl === 'synth' || route.node.tpl === 'piano') && route.node.params.enabled !== 'off' && ctx.audioWorklet && ['synth', 'piano'].includes(selectPreviewVoice(route, note).kind)) return null;   // played live, nothing to render
     const key = rollVoiceKey(route, seeds, note, bpm, ctx.sampleRate);
     if (cache.has(key)) return cache.get(key);
     if (failures.has(key)) return null;
@@ -139,6 +163,22 @@ export function createRollPreview(clipId, ppq, onStatus) {
       return true;
     }
     const note = voiceNote({ ...event, length: event.duration * bpm / 60 * ppq });
+    if (route?.node.tpl === 'synth' && route.node.params.enabled !== 'off' && selectPreviewVoice(route, note).kind === 'synth' && ctx.audioWorklet) {
+      // the synth block plays the note live with the voice of the render (synth-core.mjs in a worklet): no render in advance, no latency
+      lastChoice = { kind: 'synth', local: true };
+      event.tail = 3;   // live-play keeps the output connected this long after the note, for the release
+      synthLive(ctx).then((voice) => { voice.connect(output); voice.set(route.node.params); voice.noteOn({ pitch: event.pitch, velocity: event.velocity ?? 96, duration: event.duration, pan: event.pan || 0, fine: event.fine || 0 }, at); }).catch(() => {});
+      announce(true);
+      return true;
+    }
+    if (route?.node.tpl === 'piano' && route.node.params.enabled !== 'off' && selectPreviewVoice(route, note).kind === 'piano' && ctx.audioWorklet) {
+      // the felt piano plays the note live with the voice of the render (piano-core.mjs in a worklet)
+      lastChoice = { kind: 'piano', local: true };
+      event.tail = .5;
+      pianoLive(ctx).then((voice) => { voice.connect(output); voice.noteOn({ pitch: event.pitch, duration: event.duration }, at); }).catch(() => {});
+      announce(true);
+      return true;
+    }
     const key = route && rollVoiceKey(route, seeds, note, bpm, ctx.sampleRate), buffer = key && cache.get(key);
     lastChoice = selectPreviewVoice(route, note);
     if (!buffer) { warm(ctx, note, bpm); announce(false); return false; }

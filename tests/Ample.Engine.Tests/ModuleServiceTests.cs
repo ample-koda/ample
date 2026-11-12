@@ -1,7 +1,7 @@
+using Ample.Core.Tests.Instruments;
 using Ample.Engine.Engine;
 using Ample.Engine.Library;
 using Ample.Engine.Modules;
-using Ample.Core.Tests.Instruments;
 using Ample.Language;
 
 namespace Ample.Core.Tests;

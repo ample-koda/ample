@@ -309,9 +309,9 @@ public sealed class ComponentAudioTests
         AudioGraph live = Graph(Process("    let wet = audio |> delay(time=250ms)\n    emit mix(audio, wet |> reverb(size=50%))"));
         Assert.True(live.LivePreview);
         Assert.Empty(live.NoLive);
-        AudioGraph limited = Graph(Process("    emit audio |> delay(time=250ms) |> limiter()"));
+        AudioGraph limited = Graph(Process("    emit audio |> delay(time=250ms) |> bitcrusher()"));
         Assert.False(limited.LivePreview);
-        Assert.Equal(["limiter"], limited.NoLive);
+        Assert.Equal(["bitcrusher"], limited.NoLive);
     }
 
     private const string Voice = "component koda.fx.voice version 1.0.0 current {\n  id \"demo.koda.fx.voice\"\n  input notes: Notes\n  #[MinValue(0%), MaxValue(100%)]\n  property room: Percent = 30%\n  output audio: Audio\n  process {\n    emit notes |> piano() |> reverb(size=room)\n  }\n}\n\n";

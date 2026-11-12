@@ -123,7 +123,7 @@ function eqPanel(context) {
   const controls = el('div', { className: 'studio-eq-controls' });
   [['low', 'Low', -12, 12, 'dB'], ['mid', 'Mid', -12, 12, 'dB'], ['high', 'High', -12, 12, 'dB'], ['low_hz', 'Low corner', 40, 2000, 'Hz'], ['high_hz', 'High corner', 1000, 12000, 'Hz']].forEach(([name, label, min, max, unit]) => {
     const value = number(params, name, name === 'low_hz' ? 250 : name === 'high_hz' ? 3000 : 0);
-    controls.append(line(label, knob({ label, value, min, max, unit, scale: unit === 'Hz' ? 'log' : 'linear', disabled: context.readOnly, onPreview: (next) => { graph.updateParameter(name, next); context.preview?.(name, next); }, onCommit: (next) => commit(context, name, next, unit) })));
+    controls.append(line(label, knob({ learn: context.block ? { block: context.block, name } : null, label, value, min, max, unit, scale: unit === 'Hz' ? 'log' : 'linear', disabled: context.readOnly, onPreview: (next) => { graph.updateParameter(name, next); context.preview?.(name, next); }, onCommit: (next) => commit(context, name, next, unit) })));
   });
   root.append(controls, el('p', { className: 'note', textContent: context.inputBuffer ? 'Input spectrum is an approximate estimate from the built input; the response curve is a model.' : 'Build the upstream input to show its approximate spectrum. The response curve is a model.' }));
   return root;
@@ -135,7 +135,7 @@ function filterPanel(context) {
   const cutoff = number(params, 'cutoff', 1000);
   const graph = responseGraph('filter', params, context);
   root.append(graph, el('div', { className: 'studio-filter-controls' }, [
-    knob({ label: 'Cutoff', value: cutoff, min: 20, max: 20000, unit: 'Hz', scale: 'log', size: 112, disabled: context.readOnly, onPreview: (next) => { graph.updateParameter('cutoff', next); context.preview?.('cutoff', next); }, onCommit: (next) => commit(context, 'cutoff', next, 'Hz') }),
+    knob({ learn: context.block ? { block: context.block, name: 'cutoff' } : null, label: 'Cutoff', value: cutoff, min: 20, max: 20000, unit: 'Hz', scale: 'log', size: 112, disabled: context.readOnly, onPreview: (next) => { graph.updateParameter('cutoff', next); context.preview?.('cutoff', next); }, onCommit: (next) => commit(context, 'cutoff', next, 'Hz') }),
     line('Slope', selector({ label: 'Filter slope', value: String(params.slope || '12'), disabled: context.readOnly, choices: ['12', '24', '36', '48'].map((value) => ({ value, label: `${value} dB/oct` })), onCommit: (next) => { graph.updateParameter('slope', next); context.commit('slope', next); } })),
     line('Type', selector({ label: 'Filter type', value: params.type || 'lowpass', disabled: context.readOnly, choices: [{ value: 'lowpass', label: 'Low pass' }, { value: 'highpass', label: 'High pass' }, { value: 'bandpass', label: 'Band pass' }, { value: 'notch', label: 'Notch' }], onCommit: (next) => context.commit('type', next) })),
   ]));

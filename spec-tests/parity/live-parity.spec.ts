@@ -4,7 +4,7 @@ import { freshServerPerTest, openApp } from '../../web/tests/support';
 freshServerPerTest();
 
 // The measured distance between the live graph and the browser render of each block (default parameters, 2 s test sound). The exact ones are the blocks that run a shared core in a worklet.
-test('live against render: the worklet blocks are exact and every other live block has a measured deviation', async ({ page }) => {
+test('@audio live against render: the worklet blocks are exact and every other live block has a measured deviation', async ({ page }) => {
   await openApp(page);
   const table = await page.evaluate(async () => {
     const { parityCheck, PARITY_REFERENCES } = await import('/app/live-parity.js');
@@ -24,4 +24,7 @@ test('live against render: the worklet blocks are exact and every other live blo
   console.log('live vs render (dB of difference below the render):', JSON.stringify(table));
   for (const type of ['reverb', 'gate', 'limiter', 'deesser']) expect(table[type].word, type).toBe('exact');
   for (const entry of Object.values(table)) expect(Number.isFinite(entry.db)).toBe(true);
+  // F4: the LFOs start with the loop like the render's, so the tremolo is exact and the chorus (a quarter-period offset on the right channel) follows the render closely
+  expect(table.tremolo.word).toBe('exact');
+  expect(table.chorus.db).toBeLessThan(-10);
 });

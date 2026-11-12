@@ -10,6 +10,7 @@ const STRIP_TYPES = ['mixer', 'bus', 'master', 'volume'];
 const parts = (value, fallback) => String(value || fallback).replace(/^"|"$/g, '').trim().split(/\s+/);
 const dbOf = (level) => (level > 0.00001 ? Math.max(-60, 20 * Math.log10(level)) : -60);
 let bars = null;
+const stripMeters = [];  // { bars: [left, right], id } of every bus, volume and master strip
 const chanMeters = [];   // { bars: [left, right], src } of every input of every strip
 const MUTE_KEY = 'ample.mix.mute';   // "block#input": the gain before the mute, so it can be put back
 const muteMap = () => { try { return JSON.parse(localStorage.getItem(MUTE_KEY) || '{}'); } catch { return {}; } };
@@ -56,6 +57,18 @@ function stripFor(node, links) {
       title: live ? 'Stop the live mix' : 'Loop the built sounds of the inputs through this mixer in the browser: faders, pans, mutes and solos are heard while you move them (approximate, the build is the truth)',
       onclick: () => (live ? stopChain() : startChain(node.id)) }));
   } else {
+    // bus, volume and master: its own fader (the gain of the block, written into the song like the inputs) and a meter of what the block gives
+    // a master block has no gain: its level is the ceiling of its limiter (-12..0 dB, the default is -1); the other strips have a gain
+    const isMaster = node.tpl === 'master', pname = isMaster ? 'limiter' : 'gain', lo = isMaster ? -12 : -60, hi = isMaster ? 0 : 12;
+    const gain = Number.parseFloat(String(node.params[pname] ?? (isMaster ? '-1' : '0')).replace(/"/g, '')) || 0;
+    const readout = el('output', { textContent: `${gain} dB` });
+    const range = el('input', { type: 'range', className: 'mixfader mixstripfader', min: String(lo), max: String(hi), step: '1', value: String(gain), 'aria-label': isMaster ? `${node.id} limiter ceiling` : `${node.id} gain`, title: isMaster ? 'Level of the master: the ceiling of its limiter in dB (double-click: -1 dB)' : 'Gain in dB (double-click: 0 dB)' });
+    range.oninput = () => { readout.textContent = `${range.value} dB`; };
+    range.onchange = () => edit([{ type: 'setParameter', block: node.id, name: pname, value: isMaster ? `"${range.value} dB"` : range.value }]);
+    range.ondblclick = () => { range.value = isMaster ? '-1' : '0'; range.dispatchEvent(new Event('change')); readout.textContent = `${range.value} dB`; };
+    const meter = el('i', { className: 'mixchm mixstripm', 'aria-hidden': 'true' }, [el('b'), el('b')]);
+    stripMeters.push({ bars: [...meter.children], id: node.id, master: node.tpl === 'master' });
+    strip.append(el('div', { className: 'mixchan mixsingle' }, [el('div', { className: 'mixfw' }, [range, meter]), readout]));
     const open = el('button', { type: 'button', textContent: 'Controls', title: 'Open the advanced controls of this block' });
     open.onclick = () => document.querySelector(`.node[data-id="${node.id}"] button[aria-label="Advanced"]`)?.click();
     strip.append(open);
@@ -85,6 +98,10 @@ function animate() {
       const level = levels && m.src ? levels.get(m.src) || 0 : 0;
       set(m.bars[0], level); set(m.bars[1], level);
     }
+    for (const m of stripMeters) {
+      const own = m.master ? null : (levels?.get(m.id) || 0);
+      if (m.master) { set(m.bars[0], state.playing ? state.leftLevel || 0 : 0); set(m.bars[1], state.playing ? state.rightLevel || 0 : 0); } else { set(m.bars[0], own); set(m.bars[1], own); }
+    }
     frame = requestAnimationFrame(tick);
   };
   frame = requestAnimationFrame(tick);
@@ -94,7 +111,7 @@ export function renderMixerView(force = false) {
   const box = document.querySelector('#b-mixer');
   if (!box) return;
   if (!force && box.querySelector('input:focus, select:focus')) return;   // never redraw under a fader that is being used
-  chanMeters.length = 0;
+  chanMeters.length = 0; stripMeters.length = 0;
   const keepLeft = box.querySelector('.mixview')?.scrollLeft || 0;   // a redraw must not throw the row back to the start
   const graph = flat();
   const all = graph.nodes.filter((n) => STRIP_TYPES.includes(n.tpl));

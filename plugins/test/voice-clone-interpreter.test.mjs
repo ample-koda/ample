@@ -44,7 +44,7 @@ fs.mkdirSync(path.dirname(sharedVenv), { recursive: true });
 try { fs.linkSync(process.execPath, sharedVenv); } catch { fs.copyFileSync(process.execPath, sharedVenv); }
 
 let runs = 0;
-async function render(model, settings, { withSharedVenv = true, block = {} } = {}) {
+async function render(model, settings, { withSharedVenv = true, block = {}, expectRefusal = false } = {}) {
   const jobDir = path.join(root, `job-${++runs}`);
   fs.mkdirSync(jobDir, { recursive: true });
   fs.writeFileSync(path.join(jobDir, 'sample.wav'), 'RIFF');
@@ -59,9 +59,10 @@ async function render(model, settings, { withSharedVenv = true, block = {} } = {
     child.on('error', reject);
     timer = setTimeout(() => reject(new Error('no answer')), 20000);
   });
-  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'render', params: { block: { parameters: { model, text: 'hello', language: 'nl', ...block } }, settings: { modelRoot: modelRootHere, ...settings }, inputs: { reference: 'sample.wav' }, jobDir } }) + '\n');
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'render', params: { block: { parameters: { model, text: 'hello', language: 'nl', ...block } }, settings: { modelRoot: modelRootHere, xttsLicenceAccepted: true, ...settings }, inputs: { reference: 'sample.wav' }, jobDir } }) + '\n');
   const answer = await reply.finally(() => clearTimeout(timer));
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'shutdown' }) + '\n');
+  if (expectRefusal) return answer;
   assert.equal(answer.error, undefined, JSON.stringify(answer.error));
   return JSON.parse(fs.readFileSync(marker, 'utf8'));
 }
@@ -95,4 +96,14 @@ test('Chatterbox uses the shared venv under the model root when nothing is set, 
   const general = interpreter('py-general-3');
   const explicit = await render('chatterbox', { python: general });
   assert.ok(same(explicit.exe, general));
+});
+
+test('XTTS-v2 (non-commercial licence) refuses to render until the user has accepted the licence in the settings; the other models need nothing', async () => {
+  const refused = await render('xtts', { xttsLicenceAccepted: false }, { expectRefusal: true });
+  assert.match(JSON.stringify(refused.error), /non-commercial/);
+  const py = interpreter('py-gate');
+  const accepted = await render('xtts', { xttsLicenceAccepted: true, pythonXtts: py });
+  assert.equal(accepted.engineSetting, 'voice-clone.pythonXtts');
+  const other = await render('chatterbox', { xttsLicenceAccepted: false, pythonChatterbox: py });
+  assert.equal(other.engineSetting, 'voice-clone.pythonChatterbox');
 });

@@ -22,7 +22,7 @@ export function createVoiceWorker({ node, plugin, modelRoot, pythonRoot, assets 
     async run(request, signal, context) {
       const render = request.render;
       if (request.capability !== 'voice-clone' || render?.block?.type !== 'voice-clone' || render.inputRoles?.length !== 1 || render.inputRoles[0] !== 'reference' || request.inputs.length !== 1) throw new Error('invalid voice-clone request');
-      const model = String(render.block.parameters?.model || 'xtts').replace(/^"|"$/g, '');
+      const model = String(render.block.parameters?.model || 'chatterbox').replace(/^"|"$/g, '');
       if (!['xtts', 'qwen3', 'chatterbox'].includes(model)) throw new Error('unsupported voice-clone model');
       const python = path.join(pythonRoot, `ample-faer-voice-${model}`, 'bin', 'python');
       const inputDir = path.join(context.jobDir, 'in');
@@ -34,7 +34,7 @@ export function createVoiceWorker({ node, plugin, modelRoot, pythonRoot, assets 
         seed: String(render.seed), sampleRate: render.sampleRate, samplesPerBar: render.samplesPerBar,
         firstBar: render.firstBar, barCount: render.barCount, activeBars: render.activeBars || [],
         inputs: { reference: 'in/reference.bin' },
-        settings: { modelRoot, pythonXtts: path.join(pythonRoot, 'ample-faer-voice-xtts', 'bin', 'python'), pythonQwen3: path.join(pythonRoot, 'ample-faer-voice-qwen3', 'bin', 'python'), pythonChatterbox: path.join(pythonRoot, 'ample-faer-voice-chatterbox', 'bin', 'python'), ffmpeg: 'ffmpeg', keepWarmS: 0, timeoutS: 1800 },
+        settings: { modelRoot, xttsLicenceAccepted: process.env.AMPLE_XTTS_LICENCE_ACCEPTED === '1', pythonXtts: path.join(pythonRoot, 'ample-faer-voice-xtts', 'bin', 'python'), pythonQwen3: path.join(pythonRoot, 'ample-faer-voice-qwen3', 'bin', 'python'), pythonChatterbox: path.join(pythonRoot, 'ample-faer-voice-chatterbox', 'bin', 'python'), ffmpeg: 'ffmpeg', keepWarmS: 0, timeoutS: 1800 },
       };
       context.report('voice', null);
       child = spawn(node, [plugin], { cwd: context.jobDir, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });

@@ -15,7 +15,7 @@ function wav(rate = 44100): Buffer {
 }
 
 const LIVE = '/** A delay you can hear while you turn it. */\ncomponent koda.fx.liveEcho version 1.0.0 current {\n  id "demo.koda.fx.live-echo"\n  input audio: Audio\n  #[MinValue(0%), MaxValue(90%)]\n  property feedback: Percent = 30%\n  property delayTime: Duration = 250ms\n  output audio: Audio\n  ui {\n    knob feedback\n    meter audio\n    preview live\n  }\n  process {\n    emit audio\n      |> delay(time=delayTime, feedback=feedback)\n  }\n}\n';
-const LIMITER = 'component koda.fx.noLive version 1.0.0 current {\n  id "demo.koda.fx.no-live"\n  input audio: Audio\n  property amount: Percent = 30%\n  output audio: Audio\n  ui {\n    knob amount\n    preview live\n  }\n  process {\n    emit audio\n      |> limiter()\n  }\n}\n';
+const LIMITER = 'component koda.fx.noLive version 1.0.0 current {\n  id "demo.koda.fx.no-live"\n  input audio: Audio\n  property amount: Percent = 30%\n  output audio: Audio\n  ui {\n    knob amount\n    preview live\n  }\n  process {\n    emit audio\n      |> bitcrusher()\n  }\n}\n';
 
 freshServer({
   song: 'composition "live" { ample 1  tempo 100  master-seed 3 }\nimport "components/live-echo.amplec"\nimport "components/no-live.amplec"\nimport-audio src at 1 for 1 {\n  file samples/a.wav\n}\nkoda.fx.liveEcho echo {\n  from src.audio -> audio\n}\nkoda.fx.noLive plain {\n  from src.audio -> audio\n}\n',
@@ -34,7 +34,7 @@ test('a component that cannot run in real time has a Live switch that is off, wi
   await node(page, 'plain').click({ position: { x: 24, y: 12 } });
   const live = page.locator('#props .cui-live');
   await expect(live).toBeDisabled();
-  await expect(live).toHaveAttribute('title', /limiter/);
+  await expect(live).toHaveAttribute('title', /bitcrusher/);
 });
 
 test('the Live switch loops the sound that feeds the block, a moving knob sends values and writes nothing, and the switch stops it', async ({ page }) => {

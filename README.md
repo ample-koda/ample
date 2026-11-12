@@ -49,7 +49,7 @@ AMPLE is MIT licensed. It builds on the open-source software and sound sets belo
 | [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5), [acestep.cpp](https://github.com/ServeurpersoCom/acestep.cpp) | Optional music and voice generation, run as a separate server; not included. | MIT | 2026-10-03 |
 | [Demucs](https://github.com/facebookresearch/demucs), [faster-whisper](https://github.com/SYSTRAN/faster-whisper), [Chatterbox](https://github.com/resemble-ai/chatterbox) | Optional voice separation, transcription and voice synthesis in your own Python; not included. | MIT | 2026-10-03 |
 | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) | Optional voice synthesis; not included. | Apache-2.0 | 2026-10-10 |
-| [XTTS-v2](https://huggingface.co/coqui/XTTS-v2) (Coqui) | Optional voice synthesis; not included. Non-commercial. | Coqui Public Model License | 2026-10-10 |
+| [XTTS-v2](https://huggingface.co/coqui/XTTS-v2) (Coqui) | Optional voice synthesis; not included. Non-commercial; it only runs after you accept its licence in the voice-clone settings, and the assistant never picks it for you. | Coqui Public Model License | 2026-10-10 |
 | [FFmpeg](https://ffmpeg.org), [MuseScore](https://musescore.org), [Audiveris](https://audiveris.org) | Optional programs that AMPLE starts for mp3/flac, score import and music recognition; not included. | LGPL/GPL, GPL-3.0, AGPL-3.0 | 2026-10-03 |
 
 ### Build and development tools (not shipped)
@@ -69,7 +69,7 @@ The sounds and texts of the documentation site are [CC0](docs-site/LICENSE). All
 
 ## License
 
-The code is under the MIT License.
+The code is under the [MIT License](LICENSE).
 
 The names AMPLE and Koda, and their logos, are not part of that license: please do not use them
 to name a product that is derived from this project.

@@ -2,18 +2,24 @@
 // so several blocks in a row can be tuned while they play and bypassed one by one (a dry/wet crossfade: the nodes stay in the graph). The plan (which blocks, in what order)
 // is web/lib/live-chain-model.mjs; the song text stays the truth: a knob preview is local, the written value arrives through the store and clears the preview.
 // Advisory like every live preview: nothing is built or written here. @ample:live-chain
-import { liveEffectGraph, decodedInput, fetchTakeAudio, prepareWorklets } from './studio/preview/audio.js';
+import { liveEffectGraph, decodedInput, fetchTakeAudio, prepareWorklets, decodePreviewBlob } from './studio/preview/audio.js';
+import { api } from './api.js';
 import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 import { flat, S, subscribe, subscribeSelection } from './store.js';
 import { setExternalPlayer, stop as stopPlayer } from './player.js';
 import { toast } from './ui.js';
-import { planChain, CHAIN_EFFECTS, SUM_TYPES } from '../lib/live-chain-model.mjs';
-import { mixerGraph } from '../lib/live-mixer.mjs';
-import { renderLocal, toAudio, toBuffer } from './live-local.js';
+import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId } from '../lib/live-chain-model.mjs';
+import { mixerGraph, sendGraph } from '../lib/live-mixer.mjs';
+import { getToken } from './api.js';
+import { localInfo, renderLocal, toAudio, toBuffer, drumVoicePlan } from './live-local.js';
+import { createDrumVoice } from './live-drums.js';
 import { latencyReport } from '../lib/chain-latency.mjs';
 import { outputLatency, getContext } from '../lib/audio-engine.mjs';
 import { barBeats } from '../lib/meter.mjs';
+import { chainLevel, chainTyped, controlTargets, controlledValue } from '../lib/control-live.mjs';
+import { followSeries } from '../lib/control-follow.mjs';
+import { parameterLive } from '../lib/live-parameters.mjs';
 import { regionAt, positionIn } from '../lib/loop-region.mjs';
 import { createCpuMonitor, estimateLoad, heaviest } from '../lib/cpu-monitor.mjs';
 
@@ -41,8 +47,9 @@ export function chainState() {
     latencyReport: latencyReport({ ...contextLatency(), blocks: [...session.built].map(([id, entry]) => ({ id, title: flat().nodes.find((n) => n.id === id)?.title || id, seconds: entry.graph.latency || 0 })) }),
     position: context && loop > 0 ? loopPosition(session, context.currentTime) : 0,
     loopBars: loopBars(), region: session.region ? { start: session.region.start, length: session.region.length } : null,
-    cpu: chainLoad(),
-    items: session.plan.items.map((item) => ({ id: item.id, kind: item.kind, tpl: item.tpl, bypassed: session.bypass.has(item.id), cpuBypassed: session.cpuBypassed.has(item.id) })),
+    gliding: [...(session.gliding || [])], cpu: chainLoad(), stale: [...(session.stale || [])],
+    storedTakes: [...(session.takeTimes || [])].map(([id, created]) => ({ id, created })),   // AI blocks: the stored take that is heard, and when it was made (7.2)
+    items: session.plan.items.map((item) => ({ id: item.id, kind: item.kind, tpl: item.tpl, info: item.kind === 'local' ? localInfo(item.id) : '', bypassed: session.bypass.has(item.id), cpuBypassed: session.cpuBypassed.has(item.id) })),
   };
 }
 
@@ -68,6 +75,8 @@ function applyRegion(s) {
   const r = s.region;
   const nodes = [...s.slots.values()].map((slot) => slot.node);
   if (s.builtTake) nodes.push(s.builtTake.node);
+  for (const node of s.tracked || []) nodes.push(node);   // the LFO waves loop in step with the sources
+  for (const slot of s.slots.values()) slot.node.reset?.();   // the drum hits are queued again for the new loop range
   for (const node of nodes) {
     const length = node.buffer?.duration || 0;
     if (r && r.start + r.length <= length + 1e-6) { node.loopStart = r.start; node.loopEnd = r.start + r.length; } else { node.loopStart = 0; node.loopEnd = 0; }
@@ -102,6 +111,9 @@ export function chainFeedLoad(value, now = performance.now() / 1000) {
   }
   return state;
 }
+
+/** Loudness of a master block of the chain: { momentary, shortTerm, integrated } in LUFS (-Infinity while silent), or null. The target of the block is a reference: `target - momentary` is the distance. */
+export function chainLoudness(id) { return session?.built.get(id)?.graph.loudness?.read() ?? null; }
 
 /** The peak levels (0..1+) of the left and right side of a block of the chain, or null. Every effect and mixer is tapped by a pair of analysers. */
 export function chainLevels(id) {
@@ -174,15 +186,28 @@ export async function startChain(target) {
     await context.resume();
     await prepareWorklets(context);
     if (session !== mine) return false;
-    Object.assign(mine, { context, buffers, tempo: Number(S.doc?.project?.tempo) || 120 });
+    Object.assign(mine, { context, buffers, tempo: Number(S.doc?.project?.tempo) || 120, impulses: new Map(), impulseKeys: new Map() });
+    // a convolution block needs the impulse response of its `ir` / `file` before its graph is made (the server serves it; length and normalize are done in the graph)
+    for (const item of plan.items.filter((i) => i.tpl === 'convolution')) { await loadImpulse(mine, item.id); if (session !== mine) return false; }
     // the blocks the browser makes itself (drums, sampler, cut, fade, ...), in the order of the plan, each from the sound it works on
     for (const item of plan.items.filter((i) => i.kind === 'local')) {
+      if (hitDrums(plan, item)) {   // built-in drums that only feed effects: single hits on the audio clock, no loop render
+        const voicePlan = await drumVoicePlan(item, { paramsOf: effective });
+        (mine.drumPlans ||= new Map()).set(item.id, voicePlan);
+        buffers.set(item.id, context.createBuffer(1, Math.max(1, Math.round(voicePlan.loop * context.sampleRate)), context.sampleRate));   // only its length: the loop of the chain
+        mine.localKeys.set(item.id, localKey(item));
+        mine.watch.add(baseId(item.id));
+        if (session !== mine) return false;
+        continue;
+      }
       buffers.set(item.id, toBuffer(context, await makeLocal(mine, item)));
       mine.localKeys.set(item.id, localKey(item));
-      mine.watch.add(item.id); item.midi?.transforms.forEach((t) => mine.watch.add(t.id)); mine.watch.add(item.midi?.clip);
+      mine.watch.add(baseId(item.id)); item.midi?.transforms.forEach((t) => mine.watch.add(t.id)); mine.watch.add(item.midi?.clip);
       if (session !== mine) return false;
     }
     build(mine);
+    startControls(mine);
+    loadTakeTimes(mine);
     mine.starting = false;
     try { const capacity = context.renderCapacity; if (capacity) { capacity.start({ updateInterval: .25 }); capacity.onupdate = (event) => chainFeedLoad(event.averageLoad); mine.capacity = capacity; } } catch { /* no render capacity here: the figure is estimated */ }
     refresh(true);
@@ -196,9 +221,30 @@ export async function startChain(target) {
   }
 }
 
-const effective = (id) => ({ ...paramsOf(id), ...(session?.override.get(id) || {}) });
+const effective = (id) => ({ ...paramsOf(baseId(id)), ...(session?.override.get(baseId(id)) || {}) });   // a splitter output `s:left` has the parameters of the block `s`
 /** What a local block depends on: its parameters, the notes and transforms feeding it, and the blocks it works on. */
 const localKey = (item) => JSON.stringify([effective(item.id), item.midi ? [effective(item.midi.clip), item.midi.transforms.map((t) => effective(t.id))] : null, item.inputs.map((i) => session?.localKeys.get(i.from) || ''), S.doc?.project?.tempo]);
+
+const impulseKey = (id) => JSON.stringify([effective(id).ir, effective(id).file]);
+/** Fetches and decodes the impulse response of a convolution block (the server picks it from `ir` / `file`) and remembers which values it was made for. */
+async function loadImpulse(s, id) {
+  const key = impulseKey(id);
+  s.impulses.set(id, await decodePreviewBlob(await api.effectImpulse({ path: S.path, block: id, params: effective(id) })));
+  s.impulseKeys.set(id, key);
+}
+/** A convolution whose `ir` or `file` changed gets the new impulse in its idle convolver and crossfades to it (the graph does that), without a restart of the chain. */
+function refreshImpulses(s) {
+  for (const item of s.plan.items.filter((i) => i.tpl === 'convolution')) {
+    if (s.impulseKeys.get(item.id) === impulseKey(item.id) || s.loadingImpulse?.has(item.id)) continue;
+    (s.loadingImpulse ||= new Set()).add(item.id);
+    const wanted = impulseKey(item.id);
+    api.effectImpulse({ path: S.path, block: item.id, params: effective(item.id) }).then(decodePreviewBlob).then((impulse) => {
+      if (session !== s) return;
+      s.impulses.set(item.id, impulse); s.impulseKeys.set(item.id, wanted);
+      s.built.get(item.id)?.graph.replaceImpulse?.(impulse, { ...effective(item.id), ...(s.bypass.has(item.id) ? { enabled: 'off' } : {}) });
+    }).catch((error) => { if (session === s) toast(error?.message || String(error)); s.impulseKeys.set(item.id, wanted); }).finally(() => { s.loadingImpulse.delete(item.id); if (session === s) refreshImpulses(s); });
+  }
+}
 
 async function makeLocal(s, item) {
   const inputs = new Map();
@@ -207,7 +253,22 @@ async function makeLocal(s, item) {
 }
 
 /** A local block changed: make it again (and what works on it), then swap the new sound in at the same place of the loop with a short crossfade. */
+/** Built-in drums that only feed effects and sums play as single hits; a local block that works on their sound (cut, reverse ...) still needs the rendered loop. */
+const hitDrums = (plan, item) => item.tpl === 'drums' && !plan.items.some((other) => other.kind === 'local' && other.inputs.some((link) => link.from === item.id));
+/** A knob of the drums: the hits of the new pattern replace the queued ones at once (hits already heard are not rendered again). */
+async function updateDrumHits(s, item) {
+  const token = (s.drumToken = (s.drumToken || 0) + 1);
+  try {
+    const voicePlan = await drumVoicePlan(item, { paramsOf: effective });
+    if (session !== s || token !== s.drumToken) return;
+    s.drumPlans.set(item.id, voicePlan); s.localKeys.set(item.id, localKey(item));
+    s.slots.get(item.id)?.node.set(voicePlan);
+  } catch (error) { if (session === s) toast(error?.message || String(error)); }
+}
+
 function rerender(s, id) {
+  const drums = s.drumPlans && s.plan.items.find((i) => i.id === id && s.drumPlans.has(i.id));
+  if (drums) { updateDrumHits(s, drums); return; }
   clearTimeout(s.renders.get(id)?.timer);
   const entry = { timer: 0 };
   s.renders.set(id, entry);
@@ -222,6 +283,7 @@ function rerender(s, id) {
         s.buffers.set(item.id, toBuffer(s.context, audio));
         s.localKeys.set(item.id, localKey(item));
         swap(s, item.id, s.buffers.get(item.id));
+        if (item.tpl === 'normalize') emit();   // the note on the chip says the new gain
       }
     } catch (error) { if (session === s) toast(error?.message || String(error)); } finally { s.dirty = null; }
   }, 150);
@@ -237,6 +299,7 @@ function swap(s, id, buffer) {
   const old = slot.node; try { old.stop(now + .12); } catch { /* ended */ }
   s.sources.push(node); s.disposables.push(node, fade);
   s.swaps = (s.swaps || 0) + 1;
+  if (s.gliding?.delete(id)) emitSoon();   // the exact sound is in: the glide is over
   s.slots.set(id, { node, fade, out: slot.out, duration: buffer.duration });
 }
 
@@ -247,15 +310,20 @@ function build(s) {
     left.fftSize = right.fftSize = 1024; node.connect(splitter); splitter.connect(left, 0); splitter.connect(right, 1);
     s.taps.set(id, { left, right, data: new Float32Array(1024) }); s.disposables.push(splitter, left, right);
   };
-  let loop = 0;
+  // the loop length and the start time are known before the graphs are made: the LFOs of the effects start in step with the loop (live-lfo.mjs)
+  const loop = Math.max(0, ...plan.items.filter((i) => i.kind === 'source' || i.kind === 'local').map((i) => s.buffers.get(i.id)?.duration || 0)), when = context.currentTime + .08;
+  s.t0 = when; s.loop = loop; s.tracked = new Set();
+  const clock = { position: () => (s.loop > 0 ? loopPosition(s, context.currentTime) : 0), loop: () => s.loop, tracked: s.tracked };
   for (const item of plan.items) {
     const out = context.createGain();
     s.disposables.push(out); outs.set(item.id, out);
     if (item.kind === 'source' || item.kind === 'local') {
-      const buffer = s.buffers.get(item.id), node = context.createBufferSource(), fade = context.createGain();
-      node.buffer = buffer; node.loop = true; node.connect(fade).connect(out); s.sources.push(node); s.disposables.push(node, fade);
+      const buffer = s.buffers.get(item.id), voicePlan = s.drumPlans?.get(item.id), fade = context.createGain();
+      const node = voicePlan ? createDrumVoice(context, fade, { span: () => (s.region ? { start: s.region.start, length: s.region.length } : { start: 0, length: s.loop }), positionAt: (time) => loopPosition(s, time) }) : context.createBufferSource();
+      if (voicePlan) node.set(voicePlan); else { node.buffer = buffer; node.loop = true; }
+      if (!voicePlan) node.connect(fade);
+      fade.connect(out); s.sources.push(node); s.disposables.push(node, fade);
       s.slots.set(item.id, { node, fade, out, duration: buffer.duration });
-      loop = Math.max(loop, buffer.duration);
     } else if (item.kind === 'effect') {
       const input = context.createGain();
       s.disposables.push(input);
@@ -264,21 +332,20 @@ function build(s) {
       pre.fftSize = post.fftSize = 4096; pre.smoothingTimeConstant = post.smoothingTimeConstant = .7;
       input.connect(pre); out.connect(post); s.disposables.push(pre, post);
       s.spectra.set(item.id, { pre, post, preBins: new Float32Array(pre.frequencyBinCount), postBins: new Float32Array(post.frequencyBinCount), preWave: new Float32Array(2048), postWave: new Float32Array(2048) });
-      const graph = liveEffectGraph(context, input, out, item.tpl, paramsOf(item.id), s.tempo);
+      const graph = liveEffectGraph(context, input, out, item.tpl, paramsOf(item.id), s.tempo, s.impulses.get(item.id), clock);
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
-      const lanes = Math.max(4, ...item.inputs.map((i) => i.lane + 1)), mixer = mixerGraph(context, lanes, { bus: item.tpl === 'bus' });
+      const lanes = Math.max(4, ...item.inputs.map((i) => i.lane + 1)), mixer = item.tpl === 'send' ? sendGraph(context, lanes) : mixerGraph(context, lanes, { bus: item.tpl === 'bus' });
       for (const link of item.inputs) outs.get(link.from).connect(mixer.lanes[link.lane]);
       mixer.output.connect(out);
+      if (mixer.sendOutput) { const sendOut = context.createGain(); s.disposables.push(sendOut); mixer.sendOutput.connect(sendOut); outs.set(`${item.id}:send`, sendOut); }   // the second output of a send
       s.built.set(item.id, { kind: 'sum', graph: mixer });
     }
     tap(item.id, out);   // every block, sources too, has a left and right meter (the mixer view shows them per input)
   }
   s.liveGain = context.createGain(); s.disposables.push(s.liveGain);   // the chain output; the built take of the target can take its place for an A/B
   outs.get(plan.output).connect(s.liveGain).connect(playbackOutput(context));
-  const when = context.currentTime + .08;
-  s.t0 = when; s.loop = loop;
   s.sources.forEach((node) => node.start(when));
   if (loopBars()) { s.region = regionAt(0, barSeconds(s), loopBars(), loop, when); applyRegion(s); }
 }
@@ -295,6 +362,7 @@ function refresh(force = false) {
     const key = localKey(item);
     if (session.localKeys.get(item.id) !== key) { session.localKeys.set(item.id, key); rerender(session, item.id); }
   }
+  refreshImpulses(session);
   const anySolo = flat().nodes.some((n) => n.tpl === 'bus' && n.params?.solo === 'on');
   for (const [id, entry] of session.built) {
     const song = paramsOf(id), previous = session.last.get(id);
@@ -309,7 +377,21 @@ function refresh(force = false) {
 }
 
 /** A knob or fader is being moved: the value is heard at once, and the song is written on release (which clears it). */
+// Gliding live variant of rewind and scratch (owner wish 2026-11-12, chunk 2.7b): while a knob of such a block turns, its sound is not yet re-made; the loop of the block slows down like a hand on the record
+// (playbackRate, approximate), and when the knob stops the exact re-render is swapped in at the same loop position and the speed is back to 1.
+const GLIDE_RATE = { rewind: .6, scratch: .45 };
+function glide(s, block) {
+  const item = s.plan.items.find((i) => i.id === block && i.kind === 'local' && GLIDE_RATE[i.tpl]), slot = item && s.slots.get(block);
+  if (!slot) return;
+  const now = s.context.currentTime;
+  slot.node.playbackRate.cancelScheduledValues(now); slot.node.playbackRate.setTargetAtTime(GLIDE_RATE[item.tpl], now, .04);
+  (s.gliding ||= new Set()).add(block); emitSoon();
+}
+let emitTimer = 0;
+const emitSoon = () => { clearTimeout(emitTimer); emitTimer = setTimeout(emit, 30); };
+
 export function chainPreview(block, name, value) {
+  if (session && session.watch.has(block)) glide(session, block);
   if (!session || !(session.built.has(block) || session.watch.has(block))) return;
   session.override.set(block, { ...(session.override.get(block) || {}), [name]: String(value) });
   refresh();
@@ -356,7 +438,61 @@ export function setChainBypass(id, on) {
   emit();
 }
 
+/** The blocks that a model makes (ace-music, ai-voice, voice-clone, choir) are never built by the live chain: it plays the stored take. When was that take made? Asked once per start. */
+const AI_BLOCKS = new Set(['ace-music', 'ai-voice', 'voice-clone', 'choir']);
+async function loadTakeTimes(s) {
+  s.takeTimes = new Map();
+  for (const item of s.plan.items.filter((i) => i.kind === 'source' && AI_BLOCKS.has(i.tpl))) {
+    try {
+      const response = await fetch(`/api/takes/${encodeURIComponent(item.take)}`, { headers: { 'X-Ample-Token': getToken() } });
+      const created = response.ok ? (await response.json()).take?.created : null;
+      if (created) s.takeTimes.set(item.id, created);
+    } catch { /* offline: no time to show */ }
+  }
+  if (session === s && s.takeTimes.size) emit();
+}
+
+/** Controls (a curve, through maps) that steer parameters of blocks in the chain: evaluated every 40 ms at the loop position and set like a knob that is being moved (plan 2.8). */
+function startControls(s) {
+  const nodes = flat().nodes.map((n) => ({ id: n.id, tpl: n.tpl, params: n.params }));
+  s.controls = controlTargets(nodes, flat().links, (id, param) => s.built.get(id)?.kind === 'effect' && parameterLive(nodes.find((n) => n.id === id)?.tpl, param) === 'param');
+  if (!s.controls.length) return;
+  // follow: the loudness of the sound that feeds it (a built take of the song), measured once per change of its settings
+  const series = new Map();
+  const load = (id) => {
+    const key = JSON.stringify(effective(id)), link = flat().links.find((l) => l.to === id && l.type === 'audio' && l.inName === 'in' && !l.disabled), take = link && takeOf(link.from);
+    series.set(id, { key, data: series.get(id)?.data || null });   // the old series keeps playing until the new one is made
+    if (!take) return;
+    decodedInput(`chain:${take}`, () => fetchTakeAudio(take)).then((buffer) => {
+      if (session !== s) return;
+      const data = followSeries(toAudio(buffer), effective(id));
+      if (data && series.get(id)?.key === key) series.set(id, { key, data });
+    }).catch(() => {});
+  };
+  const followAt = (id, out, seconds) => {
+    const entry = series.get(id);
+    if (!entry || entry.key !== JSON.stringify(effective(id))) { load(id); return series.get(id)?.data ? pick(series.get(id).data, out, seconds) : null; }
+    return entry.data ? pick(entry.data, out, seconds) : null;
+  };
+  const pick = (data, out, seconds) => { const list = out === 'gate' ? data.gate : data.values; return list[Math.min(list.length - 1, Math.max(0, Math.floor(seconds * 1000)))]; };
+  const tick = () => {
+    if (session !== s || s.starting) return;
+    const byId = new Map(flat().nodes.map((n) => [n.id, { id: n.id, tpl: n.tpl, params: effective(n.id) }]));
+    const bar = loopPosition(s, s.context.currentTime) / barSeconds(s) + 1;
+    let changed = false;
+    for (const control of s.controls) {
+      const level = chainLevel(control.chain, byId, bar, followAt, control.out, loopPosition(s, s.context.currentTime));
+      const text = level === null ? null : controlledValue(byId.get(control.target)?.tpl, control.param, level, chainTyped(control.chain, byId));
+      if (text === null || s.override.get(control.target)?.[control.param] === text) continue;
+      s.override.set(control.target, { ...(s.override.get(control.target) || {}), [control.param]: text }); changed = true;
+    }
+    if (changed) refresh();
+  };
+  s.controlTimer = setInterval(tick, 40);
+}
+
 function dispose(s) {
+  clearInterval(s.controlTimer);
   try { if (s.capacity) { s.capacity.onupdate = null; s.capacity.stop(); } } catch { /* gone */ }
   s.sources.forEach((node) => { try { node.stop(); } catch { /* not started */ } });
   if (s.builtTake) { try { s.builtTake.node.stop(); s.builtTake.node.disconnect(); s.builtTake.gain.disconnect(); } catch { /* gone */ } }
@@ -375,13 +511,24 @@ export function stopChain({ quiet = false } = {}) {
 
 export const chainActive = () => Boolean(session);
 
-setExternalPlayer({ playing: () => Boolean(session) && !session.starting, take: () => (session ? `chain:${session.target}` : null), stop: () => stopChain() });
+setExternalPlayer({ playing: () => Boolean(session) && !session.starting, take: () => (session ? `chain:${session.target}` : null), stop: () => stopChain(),
+  time: () => (session?.context && session.loop > 0 ? loopPosition(session, session.context.currentTime) : 0), duration: () => (session?.loop || 0) });
 
 // the song changed: a different set of blocks or takes builds the graph again (from the start); a changed value is only handed to its block
 subscribe(() => {
   if (!session || session.starting) return;
   const plan = planNow(session.target);
+  // a block upstream changed after its sound was built (the editor drops its take): keep playing the old build, say so, and wait for the next build (8.1)
+  const lost = session.plan.items.filter((i) => i.kind === 'source' && !takeOf(i.id)).map((i) => i.id);
+  if (!plan.ok && lost.length) {
+    const before = [...(session.stale || [])].sort().join();
+    session.stale = new Set(lost);
+    if (before !== lost.slice().sort().join()) emit();
+    refresh();
+    return;
+  }
   if (!plan.ok) { stopChain(); toast(plan.reason); return; }
+  if (session.stale) { session.stale = null; emit(); }
   if (signatureOf(plan) !== session.signature) {
     const target = session.target, bypass = new Set(session.bypass);
     startChain(target).then(() => { if (session) { bypass.forEach((id) => session.bypass.add(id)); refresh(true); emit(); } });
@@ -390,3 +537,9 @@ subscribe(() => {
   refresh();
 });
 document.addEventListener('ample:open', () => stopChain());
+
+/** The parameters a control has set on a block of the running chain (tests and the status line), or null. */
+export const controlledParams = (id) => (session?.controls?.some((c) => c.target === id) ? { ...(session.override.get(id) || {}) } : null);
+
+/** Tests: how many hits the drums block of the running chain has queued as a plan (0 when it plays as a rendered loop). */
+export const chainDrumHits = (id) => session?.slots.get(id)?.node.hitCount ?? 0;

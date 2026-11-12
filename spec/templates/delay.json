@@ -71,6 +71,25 @@
       "doc": "Time between echoes."
     },
     {
+      "name": "sync",
+      "type": "text",
+      "default": "off",
+      "kind": "choice",
+      "options": [
+        "off",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/4t",
+        "1/8t",
+        "1/16t"
+      ],
+      "doc": "Locks the echo time to the tempo as a note value (1/8 is an eighth note, a t is a triplet). Off uses time."
+    },
+    {
       "name": "feedback",
       "type": "text",
       "default": "35%",

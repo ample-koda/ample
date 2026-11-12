@@ -22,7 +22,7 @@ async function render(page, type: string, params: Record<string, string>, tone =
   }, { type, params, tone, seconds });
 }
 
-test('pan, width, phaser, flanger and the filter LFO have live graphs that change the sound', async ({ page }) => {
+test('@audio pan, width, phaser, flanger and the filter LFO have live graphs that change the sound', async ({ page }) => {
   await openApp(page);
   const flat = await render(page, 'pan', { pan: '0' });
   const hardLeft = await render(page, 'pan', { pan: '-32' }), hardRight = await render(page, 'pan', { pan: '32' });
@@ -44,7 +44,7 @@ test('pan, width, phaser, flanger and the filter LFO have live graphs that chang
   expect(Math.max(...wobble.windows.slice(1))).toBeGreaterThan(Math.max(...still.windows.slice(1)) * 5);
 });
 
-test('duck and tremolo build on the audio clock without a timer', async ({ page }) => {
+test('@audio duck and tremolo build on the audio clock without a timer', async ({ page }) => {
   await openApp(page);
   const result = await page.evaluate(async () => {
     const { liveEffectGraph } = await import('/app/studio/preview/audio.js');
@@ -56,7 +56,7 @@ test('duck and tremolo build on the audio clock without a timer', async ({ page 
   expect(result).toBe(2);
 });
 
-test('the live reverb is the offline reverb: the worklet gives the same samples as the render (same core)', async ({ page }) => {
+test('@audio the live reverb is the offline reverb: the worklet gives the same samples as the render (same core)', async ({ page }) => {
   await openApp(page);
   const result = await page.evaluate(async () => {
     const { liveEffectGraph, prepareWorklets } = await import('/app/studio/preview/audio.js');
@@ -78,7 +78,7 @@ test('the live reverb is the offline reverb: the worklet gives the same samples 
   expect(result.worst).toBeLessThan(1e-6);
 });
 
-test('the live gate, limiter and de-esser are the offline ones: the worklets give the same samples as the render cores', async ({ page }) => {
+test('@audio the live gate, limiter and de-esser are the offline ones: the worklets give the same samples as the render cores', async ({ page }) => {
   await openApp(page);
   const result = await page.evaluate(async () => {
     const { liveEffectGraph, prepareWorklets } = await import('/app/studio/preview/audio.js');

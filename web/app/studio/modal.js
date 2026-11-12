@@ -1,7 +1,8 @@
 import { fieldFor } from '../fields.js';
 import { rememberedSize, resizeGrip } from '../window.js';
+import { snapshotBar } from '../live-snapshots.js';
 import { el } from '../ui.js';
-import { whyNotLive, liveClassOf } from '../../lib/live-class.mjs';
+import { whyNotLive, liveClassOf, hasLocalPreview } from '../../lib/live-class.mjs';
 import { subscribe } from '../store.js';
 import { knob } from './knob.js';
 import { led } from './led.js';
@@ -28,6 +29,7 @@ import { onPlayer, peaksOf, play, playTransient, playLivePreview, updateLivePrev
 import { scrubBar } from './scrub.js';
 const PARITY_TYPES = new Set(['reverb', 'gate', 'limiter', 'deesser', 'eq', 'peq', 'filter', 'compressor', 'delay', 'distortion', 'chorus', 'flanger', 'phaser', 'pan', 'width', 'volume', 'tremolo']);   // the blocks live-parity.js can compare
 import { LIVE_BADGES, parameterLive } from '../../lib/live-parameters.mjs';
+import { badgeSummary } from '../../lib/live-badge-summary.mjs';
 import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectGraph } from './preview/audio.js';
 import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
@@ -57,9 +59,8 @@ function panelState(state) {
   return panel === state ? { ...state, takeId, preview } : { ...panel, takeId, preview, commit: state.wrapCommit(panel.commit), commitMany: state.wrapCommitMany(panel.commitMany) };
 }
 
-const LOCAL_PREVIEW_TYPES = new Set(['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'convolution', 'denoise', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'master']);
 function canRenderedPreview(panel) { return Boolean(panel.takeId && typeof panel.realPreview === 'function'); }
-function canLocalPreview(panel) { return Boolean(panel.takeId && LOCAL_PREVIEW_TYPES.has(panel.type)); }
+function canLocalPreview(panel) { return Boolean(panel.takeId && hasLocalPreview(panel.type)); }
 
 function applyPreviewLoop(state) { if (state.previewLoop && state.previewLoopRegion) setLoopRegion(state.previewLoopRegion); else setLoop(state.previewLoop); }
 
@@ -135,7 +136,7 @@ function renderBodyNow(state) {
       const number = numericValue(value, definition.unit);
       const min = Number.isFinite(definition.min) ? definition.min : 0;
       const max = Number.isFinite(definition.max) && definition.max > min ? definition.max : Math.max(min + 1, number * 2);
-      control = knob({ ...controlOptions, onCommit: (next) => panel.commit(definition.name, definition.unit ? `${next} ${definition.unit}` : String(next)), min, max, value: number, defaultValue: numericValue(definition.default, definition.unit) ?? number, step: definition.step, unit: definition.unit || '', scale: definition.scale || 'linear' });
+      control = knob({ ...controlOptions, learn: panel.block ? { block: panel.block, name: definition.name } : null, onCommit: (next) => panel.commit(definition.name, definition.unit ? `${next} ${definition.unit}` : String(next)), min, max, value: number, defaultValue: numericValue(definition.default, definition.unit) ?? number, step: definition.step, unit: definition.unit || '', scale: definition.scale || 'linear' });
     } else {
       control = fieldFor(definition.name, definition, String(value), { disabled: panel.readOnly, title: definition.doc || '', save: (next) => panel.commit(definition.name, next) });
       if (!control) { const input = el('input', { type: 'text', value: String(value), disabled: panel.readOnly, 'aria-label': definition.label || definition.name }); input.onchange = () => panel.commit(definition.name, input.value); control = input; }
@@ -144,19 +145,27 @@ function renderBodyNow(state) {
     body.append(el('label', { className: 'studio-panel-control' }, [el('span', { textContent: definition.label || definition.name }), control, el('small', { className: `live-badge live-${parameterLive(panel.type, definition.name)}`, textContent: badge.text, title: badge.title })]));
   });
   addLiveBadges(body, panel);
+  if (!panel.readOnly) { const snapshots = snapshotBar(panel); if (snapshots) body.append(snapshots); }
   if (!definitions.length && !bespoke) body.append(el('p', { className: 'note', textContent: 'This block has no editable parameters.' }));
 }
 
 /** Under every control of the window that matches a parameter: whether it moves live, re-renders or needs a build (the controls of the bespoke panels are found by their label). */
 function addLiveBadges(body, panel) {
   const byLabel = new Map(panel.definitions.flatMap((definition) => [[(definition.label || definition.name).toLowerCase(), definition.name], [definition.name.toLowerCase(), definition.name]]));
+  const covered = new Set();
   body.querySelectorAll('.studio-panel-control').forEach((row) => {
-    if (row.querySelector('.live-badge')) return;
     const name = byLabel.get(String(row.querySelector('span')?.textContent || '').replace(/s*(automated)$/, '').trim().toLowerCase());
+    if (name) covered.add(name);
+    if (row.querySelector('.live-badge')) return;
     if (!name) return;
     const kind = parameterLive(panel.type, name), badge = LIVE_BADGES[kind];
     row.append(el('small', { className: `live-badge live-${kind}`, textContent: badge.text, title: badge.title }));
   });
+  // panels that draw their own controls (peq graph, mixer strips, volume faders ...) have no row per parameter: one strip names what each of their parameters does
+  const rest = panel.definitions.map((definition) => definition.name).filter((name) => name !== 'enabled' && !covered.has(name));
+  const groups = rest.length ? badgeSummary(panel.type, rest) : [];
+  if (groups.length && !body.querySelector('.live-badge-summary')) body.append(el('p', { className: 'live-badge-summary', 'aria-label': 'What the live preview does with these parameters' }, groups.map((group) => el('span', { className: `live-badge live-${group.kind}`, title: `${group.title}
+${group.names.join(', ')}`, textContent: `${group.text}: ${group.names.length > 6 ? `${group.names.length} parameters` : group.names.join(', ')}` }))));
 }
 
 // The input take is immutable and independent of this effect's controls, so download and decode it once per take for local preview.

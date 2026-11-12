@@ -1,14 +1,14 @@
 using System.CommandLine;
-using Ample.Core.Abstractions;
 using Ample.Audio.Engine;
-using Ample.Audio.IO;
 using Ample.Audio.Instruments;
+using Ample.Audio.IO;
 using Ample.Audio.Midi;
+using Ample.Core.Abstractions;
+using Ample.Docs;
 using Ample.Engine.Midi;
+using Ample.Language;
 using Ample.Storage.BlackBox;
 using Ample.Storage.Projects;
-using Ample.Docs;
-using Ample.Language;
 
 namespace Ample.Cli;
 

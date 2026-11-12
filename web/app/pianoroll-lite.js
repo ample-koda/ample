@@ -503,6 +503,16 @@ export function openPianoRollLite(blockId, options = {}) {
     const def = LANE_DEFS[state.lane], inner = VEL_H - 6, mid = 3 + inner / 2;
     c.clearRect(0, 0, w, VEL_H); c.fillStyle = t.panel3; c.fillRect(0, 0, w, VEL_H);
     if (def.mid) { c.fillStyle = t.line; c.fillRect(0, Math.round(mid), w, 1); }
+    // the scale (laneScale): a faint line and its value at a quarter, half, three quarters and the top of the lane, so a bar can be read and dragged to a value
+    const marks = [0.25, 0.5, 0.75, 1].map((frac) => ({ frac, value: Math.round(def.min + frac * (def.max - def.min)) }));
+    velocity.dataset.laneScale = marks.map((m) => m.value).join(' ');
+    c.save(); c.font = '9px ui-monospace,Consolas,monospace'; c.textBaseline = 'middle';
+    for (const m of marks) {
+      const y = Math.round(VEL_H - 3 - inner * m.frac) + 0.5;
+      c.strokeStyle = t.line; c.globalAlpha = 0.6; c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke();
+      c.globalAlpha = 1; c.fillStyle = t.dim || '#8a94a3'; c.fillText(String(m.value), 3, Math.max(5, y - (m.frac === 1 ? -4 : 0)));
+    }
+    c.restore();
     for (const note of list) {
       const x = xOf(note.at); if (x < -4 || x > w) continue;
       const value = laneValueOf(note, def), frac = laneFraction(value, def);

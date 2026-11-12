@@ -29,3 +29,13 @@ test('every tool button shows its key', async ({ page }) => {
   expect(keys.length).toBeGreaterThanOrEqual(5);
   for (const key of keys) expect(key).toMatch(/^[A-Z0-9]$/);
 });
+
+test('the lower lane has a scale with values, and dragging a bar still sets the velocity', async ({ page }) => {
+  const lane = page.locator('dialog.mls-panel canvas.mls-velocity');
+  await expect(lane).toHaveAttribute('data-lane-scale', /^\d+ \d+ \d+ \d+$/);
+  expect(await lane.getAttribute('data-lane-scale')).toBe('33 64 96 127');
+  const box = (await lane.boundingBox())!;
+  await page.mouse.move(box.x + 8, box.y + box.height - 6);
+  await page.mouse.down(); await page.mouse.move(box.x + 8, box.y + 10, { steps: 4 }); await page.mouse.up();
+  await expect(lane).toBeVisible();
+});

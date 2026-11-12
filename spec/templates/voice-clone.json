@@ -50,14 +50,14 @@
       "name": "model",
       "label": "Model",
       "type": "text",
-      "default": "xtts",
+      "default": "chatterbox",
       "kind": "choice",
       "options": [
-        "xtts",
+        "chatterbox",
         "qwen3",
-        "chatterbox"
+        "xtts"
       ],
-      "doc": "Qwen3 requires the reference transcript; XTTS and Chatterbox do not."
+      "doc": "Qwen3 requires the reference transcript; XTTS and Chatterbox do not. The default is Chatterbox. XTTS-v2 is non-commercial (Coqui Public Model License) and renders only after you accept that in the voice-clone settings; choose it only on purpose. A song without a model line used XTTS before the default changed (2026-11-12): write `model xtts` to keep that voice."
     },
     {
       "name": "language",

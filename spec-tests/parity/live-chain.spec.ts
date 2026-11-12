@@ -28,7 +28,7 @@ async function connect(page, fromId: string, toId: string, inPort = 0) {
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await page.mouse.up();
 }
 
-test('the live chain loops a built source through several effects, with a bypass per block and a preview that is heard before it is written', async ({ page }) => {
+test('@audio the live chain loops a built source through several effects, with a bypass per block and a preview that is heard before it is written', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__params = 0;
     const original = AudioParam.prototype.setTargetAtTime;
@@ -83,7 +83,7 @@ test('the live chain loops a built source through several effects, with a bypass
   expect((await page.evaluate(() => import('/app/live-chain.js').then((m) => m.chainState()))).active).toBe(false);
 });
 
-test('a chain that starts from an unbuilt source says what to build', async ({ page }) => {
+test('@audio a chain that starts from an unbuilt source says what to build', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'src');
   await addTemplateBlock(page, 'delay', 'echo');
@@ -93,7 +93,7 @@ test('a chain that starts from an unbuilt source says what to build', async ({ p
   await expect(page.locator('body')).toContainText('Build src first');
 });
 
-test('built-in drums and a buffer operation are made in the browser without a build, and a knob re-makes them and swaps them in', async ({ page }) => {
+test('@audio built-in drums and a buffer operation are made in the browser without a build, and a knob re-makes them and swaps them in', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'beat');
   await addTemplateBlock(page, 'reverse', 'back');
@@ -116,7 +116,7 @@ test('built-in drums and a buffer operation are made in the browser without a bu
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });
 
-test('the Advanced window says for every parameter whether it moves live, re-renders or needs a build', async ({ page }) => {
+test('@audio the Advanced window says for every parameter whether it moves live, re-renders or needs a build', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'convolution', 'echo');
   await page.locator('.node[data-id="echo"]').getByRole('button', { name: 'Advanced', exact: true }).click();

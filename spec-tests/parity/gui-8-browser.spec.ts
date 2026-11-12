@@ -32,3 +32,14 @@ test('/ and F8 put the cursor in the search box', async ({ page }) => {
   await page.keyboard.press('F8');
   await expect(page.locator('#lib-q')).toBeFocused();
 });
+
+test('hovering a block shows its description and a preview of its parameters, and Escape hides it', async ({ page }) => {
+  const item = page.locator('#lib .tplitem[data-tpl="drums"]').first();
+  await item.hover();
+  const tip = page.locator('#palette-tooltip.visible');
+  await expect(tip).toBeVisible();
+  await expect(tip.locator('.pt-params')).toContainText('parameters');
+  await expect(item).toHaveAttribute('aria-describedby', 'palette-tooltip');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#palette-tooltip.visible')).toHaveCount(0);
+});

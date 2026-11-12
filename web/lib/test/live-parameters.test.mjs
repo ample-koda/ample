@@ -20,5 +20,5 @@ test('every block of the live chain is in the table, and unknown blocks need a b
   assert.equal(parameterLive('convolution', 'length'), 'rebuild');
   assert.equal(parameterLive('drums', 'pattern'), 'rebuild');
   assert.equal(parameterLive('reverb', 'channels'), 'offline');
-  assert.equal(parameterLive('granular', 'grain'), 'offline');
+  assert.equal(parameterLive('granular', 'grain'), 'rebuild');
 });

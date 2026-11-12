@@ -1,8 +1,8 @@
-using Ample.Core.Abstractions;
 using Ample.Audio.Engine;
+using Ample.Core.Abstractions;
+using Ample.Core.Tests.Instruments;
 using Ample.Engine.Engine;
 using Ample.Storage.Takes;
-using Ample.Core.Tests.Instruments;
 
 namespace Ample.Core.Tests;
 

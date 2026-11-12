@@ -3,7 +3,7 @@
 import { midiAvailable, startMidiIn } from './midi-in.js';
 
 const STORE = 'ample.midi.on', CHANNEL = 'ample.midi.channel';
-const stateListeners = new Set(), noteListeners = new Set();
+const stateListeners = new Set(), noteListeners = new Set(), controlListeners = new Set();
 let run = null, names = [], starting = null, channelNow = null;
 
 const saved = () => { try { return localStorage.getItem(STORE) === '1'; } catch { return false; } };
@@ -21,6 +21,9 @@ export function onMidiState(listener) { stateListeners.add(listener); return () 
 /** Hears the input: (type 'on' | 'off', pitch, velocity), ('sustain', 0, 127 or 0) for the pedal and ('bend', 0, -1 to 1) for the wheel. Returns the way to stop. */
 export function onMidiNote(listener) { noteListeners.add(listener); return () => noteListeners.delete(listener); }
 
+/** Hears a controller change (cc 0 to 127 except the sustain pedal, value 0 to 127, channel 1 to 16). Returns the way to stop. */
+export function onMidiControl(listener) { controlListeners.add(listener); return () => controlListeners.delete(listener); }
+
 /** Switches the MIDI input on or off. Throws a message the user can read when it cannot be switched on. */
 export async function setMidi(on, remember = true) {
   if (!on) { run?.stop(); run = null; names = []; if (remember) keep(false); tell(); return; }
@@ -31,6 +34,7 @@ export async function setMidi(on, remember = true) {
       onNoteOff: (pitch) => { for (const listener of noteListeners) listener('off', pitch, 0); },
       onSustain: (on) => { for (const listener of noteListeners) listener('sustain', 0, on ? 127 : 0); },
       onBend: (value) => { for (const listener of noteListeners) listener('bend', 0, value); },
+      onControl: (cc, value, channel) => { for (const listener of controlListeners) listener(cc, value, channel); },
       channel: midiChannel,
       onChange: (list) => { names = list; tell(); },
     }).then((started) => { run = started; names = started.names; if (remember) keep(true); tell(); }).finally(() => { starting = null; });

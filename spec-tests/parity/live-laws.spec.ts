@@ -3,7 +3,7 @@ import { freshServer, openApp } from '../../web/tests/support';
 
 // Plan local-preview 2.1: the WebAudio (L1) blend, pan and distortion laws agree with the offline JS port (L2), which mirrors the server.
 freshServer();
-test('mix, pan and distortion of the live graph match the offline port', async ({ page }) => {
+test('@audio mix, pan and distortion of the live graph match the offline port', async ({ page }) => {
   await openApp(page, { reset: false });
   const rows = await page.evaluate(async () => {
     const graph = await import('/app/studio/preview/audio.js');

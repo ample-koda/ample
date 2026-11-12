@@ -1,7 +1,7 @@
 using System.CommandLine;
 using Ample.Audio.IO;
-using Ample.Storage.Projects;
 using Ample.Core.Abstractions;
+using Ample.Storage.Projects;
 
 namespace Ample.Cli;
 

@@ -58,3 +58,65 @@ test('built-in drums, a sampler with its notes and buffer operations on a source
   const afterEffect = planChain({ nodes: [{ id: 'src', tpl: 'piano', params: {} }, { id: 'e', tpl: 'eq', params: {} }, { id: 'c', tpl: 'cut', params: {} }], links: [link('src', 'e'), link('e', 'c')], target: 'c', takeOf: (id) => (id === 'c' ? 'tc' : 'ts') });
   assert.deepEqual(afterEffect.items.map((i) => i.kind), ['source']);
 });
+
+test('click, join, crossfade and splitter are made in the browser (plan 2.5)', () => {
+  const nodes = [node('piano', 'piano'), node('bass', 'bass'), node('tick', 'click'), node('j', 'join'), node('x', 'crossfade'), node('s', 'splitter'), node('d', 'delay'), node('r', 'reverb')];
+  const joined = planChain({ nodes, links: [link('piano', 'j', 'in1'), link('bass', 'j', 'in3'), link('j', 'd')], target: 'd', takeOf });
+  assert.equal(joined.ok, true);
+  assert.deepEqual(joined.items.map((i) => [i.id, i.kind, i.tpl]), [['piano', 'source', 'piano'], ['bass', 'source', 'bass'], ['j', 'local', 'join'], ['d', 'effect', 'delay']]);
+  assert.deepEqual(joined.items[2].inputs, [{ from: 'piano', lane: 0 }, { from: 'bass', lane: 2 }]);
+  const crossed = planChain({ nodes, links: [link('bass', 'x', 'b'), link('piano', 'x', 'a'), link('x', 'd')], target: 'd', takeOf });
+  assert.deepEqual(crossed.items.find((i) => i.id === 'x').inputs.sort((a, b) => a.lane - b.lane), [{ from: 'piano', lane: 0 }, { from: 'bass', lane: 1 }]);
+  const split = planChain({ nodes, links: [link('piano', 's', 'in'), { ...link('s', 'd'), outName: 'right' }, { ...link('s', 'r'), outName: 'left' }, link('d', 'r')], target: 'r', takeOf });
+  assert.equal(split.ok, true);
+  assert.deepEqual(split.items.filter((i) => i.tpl === 'splitter').map((i) => [i.id, i.base, i.port]).sort(), [['s:left', 's', 'left'], ['s:right', 's', 'right']]);
+  assert.deepEqual(planChain({ nodes, links: [link('tick', 'd')], target: 'd', takeOf }).items.map((i) => [i.id, i.kind]), [['tick', 'local'], ['d', 'effect']]);
+  // after an effect these blocks play their built take instead
+  const after = planChain({ nodes, links: [link('piano', 'd'), link('d', 'j', 'in1'), link('j', 'r')], target: 'r', takeOf: (id) => (id === 'j' ? 'tj' : takes[id]) });
+  assert.deepEqual(after.items.map((i) => [i.id, i.kind]), [['j', 'source'], ['r', 'effect']]);
+  assert.match(planChain({ nodes: [node('imp', 'import-audio'), node('d', 'delay')], links: [link('imp', 'd')], target: 'd', takeOf }).reason, /Build imp first/);   // no file: the built take or nothing
+});
+
+test('a send has two outputs in the chain: through and send (plan 2.6)', () => {
+  const nodes = [node('piano', 'piano'), node('bass', 'bass'), node('snd', 'send'), node('d', 'delay'), node('mix', 'mixer')];
+  const links = [link('piano', 'snd', 'in1'), link('bass', 'snd', 'in2'), { ...link('snd', 'd'), outName: 'send' }, { ...link('snd', 'mix', 'in1'), outName: 'through' }, link('d', 'mix', 'in2')];
+  const plan = planChain({ nodes, links, target: 'mix', takeOf });
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.items.map((i) => i.id), ['piano', 'bass', 'snd', 'd', 'mix']);   // the send is planned once
+  assert.deepEqual(plan.items.find((i) => i.id === 'd').inputs, [{ from: 'snd:send', lane: 0 }]);
+  assert.deepEqual(plan.items.find((i) => i.id === 'mix').inputs, [{ from: 'snd', lane: 0 }, { from: 'd', lane: 1 }]);
+});
+
+test('synth, piano, bass and guitar that play a midi clip are made in the browser; humanize or a missing clip use the built take (plan 3.4, 3.5)', () => {
+  const nodes = [{ id: 'clip', tpl: 'midi-clip', params: {} }, { id: 'lead', tpl: 'synth', params: {} }, { id: 'keys', tpl: 'piano', params: { humanize: '10' } }, { id: 'low', tpl: 'bass', params: {} }, { id: 'loose', tpl: 'synth', params: {} }, { id: 'room', tpl: 'reverb', params: {} }];
+  const notes = (to) => ({ from: 'clip', to, type: 'midi', inName: 'notes' });
+  const lead = planChain({ nodes, links: [notes('lead'), link('lead', 'room')], target: 'room', takeOf });
+  assert.deepEqual(lead.items.map((i) => [i.id, i.kind, i.voice || '']), [['lead', 'local', 'synth'], ['room', 'effect', '']]);
+  assert.deepEqual(lead.items[0].midi, { clip: 'clip', transforms: [] });
+  assert.match(planChain({ nodes, links: [notes('keys'), link('keys', 'room')], target: 'room', takeOf }).reason, /Build keys first/);   // humanize: the server's render
+  assert.equal(planChain({ nodes, links: [notes('low'), link('low', 'room')], target: 'room', takeOf }).items[0].voice, 'bass');
+  assert.match(planChain({ nodes, links: [link('loose', 'room')], target: 'room', takeOf }).reason, /Build loose first/);   // no clip feeds it
+});
+
+test('a convolution block is an effect of the chain (its impulse is loaded by the chain)', () => {
+  const plan = planChain({ nodes: [node('piano', 'piano'), node('room', 'convolution')], links: [link('piano', 'room')], target: 'room', takeOf });
+  assert.equal(plan.ok, true); assert.deepEqual(plan.items.map((i) => i.kind), ['source', 'effect']);
+});
+
+test('an inline sequencer is made in the browser, one item per used output; a file or other voices use the built take (plan 3.6)', () => {
+  const seq = 'sequencer 1\nchannel lead notes wave=square\nchannel bass bass wave=saw\npattern p bars=1\n  lead 1:0:1:60:96\n  bass 1:0:2:36:90\nplaylist\n  clip p track=1 at=1 for=1\n';
+  const nodes = [{ id: 'sq', tpl: 'sequencer', params: { sequence: seq, lanes: 'lane1=lead lane2=bass' } }, { id: 'room', tpl: 'reverb', params: {} }, { id: 'mix', tpl: 'mixer', params: {} }];
+  const plan = planChain({ nodes, links: [{ ...link('sq', 'room'), outName: 'lane2' }, { ...link('sq', 'mix', 'in1'), outName: 'lane1' }, link('room', 'mix', 'in2')], target: 'mix', takeOf });
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.items.filter((i) => i.tpl === 'sequencer').map((i) => [i.id, i.base, i.port]).sort(), [['sq:lane1', 'sq', 'lane1'], ['sq:lane2', 'sq', 'lane2']]);
+  const fileOnly = [{ id: 'sq', tpl: 'sequencer', params: { file: 'sequences/a.seq' } }, nodes[1]];
+  assert.match(planChain({ nodes: fileOnly, links: [link('sq', 'room')], target: 'room', takeOf }).reason, /Build sq first/);
+});
+
+test('a vocoder with a voice and a carrier is made in the browser (plan 4.5)', () => {
+  const nodes = [node('piano', 'piano'), node('bass', 'bass'), node('v', 'vocoder'), node('room', 'reverb')];
+  const plan = planChain({ nodes, links: [link('piano', 'v', 'modulator'), link('bass', 'v', 'carrier'), link('v', 'room')], target: 'room', takeOf });
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.items.find((i) => i.id === 'v').inputs, [{ from: 'piano', lane: 0 }, { from: 'bass', lane: 1 }]);
+  assert.equal(plan.items.find((i) => i.id === 'v').kind, 'local');
+});

@@ -1,6 +1,6 @@
 using System.Text;
-using Ample.Core.Abstractions;
 using Ample.Audio.Midi;
+using Ample.Core.Abstractions;
 
 namespace Ample.Storage.Projects;
 

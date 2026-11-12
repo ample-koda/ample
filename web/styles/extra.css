@@ -1274,6 +1274,7 @@ kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px sol
 .mixstrip{border-top:3px solid var(--mc,var(--line))}.mixsrc{max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mixscope{align-self:flex-start;flex:none;max-width:140px;font-size:12px}
 .mixname{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .mixstrip>.note{font-size:11px;margin-top:-2px}
+.mixchm{width:22px!important;min-width:22px}.mixchm b{width:50%}.mixsingle{width:60px}.mixstrip-master{border-top-width:4px}
 .mixstrip>button{margin-top:6px}
 .mixfaders{display:flex;gap:6px;flex:none}
 .mixchan{display:flex;flex-direction:column;align-items:center;gap:4px;width:50px}
@@ -1308,3 +1309,8 @@ kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px sol
   #lib .tplitem{padding-top:4px;padding-bottom:4px;min-height:0}
   #lib summary{padding:3px 6px}
 }
+
+/* the playhead in the rows of the pattern */
+.sqgridrow{position:relative}.sqrowhead{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--acc);box-shadow:0 0 6px var(--acc);pointer-events:none;z-index:2}.sqrowhead[hidden]{display:none}
+.palette-tooltip .pt-params{margin-top:6px;font:11px ui-monospace,Consolas,monospace;color:#cfe0f0}
+.keysheet .keychange,.keysheet .keyreset,.keysheet .keyresetall{font-size:11px;padding:1px 7px;margin-left:6px}.keyconflict{color:var(--bad)}.keyrow.keyclash{outline:1px solid var(--bad);border-radius:4px}.keysheet .keys{display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px}

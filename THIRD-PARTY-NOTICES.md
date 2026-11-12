@@ -12,6 +12,9 @@ AMPLE is MIT licensed. It uses the following third-party software and sound sets
 | SQLitePCLRaw | 2.1.12 | 2014-2024 SourceGear, LLC | [Apache-2.0](LICENSES/Apache-2.0.txt) |
 | SQLite | bundled by SQLitePCLRaw | none: public domain | https://www.sqlite.org/copyright.html |
 | NVorbis | 0.10.5 | 2020 Andrew Ward | [MIT](LICENSES/nvorbis.txt) |
+| spessasynth_core (vendored in `web/vendor/spessasynth/`) | 4.4.10 | spessasus | [Apache-2.0](LICENSES/Apache-2.0.txt) |
+| stb-vorbis (vendored, with spessasynth_core) | 0.0.7 | spessasus | [Apache-2.0](LICENSES/Apache-2.0.txt) |
+| fflate (vendored, with spessasynth_core) | 0.8.3 | 2026 Arjun Barrett | [MIT](LICENSES/fflate.txt) |
 | PdfPig | 0.1.12 | UglyToad and contributors | [Apache-2.0](LICENSES/Apache-2.0.txt) |
 | System.CommandLine | 2.0.12 | Microsoft Corporation | [MIT](LICENSES/dotnet-runtime.txt) |
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | .NET Foundation and Contributors | [MIT](LICENSES/dotnet-runtime.txt) |
@@ -40,7 +43,7 @@ AMPLE is MIT licensed. It uses the following third-party software and sound sets
 | ACE-Step 1.5 and the GGUF models, acestep.cpp (optional, separate server) | their authors | MIT |
 | Demucs, faster-whisper, Chatterbox (optional, in your own Python) | their authors | MIT |
 | Qwen3-TTS (optional) | Alibaba Cloud / Qwen team | Apache-2.0 |
-| XTTS-v2 (optional) | Coqui | Coqui Public Model License (non-commercial) |
+| XTTS-v2 (optional; runs only after the user accepts the licence in the settings, never chosen by default) | Coqui | Coqui Public Model License (non-commercial) |
 | FFmpeg, MuseScore, Audiveris (optional programs AMPLE starts; not distributed with it) | their authors | LGPL/GPL (depends on the build), GPL-3.0, AGPL-3.0 |
 | MonkSynth (read as a reference for the Delay Llama, no code copied) | 2026 Jonathan Taylor | MIT, see [docs/third-party-credits.md](docs/third-party-credits.md) |
 
@@ -58,5 +61,5 @@ The optional models and programs are not part of an AMPLE release: you install t
 | esbuild | 0.28.2 | 2020 Evan Wallace | [MIT](LICENSES/esbuild.txt) |
 | vscode-textmate | 9.3.2 | Microsoft Corporation | [MIT](LICENSES/vscode-textmate.txt) |
 | vscode-oniguruma | 2.0.1 | Microsoft Corporation | [MIT](LICENSES/vscode-oniguruma.txt) |
-| Microsoft.NETFramework.ReferenceAssemblies | 1.0.3 | Microsoft Corporation | MIT |
-| WiX Toolset | 4.0.6 | .NET Foundation and contributors | MS-RL |
+| Microsoft.NETFramework.ReferenceAssemblies | 1.0.3 | Microsoft Corporation | [MIT](LICENSES/microsoft-netframework-referenceassemblies.txt) |
+| WiX Toolset | 4.0.6 | .NET Foundation and contributors | [MS-RL](LICENSES/wix-ms-rl.txt) |

@@ -94,7 +94,9 @@ public static class AudioEffects
             bool mixAutomated = blockType is "delay" or "reverb" or "chorus" or "flanger" or "phaser" or "bitcrusher" && Automation.Is(Text("mix"));
             bool thresholdAutomated = blockType == "compressor" && Automation.Is(Text("threshold"));
             // the pitch is given in semitones with a decimal point (1.5 is a semitone and a half) and used in hundredths
-            int Number(string name, int fallback) => name == "semitones" && blockType == "pitch" ? (double.TryParse(Text(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double semitones) ? (int)Math.Round(semitones * 100) : 0) : name == "method" && blockType == "pitch" ? Text(name) switch { "granular" => TimeStretch.MethodGranular, "voice" => TimeStretch.MethodVoice, _ => TimeStretch.MethodWsola } : name == "threshold" && thresholdAutomated ? -18 : name == "mix" && mixAutomated ? 100 : Text(name) is "hard" or "highpass" ? 1 : Text(name) is "soft" or "lowpass" ? 0 : Read(Text(name), fallback);
+            // a delay locked to the tempo (sync 1/8): the time is a whole number of samples of the bar, so the echoes sit on the grid at any tempo (time is then not read)
+            int SyncSamples() => FilterLfoCycles(Text("sync")) is > 0 and double cycles ? Math.Max(1, (int)Math.Round(r.SamplesPerBar / cycles)) : 0;
+            int Number(string name, int fallback) => name == "time_samples" && blockType == "delay" ? SyncSamples() : name == "semitones" && blockType == "pitch" ? (double.TryParse(Text(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double semitones) ? (int)Math.Round(semitones * 100) : 0) : name == "method" && blockType == "pitch" ? Text(name) switch { "granular" => TimeStretch.MethodGranular, "voice" => TimeStretch.MethodVoice, _ => TimeStretch.MethodWsola } : name == "threshold" && thresholdAutomated ? -18 : name == "mix" && mixAutomated ? 100 : Text(name) is "hard" or "highpass" ? 1 : Text(name) is "soft" or "lowpass" ? 0 : Read(Text(name), fallback);
             double lfoCycles = FilterLfoCycles(Text("lfo_rate"));
             int lfoDepth = Math.Clamp(Read(Text("lfo_depth"), 0), 0, 8);
             bool lfoOn = blockType == "filter" && lfoCycles > 0 && lfoDepth > 0;
@@ -576,7 +578,8 @@ public static class AudioEffects
 
     private static int[] Delay(Func<string, int, int> p, int[] x, int rate)
     {
-        int length = Math.Max(1, Math.Clamp(p("time", 250), 1, 2000) * rate / 1000);
+        int synced = p("time_samples", 0);   // sync: the length of the note value in samples (0 when sync is off)
+        int length = synced > 0 ? synced : Math.Max(1, Math.Clamp(p("time", 250), 1, 2000) * rate / 1000);
         int feedback = Math.Clamp(p("feedback", 35), 0, 90);
         int mix = Percent(p, "mix", 30);
         int[] echo = new int[x.Length];

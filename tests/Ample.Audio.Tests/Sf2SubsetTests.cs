@@ -1,5 +1,5 @@
-using Ample.Audio.IO;
 using Ample.Audio.Instruments;
+using Ample.Audio.IO;
 
 namespace Ample.Core.Tests;
 

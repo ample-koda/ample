@@ -6,6 +6,9 @@
   "scripts": {
     "test:web": "playwright test --project=chromium --grep-invert @quarantine",
     "test:web:quarantine": "playwright test --project=chromium --grep @quarantine --workers=1",
+    "test:audio:ac": "node tools/vectors-sync.mjs && playwright test --project=chromium --workers=2 --grep @audio \"spec-tests/parity/(live|dsp)-[a-c]\"",
+    "test:audio:dm": "node tools/vectors-sync.mjs && playwright test --project=chromium --workers=2 --grep @audio \"spec-tests/parity/(live|dsp)-[d-m]\"",
+    "test:audio:nz": "node tools/vectors-sync.mjs && playwright test --project=chromium --workers=2 --grep @audio \"spec-tests/parity/(live|dsp)-[n-z]\"",
     "test:web:slow": "playwright test --project=slow --workers=1",
     "build:codemirror": "node tools/build-codemirror.mjs",
     "shots": "playwright test -c tools/screenshots/playwright.config.ts",

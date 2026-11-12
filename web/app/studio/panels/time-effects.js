@@ -10,7 +10,7 @@ const value = (params, key, fallback) => { const parsed = Number.parseFloat(Stri
 const svg = (tag, attrs) => { const node = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([name, item]) => node.setAttribute(name, String(item))); return node; };
 const plot = (label, draw) => { const graph = svg('svg', { viewBox: '0 0 520 220', class: 'studio-effect-plot', role: 'img', 'aria-label': label }); draw(graph); return graph; };
 const controls = (items) => el('div', { className: 'studio-eq-controls' }, items);
-const knobControl = (context, params, name, label, min, max, unit, scale = 'linear', size = 82, onPreview = null) => el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), knob({ label, value: value(params, name, min), min, max, unit, scale, size, disabled: context.readOnly, onPreview: (next) => { context.preview?.(name, next); onPreview?.(next); }, onCommit: (next) => context.commit(name, `${Number(next.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}`) })]);
+const knobControl = (context, params, name, label, min, max, unit, scale = 'linear', size = 82, onPreview = null) => el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), knob({ learn: context.block ? { block: context.block, name } : null, label, value: value(params, name, min), min, max, unit, scale, size, disabled: context.readOnly, onPreview: (next) => { context.preview?.(name, next); onPreview?.(next); }, onCommit: (next) => context.commit(name, `${Number(next.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}`) })]);
 const choice = (context, params, name, label, values) => el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), selector({ label, value: params[name] || values[0], disabled: context.readOnly, choices: values.map((item) => ({ value: item, label: item[0].toUpperCase() + item.slice(1) })), onCommit: (next) => context.commit(name, next) })]);
 const baseline = (graph) => graph.append(svg('line', { x1: 20, x2: 500, y1: 110, y2: 110, class: 'studio-graph-zero' }));
 
@@ -56,7 +56,7 @@ function delayPanel(context) {
   const updateFeedback = (next) => { liveFeedback = next; tapLines.forEach((line, index) => line.setAttribute('y1', String(110 - delayTapGain(liveFeedback, index) * 90))); };
   const updateTime = (next) => { const count = beatMs / next; timing.textContent = `${Math.round(next)} ms · ${count >= 1 ? `${count.toFixed(2)} quarter notes` : `${(count * 2).toFixed(2)} eighth notes`} at ${bpm} BPM`; };
   return el('section', { className: 'studio-effect-panel studio-delay-panel', 'aria-label': 'Delay controls' }, [graph, controls([
-    knobControl(context, params, 'time', 'Time', 1, 2000, 'ms', 'log', 112, updateTime), knobControl(context, params, 'feedback', 'Feedback', 0, 90, '%', 'linear', 82, updateFeedback), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
+    knobControl(context, params, 'time', 'Time', 1, 2000, 'ms', 'log', 112, updateTime), choice(context, params, 'sync', 'Sync', ['off', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/4t', '1/8t', '1/16t']), knobControl(context, params, 'feedback', 'Feedback', 0, 90, '%', 'linear', 82, updateFeedback), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
   ]), timing]);
 }
 

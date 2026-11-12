@@ -2,50 +2,8 @@
 // the same block (the libraries of "Build and play preview"), and says how far apart they are. A block whose live sound is the render (the worklets) shows as exact; the Web Audio
 // approximations show how far they are, so the word "approximate" is a measurement. Advisory; nothing is written. @ample:live-parity
 import { liveEffectGraph, prepareWorklets } from './studio/preview/audio.js';
-import { processReverbBuffer } from '../lib/clientside-reverb.mjs';
-import { gateAudio } from '../lib/clientside-gate.mjs';
-import { limiterAudio } from '../lib/clientside-limiter.mjs';
-import { deesserAudio } from '../lib/clientside-deesser.mjs';
-import { eqAudio } from '../lib/clientside-eq.mjs';
-import { peqAudio } from '../lib/clientside-peq.mjs';
-import { filterAudio } from '../lib/clientside-filter.mjs';
-import { compressorAudio } from '../lib/clientside-compressor.mjs';
-import { delayAudio } from '../lib/clientside-delay.mjs';
-import { distortionAudio } from '../lib/clientside-distortion.mjs';
-import { chorusAudio } from '../lib/clientside-chorus.mjs';
-import { flangerAudio } from '../lib/clientside-flanger.mjs';
-import { phaserAudio } from '../lib/clientside-phaser.mjs';
-import { panAudio } from '../lib/clientside-pan.mjs';
-import { widthAudio } from '../lib/clientside-width.mjs';
-import { tremoloAudio } from '../lib/clientside-tremolo.mjs';
-import { volumeAudio } from '../lib/clientside-volume.mjs';
-
-const RATE = 44100;
-/** The render of the browser for each block that has a live graph: (audio, params, tempo) => audio. */
-export const PARITY_REFERENCES = {
-  reverb: (audio, params) => ({ sampleRate: audio.sampleRate, channels: processReverbBuffer(audio.channels, params, audio.sampleRate) }),
-  gate: (audio, params) => gateAudio(audio, params), limiter: (audio, params) => limiterAudio(audio, params), deesser: (audio, params) => deesserAudio(audio, params),
-  eq: (audio, params) => eqAudio(audio, params), peq: (audio, params) => peqAudio(audio, params), delay: (audio, params) => delayAudio(audio, params), distortion: (audio, params) => distortionAudio(audio, params),
-  chorus: (audio, params) => chorusAudio(audio, params), flanger: (audio, params) => flangerAudio(audio, params), phaser: (audio, params) => phaserAudio(audio, params),
-  pan: (audio, params) => panAudio(audio, params), width: (audio, params) => widthAudio(audio, params), volume: (audio, params) => volumeAudio(audio, params),
-  filter: (audio, params, tempo) => filterAudio(audio, params, tempo, 1),
-  compressor: (audio, params) => compressorAudio(audio, params, null),
-  tremolo: (audio, params, tempo) => tremoloAudio(audio, params, tempo, 1),   // duck and the tremolo gate follow the playing take, so a silent offline context cannot compare them
-};
-
-/** The test signal: a stereo mix of gliding tones and bursts of noise at two levels (for the dynamics blocks), deterministic. */
-export function testSignal(seconds = 2, rate = RATE) {
-  const frames = Math.floor(seconds * rate), left = new Float32Array(frames), right = new Float32Array(frames);
-  let seed = 90210;
-  for (let i = 0; i < frames; i++) {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    const noise = (seed / 2 ** 32) * 2 - 1, t = i / rate, loud = Math.floor(t * 2) % 2 === 0 ? .7 : .08;
-    const tone = Math.sin(2 * Math.PI * (220 + 60 * t) * t) * .5 + Math.sin(2 * Math.PI * 3100 * t) * .15;
-    left[i] = loud * tone + noise * (t % 1 < .15 ? .3 : .01);
-    right[i] = loud * (tone * .8 + Math.sin(2 * Math.PI * 330 * t) * .2);
-  }
-  return { sampleRate: rate, channels: [left, right] };
-}
+import { PARITY_REFERENCES, testSignal, RATE } from '../lib/dsp-references.mjs';
+export { PARITY_REFERENCES, testSignal };
 
 /** A word for the distance between live and render, in dB of the difference against the render (more negative is closer). */
 export function describeDeviation(db) {
@@ -54,6 +12,22 @@ export function describeDeviation(db) {
   if (db <= -35) return { word: 'close', level: 'close' };
   if (db <= -18) return { word: 'approximate', level: 'approximate' };
   return { word: 'differs', level: 'differs' };
+}
+
+/** Renders a signal ({ sampleRate, channels }) through the live graph of one block offline. Returns { channels (Float32Array[]), latencySamples }. */
+export async function renderLive(type, params, signal, tempo = 120) {
+  const frames = signal.channels[0].length;
+  const context = new OfflineAudioContext(2, frames, signal.sampleRate), buffer = context.createBuffer(2, frames, signal.sampleRate);
+  signal.channels.forEach((channel, c) => buffer.copyToChannel(channel, c));
+  await prepareWorklets(context);
+  const source = context.createBufferSource(), out = context.createGain();
+  source.buffer = buffer; out.connect(context.destination);
+  // the LFOs start with the sound, as in the render they are compared with
+  const graph = liveEffectGraph(context, source, out, type, params, tempo, undefined, { position: () => context.currentTime, loop: () => frames / signal.sampleRate });
+  source.start();
+  const live = await context.startRendering(), latencySamples = Math.round((graph.latency || 0) * signal.sampleRate);
+  graph.dispose();
+  return { channels: [live.getChannelData(0), live.getChannelData(1)], latencySamples };
 }
 
 const cache = new Map();
@@ -69,7 +43,8 @@ export async function parityCheck(type, params, { tempo = 120, seconds = 2 } = {
   await prepareWorklets(context);
   const source = context.createBufferSource(), out = context.createGain();
   source.buffer = buffer; out.connect(context.destination);
-  const graph = liveEffectGraph(context, source, out, type, params, tempo);
+  // the LFOs start with the sound, as in the render they are compared with
+  const graph = liveEffectGraph(context, source, out, type, params, tempo, undefined, { position: () => context.currentTime, loop: () => frames / RATE });
   source.start();
   const live = await context.startRendering(), delay = Math.round((graph.latency || 0) * RATE);
   graph.dispose();

@@ -32,7 +32,7 @@ export async function connect(page, fromId: string, toId: string, inPort = 0) {
  * Opens the app, puts a drums block `src` (counted as built) in front of the given effects in a row, and starts the live chain that ends at the last one.
  * Returns once the chain plays. Effects are [template, id] pairs.
  */
-export async function startedChain(page, effects: Array<[string, string]>, wav = wavFixture()) {
+export async function startedChain(page, effects: Array<[string, string]>, wav = wavFixture(), before?: () => Promise<void>) {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'src');
   for (const [tpl, id] of effects) await addTemplateBlock(page, tpl, id);
@@ -44,6 +44,7 @@ export async function startedChain(page, effects: Array<[string, string]>, wav =
   }
   await page.route('**/api/takes/**/download*', (route) => route.fulfill({ status: 200, contentType: 'audio/wav', body: wav }));
   await page.evaluate(() => import('/app/store.js').then((s) => { Object.defineProperty(s.S.build, 'takes', { get: () => new Proxy({}, { get: (_, key) => (key === 'src' ? 'take-src' : undefined) }), set: () => {} }); }));
+  if (before) await before();
   const last = effects[effects.length - 1][1];
   const started = await page.evaluate(async (target) => (await import('/app/live-chain.js')).startChain(target), last);
   expect(started).toBe(true);

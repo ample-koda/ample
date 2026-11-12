@@ -1,7 +1,7 @@
 using System.Globalization;
+using Ample.Audio.Midi;
 using Ample.Core.Abstractions;
 using Ample.Language;
-using Ample.Audio.Midi;
 
 namespace Ample.Engine.Midi;
 

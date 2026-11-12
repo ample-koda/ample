@@ -1,5 +1,5 @@
-using Ample.Core.Abstractions;
 using Ample.Audio.Random;
+using Ample.Core.Abstractions;
 using Ample.Storage.History;
 
 namespace Ample.Core.Tests;

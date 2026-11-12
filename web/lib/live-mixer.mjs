@@ -28,6 +28,23 @@ export function laneSettings(params, lanes) {
 export const busMuted = (params, anySolo) => params.mute === 'on' || (anySolo && params.solo !== 'on');
 
 /**
+ * The send block (plan local-preview 2.6): two sums of the same inputs, `through` (plain sum) and `send` (each input at its own level, default -12 dB), as the offline sendAudioBuffers.
+ * Returns { lanes, update(params), output (through), sendOutput, dispose }; update reads `levels`.
+ */
+export function sendGraph(context, lanes) {
+  const through = mixerGraph(context, lanes), send = mixerGraph(context, lanes), inputs = Array.from({ length: lanes }, () => context.createGain());
+  inputs.forEach((input, k) => { input.connect(through.lanes[k]); input.connect(send.lanes[k]); });
+  const update = (params) => {
+    const levels = words(params.levels, '-12 -12 -12 -12');
+    through.update({ gains: '0', pan: 'c' });
+    const level = (text) => { const v = Number.parseInt(String(text ?? '').replace(/dB/gi, ''), 10); return Number.isFinite(v) ? clamp(v, -60, 48) : -12; };   // as the offline send: whole dB, -12 when it is not a number
+    send.update({ gains: Array.from({ length: lanes }, (_, k) => String(level(levels[k]))).join(' '), pan: 'c' });
+  };
+  update({});
+  return { lanes: inputs, update, output: through.output, sendOutput: send.output, dispose: () => { inputs.forEach((n) => n.disconnect()); through.dispose(); send.dispose(); } };
+}
+
+/**
  * Builds the mixer into the graph. Returns { lanes: [GainNode inputs], update(params, { anySolo }), setLane(k, { gainDb, pan }), output, dispose }.
  * setLane moves one lane right now (a fader being dragged); update takes all the parameters of the block (after a write to the song).
  */

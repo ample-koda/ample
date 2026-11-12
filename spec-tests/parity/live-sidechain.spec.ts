@@ -30,7 +30,7 @@ async function connect(page, fromId: string, toId: string, inPort = 0) {
 }
 
 
-test('the key input drives the reduction of the live compressor', async ({ page }) => {
+test('@audio the key input drives the reduction of the live compressor', async ({ page }) => {
   await openApp(page, { reset: false });
   const r = await page.evaluate(async () => {
     const { liveEffectGraph, prepareWorklets } = await import('/app/studio/preview/audio.js');
@@ -60,7 +60,7 @@ test('the key input drives the reduction of the live compressor', async ({ page 
   expect(r.withoutKey.atClick, 'without the key nothing is reduced').toBeGreaterThan(r.reference * .95);
 });
 
-test('a compressor with a key block plays as a live chain with the key take built in', async ({ page }) => {
+test('@audio a compressor with a key block plays as a live chain with the key take built in', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'src'); await addTemplateBlock(page, 'drums', 'kick'); await addTemplateBlock(page, 'compressor', 'duck');
   await connect(page, 'src', 'duck', 0); await connect(page, 'kick', 'duck', 1);

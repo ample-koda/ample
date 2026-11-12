@@ -90,8 +90,8 @@ export const playerState = () => ({
   source: current?.filePath || null,
   playing: (!audio.paused && !audio.ended) || !!externalPlaying(),
   loading: pendingPlay?.takeId || null,
-  time: audio.currentTime || 0,
-  duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+  time: externalPlaying()?.time ? externalPlaying().time() : audio.currentTime || 0,   // an external player (the live chain) may tell where its loop is, so the step-pattern effects follow it
+  duration: externalPlaying()?.duration ? externalPlaying().duration() : Number.isFinite(audio.duration) ? audio.duration : 0,
   loop: audio.loop || Boolean(loopRegion), loopRegion: loopRegion ? [...loopRegion] : null,
   ...meterLevel(),
   ...stereoMeterLevel(),

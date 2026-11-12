@@ -5,7 +5,7 @@ import { startedChain, wavFixture } from './support/live-chain-fixture';
 freshServerPerTest();
 
 // Local preview 5.5: a loop range of a few bars. A 12 s take, a bar of the song tempo; a 1-bar range keeps the loop position inside one bar.
-test('a 1-bar loop range keeps the playhead inside one bar, and the choice is remembered', async ({ page }) => {
+test('@audio a 1-bar loop range keeps the playhead inside one bar, and the choice is remembered', async ({ page }) => {
   await startedChain(page, [['eq', 'tone']], wavFixture(12, 440, 6000));
   await page.locator('.livechain .lcloop').selectOption('1');
   expect(await page.evaluate(() => localStorage.getItem('ample.live.loopBars'))).toBe('1');

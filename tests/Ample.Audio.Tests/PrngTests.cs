@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Ample.Core.Abstractions;
 using Ample.Audio.Random;
+using Ample.Core.Abstractions;
 
 namespace Ample.Core.Tests;
 
