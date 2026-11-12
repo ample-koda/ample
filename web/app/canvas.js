@@ -1123,6 +1123,7 @@ function freeName(base) {
 }
 
 export async function addBlock(tpl, x, y, version) {
+  try { const last = JSON.parse(localStorage.getItem('ample.lib.recent') || '[]'); localStorage.setItem('ample.lib.recent', JSON.stringify([tpl, ...(Array.isArray(last) ? last : []).filter((x) => x !== tpl)].slice(0, 6))); } catch { /* storage may be blocked */ }   // the library lists the blocks that were added last
   const name = freeName(S.tpl[tpl]?.component ? tpl.slice(tpl.lastIndexOf('.') + 1) : tpl);
   const ok = await edit([{ type: 'addBlock', blockType: tpl, name, ...(version ? { version } : {}) }, { type: 'setLayout', block: name, x: snap(x), y: snap(y) }]);
   if (ok) {

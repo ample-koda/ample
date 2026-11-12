@@ -124,7 +124,7 @@ export async function renderDrumGrid(pad, n, locked) {
   const box = el('div', { className: 'seqbox', id: 'seq-drums' });
   pad.append(el('h4', { textContent: 'Drum kit', style: 'padding-left:0' }), box);
   box.append(setChooser(n, 'kit', 'sample kit', all, locked));
-  if (!document.querySelector('#pt')?.contains(pad)) box.append(el('button', { id: 'seq-open-view', type: 'button', textContent: 'Patterns view', title: 'A full-width view with the lanes and their samples, the grid of a pattern and the sections', onclick: () => import('./patternview.js').then((m) => m.openPatternView(n.id)) }));
+  if (!document.querySelector('#pt')?.contains(pad)) box.append(el('button', { id: 'seq-open-view', type: 'button', className: 'primary', textContent: 'Patterns view', title: 'A full-width view with the lanes and their samples, the grid of a pattern and the sections', onclick: () => import('./patternview.js').then((m) => m.openPatternView(n.id)) }));
   const kit = all.find((s) => s.folder === param(n, 'kit')) ?? BUILTIN_KIT;   // without a sample kit the built-in sound plays the grid
   // named patterns and the section song (plan patterns P03): the grid edits the selected pattern; the plain `pattern` parameter is the first one
   const defined = parsePatterns(param(n, 'patterns')).patterns;

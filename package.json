@@ -8,6 +8,8 @@
     "test:web:quarantine": "playwright test --project=chromium --grep @quarantine --workers=1",
     "test:web:slow": "playwright test --project=slow --workers=1",
     "build:codemirror": "node tools/build-codemirror.mjs",
+    "shots": "playwright test -c tools/screenshots/playwright.config.ts",
+    "shots:check": "node tools/screenshots/check.mjs",
     "test:web-lib": "node --test \"web/lib/test/*.mjs\" \"web/remix/test/*.mjs\"",
     "guide:build": "node tools/guide/build.mjs",
     "guide:check": "node tools/guide/build.mjs --check",
