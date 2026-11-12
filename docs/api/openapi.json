@@ -7324,6 +7324,54 @@
         }
       }
     },
+    "/api/project/ui-state": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Per-project Studio state that travels with the project (MIDI-learn bindings, parameter snapshots): a JSON object kept in .ample/ui-state.json, {} when none.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Replaces the per-project Studio state (a JSON object of at most 256 KB; not part of any song or build).",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/project/upload": {
       "post": {
         "tags": [
@@ -8054,6 +8102,31 @@
         ],
         "summary": "Puts the fix of a sound finding into the song: a normalize block (fix normalize) or a volume block with a lower gain (fix volume:-3) after the block; what read the block now reads the effect.",
         "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/soundfont/general-midi": {
+      "get": {
+        "tags": [
+          "effects"
+        ],
+        "summary": "Serves the installed General MIDI pack SoundFont (and only that file) with range support, so the browser can play General MIDI notes itself.",
+        "description": "Read only.",
         "security": [
           {
             "sessionToken": []

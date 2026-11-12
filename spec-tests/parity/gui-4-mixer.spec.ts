@@ -63,3 +63,29 @@ test('choosing one mixer in the list shows only that mixer, and All mixers shows
   await picker.selectOption('');
   await expect(page.locator('#b-mixer .mixstrip')).toHaveCount(all);
 });
+
+test('the master strip has its own fader and meter, and the fader writes the gain of the master', async ({ page }) => {
+  const strip = page.locator('#b-mixer .mixstrip[data-block="master"]');
+  await expect(strip.locator('.mixstripm')).toHaveCount(1);
+  await strip.locator('.mixstripfader').evaluate((input: HTMLInputElement) => { input.value = '-3'; input.dispatchEvent(new Event('change', { bubbles: true })); });   // a master has no gain: the fader is the ceiling of its limiter
+  await expect.poll(async () => {
+    const doc = await api('/api/doc?path=song.amplet');
+    return String(doc.blocks.find((b: { name: string }) => b.name === 'master')?.parameters.find((p: { name: string }) => p.name === 'limiter')?.value ?? '').replace(/"/g, '');
+  }).toBe('-3 dB');
+});
+
+test('the per-input meters are wide enough to see', async ({ page }) => {
+  const box = await page.locator('#b-mixer .mixstrip[data-block="mix"] .mixchm').first().boundingBox();
+  expect(box!.width).toBeGreaterThanOrEqual(20);
+});
+
+test('the master fader value reaches the render (a different limiter ceiling gives a different take)', async ({ page }) => {
+  const strip = page.locator('#b-mixer .mixstrip[data-block="master"]');
+  await strip.locator('.mixstripfader').evaluate((input: HTMLInputElement) => { input.value = '-12'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+  await expect.poll(async () => String((await api('/api/doc?path=song.amplet')).blocks.find((b: { name: string }) => b.name === 'master')?.parameters.find((p: { name: string }) => p.name === 'limiter')?.value ?? '')).toContain('-12');
+  const quiet = await api('/api/build', { method: 'POST', body: { path: 'song.amplet', intent: 'preview', range: { firstBar: 1, bars: 2 } } });
+  const loud = await api('/api/build', { method: 'POST', body: { path: 'song.amplet', intent: 'preview', range: { firstBar: 1, bars: 2 }, override: { block: 'master', name: 'limiter', value: '"0 dB"' } } });
+  expect(quiet.masterTakeId).toBeTruthy();
+  expect(loud.masterTakeId).toBeTruthy();
+  expect(loud.masterTakeId).not.toBe(quiet.masterTakeId);
+});

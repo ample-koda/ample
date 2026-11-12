@@ -61,13 +61,15 @@ serve({
   describe: () => ({ toolprint: { plugin: 'voice-clone', adapter: '1' }, determinism: 'unverified' }),
   render: async (params, ctx) => {
     const p = params.block.parameters || {}, s = params.settings || {};
-    const model = parameter(p, 'model', 'xtts'), text = parameter(p, 'text'), language = parameter(p, 'language', 'nl');
+    const model = parameter(p, 'model', 'chatterbox'), text = parameter(p, 'text'), language = parameter(p, 'language', 'nl');
     const referenceText = parameter(p, 'reference_text'), auto = parameter(p, 'auto_detect') === 'on';
     const input = params.inputs?.reference;
     if (!input) throw new Error('Choose a voice sample from the project before building this block.');
     if (!text) throw new Error('Enter the words this block should speak.');
     if (model === 'qwen3' && !referenceText && !auto) throw new Error('Qwen3 needs the sample transcript; enter it or enable auto detect.');
     if (!['xtts', 'qwen3', 'chatterbox'].includes(model)) throw new Error('Choose XTTS, Qwen3-TTS or Chatterbox.');
+    // XTTS-v2 is under the Coqui Public Model License (non-commercial): it renders only after the user has accepted that in the settings, never by default
+    if (model === 'xtts' && s.xttsLicenceAccepted !== true) throw new Error('XTTS-v2 is licensed for non-commercial use only (Coqui Public Model License). To use it, switch on "I accept the XTTS-v2 licence" in the voice-clone settings; or choose Chatterbox or Qwen3-TTS.');
     const inputPath = path.join(params.jobDir, input), outputPath = path.join(params.jobDir, 'spoken.wav');
     if (!fs.existsSync(inputPath)) throw new Error('The staged voice sample is missing.');
     const modelFolder = path.join(s.modelRoot || '', { xtts: 'XTTS-v2', qwen3: 'Qwen3-TTS-0.6B', chatterbox: 'Chatterbox-Multilingual' }[model]);

@@ -1,5 +1,5 @@
-using Ample.Core.Abstractions;
 using Ample.Audio.Instruments;
+using Ample.Core.Abstractions;
 using Ample.Language;
 
 namespace Ample.Audio.Engine;

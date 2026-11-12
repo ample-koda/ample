@@ -13,12 +13,12 @@ const dir = new URL('../../spec/templates/', import.meta.url);
 const parametersOf = (type: string) => JSON.parse(readFileSync(new URL(`${type}.json`, dir), 'utf8')).parameters as any[];
 const jobs = Object.keys(LIVE_PARAMETERS).flatMap((type) => probesFor(type, parametersOf(type)).map((probe: any) => ({ type, defaults: Object.fromEntries(parametersOf(type).map((p) => [p.name, p.default])), ...probe })));
 
-test('the table of live parameters is complete', () => {
+test('@audio the table of live parameters is complete', () => {
   expect(readdirSync(dir).length).toBeGreaterThan(50);
   for (const job of jobs) expect(job.skip ? job.skip.length : job.b, `${job.type}.${job.param}`).toBeTruthy();
 });
 
-test('a knob move changes the sound of every live parameter', async ({ page }) => {
+test('@audio a knob move changes the sound of every live parameter', async ({ page }) => {
   await openApp(page, { reset: false });
   const rows = await page.evaluate(async (jobs) => {
     const { liveEffectGraph, prepareWorklets } = await import('/app/studio/preview/audio.js');

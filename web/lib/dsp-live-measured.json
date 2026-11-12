@@ -1,0 +1,19 @@
+{
+ "reverb": -81.1,
+ "gate": -232.9,
+ "limiter": -29.2,
+ "deesser": -56.9,
+ "eq": -18.4,
+ "peq": -6.6,
+ "filter": 4.9,
+ "compressor": -31.9,
+ "delay": -57.8,
+ "distortion": -77.4,
+ "chorus": -11.2,
+ "flanger": 0.9,
+ "phaser": -10.2,
+ "pan": -71.9,
+ "width": -61.2,
+ "volume": -52.5,
+ "tremolo": -59.8
+}

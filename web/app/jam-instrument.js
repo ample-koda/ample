@@ -1,6 +1,9 @@
 // The real sound of a General MIDI instrument for AMPLE Jam: a note (or a drum hit of the soundfont's drum kit) rendered by the server with the soundfont, bank and program of the channel,
 // decoded once and kept, so a sound that was heard before plays at once and a new one plays as soon as it has arrived (after a short delay, so moving quickly over a list does not render everything).
-import { api } from './api.js';
+import { api, getToken } from './api.js';
+
+const projectList = async (folder) => { const r = await fetch(`/api/project/tree?path=${encodeURIComponent(folder)}&depth=0`, { headers: { 'X-Ample-Token': getToken() } }); return r.ok ? (await r.json()).children || [] : []; };
+import { cacheFile, cacheable, sampleKey, sharedSampleCache } from '../lib/sf-sample-cache.mjs';
 import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 
@@ -18,8 +21,14 @@ export function createJamInstrument(instrument) {
     if (!loading.has(key)) {
       loading.set(key, (async () => {
         // one note of a beat; a drum hit is the General MIDI drum channel (10) of the soundfont's kit
+        // a pack's note rendered before (this session or an earlier one) is in the browser's cache: no round trip
+        const cached = cacheable(file) ? await cacheFile(file, projectList).catch(() => null) : null, cacheKey = cached ? sampleKey({ file: cached, bank, program, channel: drum ? 9 : 0, drum, pitch, velocity: 100, ticks: 600 }) : null, cache = cacheKey ? await sharedSampleCache() : null;
+        const stored = cache && await cache.get(cacheKey).catch(() => null);
+        if (stored) { const buffer = await liveAudioContext().decodeAudioData(stored.slice(0)); buffers.set(key, buffer); return buffer; }
         const result = await api.gmAudition({ file, bank: drum ? 0 : bank, program: drum ? 0 : program, channel: drum ? 9 : 0, gain: 0, limiter: 'soft', notes: [{ bar: 1, tick: 0, ticks: 600, ppq: 480, pitch, velocity: 100 }] });
-        const buffer = await liveAudioContext().decodeAudioData(await result.blob.arrayBuffer());
+        const wav = await result.blob.arrayBuffer();
+        if (cache) cache.put(cacheKey, wav.slice(0)).catch(() => {});
+        const buffer = await liveAudioContext().decodeAudioData(wav);
         buffers.set(key, buffer);
         return buffer;
       })().finally(() => loading.delete(key)));

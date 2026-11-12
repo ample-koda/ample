@@ -1,5 +1,6 @@
 import { clamp, denormalize, formatValue, knobDragValue, normalize, snap } from '../../lib/studio-math.js';
 import { el } from '../ui.js';
+import { attachLearn } from '../midi-learn.js';
 
 const ns = 'http://www.w3.org/2000/svg';
 let knobId = 0;
@@ -108,7 +109,15 @@ export function knob(options) {
     input.onblur = () => finish(false);
     readout.replaceWith(input); input.focus(); input.select();
   };
-  svg.oncontextmenu = (event) => { event.preventDefault(); enterValue(); };
+  svg.oncontextmenu = (event) => { event.preventDefault(); if (event.shiftKey && options.learn) return; enterValue(); };   // shift + right-click is the MIDI-learn gesture (midi-learn.js)
+  if (options.learn && !options.disabled) {
+    attachLearn(root, svg, options.learn, {
+      // a controller moves the knob like a drag: heard at once, one write when the burst of messages has ended (400 ms)
+      move: (norm) => { dragPosition = norm; preview(denormalize(norm, options.min, options.max, options.scale)); },
+      commit: () => { if (value !== startValue) { startValue = value; commit(); } },
+      isConnected: () => svg.isConnected,
+    });
+  }
   svg.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !options.disabled) { event.preventDefault(); enterValue(); } });
   draw();
   return root;

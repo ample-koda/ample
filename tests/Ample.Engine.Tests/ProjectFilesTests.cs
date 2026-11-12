@@ -1,8 +1,8 @@
 using System.Text;
-using Ample.Core.Abstractions;
 using Ample.Audio.Midi;
-using Ample.Storage.Projects;
+using Ample.Core.Abstractions;
 using Ample.Language;
+using Ample.Storage.Projects;
 
 namespace Ample.Core.Tests;
 

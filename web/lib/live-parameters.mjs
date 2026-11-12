@@ -13,7 +13,7 @@ export const LIVE_PARAMETERS = {
   duck: only('pattern', 'depth', 'release'),
   tremolo: only('shape', 'pattern', 'depth', 'sync', 'rate'),
   distortion: only('drive', 'mode', 'tone', 'level', 'mix'),
-  delay: only('time', 'feedback', 'mix'),
+  delay: only('time', 'sync', 'feedback', 'mix'),
   reverb: only('size', 'decay', 'mix'),
   chorus: only('depth', 'period', 'mix'),
   convolution: { param: ['predelay', 'level', 'mix'], rebuild: ['length', 'normalize', 'ir', 'file'] },
@@ -23,11 +23,15 @@ export const LIVE_PARAMETERS = {
   flanger: only('depth', 'period', 'feedback', 'mix'),
   gate: only('threshold', 'attack', 'hold', 'release'),
   limiter: only('ceiling', 'lookahead', 'release'),
+  master: only('limiter'),
   deesser: only('frequency', 'threshold', 'ratio'),
   mixer: only('gains', 'pan'),
+  send: only('levels'),
   bus: only('gains', 'pan', 'gain', 'mute', 'solo'),
   // made again in the browser (live chain, live-local.js): every knob re-renders the block, a moment after you stop
   drums: { rebuild: '*' }, sampler: { rebuild: '*' }, cut: { rebuild: '*' }, fade: { rebuild: '*' }, shift: { rebuild: '*' }, reverse: { rebuild: '*' }, chop: { rebuild: '*' }, rewind: { rebuild: '*' }, scratch: { rebuild: '*' },
+  click: { rebuild: '*' }, 'import-audio': { rebuild: '*' }, ambience: { rebuild: '*' }, join: { rebuild: '*' }, crossfade: { rebuild: '*' }, splitter: { rebuild: '*' },
+  normalize: { rebuild: '*' }, midi: { rebuild: '*' }, pitch: { rebuild: '*' }, vocoder: { rebuild: '*' }, trim: { rebuild: '*' }, silence: { rebuild: '*' }, stretch: { rebuild: '*' }, granular: { rebuild: '*' }, denoise: { rebuild: '*' }, sequencer: { rebuild: '*' }, synth: { rebuild: '*' }, piano: { rebuild: '*' }, bass: { rebuild: '*' }, guitar: { rebuild: '*' },
   transpose: { rebuild: '*' }, chord: { rebuild: '*' }, quantize: { rebuild: '*' }, 'midi-humanize': { rebuild: '*' }, arpeggiator: { rebuild: '*' },
 };
 

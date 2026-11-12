@@ -5,6 +5,8 @@ import { knob } from '../knob.js';
 const ns = 'http://www.w3.org/2000/svg';
 
 export const number = (params, key, fallback) => { const parsed = Number.parseFloat(String(params[key] ?? '').replace(/[a-z %]/gi, '')); return Number.isFinite(parsed) ? parsed : fallback; };
+/** The MIDI-learn target of a knob of a panel: the block and the parameter (null when the panel has no block). */
+export const learnOf = (context, name) => (context.block ? { block: context.block, name } : null);
 export const automated = (text) => /^\s*(auto|lfo|env|fadein|fadeout)\(/.test(String(text ?? ''));
 export const svg = (tag, attrs = {}) => { const node = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([name, item]) => node.setAttribute(name, String(item))); return node; };
 export const plot = (label, draw) => { const graph = svg('svg', { viewBox: '0 0 520 220', class: 'studio-effect-plot', role: 'img', 'aria-label': label }); draw(graph); return graph; };
@@ -23,7 +25,7 @@ export function control(context, params, name, label, min, max, unit, scale = 'l
   }
 
   return el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), knob({
-    label, value: number(params, name, min), min, max, unit, scale, size, step: unit === 'dB' ? undefined : 1, disabled: context.readOnly,
+    label, value: number(params, name, min), min, max, unit, scale, size, step: unit === 'dB' ? undefined : 1, disabled: context.readOnly, learn: learnOf(context, name),
     onPreview: (next) => { context.preview?.(name, next); onPreview?.(next); },
     onCommit: (next) => context.commit(name, `${Number(next.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}`),
   })]);

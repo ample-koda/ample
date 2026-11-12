@@ -4,7 +4,7 @@ import { freshServerPerTest, openApp } from '../../web/tests/support';
 freshServerPerTest();
 
 // Local preview 5.1: the live chain bar says how late the sound is, and the figure is the delay that really exists in the graph.
-test('the look-ahead of a limiter is the delay of an impulse through the live graph, and the bar adds it to the context latency', async ({ page }) => {
+test('@audio the look-ahead of a limiter is the delay of an impulse through the live graph, and the bar adds it to the context latency', async ({ page }) => {
   await openApp(page, { reset: false });
   const measured = await page.evaluate(async () => {
     const { liveEffectGraph, prepareWorklets } = await import('/app/studio/preview/audio.js');
@@ -23,7 +23,7 @@ test('the look-ahead of a limiter is the delay of an impulse through the live gr
   expect(Math.abs(measured.delayed - measured.latency)).toBeLessThan(1 / 48000 * 2);
 });
 
-test('the bar shows Latency with the contributors', async ({ page }) => {
+test('@audio the bar shows Latency with the contributors', async ({ page }) => {
   await openApp(page, { reset: false });
   const report = await page.evaluate(async () => {
     const { latencyReport } = await import('/lib/chain-latency.mjs');

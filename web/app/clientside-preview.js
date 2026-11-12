@@ -182,7 +182,7 @@ async function fetchMidiSourceNotes(node, signal, cache) {
   return result;
 }
 
-async function importAudio(node, context, signal, cache, range, totalBars) {
+export async function importAudio(node, context, signal, cache, range, totalBars) {
   if (cache.has(node.id)) return cache.get(node.id);
   const path = String(node.params.file || '');
   const response = await fetch(`/api/project/audio?path=${encodeURIComponent(path)}`, { headers: { 'X-Ample-Token': getToken() }, signal });
@@ -211,7 +211,7 @@ async function importAudio(node, context, signal, cache, range, totalBars) {
   return cacheAudio(node.id, placeImportedAudio(audio, node.params, samplesPerBar, totalBars, range, partAt, sampleRate), cache);
 }
 
-async function previewAmbience(node, context, signal, range, totalBars) {
+export async function previewAmbience(node, context, signal, range, totalBars) {
   if (String(node.params.enabled || 'on') === 'off') {
     const firstBar = range?.firstBar || 1, bars = range?.bars || totalBars, tempoMilli = Math.round((Number(S.doc?.project?.tempo) || 92) * 1000), samplesPerBar = Math.floor(barBeats() * 60 * PREVIEW_RATE * 1000 / tempoMilli);
     return { sampleRate: PREVIEW_RATE, channels: [new Float32Array(bars * samplesPerBar)] };
@@ -476,7 +476,7 @@ export async function buildAndPlayClientPreview() {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
-        const result = await delayAudio(source, node.params, controller.signal);
+        const result = await delayAudio(source, node.params, controller.signal, Number(S.doc?.project?.tempo) || 120);
         memo.set(key, result);
         return result;
       }

@@ -8,6 +8,7 @@ const show = (value, suffix) => `${Number(value.toFixed(3))}${suffix ? ` ${suffi
 /** Blocks whose parameters are not played by liveEffectGraph (own modules with their own specs), and why. */
 export const PROBE_SKIPPED_TYPES = {
   mixer: 'the live mixer has its own graph and spec (live-mixer.spec.ts)',
+  send: 'a send is a sum with two outputs in the live chain, covered by live-routing.spec.ts',
   bus: 'the live mixer has its own graph and spec (live-mixer.spec.ts)',
   duck: 'follows the playing take on the audio clock (live-clock-gate), covered by live-preview-gaps.spec.ts',
 };
@@ -16,9 +17,11 @@ export const PROBE_SKIPPED_TYPES = {
 export const PROBE_OVERRIDES = {
   'compressor.keyFilter': { skip: 'only filters the sidechain key, which a single block does not have (live-sidechain.spec.ts)' },
   'tremolo.rate': { base: { sync: 'off' } },
-  'delay.feedback': { base: { time: '120 ms' } },
-  'delay.enabled': { base: { time: '120 ms' } },
-  'delay.time': { a: '120 ms', b: '480 ms' },
+  'delay.feedback': { base: { time: '120 ms', sync: 'off' } },
+  'delay.enabled': { base: { time: '120 ms', sync: 'off' } },
+  'delay.mix': { base: { sync: 'off' } },
+  'delay.time': { a: '120 ms', b: '480 ms', base: { sync: 'off' } },
+  'delay.sync': { a: 'off', b: '1/4', base: { time: '120 ms' } },
   'gate.attack': { base: { threshold: '-15 dB', hold: '20 ms' } },
   'gate.release': { base: { threshold: '-15 dB', hold: '20 ms' } },
   'gate.enabled': { base: { threshold: '-15 dB', hold: '20 ms' } },

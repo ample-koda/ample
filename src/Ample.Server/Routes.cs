@@ -3,21 +3,21 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Ample.Core.Abstractions;
 using Ample.Audio.Engine;
 using Ample.Audio.IO;
 using Ample.Audio.Midi;
+using Ample.Core.Abstractions;
 using Ample.Engine.Control;
 using Ample.Engine.Engine;
 using Ample.Engine.Midi;
 using Ample.Engine.Projects;
+using Ample.Language;
+using Ample.Plugins;
+using Ample.Plugins.Analysis;
 using Ample.Storage.BlackBox;
 using Ample.Storage.History;
 using Ample.Storage.Projects;
 using Ample.Storage.Takes;
-using Ample.Language;
-using Ample.Plugins;
-using Ample.Plugins.Analysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -1159,6 +1159,12 @@ public static class Routes
             string file = BlockFiles.ConvolutionImpulse(s.Root, s.AmpleRoot, block) ?? throw new AmpleException("AMP5350", "The selected impulse response is unavailable.");
             if (new FileInfo(file).Length > 32L * 1024 * 1024) throw new AmpleException("AMP5530", "The impulse response exceeds the local preview limit (32 MB).");
             return Results.File(file, "audio/wav");
+        });
+        add("GET", "/api/soundfont/general-midi", "effects", "Serves the installed General MIDI pack SoundFont (and only that file) with range support, so the browser can play General MIDI notes itself.", false, s is null ? null : (HttpContext c) =>
+        {
+            string file = Ample.Audio.Instruments.SoundFontAsset.Resolve(s.Root, s.AmpleRoot, Ample.Audio.Instruments.SoundFontAsset.GeneralMidi);
+            if (!File.Exists(file)) throw new AmpleException("AMP5311", "The General MIDI SoundFont pack is not installed.");
+            return Results.File(file, "application/octet-stream", enableRangeProcessing: true);
         });
         add("POST", "/api/effects/preview", "effects", "Applies a built-in integer effect to a bounded input range without creating a take or changing project state.", false, s is null ? null : async (HttpContext c) =>
         {
@@ -2540,6 +2546,21 @@ public static class Routes
 
             await s.AutoCheckpoint!.SaveAsync(d, "Saved", b.TryGetProperty("suppressCheckpoint", out JsonElement suppress) && suppress.ValueKind == JsonValueKind.True, c.RequestAborted);
             return Ok(DocView(d, s.Parse(d), s));
+        });
+        add("GET", "/api/project/ui-state", "project", "Per-project Studio state that travels with the project (MIDI-learn bindings, parameter snapshots): a JSON object kept in .ample/ui-state.json, {} when none.", false, s is null ? null : async (HttpContext c) =>
+        {
+            string file = Path.Combine(s.Root, ProjectLayout.AmpleFolder, "ui-state.json");
+            return Ok(File.Exists(file) ? JsonDocument.Parse(await File.ReadAllTextAsync(file, c.RequestAborted)).RootElement.Clone() : JsonDocument.Parse("{}").RootElement.Clone());
+        });
+        add("POST", "/api/project/ui-state", "project", "Replaces the per-project Studio state (a JSON object of at most 256 KB; not part of any song or build).", true, s is null ? null : async (HttpContext c) =>
+        {
+            JsonElement b = await Body(c);
+            if (b.ValueKind != JsonValueKind.Object) throw new AmpleException("AMP5243", "The Studio state is a JSON object.");
+            string text = b.GetRawText();
+            if (text.Length > 262144) throw new AmpleException("AMP5243", "The Studio state is larger than 256 KB.");
+            string file = Path.Combine(s.Root, ProjectLayout.AmpleFolder, "ui-state.json");
+            await File.WriteAllTextAsync(file, text, c.RequestAborted).ConfigureAwait(false);
+            return Ok(new { saved = true });
         });
         add("GET", "/api/project/auto-checkpoint", "project", "The autosave setting (in project.json): whether every save gets checkpoints, and the autosave interval in minutes (with the allowed steps).", false, s is null ? null : () =>
         {

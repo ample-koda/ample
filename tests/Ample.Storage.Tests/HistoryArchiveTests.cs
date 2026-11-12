@@ -1,6 +1,6 @@
+using Ample.Core.Abstractions;
 using Ample.Storage.BlackBox;
 using Ample.Storage.History;
-using Ample.Core.Abstractions;
 
 namespace Ample.Core.Tests;
 

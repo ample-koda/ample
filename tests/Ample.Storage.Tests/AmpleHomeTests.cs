@@ -1,8 +1,8 @@
 using System.Net;
-using Ample.Audio.IO;
 using Ample.Audio.Instruments;
-using Ample.Storage.Projects;
+using Ample.Audio.IO;
 using Ample.Core.Abstractions;
+using Ample.Storage.Projects;
 
 namespace Ample.Core.Tests;
 

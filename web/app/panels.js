@@ -81,11 +81,17 @@ function addManualLink(host, tpl) {
   });
 }
 let paletteTip;
+/** One line for the hover preview of a block in the library: its kind and its first parameters. */
+function libraryPreview(t) {
+  const names = (t.parameters || []).map((p) => p.name).filter(Boolean);
+  return [t.kind || t.class, names.length ? `parameters: ${names.slice(0, 6).join(', ')}${names.length > 6 ? ` (+${names.length - 6})` : ''}` : 'no parameters'].filter(Boolean).join(' · ');
+}
+let escapeWired = false;
 function wirePaletteTip(item) {
   const show = () => {
     paletteTip ||= el('div', { className: 'palette-tooltip', role: 'tooltip', id: 'palette-tooltip' });
     const [hint, ...body] = item.dataset.tip.split('\n\n').reverse();   // the last paragraph is the how-to line: shown dimmer under the description
-    paletteTip.replaceChildren(...(body.length ? [el('div', { className: 'pt-body', textContent: body.reverse().join('\n\n') })] : []), el('div', { className: 'pt-hint', textContent: hint }));
+    paletteTip.replaceChildren(...(body.length ? [el('div', { className: 'pt-body', textContent: body.reverse().join('\n\n') })] : []), ...(item.dataset.preview ? [el('div', { className: 'pt-params', textContent: item.dataset.preview })] : []), el('div', { className: 'pt-hint', textContent: hint }));   // pt-params: a small preview of the block
     document.body.append(paletteTip);
     item.setAttribute('aria-describedby', 'palette-tooltip');
     const rect = item.getBoundingClientRect();
@@ -94,11 +100,16 @@ function wirePaletteTip(item) {
     paletteTip.style.top = `${Math.max(8, rect.top - tip.height - 8)}px`;
     paletteTip.classList.add('visible');
   };
-  const hide = () => { paletteTip?.classList.remove('visible'); item.removeAttribute('aria-describedby'); };
-  item.addEventListener('pointerenter', show);
+  // a short delay before it shows, so moving the pointer over the list does not make it flicker
+  let timer = 0;
+  const hide = () => { clearTimeout(timer); paletteTip?.classList.remove('visible'); item.removeAttribute('aria-describedby'); };
+  const later = () => { clearTimeout(timer); timer = setTimeout(show, 180); };
+  item.addEventListener('pointerenter', later);
   item.addEventListener('pointerleave', hide);
   item.addEventListener('focus', show);
   item.addEventListener('blur', hide);
+  item.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  if (!escapeWired) { escapeWired = true; document.addEventListener('keydown', (e) => { if (e.key === 'Escape') paletteTip?.classList.remove('visible'); }, true); }   // Escape hides it wherever the focus is
 }
 
 const readList = (key) => { try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -133,7 +144,7 @@ export function renderLib() {
     d.append(el('summary', { textContent: `${cat} (${items.length})` }));
     items.forEach((t) => {
       const tip = `${t.description || ''}${t.description ? '\n\n' : ''}Drag on the canvas to add`;
-      const it = el('div', { className: 'tplitem fancy-tip', draggable: true, 'data-tpl': t.id, 'data-tip': tip, tabindex: '0' });
+      const it = el('div', { className: 'tplitem fancy-tip', draggable: true, 'data-tpl': t.id, 'data-tip': tip, 'data-preview': libraryPreview(t), tabindex: '0' });
       wirePaletteTip(it);
       it.append(el('button', { type: 'button', className: `tplstar${favs.has(t.id) ? ' on' : ''}`, textContent: '★', title: favs.has(t.id) ? 'Remove from the favourites' : 'Add to the favourites', 'aria-pressed': String(favs.has(t.id)), 'aria-label': `Favourite: ${t.title}`, onclick: (e) => { e.stopPropagation(); writeList('ample.lib.fav', favs.has(t.id) ? [...favs].filter((x) => x !== t.id) : [...favs, t.id]); renderLib(); } }));
       it.append(el('span', { className: 'tpl-title', textContent: t.title }), el('small', {}, [el('span', { className: `cls ${t.class} tpl-version`, textContent: `${t.class} v${t.version}` })]));

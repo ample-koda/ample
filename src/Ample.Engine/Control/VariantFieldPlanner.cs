@@ -1,6 +1,6 @@
 using System.Globalization;
-using Ample.Core.Abstractions;
 using Ample.Audio.Random;
+using Ample.Core.Abstractions;
 using Ample.Language;
 
 namespace Ample.Engine.Control;

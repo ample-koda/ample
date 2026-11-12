@@ -122,6 +122,20 @@ public sealed class LspTests
     }
 
     [Fact]
+    public async Task Hover_and_snippet_of_voice_clone_do_not_present_xtts_as_the_default()
+    {
+        const string song = "composition \"demo\" { ample 1  tempo 92  master-seed 1 }\nvoice-clone vc {\n  text \"hello\"\n}\n";
+        await using LspClient c = await LspClient.StartAsync();
+        await c.DiagnosticsAfterOpenAsync(Uri, song);
+        JsonNode? hover = await c.RequestAsync("textDocument/hover", At(1, 2));
+        string text = (string?)hover?["contents"]?["value"] ?? "";
+        Assert.DoesNotContain("xtts", text, StringComparison.OrdinalIgnoreCase);
+        JsonArray items = (JsonArray)(await c.RequestAsync("textDocument/completion", At(4, 0)))!["items"]!;
+        JsonNode vc = items.First(i => (string?)i!["label"] == "voice-clone")!;
+        Assert.DoesNotContain("xtts", (string?)vc["insertText"] ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Signature_help_lists_the_parameters_of_the_block_type()
     {
         await using LspClient c = await LspClient.StartAsync();

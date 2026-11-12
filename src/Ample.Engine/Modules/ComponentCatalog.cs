@@ -1,5 +1,5 @@
-using Ample.Core.Abstractions;
 using System.Text;
+using Ample.Core.Abstractions;
 using Ample.Language;
 
 namespace Ample.Engine.Modules;

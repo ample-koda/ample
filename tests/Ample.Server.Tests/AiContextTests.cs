@@ -22,4 +22,19 @@ public sealed class AiContextTests
         Assert.Empty(AiContext.CommentAbove(lines, 1));
         Assert.Empty(AiContext.CommentAbove(lines, 0));
     }
+
+    [Theory]
+    [InlineData("voice")]
+    [InlineData("clone a voice")]
+    [InlineData("text to speech")]
+    [InlineData("xtts")]
+    public void The_voice_howto_tells_Koda_never_to_choose_or_suggest_XTTS_on_its_own(string query)
+    {
+        string text = AiContext.HowTo(query).ToJsonString();
+
+        Assert.Contains("NEVER choose", text);
+        Assert.Contains("non-commercial", text);
+        Assert.Contains("BY NAME", text);
+        Assert.Contains("chatterbox", text);
+    }
 }

@@ -11,7 +11,7 @@ export const midiAvailable = () => capabilities().midi;
  * @param {{ onNoteOn: (pitch: number, velocity: number) => void, onNoteOff: (pitch: number) => void, onSustain?: (on: boolean) => void, onBend?: (value: number) => void, channel?: () => number, onChange?: (names: string[]) => void }} handlers
  * `channel()` is 0 for every channel, or 1 to 16 to listen to that channel only.
  */
-export async function startMidiIn({ onNoteOn, onNoteOff, onSustain = () => {}, onBend = () => {}, channel = () => 0, onChange = () => {} }) {
+export async function startMidiIn({ onNoteOn, onNoteOff, onSustain = () => {}, onBend = () => {}, onControl = () => {}, channel = () => 0, onChange = () => {} }) {
   if (!midiAvailable()) throw new Error(whyNot('midi'));
   let access;
   try { access = await navigator.requestMIDIAccess(); } catch (error) { throw new Error(`No MIDI access: ${error.message || 'the browser did not allow it'}`); }
@@ -21,6 +21,7 @@ export async function startMidiIn({ onNoteOn, onNoteOff, onSustain = () => {}, o
     if (kind === 0x90 && velocity > 0) onNoteOn(pitch, velocity);
     else if (kind === 0x80 || (kind === 0x90 && velocity === 0)) onNoteOff(pitch);
     else if (kind === 0xb0 && pitch === 64) onSustain(velocity >= 64);
+    else if (kind === 0xb0) onControl(pitch, velocity, (status & 0x0f) + 1);   // any other controller: knobs learn these (midi-learn.js)
     else if (kind === 0xe0) onBend(bendValue(pitch, velocity));
   };
   const attach = () => {

@@ -6,6 +6,8 @@
 import { api } from './api.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
+import { songBarNow } from './play-fx.js';
+import { clipTickAt } from '../lib/song-follow.mjs';
 import { notesIn, thumbRects } from '../lib/seq-notes.mjs';
 import { activeChannels } from '../lib/seq-activity.mjs';
 import { gmProgramName, parseGmProgram } from '../lib/gm-programs.mjs';
@@ -427,9 +429,32 @@ function paintLights(st) {
   const on = st.playing ? activeChannels(Q.seq, barAt(st.position, tempo())) : new Set();
   lights.forEach((light) => light.classList.toggle('on', on.has(light.dataset.channel)));
 }
+/** The place in the sequence (1-based bar, fractional) that sounds now: the loop player of this window first, else the song that plays (the block's parts, like the Jam follows it). Null when nothing plays. */
+function sequenceBarNow(st) {
+  if (st.playing) return barAt(st.position, tempo());
+  const bar = Q.blockId ? songBarNow() : null;
+  if (bar == null) return null;
+  const parts = flat().nodes.find((n) => n.id === Q.blockId)?.parts, tick = clipTickAt(parts, bar, 3840);
+  return tick == null ? null : 1 + tick / 3840;
+}
+/** A thin line in every row of the chosen pattern that moves over the bars while that pattern plays (paintRowHeads). */
+function paintRowHeads(st) {
+  const rows = document.querySelectorAll('#sq-patterns .sqgridrow');
+  if (!rows.length) return;
+  const at = sequenceBarNow(st), clip = at == null ? null : Q.seq?.clips.find((c) => at >= c.at && at < c.at + c.bars && c.pattern === Q.pattern), pattern = clip && Q.seq.patterns.find((p) => p.name === clip.pattern);
+  const fraction = pattern ? ((at - clip.at) % pattern.bars) / pattern.bars : null;
+  rows.forEach((row) => {
+    let head = row.querySelector(':scope > .sqrowhead');
+    const cells = [...row.querySelectorAll('.sqbar')], span = cells.length ? cells : [row.querySelector('.sqthumbwrap, canvas, svg')].filter(Boolean);
+    if (fraction == null || !span.length) { if (head) head.hidden = true; return; }
+    if (!head) { head = el('i', { className: 'sqrowhead', 'aria-hidden': 'true' }); row.append(head); }
+    const box = row.getBoundingClientRect(), first = span[0].getBoundingClientRect(), last = span[span.length - 1].getBoundingClientRect();
+    head.hidden = false; head.style.left = `${first.left - box.left + fraction * (last.right - first.left)}px`;
+  });
+}
 function paintPlayhead() {
   const st = loopState();
-  paintLights(st);
+  paintLights(st); paintRowHeads(st);
   const hint = $('#sq-hint');
   if (hint) { const text = hintText(); if (hint.textContent !== text) hint.textContent = text; }
   const head = $('#sq-playhead');

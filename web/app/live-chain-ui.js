@@ -1,7 +1,7 @@
 // The bar of the live chain: which blocks the sound passes through, a bypass switch for each, a wide stereo meter for each and Stop. It exists only while the chain plays.
 // @ample:live-chain-ui
 import { el } from './ui.js';
-import { chainState, chainLevels, chainLoad, loopBars, onChain, setLoopBars, setChainBypass, setCompareBuilt, setSafeMode, stopChain } from './live-chain.js';
+import { chainState, chainLevels, chainLoudness, chainLoad, loopBars, onChain, setLoopBars, setChainBypass, setCompareBuilt, setSafeMode, stopChain } from './live-chain.js';
 import { flat } from './store.js';
 import { toggleSpectrum, spectrumBlock } from './live-spectrum-ui.js';
 
@@ -18,9 +18,11 @@ function paint(state) {
     const left = el('b'), right = el('b'), meter = el('span', { className: 'lcmeter', 'aria-hidden': 'true' }, [el('i', {}, [left]), el('i', {}, [right])]);
     meters.set(item.id, { left, right, holdLeft: 0, holdRight: 0 });
     const effect = item.kind === 'effect';
-    const toggle = !effect && item.kind === 'local' ? el('span', { className: 'note', textContent: 'made here', title: 'The browser makes this block itself while you tune it; it is swapped in without a gap' }) : effect ? el('button', { type: 'button', className: `lcbypass${item.bypassed ? ' on' : ''}`, textContent: item.cpuBypassed ? 'Bypassed (CPU)' : item.bypassed ? 'Bypassed' : 'On', 'aria-pressed': String(item.bypassed), 'aria-label': `Bypass ${titleOf(item.id)} in the live chain`, title: 'Bypass this block: the sound crossfades past it (the block stays in the chain)', onclick: () => setChainBypass(item.id, !item.bypassed) }) : el('span', { className: 'note', textContent: 'sum' });
+    const toggle = !effect && item.kind === 'local' ? el('span', { className: 'note', textContent: state.gliding?.includes(item.id) ? 'approximate while turning' : item.info ? `made here: ${item.info}` : 'made here', title: 'The browser makes this block itself while you tune it; it is swapped in without a gap' }) : effect ? el('button', { type: 'button', className: `lcbypass${item.bypassed ? ' on' : ''}`, textContent: item.cpuBypassed ? 'Bypassed (CPU)' : item.bypassed ? 'Bypassed' : 'On', 'aria-pressed': String(item.bypassed), 'aria-label': `Bypass ${titleOf(item.id)} in the live chain`, title: 'Bypass this block: the sound crossfades past it (the block stays in the chain)', onclick: () => setChainBypass(item.id, !item.bypassed) }) : el('span', { className: 'note', textContent: 'sum' });
     const spectrum = effect ? el('button', { type: 'button', className: 'lcspecbtn' + (spectrumBlock() === item.id ? ' on' : ''), textContent: '~', 'aria-label': `Spectrum and scope of ${titleOf(item.id)}, before and after`, 'aria-pressed': String(spectrumBlock() === item.id), title: 'Show the spectrum (or scope) before and after this block', onclick: () => toggleSpectrum(item.id) }) : null;
-    return el('span', { className: `lcchip${item.bypassed ? ' bypassed' : ''}`, 'data-block': item.id }, [el('strong', { textContent: titleOf(item.id), title: `${item.tpl} ${item.id}` }), toggle, ...(spectrum ? [spectrum] : []), meter]);
+    const loud = item.tpl === 'master' ? el('span', { className: 'lcloud', title: 'Momentary loudness (400 ms, BS.1770) and the distance to the target of the master block; the target is a reference, nothing is changed', 'aria-live': 'off' }) : null;
+    if (loud) meters.get(item.id).loud = loud;
+    return el('span', { className: `lcchip${item.bypassed ? ' bypassed' : ''}`, 'data-block': item.id }, [el('strong', { textContent: titleOf(item.id), title: `${item.tpl} ${item.id}` }), toggle, ...(spectrum ? [spectrum] : []), ...(loud ? [loud] : []), meter]);
   });
   const compare = el('button', { type: 'button', className: 'lccompare' + (state.comparingBuilt ? ' on' : ''), textContent: state.comparingBuilt ? 'Hearing the build' : 'A/B vs build', 'aria-pressed': String(Boolean(state.comparingBuilt)), 'aria-label': 'Compare the live chain with the built sound of the last block', title: 'Switch between the live chain and the built take of the last block, at the same place of the loop', onclick: () => setCompareBuilt(!state.comparingBuilt) });
   const stop = el('button', { type: 'button', className: 'lcstop', textContent: '■ Stop', 'aria-label': 'Stop the live chain', onclick: () => stopChain() });
@@ -32,12 +34,16 @@ function paint(state) {
   const safe = el('button', { type: 'button', className: 'lcsafe' + (cpu.mode === 'auto' ? ' on' : ''), textContent: cpu.mode === 'auto' ? 'Safe mode: auto' : 'Safe mode: off', 'aria-pressed': String(cpu.mode === 'auto'), title: 'When the load stays over 90 percent the costliest block is bypassed, with a notice. You bring it back with its button.', onclick: () => setSafeMode(cpu.mode === 'auto' ? 'off' : 'auto') });
   const range = el('select', { className: 'lcloop', 'aria-label': 'Loop range', title: 'Loop a few bars (from the bar you are in) or the whole take', onchange: (event) => setLoopBars(Number(event.target.value)) },
     [[0, 'Whole take'], [1, '1 bar'], [2, '2 bars'], [4, '4 bars'], [8, '8 bars']].map(([value, text]) => el('option', { value: String(value), textContent: text, selected: loopBars() === value })));
-  bar.replaceChildren(el('span', { className: 'lctitle', textContent: 'Live chain', title: `Looping the built sound of ${sources}; approximate, the build is the truth${state.latency ? `; look-ahead latency ${(state.latency * 1000).toFixed(1)} ms` : ''}` }), ...chips, range, latency, cpuBadge, safe, compare, stop, ...(state.notes?.length ? [el('span', { className: 'note', textContent: state.notes[0] })] : []));
+  bar.replaceChildren(el('span', { className: 'lctitle', textContent: 'Live chain', title: `Looping the built sound of ${sources}; approximate, the build is the truth${state.latency ? `; look-ahead latency ${(state.latency * 1000).toFixed(1)} ms` : ''}` }), ...chips, range, latency, cpuBadge, safe, compare, stop, ...(state.storedTakes?.length ? [el('span', { className: 'note lcstored', textContent: `Stored take of ${state.storedTakes.map((t) => `${titleOf(t.id)} (${new Date(t.created).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })})`).join(', ')}: made by a model, never built here.` })] : []), ...(state.stale?.length ? [el('span', { className: 'note lcstale', role: 'status', textContent: `Out of date: ${state.stale.map(titleOf).join(', ')} changed after it was built, so you hear the old build. Build it to update.` })] : []), ...(state.notes?.length ? [el('span', { className: 'note', textContent: state.notes[0] })] : []));
   cancelAnimationFrame(frame);
   const tick = () => {
     if (!bar) return;
     paintCpu(chainLoad());
     for (const [id, m] of meters) {
+      if (m.loud) {
+        const l = chainLoudness(id), target = Number.parseFloat(String(flat().nodes.find((n) => n.id === id)?.params?.target ?? ''));
+        m.loud.textContent = l && Number.isFinite(l.momentary) ? `${l.momentary.toFixed(1)} LUFS${Number.isFinite(target) ? ` (${l.momentary - target >= 0 ? '+' : ''}${(l.momentary - target).toFixed(1)} to target)` : ''}` : '- LUFS';
+      }
       const levels = chainLevels(id);
       if (!levels) continue;
       m.holdLeft = Math.max(dbWidth(levels.left), m.holdLeft - 1.2); m.holdRight = Math.max(dbWidth(levels.right), m.holdRight - 1.2);

@@ -6,7 +6,7 @@ import { freshServerPerTest } from '../../web/tests/support';
 freshServerPerTest();
 
 // Local preview 6.3: selecting a block warms the chain, so the start itself needs no download.
-test('selecting an effect downloads its source once, and the chain then starts from the cache', async ({ page }) => {
+test('@audio selecting an effect downloads its source once, and the chain then starts from the cache', async ({ page }) => {
   let hits = 0;
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'drums', 'src');

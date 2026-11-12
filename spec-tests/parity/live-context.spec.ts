@@ -3,7 +3,7 @@ import { freshServer, openApp } from '../../web/tests/support';
 
 // Plan local-preview 1.2: the page has one AudioContext, shared by the audition, the Jam and the player's meters.
 freshServer();
-test('every live caller gets the same AudioContext and it runs after a gesture', async ({ page }) => {
+test('@audio every live caller gets the same AudioContext and it runs after a gesture', async ({ page }) => {
   await openApp(page, { reset: false });
   const result = await page.evaluate(async () => {
     const engine = await import('/lib/audio-engine.mjs');

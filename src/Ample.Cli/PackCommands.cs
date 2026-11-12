@@ -1,6 +1,6 @@
-using Ample.Audio.IO;
 using System.CommandLine;
 using System.Diagnostics;
+using Ample.Audio.IO;
 
 namespace Ample.Cli;
 

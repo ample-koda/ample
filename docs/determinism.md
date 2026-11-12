@@ -36,3 +36,7 @@
 # Generation recipe audit (2026-10-17)
 
 Seeds alone are insufficient. The CFG investigation exposed missing effective defaults and discarded plugin provenance; see the incident and mandatory end-to-end checklist. Preserve the full recipe and immutable reference audio. A comparison with changed models/software may proceed with warnings; byte identity must be measured rather than inferred from a seed.
+
+## Browser implementations
+
+The browser re-implementations of the effects are checked against renders of the real engine: see clientside-preview/conformance.md.

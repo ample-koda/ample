@@ -1,5 +1,5 @@
-using Ample.Audio.IO;
 using System.Text.Json;
+using Ample.Audio.IO;
 
 namespace Ample.Storage.BlackBox;
 

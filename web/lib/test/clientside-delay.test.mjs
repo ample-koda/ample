@@ -15,3 +15,16 @@ test('delay bypass returns its source and abort is checked between processing ch
   const controller = new AbortController(); controller.abort();
   await assert.rejects(() => delayAudio(audio, { time: '1ms' }, controller.signal), { name: 'AbortError' });
 });
+
+test('sync locks the echo to a note value of the tempo, in whole samples of the bar (as the server)', async () => {
+  const { delayAudio, syncSamples } = await import('../clientside-delay.mjs');
+  assert.equal(syncSamples({ sync: 'off' }, 44100, 120), 0);
+  assert.equal(syncSamples({ sync: '1/4' }, 44100, 120), 22050);     // a quarter note at 120 bpm is half a second
+  assert.equal(syncSamples({ sync: '1/8' }, 44100, 90), 14700);
+  assert.equal(syncSamples({ sync: '1/8t' }, 44100, 120), 7350);     // a bar of 88200 samples holds 12 eighth triplets
+  const click = new Float32Array(44100); click[0] = 1;
+  const out = await delayAudio({ sampleRate: 44100, channels: [click] }, { time: '250 ms', feedback: '0%', mix: '100%', sync: '1/4' }, undefined, 120);
+  assert.ok(out.channels[0][22050] > 0.9 && out.channels[0][11025] === 0);   // the echo sits at the note value, not at time
+  const plain = await delayAudio({ sampleRate: 44100, channels: [click] }, { time: '250 ms', feedback: '0%', mix: '100%', sync: 'off' }, undefined, 120);
+  assert.ok(plain.channels[0][11025] > 0.9);
+});

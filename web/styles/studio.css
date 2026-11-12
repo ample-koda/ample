@@ -41,3 +41,13 @@
 /* GUI flow 5: the value follows the knob while it is dragged */
 .studio-knob{position:relative}
 .studio-knob-bubble{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);padding:2px 8px;border-radius:6px;background:var(--panel3,#111);border:1px solid var(--acc);color:var(--text);font:600 12px ui-monospace,Consolas,monospace;pointer-events:none;white-space:nowrap;z-index:5}
+.studio-knob svg.midi-learning{animation:midi-learn-pulse 1s ease-in-out infinite;outline:2px dashed var(--acc);outline-offset:4px;border-radius:50%}
+.studio-knob svg.midi-learned{outline:2px solid var(--ok);outline-offset:4px;border-radius:50%}
+.studio-knob[data-midi]::after{content:attr(data-midi);font-size:.7em;color:var(--ok)}
+@keyframes midi-learn-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.studio-knob svg.midi-learning{animation:none}}
+.snapshot-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:12px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.snapshot-bar .snap-slot{min-width:2.2em}
+.snapshot-bar .snap-slot.filled{border-color:var(--acc);color:var(--acc)}
+.snapshot-bar .snap-store.on{background:var(--warn);color:var(--on-warn)}
+.snapshot-bar .snap-morph{flex:1;min-width:140px}

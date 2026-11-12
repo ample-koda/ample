@@ -12,7 +12,7 @@ async function overload(page, seconds = 2.5) {
   }, seconds);
 }
 
-test('a load that stays over 90 percent bypasses the costliest block with a notice, and only the user brings it back', async ({ page }) => {
+test('@audio a load that stays over 90 percent bypasses the costliest block with a notice, and only the user brings it back', async ({ page }) => {
   await startedChain(page, [['eq', 'tone'], ['reverb', 'room']]);
   await expect(page.locator('.livechain .lccpu')).toContainText('CPU');
   await overload(page);
@@ -27,7 +27,7 @@ test('a load that stays over 90 percent bypasses the costliest block with a noti
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });
 
-test('with safe mode off the badge goes red but nothing is bypassed, and the choice is remembered', async ({ page }) => {
+test('@audio with safe mode off the badge goes red but nothing is bypassed, and the choice is remembered', async ({ page }) => {
   await startedChain(page, [['eq', 'tone'], ['reverb', 'room']]);
   await page.locator('.livechain .lcsafe').click();
   await expect(page.locator('.livechain .lcsafe')).toHaveText('Safe mode: off');

@@ -5,7 +5,7 @@ freshServerPerTest();
 
 // Local preview 5.4: a curve followed by the live graph, rendered offline. The ticker of the automation preview hands the value of the curve to graph.update() every 30 ms; here the same
 // stepping runs on an OfflineAudioContext (suspend/resume) and the gain that comes out is compared with the curve.
-test('a gain ramp followed in 30 ms steps renders the curve within 0.25 dB, and the ramp restarts when the loop wraps', async ({ page }) => {
+test('@audio a gain ramp followed in 30 ms steps renders the curve within 0.25 dB, and the ramp restarts when the loop wraps', async ({ page }) => {
   await openApp(page, { reset: false });
   const result = await page.evaluate(async () => {
     const { liveEffectGraph } = await import('/app/studio/preview/audio.js');
@@ -31,7 +31,7 @@ test('a gain ramp followed in 30 ms steps renders the curve within 0.25 dB, and 
   expect(result.find((r) => r.time === 4.5)!.got).toBeLessThan(-15);      // wrapped: the ramp starts again
 });
 
-test('Live follows more parameters now, and the sentence about them comes from the list', async ({ page }) => {
+test('@audio Live follows more parameters now, and the sentence about them comes from the list', async ({ page }) => {
   await openApp(page, { reset: false });
   const info = await page.evaluate(async () => { const m = await import('/lib/automation-model.mjs'); return { pan: m.liveSupported('pan', 'pan'), flanger: m.liveSupported('flanger', 'mix'), bit: m.liveSupported('bitcrusher', 'mix'), text: m.liveSupportedText() }; });
   expect(info.pan && info.flanger).toBe(true);

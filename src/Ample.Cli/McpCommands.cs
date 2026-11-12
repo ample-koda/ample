@@ -1,5 +1,5 @@
-using System.CommandLine;
 using System.Buffers.Binary;
+using System.CommandLine;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;

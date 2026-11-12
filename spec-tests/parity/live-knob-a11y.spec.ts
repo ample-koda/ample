@@ -3,7 +3,7 @@ import { addTemplateBlock, freshServer, node, openApp } from '../../web/tests/su
 
 // Plan local-preview 8.3: a knob is a keyboard-usable ARIA slider whose spoken value carries the unit.
 freshServer();
-test('a knob moves by keyboard (arrow = fine, PageUp/PageDown = coarse, Home/End = ends) and speaks its unit', async ({ page }) => {
+test('@audio a knob moves by keyboard (arrow = fine, PageUp/PageDown = coarse, Home/End = ends) and speaks its unit', async ({ page }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'delay', 'k-delay');

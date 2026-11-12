@@ -1,5 +1,5 @@
-using Ample.Testing;
 using Ample.Storage.Takes;
+using Ample.Testing;
 
 namespace Ample.Core.Tests;
 

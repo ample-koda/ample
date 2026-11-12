@@ -35,3 +35,6 @@
 .livechain .lcspec-head strong { flex: 1; font-weight: 600; }
 .livechain .lcspec-canvas { width: 100%; max-width: 560px; height: 140px; border-radius: 6px; border: 1px solid var(--line); }
 .livechain .lcloop { padding: 1px 4px; }
+.livechain .lcstale { color: var(--warn); font-weight: 600; }
+.live-badge-summary { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; }
+.live-badge-summary .live-badge { margin-top: 0; }

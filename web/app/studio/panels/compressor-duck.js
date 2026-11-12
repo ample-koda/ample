@@ -56,7 +56,7 @@ function compressorPanel(context) {
   };
   graph.append(thresholdHandle, ratioHandle);
   const controls = el('div', { className: 'studio-eq-controls' });
-  [['threshold', 'Threshold', -60, 0, 'dB'], ['ratio', 'Ratio', 1, 20, ''], ['attack', 'Attack', 1, 500, 'ms'], ['release', 'Release', 5, 2000, 'ms'], ['makeup', 'Makeup', 0, 12, 'dB'], ['keyFilter', 'Key filter', 0, 8000, 'Hz']].forEach(([name, label, min, max, unit]) => controls.append(control(label, knob({ label, value: valueOf(params, name, name === 'threshold' ? -18 : name === 'ratio' ? 4 : name === 'attack' ? 10 : name === 'release' ? 120 : 0), min, max, unit, scale: name === 'release' || name === 'attack' ? 'log' : 'linear', disabled: context.readOnly, onPreview: (next) => context.preview?.(name, next), onCommit: (next) => write(context, name, next, unit) }))));
+  [['threshold', 'Threshold', -60, 0, 'dB'], ['ratio', 'Ratio', 1, 20, ''], ['attack', 'Attack', 1, 500, 'ms'], ['release', 'Release', 5, 2000, 'ms'], ['makeup', 'Makeup', 0, 12, 'dB'], ['keyFilter', 'Key filter', 0, 8000, 'Hz']].forEach(([name, label, min, max, unit]) => controls.append(control(label, knob({ learn: context.block ? { block: context.block, name } : null, label, value: valueOf(params, name, name === 'threshold' ? -18 : name === 'ratio' ? 4 : name === 'attack' ? 10 : name === 'release' ? 120 : 0), min, max, unit, scale: name === 'release' || name === 'attack' ? 'log' : 'linear', disabled: context.readOnly, onPreview: (next) => context.preview?.(name, next), onCommit: (next) => write(context, name, next, unit) }))));
   const analysis = el('section', { className: 'studio-compressor-analysis', 'aria-label': 'Compressor input, output and gain reduction analysis' });
   const analyze = el('button', { type: 'button', textContent: 'Analyze exact preview', disabled: !context.renderedBuffer, title: context.renderedBuffer ? 'Render this bounded preview through the integer effect engine' : 'Build the upstream input first' });
   const analysisStatus = el('p', { className: 'note', textContent: context.renderedBuffer ? 'Input/output waveform and gain reduction appear after an exact preview analysis.' : 'Build the upstream input to enable exact preview analysis.' });
@@ -119,8 +119,8 @@ function duckPanel(context) {
     playhead.setAttribute('x1', String(x)); playhead.setAttribute('x2', String(x));
   });
   const controls = el('div', { className: 'studio-filter-controls' }, [
-    knob({ label: 'Depth', value: depth, min: 0, max: 40, unit: 'dB', disabled: context.readOnly, onPreview: (next) => context.preview?.('depth', next), onCommit: (next) => write(context, 'depth', next, 'dB') }),
-    knob({ label: 'Release', value: release, min: 10, max: 2000, unit: 'ms', scale: 'log', disabled: context.readOnly, onPreview: (next) => context.preview?.('release', next), onCommit: (next) => write(context, 'release', next, 'ms') }),
+    knob({ learn: context.block ? { block: context.block, name: 'depth' } : null, label: 'Depth', value: depth, min: 0, max: 40, unit: 'dB', disabled: context.readOnly, onPreview: (next) => context.preview?.('depth', next), onCommit: (next) => write(context, 'depth', next, 'dB') }),
+    knob({ learn: context.block ? { block: context.block, name: 'release' } : null, label: 'Release', value: release, min: 10, max: 2000, unit: 'ms', scale: 'log', disabled: context.readOnly, onPreview: (next) => context.preview?.('release', next), onCommit: (next) => write(context, 'release', next, 'ms') }),
   ]);
   const root = el('section', { className: 'studio-effect-panel studio-duck-panel studio-live-panel', 'aria-label': 'Duck controls' }, [steps, curve, controls, el('p', { className: 'note', textContent: `16 steps per bar · project tempo ${context.tempo || '—'} BPM` })]);
   root.dispose = unsubscribe;

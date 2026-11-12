@@ -5,7 +5,7 @@ import { startedChain, wavFixture } from './support/live-chain-fixture';
 freshServerPerTest();
 
 // Local preview 5.3: before and after a block. A tone at the centre of the EQ's mid band, boosted 9 dB: after exceeds before by the boost.
-test('the spectrum after an EQ boost exceeds the one before by the boost, and the view draws', async ({ page }) => {
+test('@audio the spectrum after an EQ boost exceeds the one before by the boost, and the view draws', async ({ page }) => {
   await startedChain(page, [['eq', 'tone']], wavFixture(2, 866, 6000));
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.chainPreview('tone', 'mid', '9')));
   await page.waitForTimeout(1500);

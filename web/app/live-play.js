@@ -117,7 +117,7 @@ export function startLive({ rows, bpm, tempoChanges = null, ppq, instrument, fro
           if (event.drum) playDrum(ctx, voiceOut, event, at); else playTone(ctx, voiceOut, event, at);
         }
         if (span) { voiceOut.gain.setValueAtTime(1, origin + lapEnd - 0.003); voiceOut.gain.linearRampToValueAtTime(0, origin + lapEnd); }
-        setTimeout(() => voiceOut.disconnect(), Math.max(0, (at - ctx.currentTime + event.duration + (span ? 0.05 : 12)) * 1000));
+        setTimeout(() => voiceOut.disconnect(), Math.max(0, (at - ctx.currentTime + event.duration + (span ? 0.05 : 12) + (event.tail || 0)) * 1000));
       }
       u0 = end;
     }

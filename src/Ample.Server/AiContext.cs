@@ -4,13 +4,13 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Ample.Audio.Engine;
 using Ample.Audio.IO;
+using Ample.Core.Abstractions;
 using Ample.Engine.Control;
 using Ample.Engine.Engine;
-using Ample.Storage.Projects;
-using Ample.Storage.Takes;
-using Ample.Core.Abstractions;
 using Ample.Language;
 using Ample.Plugins.Analysis;
+using Ample.Storage.Projects;
+using Ample.Storage.Takes;
 
 namespace Ample.Server;
 
@@ -580,6 +580,8 @@ internal static class AiContext
 
     private static readonly (string[] Words, string Title, string Text)[] HowTos =
     [
+        (["voice", "voice-clone", "clone", "speech", "speak", "spoken", "narrat", "tts", "xtts", "text to speech", "model"], "Voice models (XTTS-v2 is for non-commercial use only)",
+            "A voice-clone block has a model: chatterbox or qwen3 are the choices to offer. NEVER choose, set, suggest or recommend the XTTS model (model xtts, XTTS-v2 of Coqui) on your own, not as a default, not as a fallback, not as 'the usual one': its licence (Coqui Public Model License) is non-commercial only. Use xtts only when the user asks for it BY NAME in their own words (for example 'use XTTS'); even then say that it is non-commercial and that the user has to switch on 'I accept the XTTS-v2 licence' in the voice-clone settings before it renders. When the user did not name a model, write chatterbox (or qwen3 when they gave the sample transcript) and do not mention XTTS."),
         (["automation", "automate", "change over time", "over the song", "ramp", "increase", "gradually", "lfo", "envelope", "env", "curve"], "Values that change over the song (automation)",
             "A parameter can follow a curve: auto(bar:value, bar:value, ...) with whole bar numbers from 1 and whole values; between two points it moves in a straight line, before the first point it is the first value and after the last the last value. Example: gain auto(1:-60, 5:0, 33:0, 37:-60). lfo(period, low, high) is a triangle between low and high with a period of an even number of bars. env(start, rise, hold, fall, low, high) rises, holds and falls in bars. fadein(start, length, shape) and fadeout(start, length, shape) (start and length in bars like 5 or 5.5, or seconds like 12s; shape lin, equal or exp) work on a volume gain and an effect mix only. WHAT ACCEPTS IT: volume.gain (dB), the mix (%) of delay, reverb, chorus, flanger, phaser and bitcrusher, compressor.threshold (dB), filter.cutoff (Hz), pan.pan and stretch.speed (percent, 25 to 400). Other parameters take a plain value. Bars to seconds: a bar is 240/tempo seconds (tempo 120: 2 s), so 'every 4 s' at tempo 120 is every 2 bars. Values are whole numbers."),
         (["fade", "crossfade", "fade in", "fade out"], "Fades",
@@ -650,7 +652,7 @@ internal static class AiContext
             "In 'text' of ample_edit (add_block, insert, create) write real line breaks (in JSON a single \\n), never the two characters backslash and n twice."),
     ];
 
-    private static JsonObject HowTo(string query)
+    internal static JsonObject HowTo(string query)
     {
         string q = (query ?? string.Empty).Trim().ToLowerInvariant();
         JsonArray found = [.. HowTos.Where(h => q.Length == 0 || h.Words.Any(w => q.Contains(w, StringComparison.Ordinal) || w.Contains(q, StringComparison.Ordinal))).Select(h => (JsonNode)new JsonObject { ["about"] = h.Title, ["howto"] = h.Text })];

@@ -12,7 +12,7 @@ function wavFixture() {
   return bytes;
 }
 
-test('Hear live loops the inputs of the mixer, a fader is heard while it moves and written to the song only on release', async ({ page }) => {
+test('@audio Hear live loops the inputs of the mixer, a fader is heard while it moves and written to the song only on release', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__params = 0;
     const original = AudioParam.prototype.setTargetAtTime;

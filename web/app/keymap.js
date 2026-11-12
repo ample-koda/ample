@@ -1,5 +1,5 @@
 // The keys of AMPLE in one place (GUI flow 10): a registry of commands (id, label, default keys, what it does), the overrides of the person (localStorage `ample.keymap`:
-// { "<command id>": ["Ctrl+K"] }; there is no screen for them yet, the structure is ready for remapping), the sheet that lists them (? or F1) and the command palette (Ctrl+K).
+// { "<command id>": ["Ctrl+K"] }; the keys sheet has a Change button per command), the sheet that lists them (? or F1) and the command palette (Ctrl+K).
 import { el, toast } from './ui.js';
 import { S, flat, notify, select } from './store.js';
 
@@ -12,12 +12,22 @@ export function registerCommand(command) { commands.set(command.id, { group: 'Ge
 export const listCommands = () => [...commands.values()];
 /** The keys a command answers to: the person's own, else the defaults. */
 export function keysOf(id) { const own = readOverrides()[id]; return Array.isArray(own) ? own : commands.get(id)?.keys ?? []; }
-/** For a later screen of the settings: remap one command (an empty list switches it off, null gives the defaults back). */
+/** The screen is the keys sheet: remap one command (an empty list switches it off, null gives the defaults back). */
 export function setKeys(id, keys) {
   const all = readOverrides();
   if (keys === null) delete all[id]; else all[id] = keys;
   try { localStorage.setItem(STORE, JSON.stringify(all)); } catch { /* storage may be blocked */ }
 }
+/** Another command (or an always-there key) that already answers to this key text, or null. */
+export function keyConflict(id, key) {
+  const other = listCommands().find((c) => c.id !== id && keysOf(c.id).includes(key));
+  if (other) return other.label;
+  const fixed = FIXED.find(([k]) => k.split(' / ').includes(key));
+  return fixed ? fixed[1] : null;
+}
+/** The commands that share a key with another one (a person's own keys can do that after an older save), by id. */
+const clashing = () => { const seen = new Map(), bad = new Set(); for (const c of listCommands()) for (const k of keysOf(c.id)) { if (seen.has(k) && seen.get(k) !== c.id) { bad.add(c.id); bad.add(seen.get(k)); } else seen.set(k, c.id); } return bad; };
+let capturing = null;   // while a key is being chosen for a command: (event) => void
 export function runCommand(id) { const command = commands.get(id); if (command) command.run(); return Boolean(command); }
 
 /** "Ctrl+K", "Shift+/", "F5": the text of a key press, the same way keys are written in the registry. */
@@ -50,17 +60,39 @@ registerCommand({ id: 'build', group: 'Song', label: 'Build the song', keys: [],
 const FIXED = [['Space', 'Play or stop the song'], ['Ctrl+B', 'Build'], ['Ctrl+Z / Ctrl+Y', 'Undo / redo'], ['Esc', 'Close the window that was used last'], ['Delete', 'Delete the selected block or clip']];
 
 let overlay = null;
-const closeOverlay = () => { overlay?.remove(); overlay = null; };
+const closeOverlay = () => { capturing = null; overlay?.remove(); overlay = null; };
 
 export function openSheet() {
   closeOverlay();
   const groups = {};
   for (const command of listCommands()) (groups[command.group] ||= []).push(command);
-  const rows = Object.entries(groups).flatMap(([group, list]) => [el('h4', { textContent: group }), ...list.map((c) => el('div', { className: 'keyrow' }, [el('span', { textContent: c.label }), el('span', { className: 'keys' }, keysOf(c.id).map((k) => el('kbd', { textContent: k })))]))]);
+  const bad = clashing(), own = readOverrides();
+  const message = el('p', { className: 'note keymsg', role: 'status', 'aria-live': 'polite' });
+  const stop = () => { capturing = null; };
+  const choose = (c, button) => {
+    stop(); message.textContent = '';
+    button.textContent = 'Press a key... (Esc: cancel, Backspace: no key)';
+    capturing = (event) => {
+      event.preventDefault(); event.stopPropagation();
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return;
+      if (event.key === 'Escape') { stop(); openSheet(); return; }
+      const key = event.key === 'Backspace' ? null : keyText(event);
+      const clash = key && keyConflict(c.id, key);
+      if (clash) { message.textContent = `${key} is already used by "${clash}". Press another key.`; message.className = 'note keymsg keyconflict'; return; }
+      stop(); setKeys(c.id, key ? [key] : []); openSheet();
+    };
+  };
+  const rows = Object.entries(groups).flatMap(([group, list]) => [el('h4', { textContent: group }), ...list.map((c) => {
+    const change = el('button', { type: 'button', className: 'keychange', textContent: 'Change', 'aria-label': `Change the key of: ${c.label}`, title: 'Choose another key for this command (kept in this browser)' });
+    change.onclick = () => choose(c, change);
+    const reset = c.id in own ? el('button', { type: 'button', className: 'keyreset', textContent: 'Reset', 'aria-label': `Reset the key of: ${c.label}`, title: 'Back to the default key', onclick: () => { setKeys(c.id, null); openSheet(); } }) : null;
+    return el('div', { className: `keyrow${bad.has(c.id) ? ' keyclash' : ''}`, 'data-command': c.id }, [el('span', { textContent: c.label }), el('span', { className: 'keys' }, [...keysOf(c.id).map((k) => el('kbd', { textContent: k })), ...(bad.has(c.id) ? [el('span', { className: 'note keyconflict', textContent: 'also used by another command' })] : []), change, ...(reset ? [reset] : [])])]);
+  })]);   // keyremap
   overlay = el('div', { id: 'keysheet', className: 'cmdk-overlay', role: 'dialog', 'aria-label': 'Keys' }, [el('div', { className: 'cmdk-box keysheet' }, [
     el('h3', { textContent: 'Keys' }), ...rows, el('h4', { textContent: 'Always there' }),
     ...FIXED.map(([k, label]) => el('div', { className: 'keyrow' }, [el('span', { textContent: label }), el('span', { className: 'keys' }, [el('kbd', { textContent: k })])])),
-    el('p', { className: 'note', textContent: 'Your own keys are kept in this browser (ample.keymap); a screen to change them comes later. Esc closes this sheet.' }),
+    message, el('p', { className: 'note', textContent: 'Your own keys are kept in this browser (ample.keymap). Esc closes this sheet.' }),
+    ...(Object.keys(own).length ? [el('button', { type: 'button', className: 'keyresetall', textContent: 'Reset all keys', onclick: () => { localStorage.removeItem(STORE); openSheet(); } })] : []),
   ])]);
   overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) closeOverlay(); });
   document.body.append(overlay);
@@ -96,6 +128,7 @@ export function openPalette() {
 
 export function initKeymap() {
   document.addEventListener('keydown', (event) => {
+    if (capturing && overlay) { capturing(event); return; }
     if (event.key === 'Escape' && overlay) { closeOverlay(); event.preventDefault(); event.stopPropagation(); return; }
     if (event.defaultPrevented || document.querySelector('dialog:modal')) return;
     const text = keyText(event), typing = typingIn(event.target);

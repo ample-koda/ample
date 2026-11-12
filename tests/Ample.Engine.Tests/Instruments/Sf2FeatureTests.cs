@@ -1,8 +1,8 @@
 using System.Text;
-using Ample.Core.Abstractions;
 using Ample.Audio.Engine;
 using Ample.Audio.Instruments;
 using Ample.Audio.Midi;
+using Ample.Core.Abstractions;
 using Ample.Language;
 
 namespace Ample.Core.Tests.Instruments;
