@@ -220,6 +220,9 @@ function tick(st) {
   scrub(bar);
 }
 
+/** The level (0..1) of every block that sounds at the bar that is playing, or null when nothing is followed (the mixer strips read it for their meters). */
+export const blockLevels = () => (state.active ? state.lvl : null);
+
 /** Starts the lights (called once when the Studio starts). */
 export function initPlayLights() {
   const button = document.getElementById('z-lights');
