@@ -3,6 +3,7 @@
 // double-click empty wave to add a rewind, drag a flag to move the stop, drag the end of a bracket to change the length of the scratch, drag the inside of a bracket to move
 // the whole rewind, drag the "back" label to change the jump back, double-click a flag to take it away, right-click for the rest. It writes the `events` text. @ample:rewind
 
+import { getContext } from '../../../lib/audio-engine.mjs';
 import { el, showMenu } from '../../ui.js';
 import { S } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
@@ -49,7 +50,7 @@ function rewindPanel(context) {
     const channels = audible();
     if (!channels.length) return;
     stopSong();   // nothing else is heard under it: the song, a live local preview or an audition of another window
-    live.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    live.ctx ||= getContext();
     const ctx = live.ctx;
     const buffer = ctx.createBuffer(channels.length, channels[0].length, rate);
     channels.forEach((data, i) => buffer.copyToChannel(data, i));

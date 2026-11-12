@@ -39,7 +39,7 @@ test('local effect graphs connect each supported effect to output with mapped va
     compressor: ['compressor', 'gain'],
     duck: ['gain'],
     distortion: ['waveshaper', 'biquad', 'gain', 'gain', 'gain', 'gain'],
-    delay: ['delay', 'gain', 'gain', 'gain', 'gain'],
+    delay: ['delay', 'delay', 'gain', 'gain', 'gain', 'gain'],
     chorus: ['delay', 'oscillator', 'gain', 'gain', 'gain', 'gain'],
   };
   for (const [type, nodes] of Object.entries(expected)) {

@@ -1,6 +1,7 @@
 // The States view of the Playlist, for a project that has a game score (game/score.json, see docs/game-score.md): a matrix of lines against states, where a cell is the
 // level (0 to 1) of a layer in a state, a State overlay that dims what is off in a chosen state, and an audition of the built stems. The tab does not exist for a project
 // without a score. A level is written to game/score.json through the file route (the command bus), validated by the rules of the server. Plan: PV08. @ample:playlist-states
+import { getContext } from '../lib/audio-engine.mjs';
 import { api } from './api.js';
 import { S } from './store.js';
 import { toast } from './ui.js';
@@ -83,7 +84,7 @@ export async function auditionState(state) {
   stopPlayer();
   let manifest;
   try { manifest = await api.get(`/api/game/manifest?id=${encodeURIComponent(scoreState.def.name)}`); } catch { toast('Build the score first (it has no stems yet).'); return false; }
-  context ||= new (window.AudioContext || window.webkitAudioContext)();
+  context ||= getContext();
   try {
     const nodes = [];
     for (const stem of manifest.stems || []) {

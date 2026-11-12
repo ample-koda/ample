@@ -1,4 +1,5 @@
 // Listening to one port of a block: a small player that hangs by the port like a tooltip. For a region (the joins of a loop) it loops one join, alone or with some of the sound around it.
+import { getContext } from '../lib/audio-engine.mjs';
 import { getToken } from './api.js';
 import { S, build, edit } from './store.js';
 import { el, toast } from './ui.js';
@@ -6,7 +7,7 @@ import { seamWindows, sumChannels } from '../lib/seam-windows.mjs';
 import { regionChain } from '../lib/region-chain.mjs';
 
 let context = null, node = null, panel = null, onKey = null, onDown = null, openFor = '', followFrame = 0;
-const audioContext = () => (context ||= new (window.AudioContext || window.webkitAudioContext)());
+const audioContext = () => (context ||= getContext());
 
 async function takeOf(block) {
   let id = S.build.takes[block];

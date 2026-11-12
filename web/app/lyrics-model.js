@@ -74,3 +74,10 @@ export function lyricChecks(rows, node, tempoBpm) {
   if (!timed.length) out.push({ i: -1, sev: 'warning', msg: 'there are no lyric lines yet' });
   return out;
 }
+
+/** Index (in the full row list) of the timed line that is being sung at `bar`: the last one that starts at or before it; -1 before the first. */
+export function currentRowIndex(rows, bar) {
+  let found = -1;
+  rows.forEach((r, i) => { if (!r.tag && r.bar <= bar && (found < 0 || r.bar >= rows[found].bar)) found = i; });
+  return found;
+}

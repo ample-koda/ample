@@ -1,0 +1,37 @@
+/* The bar of the live chain (web/app/live-chain-ui.js): the blocks the sound passes through, a bypass switch and a wide stereo meter for each. */
+.livechain { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: min(96vw, 1100px); padding: 8px 12px; background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow-2, 0 8px 24px #0006); }
+.livechain .lctitle { font-weight: 600; color: var(--acc); }
+.livechain .lcchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
+.livechain .lcchip.bypassed strong { opacity: .55; text-decoration: line-through; }
+.livechain .lcbypass { padding: 1px 8px; min-width: 4.5em; }
+.livechain .lcbypass.on { background: var(--warn); color: var(--on-warn); }
+.livechain .lcmeter { display: inline-flex; flex-direction: column; gap: 2px; width: 110px; }
+.livechain .lcmeter i { display: block; position: relative; height: 5px; background: var(--panel3); border-radius: 2px; overflow: hidden; }
+.livechain .lcmeter b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--ok) 0 70%, var(--warn) 70% 90%, var(--bad) 90%); background-size: 110px 100%; }
+.livechain .lcmeter b::after { content: ""; position: absolute; top: 0; bottom: 0; left: var(--hold, 0%); width: 2px; background: var(--hi); }
+.livechain .lcstop { margin-left: auto; }
+
+/* the badge under a parameter of the Advanced window: live / re-renders / needs build (web/lib/live-parameters.mjs) */
+.live-badge { display: block; margin-top: 2px; font-size: 10px; letter-spacing: .02em; color: var(--dim); }
+.live-badge.live-param { color: var(--ok); }
+.live-badge.live-rebuild { color: var(--acc); }
+.live-badge.live-offline { color: var(--dim); }
+.livechain .lccompare.on { background: var(--acc); color: var(--on-accent); }
+.parity-badge { font-size: 11px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel3); }
+.parity-badge.parity-exact { color: var(--ok); border-color: var(--ok); }
+.parity-badge.parity-close { color: var(--acc); border-color: var(--acc); }
+.parity-badge.parity-approximate { color: var(--warn); border-color: var(--warn); }
+.parity-badge.parity-differs { color: var(--bad); border-color: var(--bad); }
+.livechain .lclatency { padding: 2px 8px; font-size: .85em; color: var(--muted, var(--text)); border: 1px dashed var(--line); border-radius: 8px; cursor: help; }
+.livechain .lccpu { padding: 2px 8px; font-size: .85em; border: 1px solid var(--line); border-radius: 8px; font-variant-numeric: tabular-nums; min-width: 5.5em; text-align: center; }
+.livechain .lccpu.warn { background: var(--warn); color: var(--on-warn); }
+.livechain .lccpu.bypass { background: var(--bad); color: var(--on-bad, #fff); }
+.livechain .lcsafe { padding: 1px 8px; }
+.livechain .lcsafe.on { border-color: var(--ok); }
+.livechain .lcspecbtn { padding: 0 6px; min-width: 1.8em; }
+.livechain .lcspecbtn.on { background: var(--acc); color: var(--on-acc, #000); }
+.livechain .lcspec { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; }
+.livechain .lcspec-head { display: flex; gap: 8px; align-items: center; }
+.livechain .lcspec-head strong { flex: 1; font-weight: 600; }
+.livechain .lcspec-canvas { width: 100%; max-width: 560px; height: 140px; border-radius: 6px; border: 1px solid var(--line); }
+.livechain .lcloop { padding: 1px 4px; }

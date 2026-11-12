@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "plugin": null,
   "description": "Tames harsh s and t sounds in a voice by turning down the loud high frequencies around the chosen frequency. Takes audio and gives audio.",
   "inputs": [

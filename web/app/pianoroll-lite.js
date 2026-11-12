@@ -42,6 +42,8 @@ import { SNAPS, TOOLS, autoScrollDelta, clipEndBars, createCommitQueue, dragLoop
 import { GRID_KEYS, LONG_PRESS_MS, ROLL_KEYS, isLongPress, longPressAction, pinchStart, pinchView } from '../lib/lite-touch.mjs';
 import { adjustRows, clampMove, clipboardText, cloneRows, copyItems, createThrottle, drawRow, duplicateRows, itemsFromText, mergedRows, moveRows, pasteRows, quantizeRows, removeRows, resizeRows, rowIndexAt, sliceRow, soundingPitches, soundingRows, velocityRows } from '../lib/lite-gestures.mjs';
 import { barBeats } from '../lib/meter.mjs';
+import { songBarNow } from './play-fx.js';
+import { clipTickAt } from '../lib/song-follow.mjs';
 
 let sessionRect = null;   // where the last AMPLE Jam window was (this page session only), so Advanced -> Lite opens it where it was
 let RACK_W = 252, LED_X = 14, PAN_X = 40, KNOB_X = 67, NUM_X = 85, NAME_X = 113;   // the Grid's channel rack: LED, pan knob, volume knob, row number, name, and a selection bar on the right
@@ -117,7 +119,7 @@ export function openPianoRollLite(blockId, options = {}) {
   let model = parse(paramText(), ppq);
   if (!model.representable && model.notes.length === 0 && model.items.length === 0 && model.reasons.length) { toast(`AMPLE Jam cannot show this block: ${model.reasons[0]}`); return null; }
   const bpm = () => Number(S.doc?.project?.tempo) || 120;
-  const state = { showGhosts: true, lane: 'velocity', pxBeat: 60, rowH: 14, scrollX: 0, scrollY: 0, snap: 'auto', snapBefore: 'auto', tool: 'draw', loopOn: false, bracket: null, playhead: 0, follow: true, metronome: false,
+  const state = { showGhosts: true, lane: 'velocity', pxBeat: 60, rowH: 14, scrollX: 0, scrollY: 0, snap: 'auto', snapBefore: 'auto', tool: 'draw', loopOn: false, bracket: null, playhead: 0, songHead: null, follow: true, metronome: false,
     typing: false, octave: 4, selected: new Set(), drag: null, extraBars: 0, litKey: new Set(), litTyped: new Map(), litMidi: new Map(), cursor: null, playOrigin: 0, player: null, altKey: false, lastLen: 0, pointer: null, litNotes: new Set(), litPitches: new Set(), followPaused: false, hintDismissed: false, overGrid: false, wheelTimer: 0, mode: 'roll', gridScrollY: 0, gridPins: [], laneNames: new Map(), laneDrum: new Set(), activeRow: null, stepVel: 96, gridRowH: LIMITS.gridRowH, muted: new Set() };
   function setAlt(on) { if (state.altKey === on) return; state.altKey = on; snapSelect.value = on ? 'free' : state.snap; }
   const calls = [];   // the last audition calls, for the DOM specs (panel.mlsDebug)
@@ -294,7 +296,7 @@ export function openPianoRollLite(blockId, options = {}) {
       state.glow = (state.glow ?? 0) * 0.85 + energy * 0.15;
       panel.style.setProperty('--glow-pulse', Math.min(1, 0.2 + 0.3 * swell * accent + 0.5 * state.glow).toFixed(3));
     } else { state.glow = 0; panel.style.removeProperty('--glow-pulse'); }
-    Object.assign(panel.dataset, { loop: state.bracket ? `${state.bracket.start}-${state.bracket.end}` : '', playhead: String(Math.round(state.playhead)), pxBeat: state.pxBeat.toFixed(2), ghosts: String(options.ghostRows?.length ?? ''), tool: state.tool, snapTicks: String(Math.round(beats() * ppq)), scrollX: String(Math.round(state.scrollX)), hidden: String(list.filter(hasHiddenData).length), mode: state.mode, gridRows: state.mode === 'grid' ? gridList().join(',') : '', gridRowH: String(state.gridRowH), muted: [...state.muted].sort((a, b) => a - b).join(','), gridScrollY: String(Math.round(state.gridScrollY)), stepTicks: String(stepLen()), scrollY: String(Math.round(state.scrollY)), rowH: state.rowH.toFixed(2), snap: state.snap, follow: state.followPaused ? 'paused' : state.follow ? 'on' : 'off', lit: [...state.litNotes].join(','), litKeys: [...litKeysNow()].sort((a, b) => a - b).join(','), selected: [...state.selected].sort((a, b) => a - b).join(',') });
+    Object.assign(panel.dataset, { loop: state.bracket ? `${state.bracket.start}-${state.bracket.end}` : '', playhead: String(Math.round(state.playhead)), songhead: state.songHead == null ? '' : String(state.songHead), pxBeat: state.pxBeat.toFixed(2), ghosts: String(options.ghostRows?.length ?? ''), tool: state.tool, snapTicks: String(Math.round(beats() * ppq)), scrollX: String(Math.round(state.scrollX)), hidden: String(list.filter(hasHiddenData).length), mode: state.mode, gridRows: state.mode === 'grid' ? gridList().join(',') : '', gridRowH: String(state.gridRowH), muted: [...state.muted].sort((a, b) => a - b).join(','), gridScrollY: String(Math.round(state.gridScrollY)), stepTicks: String(stepLen()), scrollY: String(Math.round(state.scrollY)), rowH: state.rowH.toFixed(2), snap: state.snap, follow: state.followPaused ? 'paused' : state.follow ? 'on' : 'off', lit: [...state.litNotes].join(','), litKeys: [...litKeysNow()].sort((a, b) => a - b).join(','), selected: [...state.selected].sort((a, b) => a - b).join(',') });
     hint.hidden = !(model.notes.length === 0 && !state.hintDismissed) || state.mode === 'grid';
     markView(false);
     status.textContent = `${model.notes.length} note${model.notes.length === 1 ? '' : 's'} · ${endBars()} bar${endBars() === 1 ? '' : 's'}${state.selected.size ? ` · ${state.selected.size} selected` : ''}${locked ? ' · read-only' : ''}`;
@@ -349,6 +351,7 @@ export function openPianoRollLite(blockId, options = {}) {
     if (state.drag?.kind === 'rubber') { const d = state.drag; c.strokeStyle = t.acc; c.strokeRect(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0)); }
     const px = xOf(state.playhead);
     if (px >= 0 && px <= w) { c.fillStyle = t.ok; c.fillRect(Math.round(px), 0, 1, h); }
+    if (state.songHead != null) { const sx = xOf(state.songHead); if (sx >= 0 && sx <= w) { c.fillStyle = t.acc; c.globalAlpha = 0.22; c.fillRect(Math.round(sx) - 3, 0, 8, h); c.globalAlpha = 1; c.fillRect(Math.round(sx), 0, 2, h); } }
     if (state.drag?.kind === 'range') { const d = state.drag, a = xOf(Math.min(d.a, d.b)), b = xOf(Math.max(d.a, d.b)); c.fillStyle = t.acc; c.globalAlpha = 0.18; c.fillRect(a, 0, b - a, h); c.globalAlpha = 1; }
   }
   const roundRect = (c, x, y, w, h, left, right) => { c.beginPath(); c.moveTo(x + left, y); c.lineTo(x + w - right, y); c.arcTo(x + w, y, x + w, y + right, right); c.lineTo(x + w, y + h - right); c.arcTo(x + w, y + h, x + w - right, y + h, right); c.lineTo(x + left, y + h); c.arcTo(x, y + h, x, y + h - left, left); c.lineTo(x, y + left); c.arcTo(x, y, x + left, y, left); c.closePath(); };
@@ -466,6 +469,7 @@ export function openPianoRollLite(blockId, options = {}) {
     if (state.bracket) { c.fillStyle = t.acc; c.globalAlpha = 0.08; c.fillRect(xOf(state.bracket.start), 0, xOf(state.bracket.end) - xOf(state.bracket.start), h); c.globalAlpha = 1; }
     const px = xOf(state.playhead);
     if (px >= 0 && px <= w) { c.fillStyle = t.ok; c.fillRect(Math.round(px), 0, 1, h); }
+    if (state.songHead != null) { const sx = xOf(state.songHead); if (sx >= 0 && sx <= w) { c.fillStyle = t.acc; c.globalAlpha = 0.22; c.fillRect(Math.round(sx) - 3, 0, 8, h); c.globalAlpha = 1; c.fillRect(Math.round(sx), 0, 2, h); } }
   }
   function drawKeys(c, t, h) {
     c.clearRect(0, 0, keyW, h);
@@ -493,6 +497,7 @@ export function openPianoRollLite(blockId, options = {}) {
     if (endX >= 0 && endX < w + 60) { c.fillStyle = endTone(); c.fillRect(Math.round(endX) - 1, 0, 2, RULER_H); c.font = '10px system-ui'; c.fillText('+ bar', Math.round(endX) + 4, RULER_H - 6); }
     const px = xOf(state.playhead);
     if (px >= 0 && px <= w) { c.fillStyle = t.ok; c.beginPath(); c.moveTo(px - 5, 0); c.lineTo(px + 5, 0); c.lineTo(px, 9); c.fill(); }
+    if (state.songHead != null) { const sx = xOf(state.songHead); if (sx >= 0 && sx <= w) { c.fillStyle = t.acc; c.beginPath(); c.moveTo(sx - 6, 0); c.lineTo(sx + 6, 0); c.lineTo(sx, 12); c.fill(); } }
   }
   function drawVelocity(c, t, list, w) {
     const def = LANE_DEFS[state.lane], inner = VEL_H - 6, mid = 3 + inner / 2;
@@ -730,7 +735,19 @@ export function openPianoRollLite(blockId, options = {}) {
     if (home) state.playhead = state.loopOn && state.bracket ? state.bracket.start : 0;
     playButton.textContent = '▶'; toggle(playButton, false); clearInterval(metroTimer); requestDraw();
   }
-  function follow() { if (!state.follow || state.followPaused) return; const x = xOf(state.playhead); if (x > gridW() - 30 || x < 0) { state.scrollX = Math.max(0, Math.min(maxScrollX(), (state.playhead / ppq) * state.pxBeat - 40)); } }
+  function follow(tick = state.playhead) { if (!state.follow || state.followPaused) return; const x = xOf(tick); if (x > gridW() - 30 || x < 0) { state.scrollX = Math.max(0, Math.min(maxScrollX(), (tick / ppq) * state.pxBeat - 40)); } }
+  // the song that plays in the Studio: a second head (the brand colour) runs over the clip at the place that sounds now and the roll scrolls with it; the Jam's own player keeps the green one
+  let songFrame = 0, songWaited = 0;
+  const songRun = () => {
+    if (!panel.isConnected) { if (songWaited++ < 300) songFrame = requestAnimationFrame(songRun); else songFrame = 0; return; }   // the window may be put on the page a moment after it is made
+    songWaited = 0;
+    const bar = (options.pseudo && !options.derived) || state.player ? null : songBarNow();   // a sequencer row (pseudo clip) is not placed in the song; the read-only view of a pipeline clip is
+    const tick = bar == null ? null : clipTickAt((flat().nodes.find((n) => n.id === (options.derived?.block ?? node.id)) ?? node).parts, bar, barBeats() * ppq);
+    if (tick !== state.songHead) { state.songHead = tick; if (tick != null) follow(tick); requestDraw(); }
+    songFrame = requestAnimationFrame(songRun);
+  };
+  songFrame = requestAnimationFrame(songRun);
+
   function metronomeRound() {
     if (!state.metronome || !state.player) return;
     const ctx = liveAudioContext(), range = state.player.range, lookahead = 0.3 / (60 / bpm() / ppq);

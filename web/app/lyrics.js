@@ -6,7 +6,8 @@ import { api } from './api.js';
 import { $, ask, el, toast } from './ui.js';
 import { S, edit, refreshInputs } from './store.js';
 import { registerView, setView } from './views.js';
-import { TAGS, isSorted, lyricChecks, lyricsText, parseLyrics, sortByTime, timedRows } from './lyrics-model.js';
+import { onPlayer } from './player.js';
+import { TAGS, currentRowIndex, isSorted, lyricChecks, lyricsText, parseLyrics, sortByTime, timedRows } from './lyrics-model.js';
 import { createSaveControl } from './savecontrol.js';
 import { barBeats } from '../lib/meter.mjs';
 
@@ -203,8 +204,16 @@ function exportLyrics() {
   ask('Export .lrc', `Line timing as .lrc (seconds from the song start at ${tempo()} bpm). Select and copy.`, [{ label: 'Close', value: 1, primary: true }], [el('textarea', { rows: 8, readOnly: true, value: t, id: 'ly-export', style: 'width:100%;font:12px ui-monospace,Consolas,monospace' })]);
 }
 
+// The line that is being sung gets the class "now" while a take plays (no audio is involved: it only reads the player time).
+function markNow(st) {
+  const rows = document.querySelectorAll('#ly .lyrow:not(.lyhead)');
+  const at = L.node && st.playing ? currentRowIndex(L.rows, secBar(st.time)) : -1;
+  rows.forEach((row, i) => row.classList.toggle('now', i === at));
+}
+
 export function initLyrics() {
   registerView('lyr', render);
+  onPlayer(markNow);
   addEventListener('keydown', (e) => {
     if (!L.node || $('#ly').style.display === 'none') return;
     const t = (e.target.tagName || '').toLowerCase();

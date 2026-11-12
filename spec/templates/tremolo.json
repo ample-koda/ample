@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "clientPreview": true,
   "plugin": null,
   "description": "Moves the level of the sound (tremolo) or its place between left and right (autopan), at a rate in Hz or locked to the tempo; with shape gate and a step pattern it is a trance gate that cuts a steady pad into rhythm.",

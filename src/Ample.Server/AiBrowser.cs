@@ -208,44 +208,44 @@ internal sealed partial class AiService
         await browserActionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-        IPage page = await BrowserPageAsync(task, ct).ConfigureAwait(false);
-        string humanReason = await BrowserSafety.HumanInputReasonAsync(page).ConfigureAwait(false);
-        if (humanReason.Length > 0)
-        {
-            if (!browserHeaded) page = await SetBrowserVisibilityAsync(task, page.Url, true, ct).ConfigureAwait(false);
-            return new JsonObject { ["humanInputRequired"] = true, ["humanInputReason"] = humanReason, ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["note"] = "This page needs manual sign-in or human verification. It is open visibly; please complete the step yourself, then ask Codex to continue. The window is a real Chromium window on the computer that runs AMPLE: a person who works remotely cannot see or click it. If the person says they do not see it, do not say again that it is visible and do not reopen it: say plainly that the page needs a human check that cannot be done from here, and go on with another source or ask for the file (score, MIDI, audio) instead." };
-        }
-        if (browserHeaded) page = await SetBrowserVisibilityAsync(task, page.Url, false, ct).ConfigureAwait(false);
-        try
-        {
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 6000 }).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is PlaywrightException or TimeoutException) { }   // a page that never goes idle (streams, players) is read as it is
-        IReadOnlyList<IElementHandle> handles = await BrowserSafety.FindInteractiveElementsAsync(page).ConfigureAwait(false);
-        task.BrowserElements.Clear();
-        JsonArray elements = [];
-        int skippedInvisible = 0, skippedCredential = 0, skippedNoLabel = 0;
-        foreach (IElementHandle handle in handles)
-        {
-            if (task.BrowserElements.Count >= 100) break;
-            if (!await handle.IsVisibleAsync().ConfigureAwait(false)) { skippedInvisible++; continue; }
-            string tag = await handle.EvaluateAsync<string>("e => e.localName || ''").ConfigureAwait(false);
-            string infoJson = await handle.EvaluateAsync<string>("e => { const s=v => typeof v === 'string' ? v : (v && typeof v.baseVal === 'string' ? v.baseVal : ''); const type=s(e.type); const actionValue=['button','submit','reset'].includes(type) ? s(e.value) : ''; return JSON.stringify({text:(s(e.innerText) || s(e.getAttribute('placeholder')) || actionValue || s(e.getAttribute('aria-label')) || s(e.title)).trim(),aria:s(e.getAttribute('aria-label')),href:s(e.href) || s(e.closest('a[href]')?.href),type,name:s(e.name) || s(e.id),autocomplete:s(e.autocomplete),label:s(e.labels?.[0]?.innerText),editable:String(e.isContentEditable)}); }").ConfigureAwait(false);   // one JSON text: a property that is not a string (an SVG href) must not empty the whole answer
-            Dictionary<string, string> info = JsonSerializer.Deserialize<Dictionary<string, string>>(infoJson) ?? [];
-            string Field(string key) => info.TryGetValue(key, out string? value) ? value : string.Empty;
-            string elementText = Field("text"), aria = Field("aria"), type = Field("type"), href = Field("href");
-            bool canType = (tag == "input" && type is "text" or "search" or "url") || tag == "textarea" || Field("editable") == "true";
-            bool credential = BrowserSafety.IsCredentialField(type, Field("name"), Field("autocomplete"), Field("label") + " " + aria + " " + elementText);
-            if (BrowserSafety.ShouldHideCredentialControl(canType, credential)) { skippedCredential++; continue; }
-            string text = elementText.Length > 300 ? elementText[..300] : elementText;
-            if (text.Length == 0 && aria.Length == 0) { skippedNoLabel++; continue; }
-            int index = task.BrowserElements.Count + 1;
-            task.BrowserElements.Add(new BrowserElement(handle, tag, text, aria, href, canType && !credential));
-            string kind = canType ? "text field" : await BrowserSafety.IsNavigationFallbackAsync(handle).ConfigureAwait(false) ? "navigation item" : tag;
-            elements.Add(new JsonObject { ["index"] = index, ["kind"] = kind, ["tag"] = tag, ["text"] = text, ["ariaLabel"] = aria, ["href"] = href });
-        }
-        string body = await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 }).ConfigureAwait(false);
-        return new JsonObject { ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["elements"] = elements, ["elementsDiagnostic"] = $"{handles.Count} candidates, {elements.Count} listed (skipped: {skippedInvisible} not visible, {skippedCredential} credential field, {skippedNoLabel} without text)", ["text"] = body.Length > 30000 ? body[..30000] + "\n… (truncated)" : body };   // the numbered controls come first: a long page text after them must never push them out of what the AI reads
+            IPage page = await BrowserPageAsync(task, ct).ConfigureAwait(false);
+            string humanReason = await BrowserSafety.HumanInputReasonAsync(page).ConfigureAwait(false);
+            if (humanReason.Length > 0)
+            {
+                if (!browserHeaded) page = await SetBrowserVisibilityAsync(task, page.Url, true, ct).ConfigureAwait(false);
+                return new JsonObject { ["humanInputRequired"] = true, ["humanInputReason"] = humanReason, ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["note"] = "This page needs manual sign-in or human verification. It is open visibly; please complete the step yourself, then ask Codex to continue. The window is a real Chromium window on the computer that runs AMPLE: a person who works remotely cannot see or click it. If the person says they do not see it, do not say again that it is visible and do not reopen it: say plainly that the page needs a human check that cannot be done from here, and go on with another source or ask for the file (score, MIDI, audio) instead." };
+            }
+            if (browserHeaded) page = await SetBrowserVisibilityAsync(task, page.Url, false, ct).ConfigureAwait(false);
+            try
+            {
+                await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 6000 }).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is PlaywrightException or TimeoutException) { }   // a page that never goes idle (streams, players) is read as it is
+            IReadOnlyList<IElementHandle> handles = await BrowserSafety.FindInteractiveElementsAsync(page).ConfigureAwait(false);
+            task.BrowserElements.Clear();
+            JsonArray elements = [];
+            int skippedInvisible = 0, skippedCredential = 0, skippedNoLabel = 0;
+            foreach (IElementHandle handle in handles)
+            {
+                if (task.BrowserElements.Count >= 100) break;
+                if (!await handle.IsVisibleAsync().ConfigureAwait(false)) { skippedInvisible++; continue; }
+                string tag = await handle.EvaluateAsync<string>("e => e.localName || ''").ConfigureAwait(false);
+                string infoJson = await handle.EvaluateAsync<string>("e => { const s=v => typeof v === 'string' ? v : (v && typeof v.baseVal === 'string' ? v.baseVal : ''); const type=s(e.type); const actionValue=['button','submit','reset'].includes(type) ? s(e.value) : ''; return JSON.stringify({text:(s(e.innerText) || s(e.getAttribute('placeholder')) || actionValue || s(e.getAttribute('aria-label')) || s(e.title)).trim(),aria:s(e.getAttribute('aria-label')),href:s(e.href) || s(e.closest('a[href]')?.href),type,name:s(e.name) || s(e.id),autocomplete:s(e.autocomplete),label:s(e.labels?.[0]?.innerText),editable:String(e.isContentEditable)}); }").ConfigureAwait(false);   // one JSON text: a property that is not a string (an SVG href) must not empty the whole answer
+                Dictionary<string, string> info = JsonSerializer.Deserialize<Dictionary<string, string>>(infoJson) ?? [];
+                string Field(string key) => info.TryGetValue(key, out string? value) ? value : string.Empty;
+                string elementText = Field("text"), aria = Field("aria"), type = Field("type"), href = Field("href");
+                bool canType = (tag == "input" && type is "text" or "search" or "url") || tag == "textarea" || Field("editable") == "true";
+                bool credential = BrowserSafety.IsCredentialField(type, Field("name"), Field("autocomplete"), Field("label") + " " + aria + " " + elementText);
+                if (BrowserSafety.ShouldHideCredentialControl(canType, credential)) { skippedCredential++; continue; }
+                string text = elementText.Length > 300 ? elementText[..300] : elementText;
+                if (text.Length == 0 && aria.Length == 0) { skippedNoLabel++; continue; }
+                int index = task.BrowserElements.Count + 1;
+                task.BrowserElements.Add(new BrowserElement(handle, tag, text, aria, href, canType && !credential));
+                string kind = canType ? "text field" : await BrowserSafety.IsNavigationFallbackAsync(handle).ConfigureAwait(false) ? "navigation item" : tag;
+                elements.Add(new JsonObject { ["index"] = index, ["kind"] = kind, ["tag"] = tag, ["text"] = text, ["ariaLabel"] = aria, ["href"] = href });
+            }
+            string body = await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 }).ConfigureAwait(false);
+            return new JsonObject { ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["elements"] = elements, ["elementsDiagnostic"] = $"{handles.Count} candidates, {elements.Count} listed (skipped: {skippedInvisible} not visible, {skippedCredential} credential field, {skippedNoLabel} without text)", ["text"] = body.Length > 30000 ? body[..30000] + "\n… (truncated)" : body };   // the numbered controls come first: a long page text after them must never push them out of what the AI reads
         }
         finally { browserActionGate.Release(); }
     }
@@ -256,28 +256,28 @@ internal sealed partial class AiService
         await browserActionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-        BrowserElement element = BrowserElementAt(task, index);
-        if (BrowserSafety.IsPurchaseAction($"{element.Text} {element.AriaLabel}"))
-            return new JsonObject { ["allowed"] = false, ["note"] = "This purchase-related action is intentionally blocked. Please do it yourself in your own browser." };
-        IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
-        await page.BringToFrontAsync().ConfigureAwait(false);
-        if (element.Href.Length > 0 && (!BrowserSafety.IsWebUrl(element.Href) || !Uri.TryCreate(element.Href, UriKind.Absolute, out Uri? target) || !await IsPublicTargetAsync(target, ct).ConfigureAwait(false)))
-            return new JsonObject { ["allowed"] = false, ["note"] = "This link is blocked because it does not point to a public http or https page." };
-        bool clicked;
-        try
-        {
-            clicked = await ClickElementAsync(element.Handle).ConfigureAwait(false);
-        }
-        catch (TimeoutException)
-        {
+            BrowserElement element = BrowserElementAt(task, index);
+            if (BrowserSafety.IsPurchaseAction($"{element.Text} {element.AriaLabel}"))
+                return new JsonObject { ["allowed"] = false, ["note"] = "This purchase-related action is intentionally blocked. Please do it yourself in your own browser." };
+            IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
+            await page.BringToFrontAsync().ConfigureAwait(false);
+            if (element.Href.Length > 0 && (!BrowserSafety.IsWebUrl(element.Href) || !Uri.TryCreate(element.Href, UriKind.Absolute, out Uri? target) || !await IsPublicTargetAsync(target, ct).ConfigureAwait(false)))
+                return new JsonObject { ["allowed"] = false, ["note"] = "This link is blocked because it does not point to a public http or https page." };
+            bool clicked;
+            try
+            {
+                clicked = await ClickElementAsync(element.Handle).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                task.BrowserElements.Clear();
+                return new JsonObject { ["allowed"] = false, ["note"] = "That numbered control did not become clickable in the visible viewport. Adjust the page in the browser, then run ample_browser_read again." };
+            }
+            if (!clicked) return new JsonObject { ["allowed"] = false, ["note"] = "That numbered control is not fully visible in the browser viewport. Adjust the visible page, then run ample_browser_read again." };
+            await Task.Delay(750, ct).ConfigureAwait(false);
+            if (browserContext is not null && browserContext.Pages.Count > 1) { task.BrowserPage = browserContext.Pages[^1]; AttachBrowserDiagnostics(task, task.BrowserPage); }
             task.BrowserElements.Clear();
-            return new JsonObject { ["allowed"] = false, ["note"] = "That numbered control did not become clickable in the visible viewport. Adjust the page in the browser, then run ample_browser_read again." };
-        }
-        if (!clicked) return new JsonObject { ["allowed"] = false, ["note"] = "That numbered control is not fully visible in the browser viewport. Adjust the visible page, then run ample_browser_read again." };
-        await Task.Delay(750, ct).ConfigureAwait(false);
-        if (browserContext is not null && browserContext.Pages.Count > 1) { task.BrowserPage = browserContext.Pages[^1]; AttachBrowserDiagnostics(task, task.BrowserPage); }
-        task.BrowserElements.Clear();
-        return new JsonObject { ["url"] = task.BrowserPage?.Url, ["title"] = task.BrowserPage is null ? null : await task.BrowserPage.TitleAsync().ConfigureAwait(false), ["note"] = "Click registered. Run ample_browser_read to refresh the numbered element list." };
+            return new JsonObject { ["url"] = task.BrowserPage?.Url, ["title"] = task.BrowserPage is null ? null : await task.BrowserPage.TitleAsync().ConfigureAwait(false), ["note"] = "Click registered. Run ample_browser_read to refresh the numbered element list." };
         }
         finally { browserActionGate.Release(); }
     }
@@ -288,14 +288,14 @@ internal sealed partial class AiService
         await browserActionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-        BrowserElement element = BrowserElementAt(task, index);
-        if (!element.CanType || BrowserSafety.IsCredentialField(await element.Handle.GetAttributeAsync("type").ConfigureAwait(false) ?? string.Empty, await element.Handle.GetAttributeAsync("name").ConfigureAwait(false) ?? string.Empty, await element.Handle.GetAttributeAsync("autocomplete").ConfigureAwait(false) ?? string.Empty, element.Text + " " + element.AriaLabel))
-            return new JsonObject { ["allowed"] = false, ["note"] = "This is not an eligible search/text field. Credential fields are never filled by Codex." };
-        IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
-        await page.BringToFrontAsync().ConfigureAwait(false);
-        await element.Handle.FillAsync(text).ConfigureAwait(false);
-        task.BrowserElements.Clear();
-        return new JsonObject { ["allowed"] = true, ["note"] = "Text entered. Submit it yourself or use a numbered visible search button." };
+            BrowserElement element = BrowserElementAt(task, index);
+            if (!element.CanType || BrowserSafety.IsCredentialField(await element.Handle.GetAttributeAsync("type").ConfigureAwait(false) ?? string.Empty, await element.Handle.GetAttributeAsync("name").ConfigureAwait(false) ?? string.Empty, await element.Handle.GetAttributeAsync("autocomplete").ConfigureAwait(false) ?? string.Empty, element.Text + " " + element.AriaLabel))
+                return new JsonObject { ["allowed"] = false, ["note"] = "This is not an eligible search/text field. Credential fields are never filled by Codex." };
+            IPage page = task.BrowserPage ?? await BrowserPageAsync(task, ct).ConfigureAwait(false);
+            await page.BringToFrontAsync().ConfigureAwait(false);
+            await element.Handle.FillAsync(text).ConfigureAwait(false);
+            task.BrowserElements.Clear();
+            return new JsonObject { ["allowed"] = true, ["note"] = "Text entered. Submit it yourself or use a numbered visible search button." };
         }
         finally { browserActionGate.Release(); }
     }

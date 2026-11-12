@@ -121,16 +121,16 @@ public static partial class ControlBlocks
             case "low":
                 return LowPass(x, rate, 200);
             case "mid":
-            {
-                int[] a = LowPass(x, rate, 2000), c = LowPass(x, rate, 200);
-                return [.. a.Select((v, i) => v - c[i])];
-            }
+                {
+                    int[] a = LowPass(x, rate, 2000), c = LowPass(x, rate, 200);
+                    return [.. a.Select((v, i) => v - c[i])];
+                }
 
             case "high":
-            {
-                int[] a = LowPass(x, rate, 2000);
-                return [.. x.Select((v, i) => v - a[i])];
-            }
+                {
+                    int[] a = LowPass(x, rate, 2000);
+                    return [.. x.Select((v, i) => v - a[i])];
+                }
         }
 
         Match m = BandPattern().Match(b);

@@ -1,5 +1,6 @@
 // Mute and solo of the Playlist: a PREVIEW only. They never touch the song text, a plan, a take or a build. The takes of the lines that are heard are mixed in the
 // browser (Web Audio) for a range of bars, which is approximate: the bus and master processing of the real build is not applied. Plan: PV07. @ample:playlist-preview
+import { getContext } from '../lib/audio-engine.mjs';
 import { S } from './store.js';
 import { toast } from './ui.js';
 import { audioDataId, stop as stopPlayer } from './player.js';
@@ -28,7 +29,7 @@ export function stopMix() { try { playing?.stop(); } catch { /* already stopped 
 
 async function bufferOf(dataId) {
   if (buffers.has(dataId)) return buffers.get(dataId);
-  context ||= new (window.AudioContext || window.webkitAudioContext)();
+  context ||= getContext();
   const response = await fetch(`/api/data/${dataId}`);
   if (!response.ok) throw new Error('A take could not be loaded.');
   const buffer = await context.decodeAudioData(await response.arrayBuffer());
@@ -51,7 +52,7 @@ export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
   const seconds = Math.min(count * secondsPerBar, maxSeconds);
   try {
     const decoded = await Promise.all(chosen.map(async (l) => bufferOf(await audioDataId(S.build.takes[takeBlockOf(l)]))));
-    context ||= new (window.AudioContext || window.webkitAudioContext)();
+    context ||= getContext();
     const rate = decoded[0].sampleRate, length = Math.max(1, Math.floor(seconds * rate)), start = Math.floor(from * secondsPerBar * rate);
     const mix = context.createBuffer(2, length, rate);
     for (const b of decoded) for (let ch = 0; ch < 2; ch++) {

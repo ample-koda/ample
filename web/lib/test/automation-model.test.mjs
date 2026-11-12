@@ -19,9 +19,9 @@ test('a logarithmic axis is joined in the log domain: half way between 100 and 1
   assert.equal(automationValueAt(points, 2), 5050);
 });
 
-test('the filter resonance is automatable in percent, but not run live', () => {
+test('the filter resonance is automatable in percent and run live', () => {
   assert.deepEqual(AUTOMATABLE.filter.resonance, { min: 0, max: 100, unit: '%' });
-  assert.equal(liveSupported('filter', 'resonance'), false);
+  assert.equal(liveSupported('filter', 'resonance'), true);
 });
 
 test('only the effects and parameters the browser can run live are offered Live', () => {
@@ -29,8 +29,9 @@ test('only the effects and parameters the browser can run live are offered Live'
   assert.equal(liveSupported('filter', 'cutoff'), true);
   assert.equal(liveSupported('compressor', 'threshold'), true);
   assert.equal(liveSupported('reverb', 'mix'), true);
-  assert.equal(liveSupported('pan', 'pan'), false);
-  assert.equal(liveSupported('flanger', 'mix'), false);
+  assert.equal(liveSupported('pan', 'pan'), true);
+  assert.equal(liveSupported('flanger', 'mix'), true);
+  assert.equal(liveSupported('bitcrusher', 'mix'), false);
   assert.equal(liveSupported('filter', 'gain'), false);
 });
 

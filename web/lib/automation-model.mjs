@@ -56,7 +56,9 @@ export function startingPoints(valueText, fallback, bars) {
 }
 
 /** The parameters the browser can run live on the sound that feeds the block (liveEffectGraph in app/studio/preview/audio.js): the rest is heard through a draft build. */
-const LIVE = { volume: ['gain'], filter: ['cutoff'], compressor: ['threshold'], delay: ['mix'], reverb: ['mix'], chorus: ['mix'] };
+const LIVE = { volume: ['gain'], pan: ['pan'], filter: ['cutoff', 'resonance'], compressor: ['threshold'], delay: ['mix'], reverb: ['mix'], chorus: ['mix'], flanger: ['mix'], phaser: ['mix'] };
+/** A sentence naming what Live can follow, built from the list above so it cannot drift. */
+export const liveSupportedText = () => Object.entries(LIVE).map(([type, names]) => names.map((name) => `${type} ${name}`).join(', ')).join('; ');
 export const liveSupported = (type, name) => Boolean(LIVE[type]?.includes(name));
 
 /**

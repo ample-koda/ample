@@ -21,7 +21,7 @@ function fakeContext() {
 test('local preview distortion curves are bounded and change with drive and mode', () => {
   const soft = distortionCurve(18, 'soft', 101), hard = distortionCurve(18, 'hard', 101);
   assert.equal(soft.length, 101);
-  assert.ok(Math.abs(soft[0] + Math.tanh(10 ** (18 / 20))) < 1e-6);
+  assert.ok(Math.abs(soft[0] + (10 ** (18 / 20)) / (1 + 10 ** (18 / 20))) < 1e-6);
   assert.equal(hard[0], -1);
   assert.equal(hard[100], 1);
 });

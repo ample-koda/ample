@@ -6,7 +6,7 @@ import { api } from './api.js';
 import { S, flat } from './store.js';
 import { play, playLivePreview, playerState, seekFraction, setLoop, setLoopRegion, stop, updateLivePreview } from './player.js';
 import { fetchTakeAudio, liveEffectGraph } from './studio/preview/audio.js';
-import { AUTOMATABLE, automationValueAt, liveSupported, previewWindow } from '../lib/automation-model.mjs';
+import { AUTOMATABLE, automationValueAt, liveSupported, liveSupportedText, previewWindow } from '../lib/automation-model.mjs';
 import { secondsPerBar, songBar } from '../lib/block-activity.mjs';
 
 const unquote = (text) => String(text ?? '').trim().replace(/^"|"$/g, '');
@@ -27,7 +27,7 @@ export function createAutomationPreview({ block, type, name, tempo, totalBars, g
 
   /** Whether Live can be offered, and when not, why. */
   function liveState() {
-    if (!liveSupported(type, name)) return { ok: false, reason: 'Live works for volume gain, filter cutoff, compressor threshold and the mix of delay, reverb and chorus. Use Preview for this one.' };
+    if (!liveSupported(type, name)) return { ok: false, reason: `Live works for: ${liveSupportedText()}. Use Preview for this one.` };
     if (!inputTake()) return { ok: false, reason: 'Build the song first: Live runs the effect on the sound that feeds this block.' };
     return { ok: true, reason: 'Hear the curve change while you drag a point (approximate: the effect runs in the browser).' };
   }

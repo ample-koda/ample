@@ -30,7 +30,7 @@ public sealed class MigrateComponentPortsTests
                 current = current.Replace(was, now, StringComparison.Ordinal);
             }
 
-            string old =current.Replace("walkBells.audio -> audio1", "walkBells.audio -> in1", StringComparison.Ordinal).Replace("walkLead.audio -> audio2", "walkLead.audio -> in2", StringComparison.Ordinal);
+            string old = current.Replace("walkBells.audio -> audio1", "walkBells.audio -> in1", StringComparison.Ordinal).Replace("walkLead.audio -> audio2", "walkLead.audio -> in2", StringComparison.Ordinal);
             Assert.NotEqual(current, old);
 
             using ModuleService service = new(folder, (Ample.Storage.Library.Library?)null);

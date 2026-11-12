@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "clientPreview": true,
   "plugin": null,
   "description": "Keeps the sound under a ceiling (for example -1 dB) so that it can never clip. Takes audio and gives audio.",

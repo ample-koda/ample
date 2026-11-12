@@ -1,5 +1,6 @@
 // Studio panel of the chop block: the recording with its slices (click to add a cut, right-click to take one away), the pattern as steps, a play bar that works the sound out in the browser (a knob is heard
 // while it plays) and a knob for every setting. @ample:chop
+import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
 import { S, build, flat } from '../../store.js';
 import { onPlayer, stop as stopSong } from '../../player.js';
@@ -96,7 +97,7 @@ function chopPanel(context) {
     try {
       const sound = await chopAudio(audio, paramsNow(), tempo());
       if (generation !== live.generation) return;
-      const ctx = (live.ctx ||= new (window.AudioContext || window.webkitAudioContext)()), buffer = ctx.createBuffer(sound.channels.length, sound.channels[0].length, sound.sampleRate);
+      const ctx = (live.ctx ||= getContext()), buffer = ctx.createBuffer(sound.channels.length, sound.channels[0].length, sound.sampleRate);
       sound.channels.forEach((data, i) => buffer.copyToChannel(data, i));
       const offset = keep && live.source ? (ctx.currentTime - live.startedAt) % buffer.duration : 0;
       try { live.source?.stop(); } catch { /* already stopped */ }

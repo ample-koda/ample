@@ -20,47 +20,47 @@ internal sealed partial class AiService
 
         try
         {
-        using SocketsHttpHandler handler = new() { AllowAutoRedirect = false, ConnectCallback = ConnectPublicOnlyAsync, ConnectTimeout = TimeSpan.FromSeconds(15) };
-        using HttpClient http = new(handler) { Timeout = TimeSpan.FromSeconds(25) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("AMPLE/1.0 (+AI assistant public page reader)");
-        HttpResponseMessage response;
-        for (int redirects = 0; ; redirects++)
-        {
-            response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-            if ((int)response.StatusCode is < 300 or >= 400 || response.Headers.Location is null) break;
+            using SocketsHttpHandler handler = new() { AllowAutoRedirect = false, ConnectCallback = ConnectPublicOnlyAsync, ConnectTimeout = TimeSpan.FromSeconds(15) };
+            using HttpClient http = new(handler) { Timeout = TimeSpan.FromSeconds(25) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("AMPLE/1.0 (+AI assistant public page reader)");
+            HttpResponseMessage response;
+            for (int redirects = 0; ; redirects++)
+            {
+                response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                if ((int)response.StatusCode is < 300 or >= 400 || response.Headers.Location is null) break;
+                using (response)
+                {
+                    if (redirects >= 4) return new JsonObject { ["ok"] = false, ["note"] = "The page redirected more than four times." };
+                    uri = response.Headers.Location.IsAbsoluteUri ? response.Headers.Location : new Uri(uri, response.Headers.Location);
+                    if (uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo)) return new JsonObject { ["ok"] = false, ["note"] = "The page redirected to an unsupported address." };
+                }
+            }
             using (response)
             {
-                if (redirects >= 4) return new JsonObject { ["ok"] = false, ["note"] = "The page redirected more than four times." };
-                uri = response.Headers.Location.IsAbsoluteUri ? response.Headers.Location : new Uri(uri, response.Headers.Location);
-                if (uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo)) return new JsonObject { ["ok"] = false, ["note"] = "The page redirected to an unsupported address." };
+                if (!response.IsSuccessStatusCode) return new JsonObject { ["ok"] = false, ["status"] = (int)response.StatusCode, ["note"] = "The public page request failed; try the approved Playwright browser if the site requires JavaScript or human verification." };
+                string contentType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
+                if (!contentType.Equals("text/html", StringComparison.OrdinalIgnoreCase) && !contentType.Equals("application/xhtml+xml", StringComparison.OrdinalIgnoreCase))
+                    return new JsonObject { ["ok"] = false, ["contentType"] = contentType, ["note"] = "This reader handles HTML pages only. Use ample_fetch_url for a supported file or the browser when the page needs JavaScript." };
+                if (response.Content.Headers.ContentLength is > 2_000_000) return new JsonObject { ["ok"] = false, ["note"] = "The HTML page is larger than the 2 MB read limit." };
+                await using Stream source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                using MemoryStream buffer = new();
+                byte[] chunk = new byte[32_768];
+                int read;
+                while ((read = await source.ReadAsync(chunk, ct).ConfigureAwait(false)) > 0)
+                {
+                    buffer.Write(chunk, 0, read);
+                    if (buffer.Length > 2_000_000) return new JsonObject { ["ok"] = false, ["note"] = "The HTML page is larger than the 2 MB read limit." };
+                }
+                string html = Encoding.UTF8.GetString(buffer.ToArray());
+                string mode = modeText.Trim().ToLowerInvariant();
+                if (mode is not ("text" or "links" or "html")) mode = "text";
+                JsonObject result = new() { ["ok"] = true, ["url"] = uri.ToString(), ["status"] = (int)response.StatusCode, ["contentType"] = contentType, ["mode"] = mode, ["links"] = ExtractLinks(html, uri) };
+                if (mode is "text" or "html") result["title"] = ExtractTitle(html);
+                if (mode == "text") result["text"] = ExtractText(html);
+                if (mode == "html") result["html"] = html.Length > 40_000 ? html[..40_000] + "\n… (truncated at 40,000 characters)" : html;
+                result["note"] = "Fetched without browser cookies or JavaScript; page controls were not activated. If content is missing because the site needs JavaScript, sign-in or CAPTCHA, use ample_browser_open after browser approval.";
+                return result;
             }
-        }
-        using (response)
-        {
-            if (!response.IsSuccessStatusCode) return new JsonObject { ["ok"] = false, ["status"] = (int)response.StatusCode, ["note"] = "The public page request failed; try the approved Playwright browser if the site requires JavaScript or human verification." };
-            string contentType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
-            if (!contentType.Equals("text/html", StringComparison.OrdinalIgnoreCase) && !contentType.Equals("application/xhtml+xml", StringComparison.OrdinalIgnoreCase))
-                return new JsonObject { ["ok"] = false, ["contentType"] = contentType, ["note"] = "This reader handles HTML pages only. Use ample_fetch_url for a supported file or the browser when the page needs JavaScript." };
-            if (response.Content.Headers.ContentLength is > 2_000_000) return new JsonObject { ["ok"] = false, ["note"] = "The HTML page is larger than the 2 MB read limit." };
-            await using Stream source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            using MemoryStream buffer = new();
-            byte[] chunk = new byte[32_768];
-            int read;
-            while ((read = await source.ReadAsync(chunk, ct).ConfigureAwait(false)) > 0)
-            {
-                buffer.Write(chunk, 0, read);
-                if (buffer.Length > 2_000_000) return new JsonObject { ["ok"] = false, ["note"] = "The HTML page is larger than the 2 MB read limit." };
-            }
-            string html = Encoding.UTF8.GetString(buffer.ToArray());
-            string mode = modeText.Trim().ToLowerInvariant();
-            if (mode is not ("text" or "links" or "html")) mode = "text";
-            JsonObject result = new() { ["ok"] = true, ["url"] = uri.ToString(), ["status"] = (int)response.StatusCode, ["contentType"] = contentType, ["mode"] = mode, ["links"] = ExtractLinks(html, uri) };
-            if (mode is "text" or "html") result["title"] = ExtractTitle(html);
-            if (mode == "text") result["text"] = ExtractText(html);
-            if (mode == "html") result["html"] = html.Length > 40_000 ? html[..40_000] + "\n… (truncated at 40,000 characters)" : html;
-            result["note"] = "Fetched without browser cookies or JavaScript; page controls were not activated. If content is missing because the site needs JavaScript, sign-in or CAPTCHA, use ample_browser_open after browser approval.";
-            return result;
-        }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or RegexMatchTimeoutException)
         {

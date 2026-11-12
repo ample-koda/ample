@@ -13,8 +13,21 @@ public static partial class PatternGenerators
 {
     private static readonly Dictionary<string, int[]> Qualities = new(StringComparer.Ordinal)
     {
-        [""] = [0, 4, 7], ["maj"] = [0, 4, 7], ["m"] = [0, 3, 7], ["min"] = [0, 3, 7], ["7"] = [0, 4, 7, 10], ["maj7"] = [0, 4, 7, 11], ["m7"] = [0, 3, 7, 10], ["dim"] = [0, 3, 6],
-        ["sus4"] = [0, 5, 7], ["sus2"] = [0, 2, 7], ["5"] = [0, 7], ["6"] = [0, 4, 7, 9], ["m6"] = [0, 3, 7, 9], ["add9"] = [0, 4, 7, 14], ["9"] = [0, 4, 7, 10, 14],
+        [""] = [0, 4, 7],
+        ["maj"] = [0, 4, 7],
+        ["m"] = [0, 3, 7],
+        ["min"] = [0, 3, 7],
+        ["7"] = [0, 4, 7, 10],
+        ["maj7"] = [0, 4, 7, 11],
+        ["m7"] = [0, 3, 7, 10],
+        ["dim"] = [0, 3, 6],
+        ["sus4"] = [0, 5, 7],
+        ["sus2"] = [0, 2, 7],
+        ["5"] = [0, 7],
+        ["6"] = [0, 4, 7, 9],
+        ["m6"] = [0, 3, 7, 9],
+        ["add9"] = [0, 4, 7, 14],
+        ["9"] = [0, 4, 7, 10, 14],
     };
 
     private static readonly Dictionary<string, (string Kick, string Snare, string Hat, double Swing, string Say)> Styles = new(StringComparer.OrdinalIgnoreCase)

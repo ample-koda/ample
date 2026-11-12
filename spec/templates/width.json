@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "clientPreview": true,
   "plugin": null,
   "description": "Widens or narrows the stereo image: 0 is mono, 100 is unchanged, more is wider. Takes audio and gives audio.",

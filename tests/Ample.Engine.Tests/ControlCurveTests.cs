@@ -166,6 +166,6 @@ public sealed class ControlBuildTests
         using Stream notes = rig.Bank.OpenData(rig.Bank.GetTake(report.Blocks.First(b => b.Block == "hit").TakeId!).Data.First(d => d.Role == "notes").DataId);
         using StreamReader reader = new(notes);
         string json = reader.ReadToEnd();
-                Assert.Contains("\"bar\":11", json.Replace(" ", string.Empty, StringComparison.Ordinal));   // a note in bar 11, past the first 8 bars
+        Assert.Contains("\"bar\":11", json.Replace(" ", string.Empty, StringComparison.Ordinal));   // a note in bar 11, past the first 8 bars
     }
 }

@@ -5848,7 +5848,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         if (!first) return;   // a timer is already waiting for this copy; it looks again when it fires
         _ = Task.Run(async () =>
         {
-            for (;;)
+            for (; ; )
             {
                 TimeSpan left = kodaTouched.TryGetValue(workspace, out DateTimeOffset until) ? until - DateTimeOffset.UtcNow : TimeSpan.Zero;
                 if (left > TimeSpan.Zero)

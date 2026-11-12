@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "clientPreview": true,
   "plugin": null,
   "description": "Places the sound between left and right in the stereo image. Takes audio and gives audio.",

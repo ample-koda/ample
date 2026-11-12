@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "plugin": null,
   "description": "A very short delay that moves slowly, fed back into itself, which gives the sweeping jet sound. Takes audio and gives audio.",
   "inputs": [

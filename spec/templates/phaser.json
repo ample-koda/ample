@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "clientPreview": true,
   "plugin": null,
   "description": "Moving notches in the frequency spectrum of the sound, which give a slow swirling effect. Takes audio and gives audio.",

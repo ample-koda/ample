@@ -4,6 +4,8 @@
 import { api, getToken } from './api.js';
 import { toast } from './ui.js';
 import { playbackOutput } from './playback-volume.js';
+import { getContext } from '../lib/audio-engine.mjs';
+import { prepareWorklets } from './studio/preview/audio.js';
 
 const audio = new Audio();
 audio.preload = 'metadata';
@@ -28,16 +30,17 @@ let channelAnalysers = [];
 let channelData = [];
 let liveEffect = null;
 let auditionBlock = null;
-let external = null;   // another player that shares the Stop button (the looping player of the sequencer): { playing(), take(), stop() }
+const externals = new Set();   // other players that share the Stop button (the looping player of the sequencer, the live chain): { playing(), take(), stop() }
+const externalPlaying = () => [...externals].find((player) => player.playing());
 
 /** Lets a second player (gapless looping with Web Audio) take part: it shows in playerState, stops with Stop and is stopped when a take plays here. */
-export const setExternalPlayer = (player) => { external = player; };
+export const setExternalPlayer = (player) => { externals.add(player); };
 
 async function prepareMeterAudio() {
   if (meterReady || (!window.AudioContext && !window.webkitAudioContext)) return;
   meterReady = true;
   try {
-    const Audio = window.AudioContext || window.webkitAudioContext, context = new Audio();
+    const context = getContext();
     const source = context.createMediaElementSource(audio);
     meterContext = context; meterSource = source;
     meterAnalyser = context.createAnalyser(); meterAnalyser.fftSize = 2048; meterAnalyser.channelCount = 2; meterAnalyser.channelCountMode = 'explicit';
@@ -82,10 +85,10 @@ export function playerSpectrum(count) {
   });
 }
 export const playerState = () => ({
-  take: external?.playing() ? external.take() : current ? current.takeId : null,
+  take: externalPlaying() ? externalPlaying().take() : current ? current.takeId : null,
   auditionBlock,
   source: current?.filePath || null,
-  playing: (!audio.paused && !audio.ended) || !!external?.playing(),
+  playing: (!audio.paused && !audio.ended) || !!externalPlaying(),
   loading: pendingPlay?.takeId || null,
   time: audio.currentTime || 0,
   duration: Number.isFinite(audio.duration) ? audio.duration : 0,
@@ -150,7 +153,7 @@ export async function play(takeId, from = 0) {
   const version = ++playVersion;
   pendingPlay = { takeId, version };
   emit();
-  external?.stop();
+  externals.forEach((player) => player.stop());
   auditionBlock = null;
   clearLivePreview();
   try {
@@ -208,6 +211,9 @@ export async function playTransient(blob) {
 export async function playLivePreview(blob, createEffect) {
   if (!await playTransient(blob)) return;
   if (!meterContext || !meterSource || !meterAnalyser) throw new Error('Live effects are unavailable in this browser.');
+  const version = playVersion;
+  await prepareWorklets(meterContext);   // the exact reverb is a worklet: ready before the chain is built
+  if (version !== playVersion) return;   // stopped meanwhile
   meterSource.disconnect();
   liveEffect = createEffect(meterContext, meterSource, meterAnalyser);
 }
@@ -236,7 +242,7 @@ export function toggle(takeId) {
 }
 
 export const pause = () => audio.pause();
-export const stop = () => { external?.stop(); clearLivePreview(); playVersion++; pendingPlay = null; loadVersion++; cancelTakeLoad?.(); loadingTake = null; loopRegion = null; audio.loop = false; audio.pause(); audio.removeAttribute('src'); audio.load(); current = null; if (transientUrl) { URL.revokeObjectURL(transientUrl); transientUrl = null; } emit(); };
+export const stop = () => { externals.forEach((player) => player.stop()); clearLivePreview(); playVersion++; pendingPlay = null; loadVersion++; cancelTakeLoad?.(); loadingTake = null; loopRegion = null; audio.loop = false; audio.pause(); audio.removeAttribute('src'); audio.load(); current = null; if (transientUrl) { URL.revokeObjectURL(transientUrl); transientUrl = null; } emit(); };
 export const seekFraction = (f) => { if (audio.duration) audio.currentTime = Math.max(0, Math.min(1, f)) * audio.duration; };
 export const setLoop = (on) => { loopRegion = null; audio.loop = on; emit(); };
 export const setLoopRegion = (region) => {
