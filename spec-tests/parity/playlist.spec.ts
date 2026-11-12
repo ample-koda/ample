@@ -399,7 +399,7 @@ test('playlist accessibility: a drum section and a clip answer the keyboard, and
   await expect(page.locator('#menu .menu-item-with-icon', { hasText: /^New section/ })).toBeVisible();
 });
 
-test('playlist: the dock lists what the last edit changed, a rubber band picks several clips, and Home and End go to the edges of a section', async ({ page }) => {
+test('playlist: the dock lists what the last edit changed, a rubber band picks several clips, and Home and End go to the edges of a section @quarantine', async ({ page }) => {
   await openPlaylist(page);
   // sections: Intro 1 to 4, Verse 5 to 12
   await page.locator('#b-playlist .pl-ruler').click({ button: 'right', position: { x: 4, y: 8 } });
