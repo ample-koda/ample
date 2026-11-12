@@ -1,9 +1,10 @@
 // MIDI in from the browser (Web MIDI): a keyboard on USB or a virtual MIDI cable (loopMIDI and the like) shows up as an input. Notes are read (note on, note off, and a note on with velocity 0), the sustain pedal
 // (controller 64) and the pitch wheel; a channel can be chosen. Listening follows plugged and unplugged devices. @ample:midi-in
+import { capabilities, whyNot } from '../lib/caps.mjs';
 import { bendValue } from '../lib/virtual-keys.mjs';
 
 /** True when this browser can do MIDI at all (Chrome and Edge do, over https or localhost). */
-export const midiAvailable = () => typeof navigator !== 'undefined' && typeof navigator.requestMIDIAccess === 'function';
+export const midiAvailable = () => capabilities().midi;
 
 /**
  * Starts listening to every MIDI input. Returns { stop, names } or throws a message the user can read.
@@ -11,7 +12,7 @@ export const midiAvailable = () => typeof navigator !== 'undefined' && typeof na
  * `channel()` is 0 for every channel, or 1 to 16 to listen to that channel only.
  */
 export async function startMidiIn({ onNoteOn, onNoteOff, onSustain = () => {}, onBend = () => {}, channel = () => 0, onChange = () => {} }) {
-  if (!midiAvailable()) throw new Error('This browser has no MIDI access (use Chrome or Edge).');
+  if (!midiAvailable()) throw new Error(whyNot('midi'));
   let access;
   try { access = await navigator.requestMIDIAccess(); } catch (error) { throw new Error(`No MIDI access: ${error.message || 'the browser did not allow it'}`); }
   const message = (event) => {

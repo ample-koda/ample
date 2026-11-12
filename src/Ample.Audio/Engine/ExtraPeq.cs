@@ -32,20 +32,20 @@ internal sealed class PeqRenderer : ExtraEffect
                 b0 = (1 - cw) / 2; b1 = 1 - cw; b2 = b0; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha;
                 break;
             case "lowshelf":
-            {
-                double beta = 2 * Math.Sqrt(a) * alpha;
-                b0 = a * ((a + 1) - ((a - 1) * cw) + beta); b1 = 2 * a * ((a - 1) - ((a + 1) * cw)); b2 = a * ((a + 1) - ((a - 1) * cw) - beta);
-                a0 = (a + 1) + ((a - 1) * cw) + beta; a1 = -2 * ((a - 1) + ((a + 1) * cw)); a2 = (a + 1) + ((a - 1) * cw) - beta;
-                break;
-            }
+                {
+                    double beta = 2 * Math.Sqrt(a) * alpha;
+                    b0 = a * ((a + 1) - ((a - 1) * cw) + beta); b1 = 2 * a * ((a - 1) - ((a + 1) * cw)); b2 = a * ((a + 1) - ((a - 1) * cw) - beta);
+                    a0 = (a + 1) + ((a - 1) * cw) + beta; a1 = -2 * ((a - 1) + ((a + 1) * cw)); a2 = (a + 1) + ((a - 1) * cw) - beta;
+                    break;
+                }
 
             case "highshelf":
-            {
-                double beta = 2 * Math.Sqrt(a) * alpha;
-                b0 = a * ((a + 1) + ((a - 1) * cw) + beta); b1 = -2 * a * ((a - 1) + ((a + 1) * cw)); b2 = a * ((a + 1) + ((a - 1) * cw) - beta);
-                a0 = (a + 1) - ((a - 1) * cw) + beta; a1 = 2 * ((a - 1) - ((a + 1) * cw)); a2 = (a + 1) - ((a - 1) * cw) - beta;
-                break;
-            }
+                {
+                    double beta = 2 * Math.Sqrt(a) * alpha;
+                    b0 = a * ((a + 1) + ((a - 1) * cw) + beta); b1 = -2 * a * ((a - 1) + ((a + 1) * cw)); b2 = a * ((a + 1) + ((a - 1) * cw) - beta);
+                    a0 = (a + 1) - ((a - 1) * cw) + beta; a1 = 2 * ((a - 1) - ((a + 1) * cw)); a2 = (a + 1) - ((a - 1) * cw) - beta;
+                    break;
+                }
 
             default:
                 b0 = 1 + (alpha * a); b1 = -2 * cw; b2 = 1 - (alpha * a); a0 = 1 + (alpha / a); a1 = -2 * cw; a2 = 1 - (alpha / a);

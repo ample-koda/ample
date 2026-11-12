@@ -1,5 +1,6 @@
 // Tab-local listening volume (left and right, optionally linked), downstream of audio processing. Never saved in the song.
 // Every output goes through playbackOutput(), so this is also the one place that can meter whatever is audible.
+import { getContext, hasAudio } from '../lib/audio-engine.mjs';
 let left = 1, right = 1, linked = true, mediaContext = null;
 const chains = new Set(), outputs = new WeakMap(), listeners = new Set(), registered = new WeakSet();
 const clamp = (value) => Math.max(0, Math.min(1.5, Number.isFinite(value) ? value : 1));
@@ -61,9 +62,8 @@ export function registerPlaybackAudio(audio) {
   registered.add(audio);
   let connected = false;
   audio.addEventListener('play', () => {
-    const Context = window.AudioContext || window.webkitAudioContext;
-    if (!Context) { audio.volume = Math.min(1, playbackVolume()); return; }
-    mediaContext ||= new Context();
+    if (!hasAudio()) { audio.volume = Math.min(1, playbackVolume()); return; }
+    mediaContext ||= getContext();
     if (!connected) { mediaContext.createMediaElementSource(audio).connect(playbackOutput(mediaContext)); connected = true; }
     if (mediaContext.state === 'suspended') mediaContext.resume();
   });

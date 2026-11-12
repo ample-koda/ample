@@ -220,6 +220,14 @@ function tick(st) {
   scrub(bar);
 }
 
+/** The bar (1-based, fractional) of the song that plays now, or null when what plays is not the song as it is in the studio (edited since the build, a block's own take, a sample).
+ *  It does not depend on the Lights switch: the Jam uses it for its second playhead. */
+export function songBarNow() {
+  const st = playerState(), s = follow(st);
+  if (!s) return null;
+  return songBar(st.time, S.doc?.project?.tempo, s.take ? firstBars.get(s.take) : s.firstBar);
+}
+
 /** The level (0..1) of every block that sounds at the bar that is playing, or null when nothing is followed (the mixer strips read it for their meters). */
 export const blockLevels = () => (state.active ? state.lvl : null);
 

@@ -569,10 +569,16 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
 
         Dictionary<string, object?> settings = new(StringComparer.Ordinal)
         {
-            ["timeline"] = "local-v1", ["sampleRate"] = rate, ["firstBar"] = first, ["barCount"] = count, ["tempoMilli"] = tempoMilli,
-            ["bars"] = string.Join(',', active.Order()), ["templateDefaults"] = template.Parameters.Where(p => !(p.Key == "engine" && p.Value.Length == 0)).OrderBy(p => p.Key, StringComparer.Ordinal).ToArray(),   // an empty engine is not a default: old plans keep their identity
+            ["timeline"] = "local-v1",
+            ["sampleRate"] = rate,
+            ["firstBar"] = first,
+            ["barCount"] = count,
+            ["tempoMilli"] = tempoMilli,
+            ["bars"] = string.Join(',', active.Order()),
+            ["templateDefaults"] = template.Parameters.Where(p => !(p.Key == "engine" && p.Value.Length == 0)).OrderBy(p => p.Key, StringComparer.Ordinal).ToArray(),   // an empty engine is not a default: old plans keep their identity
             ["parameters"] = block.Parameters.Where(p => p.Name != "tint").OrderBy(p => p.Name, StringComparer.Ordinal).Select(p => new { p.Name, p.Value }).ToArray(),
-            ["pluginSettings"] = songSettings, ["source"] = new { block.Type, block.Name, block.Class, block.Version, block.Parts, Froms = block.Froms.Select(f => new { f.Block, f.Output, f.Input, f.Disabled }) },
+            ["pluginSettings"] = songSettings,
+            ["source"] = new { block.Type, block.Name, block.Class, block.Version, block.Parts, Froms = block.Froms.Select(f => new { f.Block, f.Output, f.Input, f.Disabled }) },
         };
         if (doc.Project is { } meterOf && (meterOf.MeterNumerator != 4 || meterOf.MeterDenominator != 4)) settings["meter"] = $"{meterOf.MeterNumerator}/{meterOf.MeterDenominator}";
         if (ov?.Parameters is { Count: > 0 } effectiveParameters)

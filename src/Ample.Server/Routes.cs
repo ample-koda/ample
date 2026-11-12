@@ -36,7 +36,7 @@ public static class Routes
     private static long EffectPreviewCacheBytes;
     private static readonly string[] UploadExtensions = [".wav", ".mp3", ".flac", ".ogg", ".m4a", ".mid", ".midi", ".lyr", ".lrc", ".srt", ".txt", ".json", ".amplet", ".module", ".amplec", ".sf2", ".sf3", ".sfz", ".pdf", ".png", ".jpg", ".jpeg", ".webp"];
     /// <summary>The value of a file parameter as it is written in the song: a path with a space or another character that cannot stand bare is put in double quotes (with \" and \ escaped), so it stays one value.</summary>
-/// <summary>One graph edit of the document route, as an edit of the text. Shared by the single edit and by the atomic list of edits.</summary>
+    /// <summary>One graph edit of the document route, as an edit of the text. Shared by the single edit and by the atomic list of edits.</summary>
     private static EditResult RunDocEdit(ProjectSession s, AmpleDocument parsed, JsonElement b, JsonElement op)
     {
         if (s.PreviewBuilds.TryGetValue(Str(b, "path"), out bool previewBuild) && previewBuild && (Str(op, "type") == "setFreeze" || (Str(op, "type") == "addFlag" && Str(op, "flag") == "lock") || Str(op, "type") == "bakeCallSite" || Str(op, "type") == "bakeDynamicHelpers"))
@@ -2997,7 +2997,7 @@ public static class Routes
         add("POST", "/api/build", "build", "Builds a song (the cache decides what is rendered); progress goes to the event stream. An optional override { block, name, value } builds with that one parameter replaced, without changing the song, and without events (a draft, for listening to an edit before it is applied).", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
-                        string? buildId = Opt(b, "buildId");   // the page names its build, so it can ignore the events of a build it stopped
+            string? buildId = Opt(b, "buildId");   // the page names its build, so it can ignore the events of a build it stopped
             DocSession d = await OpenFreshAsync(s, events!, Str(b, "path"), c.RequestAborted);
             AmpleDocument parsed = s.ParseExpanded(d);
             IReadOnlyList<SkippedBlock> skippedBlocks = [];

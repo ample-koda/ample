@@ -60,6 +60,8 @@ always-on velocity strip.
 | Zoom tool (Z) | drag a box to fill the view with it, click to zoom in around the pointer, right-click to zoom out; edits nothing |
 | `?` | shortcut card (Esc closes only the card) |
 
+**Following the song** (2026-11-12): while the song plays in the Studio (Build and play, with nothing edited since), AMPLE Jam shows a second playhead in the brand colour, with a marker in the ruler, at the place of the clip that sounds now, and the roll scrolls with it when **Follow** is on. It is gone when the song stops or when the clip is not sounding at that bar; the Jam's own player (the green playhead) is a separate transport and is not started by it. The read-only view of a pipeline clip follows it too; clips opened from a sequencer row do not.
+
 Ruler: a click sets the playhead; a drag creates or edits the **loop bracket** (a Lite extension; FL selects a time range there); right-click clears,
 double-click resets it to the whole clip. Edits made while playing are heard on the next lap. The playing notes and piano keys light up; pressing a
 piano key or a typing-keyboard key plays that pitch (nothing is written). The **MIDI** button (where the browser has Web MIDI) only listens.

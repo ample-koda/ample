@@ -82,6 +82,8 @@ export function knob(options) {
     const move = (sign) => { const target = denormalize(normalize(value, options.min, options.max, options.scale) + sign * amount, options.min, options.max, options.scale); return options.step && Math.abs(target - value) < options.step ? value + sign * options.step : target; };
     if (event.key === 'ArrowRight' || event.key === 'ArrowUp') preview(move(1));
     else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') preview(move(-1));
+    else if (event.key === 'PageUp') preview(move(10));   // a coarse step: ten times the arrow key (WAI-ARIA slider)
+    else if (event.key === 'PageDown') preview(move(-10));
     else if (event.key === 'Home') preview(options.min);
     else if (event.key === 'End') preview(options.max);
     else return;

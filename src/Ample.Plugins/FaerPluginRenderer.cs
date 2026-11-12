@@ -47,8 +47,13 @@ public sealed class FaerPluginRenderer(PluginRenderer local, FaerProfile profile
             JsonElement render = JsonSerializer.SerializeToElement(new
             {
                 block = new { type = request.Block.Type, parameters = request.Block.Parameters.ToDictionary(p => p.Name, p => p.Value) },
-                seed = request.Seed.ToString(CultureInfo.InvariantCulture), sampleRate = request.SampleRate, samplesPerBar = request.SamplesPerBar,
-                firstBar = request.FirstBar, barCount = request.BarCount, activeBars = request.ActiveBars.Order().ToArray(), inputRoles = roles,
+                seed = request.Seed.ToString(CultureInfo.InvariantCulture),
+                sampleRate = request.SampleRate,
+                samplesPerBar = request.SamplesPerBar,
+                firstBar = request.FirstBar,
+                barCount = request.BarCount,
+                activeBars = request.ActiveBars.Order().ToArray(),
+                inputRoles = roles,
                 settings = JsonSerializer.Deserialize<JsonElement>(local.SongSettings(request)),
                 renderer = JsonSerializer.Deserialize<JsonElement>(local.ToolprintJson),
             });

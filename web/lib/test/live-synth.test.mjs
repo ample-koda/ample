@@ -44,3 +44,13 @@ test('a loop is the end of the notes rounded up to a whole bar', () => {
   assert.equal(loopLength(rows, { ppq: 1000, bpm: 120 }), 4);   // the notes end in bar 2, so two bars of two seconds
   assert.equal(loopLength([], { ppq: 1000, bpm: 120 }), 2);
 });
+
+test('events can be placed with a tempo map (a tempo change inside the song)', async () => {
+  const { tempoMap } = await import('../audio-clock.mjs');
+  const map = tempoMap([{ beat: 0, bpm: 120 }, { beat: 2, bpm: 60 }]);
+  const rows = [{ at: 1000, length: 1000, pitch: 60, velocity: 90 }, { at: 2000, length: 1000, pitch: 62, velocity: 90 }, { at: 3000, length: 1000, pitch: 64, velocity: 90 }];
+  const events = eventsInWindow(rows, { ppq: 1000, bpm: 120, from: 0, to: 10, map });
+  assert.deepEqual(events.map((e) => [e.pitch, e.start, e.duration]), [[60, .5, .5], [62, 1, 1], [64, 2, 1]]);
+  const constant = eventsInWindow(rows, { ppq: 1000, bpm: 120, from: 0, to: 10, map: tempoMap([{ beat: 0, bpm: 120 }]) });
+  assert.deepEqual(constant.map((e) => e.start), eventsInWindow(rows, { ppq: 1000, bpm: 120, from: 0, to: 10 }).map((e) => e.start));
+});

@@ -3,9 +3,11 @@
 // @ample:live-synth
 
 import { eventsInWindow } from '../lib/live-synth.mjs';
+import { tempoMap } from '../lib/audio-clock.mjs';
 import { rollPosition } from '../lib/roll-transport.mjs';
 import { PLAYBACK_LEVEL } from '../lib/clientside-note-preview.mjs';
 import { playbackOutput } from './playback-volume.js';
+import { getContext, resumeOnGesture, armGestureResume } from '../lib/audio-engine.mjs';
 
 const AHEAD = 0.4;      // seconds scheduled in front of the clock
 const TICK = 80;        // milliseconds between two scheduling rounds
@@ -14,7 +16,7 @@ let context = null, noise = null;
 
 function audio() {
   if (!context) {
-    context = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    context = getContext();
     const length = context.sampleRate;
     noise = context.createBuffer(1, length, context.sampleRate);
     const data = noise.getChannelData(0);
@@ -81,11 +83,11 @@ function playDrum(ctx, out, e, at) {
 }
 
 /**
- * Starts live playback. `rows()` gives the merged notes now (called every round, so edits are heard), `bpm()` and `ppq` the timing, `instrument()` the
+ * Starts live playback. `rows()` gives the merged notes now (called every round, so edits are heard), `bpm()` and `ppq` the timing (`tempoChanges()`, optional, gives [{ beat, bpm }] for a song whose tempo changes; the notes are then placed with the tempo map), `instrument()` the
  * program and channel the notes use when they have none, `from` the start in seconds. At `loop` the position returns to `loopStart`, independently of `from`.
  * Returns { stop, time() }: time() is the position in the song in seconds (for the playhead). onStop is called once when it ends.
  */
-export function startLive({ rows, bpm, ppq, instrument, from = 0, loop = 0, loopStart = 0, end: clipEnd = Infinity, renderEvent, onStop = () => {} }) {
+export function startLive({ rows, bpm, tempoChanges = null, ppq, instrument, from = 0, loop = 0, loopStart = 0, end: clipEnd = Infinity, renderEvent, onStop = () => {} }) {
   const ctx = audio();
   ctx.resume();
   const master = ctx.createDynamicsCompressor();
@@ -106,7 +108,7 @@ export function startLive({ rows, bpm, ppq, instrument, from = 0, loop = 0, loop
       const lapEnd = span > 0 ? loopStart + (lap + 1) * span : clipEnd;
       const end = Math.min(u1, lapEnd);
       if (end <= u0) break;
-      for (const e of eventsInWindow(rows(), { ppq, bpm: bpm(), from: u0 - lap * span, to: end - lap * span, program, channel })) {
+      for (const e of eventsInWindow(rows(), { ppq, bpm: bpm(), from: u0 - lap * span, to: end - lap * span, program, channel, map: tempoChanges ? tempoMap(tempoChanges(), bpm()) : null })) {
         const at = origin + e.start + lap * span;
         if (at < ctx.currentTime) continue;
         const event = span ? { ...e, duration: Math.min(e.duration, lapEnd - lap * span - e.start) } : e;
@@ -142,7 +144,7 @@ export function startLive({ rows, bpm, ppq, instrument, from = 0, loop = 0, loop
 }
 
 /** Unlock the shared audition context synchronously from a user gesture. */
-export function liveAudioContext() { const ctx = audio(); ctx.resume(); return ctx; }
+export function liveAudioContext() { const ctx = audio(); resumeOnGesture(); return ctx; }
 
 /** Plays one sketch-voice event (from eventsInWindow) at audio time `at` into `out`: the never-silent fallback of the note audition. */
 export function playSketchEvent(ctx, out, event, at) {
@@ -155,8 +157,7 @@ let armed = false;
 export function armAudioUnlock() {
   if (armed || typeof window === 'undefined') return;
   armed = true;
-  const unlock = () => { try { liveAudioContext(); } catch { /* no audio available */ } };
-  for (const type of ['pointerdown', 'keydown']) window.addEventListener(type, unlock, { once: true, capture: true });
+  armGestureResume();
 }
 
 /** Reported audio latency of the shared context in ms (base, output), when the browser says. */

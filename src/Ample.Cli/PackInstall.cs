@@ -92,7 +92,7 @@ internal static class PackInstall
                 }
 
                 if (font) progress?.Invoke(-1, $"Checking the SHA-256 of {name}");
-                if (font &&!string.Equals(Convert.ToHexStringLower(hash.GetHashAndReset()), Sha256, StringComparison.Ordinal))
+                if (font && !string.Equals(Convert.ToHexStringLower(hash.GetHashAndReset()), Sha256, StringComparison.Ordinal))
                 {
                     output.WriteLine($"{name} does not match the pinned digest; not installed");
                     return 1;

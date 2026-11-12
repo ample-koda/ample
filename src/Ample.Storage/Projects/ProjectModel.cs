@@ -370,7 +370,8 @@ public static class ProjectFile
                     engine.ValueKind == JsonValueKind.Null ? null : engine.GetString(),
                     projectPanel,
                     autoCheckpoint,
-                    ai) { Faer = faer, Koda = koda, FirstRun = firstRun, BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null });
+                    ai)
+                { Faer = faer, Koda = koda, FirstRun = firstRun, BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null });
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or FormatException or InvalidOperationException or OverflowException)
         {

@@ -211,7 +211,7 @@ body.annot [data-ample]{outline:1px dashed var(--acc);outline-offset:-2px}
 .node.st-failed{border:2px solid var(--bad);box-shadow:0 0 0 2px color-mix(in srgb,var(--bad) 35%,transparent)}
 @media (prefers-reduced-motion:reduce){.node.st-running::after{animation:none;opacity:1;box-shadow:0 0 0 2px var(--ok)}}
 /* a section tag row of the lyrics editor is a heading, not a sung line */
-.lyrow.lytag{background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.lyrow.now{box-shadow:inset 3px 0 0 var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}.lyrow.lytag{background:color-mix(in srgb,var(--acc) 10%,transparent)}
 .lyrow.lytag input{font-weight:600;color:var(--acc)}
 
 /* progress of a block while it builds: no change of size. The tag names the busy step, a thin bar runs along the bottom edge, and a panel with the sub-steps opens below the block while the pointer is on it. */

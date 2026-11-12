@@ -5,22 +5,6 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      spec:
-        description: 'Run only this browser spec file many times (for example spec-tests/parity/koda-resize.spec.ts); empty: the whole run'
-        required: false
-        default: ''
-        type: string
-      grep:
-        description: 'With spec: only the tests whose title matches this text'
-        required: false
-        default: ''
-        type: string
-      repeat:
-        description: 'With spec: how many times each test runs'
-        required: false
-        default: '10'
-        type: string
 
 permissions:
   contents: read
@@ -28,7 +12,7 @@ permissions:
 jobs:
   test:
     # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
-    if: inputs.spec == '' && (github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     # The test projects run in three groups at the same time (the server tests are the slowest and drive a browser; the engine and audio tests come next; the rest is
     # every other project in tests/, so a new test project is picked up without a change here).
     name: Test (${{ matrix.group }})
@@ -94,7 +78,7 @@ jobs:
     # How the browser tests are divided. The normal tests go in shards of about 100, one worker each (counted from the suite, so the number grows with it). A test whose title carries
     # @quarantine (it failed, and is waiting for a fix) never runs in those shards: the quarantined tests run apart, 10 to a job, one worker each, and do not fail the run.
     # tools/quarantine-failed.mjs puts the tag on the tests of a failed run.
-    if: inputs.spec == '' && (github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     name: Studio browser tests (plan)
     runs-on: ubuntu-24.04
     outputs:
@@ -136,7 +120,7 @@ jobs:
 
   studio:
     # In the public repository this runs on every pull request and every push to main. Anywhere else (a private copy, where a run costs money) it only runs when it is started by hand.
-    if: inputs.spec == '' && (github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'ample-koda/ample' || github.event_name == 'workflow_dispatch'
     # The browser tests of the studio (Playwright, Chromium): they start the built command line tool and drive its pages. They run in shards at the same time.
     name: Studio browser tests (${{ matrix.kind }} ${{ matrix.shard }}/${{ matrix.total }})
     needs: studio-plan
@@ -211,7 +195,7 @@ jobs:
     # After a failed run of the normal browser tests on a push to the main branch (or a run started by hand), the failed tests are tagged @quarantine on a branch of their own and
     # a pull request is opened, so that one failing test never keeps the others red. Nothing is merged by itself. A pull request made with the workflow's own token starts no
     # workflow runs; if the repository does not allow the workflow to open pull requests, the branch is still pushed and the summary of the run holds the link to open it.
-    if: ${{ inputs.spec == '' && always() && needs.studio.result == 'failure' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'ample-koda/ample' }}
+    if: ${{ always() && needs.studio.result == 'failure' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'ample-koda/ample' }}
     name: Propose quarantine for the failed browser tests
     needs: studio
     runs-on: ubuntu-24.04
@@ -259,54 +243,3 @@ jobs:
           else
             { echo "The failed tests are tagged on the branch \`$branch\`, but a pull request could not be opened (the repository does not allow the workflow to open one)."; echo "Open it here: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$BASE...$branch?expand=1"; } >> "$GITHUB_STEP_SUMMARY"
           fi
-
-  one:
-    if: inputs.spec != ''
-    name: One browser test
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        shell: bash
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-      options: --ipc=host
-    env:
-      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Build the command line tool
-        run: dotnet build src/Ample.Cli -c Release --nologo
-      - name: Install the test tools
-        run: npm ci
-      - name: Cache the General MIDI SoundFont
-        uses: actions/cache@v4
-        with:
-          path: audio-packs/licensed/musescore-general
-          key: musescore-general-${{ hashFiles('tools/fetch-gm-soundfont.mjs') }}
-      - name: Fetch the General MIDI SoundFont
-        run: node tools/fetch-gm-soundfont.mjs --download --into
-      - name: Run the test
-        env:
-          SPEC: ${{ inputs.spec }}
-          GREP: ${{ inputs.grep }}
-          REPEAT: ${{ inputs.repeat }}
-        run: |
-          set -uo pipefail
-          args=(--project=chromium --workers=1 --repeat-each="$REPEAT" --trace=retain-on-failure --reporter=list)
-          if [ -n "$GREP" ]; then args+=(-g "$GREP"); fi
-          npx playwright test "${args[@]}" "$SPEC"
-      - name: Keep the traces of the failed tests
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: one-test-failures
-          path: test-results/
-          retention-days: 7

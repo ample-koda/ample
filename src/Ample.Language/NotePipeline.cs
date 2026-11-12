@@ -665,7 +665,18 @@ public static partial class NotePipeline
 
     private static readonly Dictionary<string, (long Min, long Max)> SetRange = new(StringComparer.Ordinal)
     {
-        ["pitch"] = (0, 127), ["velocity"] = (1, 127), ["pan"] = (-100, 100), ["fine"] = (-100, 100), ["rel"] = (-1, 5000), ["cut"] = (0, 100), ["slide"] = (0, 1), ["port"] = (0, 2000), ["bend"] = (-2400, 2400), ["channel"] = (-1, 15), ["bank"] = (0, 16383), ["program"] = (0, 127),
+        ["pitch"] = (0, 127),
+        ["velocity"] = (1, 127),
+        ["pan"] = (-100, 100),
+        ["fine"] = (-100, 100),
+        ["rel"] = (-1, 5000),
+        ["cut"] = (0, 100),
+        ["slide"] = (0, 1),
+        ["port"] = (0, 2000),
+        ["bend"] = (-2400, 2400),
+        ["channel"] = (-1, 15),
+        ["bank"] = (0, 16383),
+        ["program"] = (0, 127),
     };
 
     private static string SetTail(string tail, string key, long value)

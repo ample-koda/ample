@@ -38,6 +38,7 @@ import { initKoda, toggleKoda } from './koda.js';
 import { initKeysDock } from './keys-dock.js';
 import { buildButton, failedBadge, masterTakeOf, playButton, playingLabel, runningText, songState, stopButton } from '../lib/transport-model.mjs';
 import { liveActive, onLiveChange, stopLive } from './component-live.js';
+import './live-chain-ui.js';   // the bar of the live chain (the chain itself starts from the Studio window of an effect)
 import { buildAndPlayClientPreview, cancelClientPreview, clientPreviewProgress, clientPreviewRunning } from './clientside-preview.js';
 
 const masterTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id), flat().nodes);

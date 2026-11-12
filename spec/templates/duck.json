@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "plugin": null,
   "description": "Makes the sound dip at every hit of a pattern and come back, like sidechain compression keyed by the kick.",
   "inputs": [

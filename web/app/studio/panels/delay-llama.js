@@ -2,6 +2,7 @@
 // open mouth) that the llama follows at once, the knobs of the voice, and Sing: the notes of the clip on its input sung in the browser by the same voice as the engine,
 // with the llama singing along in time. The look of the llama (its colours, sitting or standing) is a choice of this browser only: the song does not change. @ample:delay-llama
 
+import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
 import { S, flat } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
@@ -80,7 +81,7 @@ function delayLlamaPanel(context) {
   const player = { voice: null, held: null };
   const playSet = (p) => player.voice?.set({ ...llamaSettings(context.params), vowel: p.vowel, mouth: p.mouth });
   const playStart = async (p) => {
-    live.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    live.ctx ||= getContext();
     live.ctx.resume?.();
     const voice = await llamaLive(live.ctx);
     voice.connect(live.ctx.destination);
@@ -278,7 +279,7 @@ function delayLlamaPanel(context) {
     if (!text) { sing.textContent = idleLabel(); status.textContent = 'Connect a midi-clip with notes to record against.'; return; }
     try {
       stopSong();
-      live.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+      live.ctx ||= getContext();
       await live.ctx.resume?.();
       const tempo = Number(S.doc?.project?.tempo) || 120, ppq = Number(clip.params.ppq) > 0 ? Number(clip.params.ppq) : 1_000_000, all = absolute(parse(text, ppq));
       const seconds = 60 / tempo, firstBar = 1 + from / (4 * seconds), notes = all;
@@ -332,7 +333,7 @@ function delayLlamaPanel(context) {
   // ---- the keys: a touch keyboard (and MIDI in) that sing this voice with the vowel and the mouth of the pad, several keys at once glide as one voice
   const keyState = { voice: null };
   const keyOn = async (pitch, velocity) => {
-    live.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    live.ctx ||= getContext();
     live.ctx.resume?.();
     const voice = await llamaLive(live.ctx);
     voice.connect(live.ctx.destination);

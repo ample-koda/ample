@@ -6,6 +6,7 @@
 // leave that part alone (or to take a fix away), right-click for the rest. It writes the `fixes` text. A melody on the Melody input is used when the song is built; the
 // preview here uses the key and the fixes. @ample:autotune
 
+import { getContext } from '../../../lib/audio-engine.mjs';
 import { el, showMenu } from '../../ui.js';
 import { S } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
@@ -55,7 +56,7 @@ function autotunePanel(context) {
   const show = (on) => { play.textContent = on ? '■ Stop' : '▶ Play'; play.setAttribute('aria-pressed', String(on)); if (on) tick(); };
   const stopLive = () => { try { live.source?.stop(); } catch { /* already stopped */ } live.source = null; clearInterval(live.watch); live.watch = 0; live.show?.(false); draw(); };
   live.stop = stopLive;
-  const audioContext = () => (live.ctx ||= new (window.AudioContext || window.webkitAudioContext)());
+  const audioContext = () => (live.ctx ||= getContext());
   // the tuned sound is worked out here, when it is played (turning a knob only redraws the curve)
   const ensureAudio = () => {
     if (!audioDirty || !track) return;

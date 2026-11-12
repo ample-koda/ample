@@ -4,12 +4,13 @@ import { el } from './ui.js';
 import { edit, flat, subscribe } from './store.js';
 import { playerState } from './player.js';
 import { blockLevels } from './play-fx.js';
+import { chainActive, chainLevels, chainPreview, chainState, onChain, startChain, stopChain } from './live-chain.js';
 
 const STRIP_TYPES = ['mixer', 'bus', 'master', 'volume'];
 const parts = (value, fallback) => String(value || fallback).replace(/^"|"$/g, '').trim().split(/\s+/);
 const dbOf = (level) => (level > 0.00001 ? Math.max(-60, 20 * Math.log10(level)) : -60);
 let bars = null;
-const chanMeters = [];   // { bar, src } of every input of every strip
+const chanMeters = [];   // { bars: [left, right], src } of every input of every strip
 const MUTE_KEY = 'ample.mix.mute';   // "block#input": the gain before the mute, so it can be put back
 const muteMap = () => { try { return JSON.parse(localStorage.getItem(MUTE_KEY) || '{}'); } catch { return {}; } };
 const muteSave = (m) => { try { localStorage.setItem(MUTE_KEY, JSON.stringify(m)); } catch { /* none */ } };
@@ -30,11 +31,12 @@ function stripFor(node, links) {
     for (let i = 0; i < 4; i++) {
       const readout = el('output', { textContent: `${Number(gains[i]) || 0} dB` });
       const range = el('input', { type: 'range', className: 'mixfader', min: '-60', max: '12', step: '1', value: String(Number(gains[i]) || 0), 'aria-label': `${node.id} input ${i + 1} gain`, title: 'Gain in dB (double-click: 0 dB)' });
-      range.oninput = () => { readout.textContent = `${range.value} dB`; };
+      // while the fader moves it is heard at once when the live chain of this mixer plays; the song is written on release (change)
+      range.oninput = () => { readout.textContent = `${range.value} dB`; const live = [...gains]; live[i] = range.value; chainPreview(node.id, 'gains', `"${live.join(' ')}"`); };
       range.onchange = () => { gains[i] = range.value; edit([{ type: 'setParameter', block: node.id, name: 'gains', value: `"${gains.join(' ')}"` }]); };
       range.ondblclick = () => { range.value = '0'; range.dispatchEvent(new Event('change')); readout.textContent = '0 dB'; };
       const pan = el('select', { className: 'mixpan', 'aria-label': `${node.id} input ${i + 1} pan`, title: 'Pan' }, [['l', 'L'], ['c', 'C'], ['r', 'R']].map(([v, t]) => el('option', { value: v, textContent: t, selected: (pans[i] || 'c').toLowerCase() === v })));
-      pan.onchange = () => { pans[i] = pan.value; edit([{ type: 'setParameter', block: node.id, name: 'pan', value: `"${pans.join(' ')}"` }]); };
+      pan.onchange = () => { pans[i] = pan.value; chainPreview(node.id, 'pan', `"${pans.join(' ')}"`); edit([{ type: 'setParameter', block: node.id, name: 'pan', value: `"${pans.join(' ')}"` }]); };
       const src = links.find((l) => l.to === node.id && l.inp === i);
       const muted = muteMap()[`${node.id}#${i}`] !== undefined && Number(gains[i]) <= -60;
       const others = [0, 1, 2, 3].filter((k) => k !== i);
@@ -44,11 +46,15 @@ function stripFor(node, links) {
       mute.onclick = () => setMutes({ [i]: !muted });
       const solo = el('button', { type: 'button', className: `mixsolo${soloed ? ' on' : ''}`, textContent: 'S', title: soloed ? 'End solo (every input back to its level)' : 'Solo: mute all the other inputs of this mixer', 'aria-pressed': String(soloed), 'aria-label': `${node.id} input ${i + 1} solo` });
       solo.onclick = () => setMutes(soloed ? Object.fromEntries([0, 1, 2, 3].map((k) => [k, false])) : Object.fromEntries([0, 1, 2, 3].map((k) => [k, k !== i])));
-      const meter = el('i', { className: 'mixchm', 'aria-hidden': 'true' }, [el('b')]);
-      chanMeters.push({ bar: meter.firstChild, src: src?.from });
+      const meter = el('i', { className: 'mixchm', 'aria-hidden': 'true' }, [el('b'), el('b')]);   // wide: one bar for the left side, one for the right
+      chanMeters.push({ bars: [...meter.children], src: src?.from });
       faders.append(el('div', { className: `mixchan${muted ? ' muted' : ''}` }, [el('span', { className: 'note mixsrc', title: src ? `from ${src.from}` : `input ${i + 1} (nothing connected)`, textContent: src ? src.from : `${i + 1}` }), pan, el('div', { className: 'mixfw' }, [range, meter]), readout, el('div', { className: 'mixms' }, [mute, solo])]));
     }
     strip.append(faders);
+    const live = chainActive() && chainState().target === node.id;
+    strip.append(el('button', { type: 'button', className: `mixlive${live ? ' on' : ''}`, textContent: live ? '■ Stop live' : '▶ Hear live', 'aria-pressed': String(live), 'aria-label': `Hear ${node.id} live`,
+      title: live ? 'Stop the live mix' : 'Loop the built sounds of the inputs through this mixer in the browser: faders, pans, mutes and solos are heard while you move them (approximate, the build is the truth)',
+      onclick: () => (live ? stopChain() : startChain(node.id)) }));
   } else {
     const open = el('button', { type: 'button', textContent: 'Controls', title: 'Open the advanced controls of this block' });
     open.onclick = () => document.querySelector(`.node[data-id="${node.id}"] button[aria-label="Advanced"]`)?.click();
@@ -73,7 +79,12 @@ function animate() {
     const set = (bar, level) => { bar.style.height = `${Math.round((dbOf(level) + 60) / 60 * 100)}%`; };
     set(bars.left, state.playing ? state.leftLevel || 0 : 0); set(bars.right, state.playing ? state.rightLevel || 0 : 0);
     const levels = state.playing ? blockLevels() : null;
-    for (const m of chanMeters) set(m.bar, levels && m.src ? levels.get(m.src) || 0 : 0);
+    for (const m of chanMeters) {
+      const own = chainActive() && m.src ? chainLevels(m.src) : null;   // the live chain taps every input itself, left and right
+      if (own) { set(m.bars[0], own.left); set(m.bars[1], own.right); continue; }
+      const level = levels && m.src ? levels.get(m.src) || 0 : 0;
+      set(m.bars[0], level); set(m.bars[1], level);
+    }
     frame = requestAnimationFrame(tick);
   };
   frame = requestAnimationFrame(tick);
@@ -106,4 +117,5 @@ export function renderMixerView(force = false) {
 export function initMixerView() {
   document.querySelector('#btabs button[data-t="mixer"]')?.addEventListener('click', () => renderMixerView(true));
   subscribe(() => { if (document.querySelector('#b-mixer.on')) renderMixerView(); });
+  onChain(() => { if (document.querySelector('#b-mixer.on')) renderMixerView(true); });   // the Hear live button and the meters follow the chain
 }

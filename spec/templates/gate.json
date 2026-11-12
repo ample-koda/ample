@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "livePreview": true,
   "plugin": null,
   "description": "Silences the sound whenever it falls below a threshold, for example the noise between phrases. Takes audio and gives audio.",
   "inputs": [

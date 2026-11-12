@@ -1,6 +1,7 @@
 import { fieldFor } from '../fields.js';
 import { rememberedSize, resizeGrip } from '../window.js';
 import { el } from '../ui.js';
+import { whyNotLive, liveClassOf } from '../../lib/live-class.mjs';
 import { subscribe } from '../store.js';
 import { knob } from './knob.js';
 import { led } from './led.js';
@@ -25,6 +26,8 @@ import { masterAudioBuffer } from '../../lib/clientside-mix.mjs';
 import { meterAudio } from '../../lib/clientside-meter.mjs';
 import { onPlayer, peaksOf, play, playTransient, playLivePreview, updateLivePreview, replaceLivePreviewImpulse, setAuditionBlock, playerState, seekFraction, setLoop, setLoopRegion, stop } from '../player.js';
 import { scrubBar } from './scrub.js';
+const PARITY_TYPES = new Set(['reverb', 'gate', 'limiter', 'deesser', 'eq', 'peq', 'filter', 'compressor', 'delay', 'distortion', 'chorus', 'flanger', 'phaser', 'pan', 'width', 'volume', 'tremolo']);   // the blocks live-parity.js can compare
+import { LIVE_BADGES, parameterLive } from '../../lib/live-parameters.mjs';
 import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectGraph } from './preview/audio.js';
 import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
@@ -54,7 +57,7 @@ function panelState(state) {
   return panel === state ? { ...state, takeId, preview } : { ...panel, takeId, preview, commit: state.wrapCommit(panel.commit), commitMany: state.wrapCommitMany(panel.commitMany) };
 }
 
-const LOCAL_PREVIEW_TYPES = new Set(['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'convolution', 'denoise', 'chorus', 'tremolo', 'master']);
+const LOCAL_PREVIEW_TYPES = new Set(['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'convolution', 'denoise', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'master']);
 function canRenderedPreview(panel) { return Boolean(panel.takeId && typeof panel.realPreview === 'function'); }
 function canLocalPreview(panel) { return Boolean(panel.takeId && LOCAL_PREVIEW_TYPES.has(panel.type)); }
 
@@ -137,9 +140,23 @@ function renderBodyNow(state) {
       control = fieldFor(definition.name, definition, String(value), { disabled: panel.readOnly, title: definition.doc || '', save: (next) => panel.commit(definition.name, next) });
       if (!control) { const input = el('input', { type: 'text', value: String(value), disabled: panel.readOnly, 'aria-label': definition.label || definition.name }); input.onchange = () => panel.commit(definition.name, input.value); control = input; }
     }
-    body.append(el('label', { className: 'studio-panel-control' }, [el('span', { textContent: definition.label || definition.name }), control]));
+    const badge = LIVE_BADGES[parameterLive(panel.type, definition.name)];
+    body.append(el('label', { className: 'studio-panel-control' }, [el('span', { textContent: definition.label || definition.name }), control, el('small', { className: `live-badge live-${parameterLive(panel.type, definition.name)}`, textContent: badge.text, title: badge.title })]));
   });
+  addLiveBadges(body, panel);
   if (!definitions.length && !bespoke) body.append(el('p', { className: 'note', textContent: 'This block has no editable parameters.' }));
+}
+
+/** Under every control of the window that matches a parameter: whether it moves live, re-renders or needs a build (the controls of the bespoke panels are found by their label). */
+function addLiveBadges(body, panel) {
+  const byLabel = new Map(panel.definitions.flatMap((definition) => [[(definition.label || definition.name).toLowerCase(), definition.name], [definition.name.toLowerCase(), definition.name]]));
+  body.querySelectorAll('.studio-panel-control').forEach((row) => {
+    if (row.querySelector('.live-badge')) return;
+    const name = byLabel.get(String(row.querySelector('span')?.textContent || '').replace(/s*(automated)$/, '').trim().toLowerCase());
+    if (!name) return;
+    const kind = parameterLive(panel.type, name), badge = LIVE_BADGES[kind];
+    row.append(el('small', { className: `live-badge live-${kind}`, textContent: badge.text, title: badge.title }));
+  });
 }
 
 // The input take is immutable and independent of this effect's controls, so download and decode it once per take for local preview.
@@ -251,7 +268,8 @@ function renderTransport(state) {
   const renderedAvailable = canRenderedPreview(panel), localAvailable = canLocalPreview(panel);
   const effectControls = typeof panel.realPreview === 'function' || panel.type === 'master';
   const previewKind = panel.type === 'denoise' ? 'client-side preview is approximate' : 'live preview is approximate';
-  const statusText = panel.takeId ? localAvailable ? `Input: ${panel.inputTitle || 'upstream audio'} · ${previewKind}` : 'Ready to play' : panel.buildInput ? 'Build audio to play' : 'Connect an audio input';
+  const noAudioOfItsOwn = ['visual', 'data'].includes(liveClassOf(panel.type));
+  const statusText = noAudioOfItsOwn ? `No audio of its own: ${whyNotLive(panel.type)}` : panel.takeId ? localAvailable ? `Input: ${panel.inputTitle || 'upstream audio'} · ${previewKind}` : `Ready to play${whyNotLive(panel.type) ? ` · ${whyNotLive(panel.type)}` : ''}` : panel.buildInput ? 'Build audio to play' : 'Connect an audio input';
   const status = el('span', { className: 'note', textContent: statusText });
   state.status = status;
   if (!panel.takeId) {
@@ -307,7 +325,19 @@ function renderTransport(state) {
   }
   if (effectControls) {
     const more = el('details', { className: 'studio-preview-more' });
-    more.append(el('summary', { textContent: 'Compare / render' }), inputPlay, rendered);
+    const chain = el('button', { type: 'button', textContent: 'Live chain', 'aria-label': 'Live chain from the built sources to this block', title: 'Loop the built sounds that lead to this block through every effect and mixer on the way, live: tune several blocks while it plays and bypass them one by one' });
+    chain.onclick = () => import('../live-chain.js').then((m) => m.startChain(panel.block));
+    const parity = el('button', { type: 'button', textContent: 'Check live vs render', title: 'Plays a test sound through the live version of this block and through the browser render, and says how far apart they are', hidden: !PARITY_TYPES.has(panel.type) });
+    const parityBadge = el('span', { className: 'parity-badge', role: 'status', hidden: true });
+    parity.onclick = async () => {
+      parity.disabled = true;
+      try {
+        const { parityCheck } = await import('../live-parity.js'), result = await parityCheck(panel.type, { ...panel.getParams() }, { tempo: Number(panel.tempo) || 120 });
+        parityBadge.hidden = !result; parityBadge.className = `parity-badge parity-${result?.level || 'unknown'}`;
+        if (result) { parityBadge.textContent = `${result.word} · ${result.deviationDb.toFixed(0)} dB`; parityBadge.title = `Live against the browser render on a test sound: the difference is ${result.deviationDb.toFixed(1)} dB below the render (${result.word})`; }
+      } catch (error) { parityBadge.hidden = false; parityBadge.textContent = error.message; } finally { parity.disabled = false; }
+    };
+    more.append(el('summary', { textContent: 'Compare / render' }), inputPlay, rendered, chain, parity, parityBadge);
     if (panel.type === 'master') {
       rendered.hidden = true;
       if (panel.buildInput) more.append(el('button', { type: 'button', textContent: 'Rebuild input', disabled: panel.readOnly, onclick: async () => { try { state.takeId = await panel.buildInput(); renderBody(state); renderTransport(state); } catch (error) { state.status.textContent = error.message; } } }));

@@ -1,5 +1,6 @@
 // Studio panel of the vocoder: a play bar (the voice through the carrier, worked out in the browser, so a knob is heard while it plays), the bands of the voice and of the carrier (bars),
 // and a knob for every setting. @ample:vocoder
+import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
 import { S, build, flat } from '../../store.js';
 import { onPlayer, stop as stopSong } from '../../player.js';
@@ -71,7 +72,7 @@ function vocoderPanel(context) {
       const [voice, carrier] = await Promise.all([takeAudio(voiceTake, MAX_SECONDS), takeAudio(carrierTake, MAX_SECONDS)]);
       const sound = await vocodeAudio(voice, carrier, { ...params, ...values });
       if (generation !== live.generation) return;
-      const ctx = (live.ctx ||= new (window.AudioContext || window.webkitAudioContext)()), buffer = ctx.createBuffer(sound.channels.length, sound.channels[0].length, sound.sampleRate);
+      const ctx = (live.ctx ||= getContext()), buffer = ctx.createBuffer(sound.channels.length, sound.channels[0].length, sound.sampleRate);
       sound.channels.forEach((data, i) => buffer.copyToChannel(data, i));
       const offset = keep && live.source ? (ctx.currentTime - live.startedAt) % buffer.duration : 0;
       try { live.source?.stop(); } catch { /* already stopped */ }
