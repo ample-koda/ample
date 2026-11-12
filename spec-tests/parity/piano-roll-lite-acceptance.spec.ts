@@ -244,8 +244,8 @@ test('step 13: an instrument setting changed in Properties while the roll is ope
   await expect(panel).toBeVisible();
   await expect.poll(() => panel.locator('canvas.mls-grid').evaluate((c: HTMLCanvasElement) => c.clientWidth)).toBeGreaterThan(300);
   // the cache fills for the connected instrument: the first renders use program 24
-  const key = (await at(panel, 0, 60)), keys = (await panel.locator('canvas.mls-keys').boundingBox())!;
-  const hear = async () => { await page.mouse.move(keys.x + 10, key.y); await page.mouse.down(); await page.waitForTimeout(120); await page.mouse.up(); };
+  // the place of the key is measured again for every trigger: the window can move or be drawn again while the preview cache fills
+  const hear = async () => { const key = await at(panel, 0, 60), keys = (await panel.locator('canvas.mls-keys').boundingBox())!; await page.mouse.move(keys.x + 10, key.y); await page.mouse.down(); await page.waitForTimeout(120); await page.mouse.up(); };
   await expect.poll(async () => { await hear(); return requests.some((r) => r.program === 24); }, { timeout: 20_000 }).toBe(true);
   const revision = await dbg(panel, (d) => d.mlsDebug.previewRevision() as number);
   // the owner changes the program in Properties (the same setParameter edit its field writes) while the roll stays open

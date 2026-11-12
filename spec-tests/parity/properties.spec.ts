@@ -15,8 +15,11 @@ test('a property edit writes the source and a source edit updates the panel', as
   await expect(page.locator('#se-status')).toContainText('0 error(s)');
   await page.click('#se-apply');
   await page.click('#vs-blocks');
-  await node(page, 'chords').locator('.nh .t').click();
-  await expect(page.locator('#props .prop', { hasText: 'bars' }).locator('input[type="number"]')).toHaveValue('14');
+  // the block is chosen again until its properties show: the canvas can be drawn again right after the view changes
+  await expect(async () => {
+    await node(page, 'chords').locator('.nh .t').click();
+    await expect(page.locator('#props .prop', { hasText: 'bars' }).locator('input[type="number"]')).toHaveValue('14', { timeout: 3000 });
+  }).toPass({ timeout: 20_000 });
 });
 
 test('the flags and the title are properties too, and the project settings open from the panel', async ({ page }) => {

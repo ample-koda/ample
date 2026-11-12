@@ -263,6 +263,15 @@ async function songWith(page: Page, text: string) {
   await page.locator('#btabs button[data-t="playlist"]').click();
 }
 const text = async (page: Page) => (await state(page)).text as string;
+/**
+ * Does `act` until `done` holds: for a gesture on a clip that the page may draw again between measuring and acting (a pointer drag at the edge of a clip, a key on a focused clip).
+ * It never acts again once `done` holds, so a slow page does not get the gesture twice.
+ */
+async function until(done: () => Promise<boolean>, act: () => Promise<void>, timeout = 20_000) {
+  await expect(async () => {
+    if (!(await done())) { await act(); await expect.poll(done, { timeout: 2500 }).toBe(true); }
+  }).toPass({ timeout });
+}
 
 test('playlist lanes: a parameter with an automation shows its curve, and a click opens the curve editor', async ({ page }) => {
   const demo = process.env.AMPLE_DEMO_SONG!.replace('from drums.audio -> audio1', 'from drums-fx.audio -> audio1') + '\nfilter drums-fx {\n  type lowpass\n  cutoff auto(1:1800, 9:3800)\n  from drums.audio -> audio\n}\n';
@@ -284,13 +293,14 @@ test('playlist lanes: the sections of a drums song are resized, repeated and rem
   await songWith(page, demo);
   await page.locator('#b-playlist .pl-line', { hasText: 'drums' }).locator('.pl-fold').click();
   const first = page.locator('#b-playlist .pl-patterns .pl-pattern.editable').first();
-  await first.scrollIntoViewIfNeeded();
-  const box = (await first.boundingBox())!;
-  await page.mouse.move(box.x + box.width - 3, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width - 3 + 48, box.y + box.height / 2, { steps: 4 });
-  await page.mouse.up();
-  await expect.poll(() => text(page)).toMatch(/song verse\*5 fill/);
+  await until(async () => /song verse\*5 fill/.test(await text(page)), async () => {
+    await first.scrollIntoViewIfNeeded();
+    const box = (await first.boundingBox())!;   // measured again for every attempt: the playlist can be drawn again while the preview loads
+    await page.mouse.move(box.x + box.width - 3, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 3 + 48, box.y + box.height / 2, { steps: 4 });
+    await page.mouse.up();
+  });
   await page.locator('#b-playlist .pl-patterns .pl-pattern.editable').nth(1).click({ button: 'right' });
   await chooseMenu(page, 'Remove this section');
   await expect.poll(() => text(page)).toMatch(/song verse\*5\n/);
@@ -324,13 +334,14 @@ test('playlist lanes: a clip of a sequencer lane is moved, given another pattern
   await page.locator('#b-playlist .pl-line', { hasText: 'perf' }).locator('.pl-fold').click();
   const lane1 = page.locator('#b-playlist .pl-row.pl-lane').first();
   const clip = lane1.locator('.pl-pattern').first();
-  await clip.scrollIntoViewIfNeeded();
-  const box = (await clip.boundingBox())!;
-  await page.mouse.move(box.x + 10, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 10 + 48, box.y + box.height / 2, { steps: 4 });
-  await page.mouse.up();
-  await expect.poll(() => text(page)).toMatch(/clip pulse track=1 at=3 for=8/);
+  await until(async () => /clip pulse track=1 at=3 for=8/.test(await text(page)), async () => {
+    await clip.scrollIntoViewIfNeeded();
+    const box = (await clip.boundingBox())!;   // measured again for every attempt
+    await page.mouse.move(box.x + 10, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 10 + 48, box.y + box.height / 2, { steps: 4 });
+    await page.mouse.up();
+  });
   await lane1.locator('.pl-pattern').first().click({ button: 'right' });
   await chooseMenu(page, 'Change the pattern', 'theme');
   await expect.poll(() => text(page)).toMatch(/clip theme track=1 at=3 for=8/);
@@ -395,15 +406,11 @@ test('playlist: the dock lists what the last edit changed, a rubber band picks s
   await chooseMenu(page, /^New section at bars/);
   await dialog(page, 'OK', ['Intro']);
   const drums = page.locator('#b-playlist .pl-clip[data-key="drums:0"]');
-  await drums.focus();
-  await drums.press('ArrowRight');
-  await expect.poll(async () => (await state(page)).text).toMatch(/drums drums at 2 for 16/);
+  await until(async () => /drums drums at 2 for 16/.test(await text(page)), async () => { await drums.focus(); await drums.press('ArrowRight'); });
   await expect(page.locator('#b-playlist .pl-edits summary')).toContainText('Last change');
   await page.locator('#b-playlist .pl-edits summary').click();
   await expect(page.locator('#b-playlist .pl-edits pre')).toContainText('+ drums drums at 2 for 16');
-  await page.locator('#b-playlist .pl-clip[data-key="drums:0"]').focus();
-  await page.keyboard.press('Home');
-  await expect.poll(async () => (await state(page)).text).toMatch(/drums drums at 1 for 16/);
+  await until(async () => /drums drums at 1 for 16/.test(await text(page)), async () => { await page.locator('#b-playlist .pl-clip[data-key="drums:0"]').focus(); await page.keyboard.press('Home'); });
   const tracks = await page.locator('#b-playlist .pl-line .pl-track').evaluateAll((els) => els.slice(0, 3).map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.bottom]; }));
   const [x, yTop] = [tracks[0][0] + 420, tracks[0][1] + 2];
   await page.keyboard.down('Shift');
@@ -419,10 +426,7 @@ test('playlist: the dock lists what the last edit changed, a rubber band picks s
 test('playlist: a clip is copied, cut and pasted as another part of its block', async ({ page }) => {
   await openPlaylist(page);
   const drums = page.locator('#b-playlist .pl-clip[data-key="drums:0"]');
-  await drums.focus();
-  await drums.press('Control+c');
-  await drums.press('Control+v');
-  await expect.poll(async () => (await state(page)).text).toMatch(/drums drums at 1 for 16 as "beat A", 17 for 16/);
+  await until(async () => /drums drums at 1 for 16 as "beat A", 17 for 16/.test(await text(page)), async () => { await drums.focus(); await drums.press('Control+c'); await drums.press('Control+v'); });
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await state(page)).text).toMatch(/drums drums at 1 for 16 as "beat A" \{/);
   // nothing is pasted when nothing was copied in a fresh page

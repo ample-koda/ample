@@ -83,7 +83,7 @@ test('a group says built when its blocks are built, and its waveform is drawn', 
   });
   const group = page.locator('.node.grp').last();
   // the tests of this file share one server: an earlier test may have built one of the two blocks, then the group says "1 of 2 built" instead of "not built"
-  const fully = (title: string) => !/^not built/.test(title) && !(/^(d+) of (d+) built/.test(title) && title.replace(/^(d+) of (d+) built.*$/, '$1') !== title.replace(/^(d+) of (d+) built.*$/, '$2'));
+  const fully = (title: string) => { const part = /^(\d+) of (\d+) built/.exec(title); return !/^not built/.test(title) && !(part && part[1] !== part[2]); };   // "1 of 2 built" is not all of it
   const statusOf = async () => (await group.locator('.node-status').getAttribute('title')) ?? '';
   await expect.poll(async () => fully(await statusOf())).toBe(false);   // not all of it is built yet
   await group.click({ button: 'right', position: { x: 20, y: 36 } });

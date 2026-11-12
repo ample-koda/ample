@@ -96,13 +96,15 @@ test('a control line that is dragged shows the control inputs of the parameters 
   await addTemplateBlock(page, 'volume', 'vol');
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const out = page.locator('.port.out[data-node="sw"]').first();
-  const box = (await out.boundingBox())!;
+  let box!: { x: number; y: number; width: number; height: number };
+  await expect(async () => { const b = await out.boundingBox(); expect(b, 'the port is drawn').not.toBeNull(); box = b!; }).toPass({ timeout: 10_000 });   // the canvas can be drawn again right after Fit
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + 40, box.y + 40, { steps: 6 });
   const target = page.locator('.port.in[data-node="vol"][data-type^="control"]').first();
   await expect(target).toBeVisible({ timeout: 8000 });   // the control input of the gain shows while the line is dragged
-  const to = (await target.boundingBox())!;
+  let to!: { x: number; y: number; width: number; height: number };
+  await expect(async () => { const b = await target.boundingBox(); expect(b, 'the control input is drawn').not.toBeNull(); to = b!; }).toPass({ timeout: 10_000 });
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
   await page.mouse.up();
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).text, { timeout: 15000 }).toMatch(/from sw.level -> gain/);
