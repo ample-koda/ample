@@ -334,6 +334,9 @@ test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays wh
 test('Ctrl+Shift and drag adds more things to look at, letting go on a linked one lets it go, and shaking lets go of everything', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await expect(page.locator('#koda-layer .bub')).toContainText('I am Koda');   // the hello comes after a second: let it come and go first, a bubble that is open keeps Koda from smiling after the shake
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#koda-layer .bub')).toHaveCount(0);
   const center = async (loc: any) => { const b = await loc.boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
   const drag = async (to: { x: number; y: number }, keys: string[]) => {
     const k = await center(page.locator('#koda-layer .pet'));

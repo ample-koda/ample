@@ -344,7 +344,7 @@ function throwOff() {
   clearTimeout(me.calmTimer);
   me.calmTimer = setTimeout(() => {
     const quiet = !me.bubble || me.bubble.kind === 'toast';
-    if (!quiet || me.busy || me.koda.emotion !== 'confused') return;
+    if (!quiet || me.busy || !['confused', 'neutral'].includes(me.koda.emotion)) return;   // an older look may have settled Koda to neutral meanwhile: it still smiles after the shake
     me.koda.set('happy');
     setTimeout(() => { if (!me.busy && me.koda.emotion === 'happy' && (!me.bubble || me.bubble.kind === 'toast')) me.koda.set('neutral'); }, 1500);
   }, 700);
