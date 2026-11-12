@@ -100,6 +100,7 @@ export function initKeymap() {
     if (event.defaultPrevented || document.querySelector('dialog:modal')) return;
     const text = keyText(event), typing = typingIn(event.target);
     if (typing && !/^(Ctrl\+|F\d)/.test(text)) return;   // a plain key (such as ?) is text while someone types
+    if (event.target instanceof Element && event.target.closest('dialog.mls-panel') && !/^(Ctrl\+|F\d)/.test(text)) return;   // AMPLE Jam has its own keys and its own ? card
     const command = listCommands().find((c) => keysOf(c.id).includes(text));
     if (!command) return;
     event.preventDefault(); event.stopPropagation();

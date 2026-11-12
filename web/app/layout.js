@@ -89,6 +89,7 @@ export function initLayout() {
   };
   const resizeSide = (id, prop, dir) => {
     const handle = $(id);
+    handle.onmousedown = (e) => e.preventDefault();   // no native drag of a library item or a text selection may start under the handle (it cancels the pointer)
     handle.onpointerdown = (e) => {
       handle.setPointerCapture(e.pointerId);
       const x0 = e.clientX, w0 = (dir === 'l' ? $('#left') : $('#right')).getBoundingClientRect().width;
