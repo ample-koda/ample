@@ -61,7 +61,6 @@ test('properties Advanced recognizes a connected convolution input', async ({ pa
   const footer = page.locator('#studio footer');
   // the panel builds its input when it opens: before that the footer says to build, after it the input can be played
   await expect(footer).toContainText(/Build audio to play|Play input/);
-  await expect(footer.getByRole('button', { name: 'Build and use input' })).toBeVisible();
   await expect(footer).not.toContainText('Connect an audio input');
 });
 

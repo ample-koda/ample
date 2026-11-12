@@ -137,6 +137,7 @@ export function renderGraph() {
   applyView();
   $('#canvaswrap').classList.toggle('romode', readOnly());
   $('#canvaswrap').classList.toggle('broken', graphBroken());
+  if (linkMark) linkMark();   // a link is being dragged: the new ports get their marks again
 }
 
 /** The sound lines of a group (the audio ones), each with the block behind it. */
@@ -990,6 +991,8 @@ function startDrag(e, n, head) {
 }
 
 /* ---------- links ---------- */
+/** While a link is dragged: marks the inputs that can take it again, because a redraw of the blocks (a build status that arrives, an edit) throws the marks away. */
+let linkMark = null;
 function startLink(n, idx, e) {
   if (readOnly()) { toast('The song has errors: it is read-only until they are fixed.'); return; }
   const type = n.outs[idx][1];
@@ -997,6 +1000,7 @@ function startLink(n, idx, e) {
   cv.classList.add('linking');
   const mark = () => world.querySelectorAll('.port.in').forEach((p) => p.classList.add(p.dataset.node !== n.id && compatible(type, p.dataset.type) ? 'can' : 'cannot'));
   mark();
+  linkMark = mark;
   const move = (ev) => {
     tmp.to = point(ev.clientX, ev.clientY);
     // once the line is really dragged (a plain click on the dot is something else), the effects show their hidden loop seam input as a place to drop it
@@ -1009,6 +1013,7 @@ function startLink(n, idx, e) {
     removeEventListener('pointermove', move);
     removeEventListener('pointerup', up);
     cv.classList.remove('linking');
+    linkMark = null;
     world.querySelectorAll('.port.in').forEach((p) => p.classList.remove('can', 'cannot'));
     const t = document.elementFromPoint(ev.clientX, ev.clientY);
     tmp = null;
