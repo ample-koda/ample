@@ -1269,22 +1269,24 @@ body.detached #tabbar,body.detached #banner{display:none}
 .keyrow{display:flex;justify-content:space-between;gap:16px;padding:3px 0}.keyrow .keys{display:inline-flex;gap:6px}
 kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel2)}
 /* GUI flow 4: the mixer view (bottom tab) */
-.mixview{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;overflow:auto;height:100%;box-sizing:border-box;scroll-snap-type:x proximity}
-.mixstrip{display:flex;flex-direction:column;gap:4px;align-items:center;min-height:0;min-width:96px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);scroll-snap-align:start;flex:none}
+.mixview{overscroll-behavior-x:contain;max-width:100%;min-width:0;display:flex;gap:8px;align-items:flex-start;padding:8px 10px;overflow:auto;height:100%;box-sizing:border-box}
+.mixstrip{display:flex;flex-direction:column;gap:4px;align-items:center;min-height:0;min-width:96px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);flex:none}
 .mixstrip{border-top:3px solid var(--mc,var(--line))}.mixsrc{max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mixscope{align-self:flex-start;flex:none;max-width:140px;font-size:12px}
 .mixname{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .mixstrip>.note{font-size:11px;margin-top:-2px}
 .mixstrip>button{margin-top:6px}
 .mixfaders{display:flex;gap:6px;flex:none}
 .mixchan{display:flex;flex-direction:column;align-items:center;gap:4px;width:50px}
-.mixfader{writing-mode:vertical-lr;direction:rtl;width:22px;flex:none;height:84px;margin:0;accent-color:var(--acc)}
+.mixfader{writing-mode:vertical-lr;direction:rtl;width:22px;flex:none;height:56px;margin:0;accent-color:var(--acc)}
 .mixchan output{font:600 10px ui-monospace,Consolas,monospace;white-space:nowrap;color:var(--dim)}
 .mixpan{width:40px;height:22px;font-size:11px;padding:0 2px}
 .mixmeter{margin-left:auto}
-.mixmeterbody{display:flex;gap:4px;flex:none;height:134px;align-items:stretch}
+.mixmeterbody{display:flex;gap:4px;flex:none;height:106px;align-items:stretch}
 .mixscale{display:flex;flex-direction:column;justify-content:space-between;font:10px ui-monospace,Consolas,monospace;color:var(--dim);text-align:right}
 .mixbars{display:flex;align-items:flex-end;gap:3px;width:34px;padding:2px;border:1px solid var(--line);border-radius:4px;background:var(--bg)}
 .mixbar{display:block;flex:1;height:0;background:linear-gradient(0deg,#2de2a0,#f2c94c 70%,#e8505b);border-radius:2px;transition:height .06s linear}
+.mixfw{display:flex;gap:3px;align-items:stretch}.mixchm{display:flex;align-items:flex-end;width:4px;border-radius:2px;background:var(--bg);border:1px solid var(--line);overflow:hidden}.mixchm b{display:block;width:100%;height:0;background:linear-gradient(0deg,#2de2a0,#f2c94c 70%,#e8505b);transition:height .12s linear}
+.mixms{display:flex;gap:3px}.mixmute,.mixsolo{width:20px;height:20px;min-width:20px;padding:0;font:700 10px ui-monospace,Consolas,monospace;line-height:1;border-radius:4px}.mixmute.on{background:var(--bad);border-color:var(--bad);color:#fff}.mixsolo.on{background:var(--warn);border-color:var(--warn);color:var(--on-warn,#111)}.mixchan.muted .mixfader{opacity:.45}
 @media(max-width:700px){.mixfader{height:min(34vh,260px)}.mixmeterbody{height:calc(min(34vh,260px) + 38px)}.mixview{padding:6px;gap:6px}.mixstrip{min-width:84px;padding:6px}.mixfaders{gap:2px}.mixchan{width:36px}.mixpan{width:34px;font-size:10px}.mixname{max-width:120px;font-size:12px}.mixmeter{margin-left:0}}
 /* GUI flow 8: stars and the Favourites and Recent sections of the block library */
 .tplitem{position:relative}

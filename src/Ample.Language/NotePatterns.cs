@@ -98,7 +98,18 @@ public static class NotePatterns
 
     private static long Value(SemNote n, string field) => field switch
     {
-        "pitch" => n.Pitch, "velocity" => n.Velocity, "channel" => n.Channel, "bank" => n.Bank, "program" => n.Program, "pan" => n.Pan, "fine" => n.Fine, "rel" => n.Rel, "cut" => n.Cut, "slide" => n.Slide, "port" => n.Port, _ => n.Bend,
+        "pitch" => n.Pitch,
+        "velocity" => n.Velocity,
+        "channel" => n.Channel,
+        "bank" => n.Bank,
+        "program" => n.Program,
+        "pan" => n.Pan,
+        "fine" => n.Fine,
+        "rel" => n.Rel,
+        "cut" => n.Cut,
+        "slide" => n.Slide,
+        "port" => n.Port,
+        _ => n.Bend,
     };
 
     private static int Period(List<long> values)
