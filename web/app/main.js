@@ -167,21 +167,25 @@ function renderAll() {
 async function openProjectFile(path) {
   const extension = path.slice(path.lastIndexOf('.')).toLowerCase();
   const node = flat().nodes.find((item) => item.params?.file === path);
-  if (['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'].includes(extension)) { await playProjectFile(path); return; }
+  if (['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'].includes(extension)) { await playProjectFile(path); return true; }
   if (['.mid', '.midi'].includes(extension)) {
     const details = await api.get(`/api/midi/info?file=${encodeURIComponent(path)}`);
     if (node) select(node.id);
     toast(`${details.tracks} MIDI tracks · ${Math.round(60_000_000 / details.microsecondsPerQuarter)} BPM · ${details.bars} bars · ${details.lengthTicks} ticks`);
-    return;
+    return true;
   }
   // a sequence file: the sequencer of the block that uses it, or the text of the file when no block uses it yet
-  if (extension === '.seq' || extension === '.ampleseq') { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) { await openProjectTextFile(path); return; }   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
+  if (extension === '.seq' || extension === '.ampleseq') { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) return openProjectTextFile(path);   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
     // in the Source view a tab of a sequence file shows its text there (switching between the song and its sequence file); elsewhere it opens the sequencer
-    if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return; } await openProjectTextFile(path); return; }
-  if (['.lyr', '.lrc', '.amplelrc'].includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return; }
-  if (['.lyr', '.lrc', '.amplelrc', '.srt', '.txt', '.chords', '.md', '.csv', '.json', '.amplec'].includes(extension)) { await openProjectTextFile(path); return; }
+    if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return true; } return openProjectTextFile(path); }
+  if (['.lyr', '.lrc', '.amplelrc'].includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return true; }
+  if (['.lyr', '.lrc', '.amplelrc', '.srt', '.txt', '.chords', '.md', '.csv', '.json', '.amplec'].includes(extension)) return openProjectTextFile(path);
   toast(`${path} is selected in the Project panel; no editor is registered for this file type.`);
+  return false;
 }
+
+/** Every open request (an ample:open or ample:open-file event) gets one answer, ample:open-result { path, ok, request }, so the one who asked keeps or takes back its own request (tabs.js). */
+const answerOpen = (request, ok) => document.dispatchEvent(new CustomEvent('ample:open-result', { detail: { path: request.detail, ok, request } }));
 
 function wire() {
   $('#btn-save').onclick = save;
@@ -234,14 +238,14 @@ function wire() {
   onLiveChange(() => renderPlaybackState());
   document.addEventListener('ample:open', async (e) => {
     const path = e.detail;
-    const refused = () => document.dispatchEvent(new CustomEvent('ample:open-refused', { detail: path }));
     try {
-      if (!(await confirmLeaveTextFile(path))) { refused(); return; }   // unapplied text of a Source file is asked about before anything is reset
+      if (!(await confirmLeaveTextFile(path))) { answerOpen(e, false); return; }   // unapplied text of a Source file is asked about before anything is reset
       resetSourceFile();
-      if ((await openDoc(path)) === false) refused();
-    } catch (x) { toast(x.message); refused(); }
+      await openDoc(path);
+      answerOpen(e, S.path === path);   // a refused or overtaken open leaves another song in the editor
+    } catch (x) { toast(x.message); answerOpen(e, false); }
   });
-  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => { toast(x.message); document.dispatchEvent(new CustomEvent('ample:open-refused', { detail: e.detail })); }));
+  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).then((opened) => answerOpen(e, opened !== false), (x) => { toast(x.message); answerOpen(e, false); }));
   document.addEventListener('ample:reveal-file', (e) => revealInProject(e.detail));
   $('#lib-q').oninput = renderLib;
   document.addEventListener('ample:components-changed', () => { renderLib(); import('./component-library.js').then((m) => m.refreshComponentLibraryIfOpen()).catch(() => {}); });
