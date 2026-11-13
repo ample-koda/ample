@@ -180,11 +180,16 @@ export function prewarm(target) {
 subscribeSelection(() => { const id = S.sel; const node = id && flat().nodes.find((n) => n.id === id); prewarm(node && (CHAIN_EFFECTS.has(node.tpl) || SUM_TYPES.has(node.tpl)) ? id : null); });
 
 /** Plays the chain that ends at `target`. Returns whether it started. */
+let startGeneration = 0;
 export async function startChain(target) {
-  stopPlayer();
-  stopChain({ quiet: true });
+  // the new plan is checked and its takes are fetched while the current chain keeps playing; only a ready successor replaces it
+  const generation = ++startGeneration;
   const plan = planNow(target);
   if (!plan.ok) { toast(plan.reason); return false; }
+  try { for (const item of plan.items.filter((i) => i.kind === 'source')) await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role)); } catch (error) { toast(error?.message || String(error)); return false; }
+  if (generation !== startGeneration) return false;
+  stopPlayer();
+  stopChain({ quiet: true });
   const mine = { cpu: createCpuMonitor(), cpuBypassed: new Set(), target, plan, signature: signatureOf(plan), bypass: new Set(), override: new Map(), last: new Map(), built: new Map(), taps: new Map(), spectra: new Map(), starting: true, sources: [], disposables: [], slots: new Map(), localKeys: new Map(), renders: new Map(), watch: new Set() };
   session = mine;
   try {

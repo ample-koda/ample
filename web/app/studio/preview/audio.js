@@ -85,7 +85,7 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   const dry = node(context.createGain()), wet = node(context.createGain()), input = node(context.createGain());
   source.connect(dry).connect(output); source.connect(input); wet.connect(output);
   const set = (param, value) => { param.cancelScheduledValues(context.currentTime); param.setTargetAtTime(value, context.currentTime, .01); };
-  let updateEffect, updateMix = () => {}, replaceImpulse = null, oscillators = [], latency = 0, keyInput = null, setKey = null, loudness = null;   // latency in seconds (a limiter looks ahead)
+  let suspendHook = null, updateEffect, updateMix = () => {}, replaceImpulse = null, oscillators = [], latency = 0, keyInput = null, setKey = null, loudness = null;   // latency in seconds (a limiter looks ahead)
   const disposers = [];
   if (type === 'volume') {
     const splitter = node(context.createChannelSplitter(2)), merger = node(context.createChannelMerger(2));
@@ -268,6 +268,9 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     const room = node(new AudioWorkletNode(context, 'ample-reverb', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit', processorOptions: { size: initial.size, decay: initial.decay, mix: initial.mix } }));
     input.connect(room).connect(wet);
     updateEffect = (params) => room.port.postMessage({ size: params.size, decay: params.decay, mix: params.mix });
+    let suspendTimer = 0;   // after the wet fade is over a bypassed room stops computing; switching it on wakes it at once
+    suspendHook = (off) => { clearTimeout(suspendTimer); if (off) suspendTimer = setTimeout(() => room.port.postMessage({ suspended: true }), 150); else room.port.postMessage({ suspended: false }); };
+    disposers.push(() => clearTimeout(suspendTimer));
   } else if (type === 'reverb') {
     updateEffect = connectReverb(context, input, wet, node);
     updateMix = (params) => { set(dry.gain, 1); set(wet.gain, clamp(number(params, 'mix', 25), 0, 100) / 100); };   // as on the server: the dry sound stays, mix is the level of the room
@@ -330,6 +333,7 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   const update = (params) => {
     updateEffect(params); set(dry.gain, 0); set(wet.gain, 1); updateMix(params);
     if (params.enabled === 'off') { set(dry.gain, 1); set(wet.gain, 0); }
+    suspendHook?.(params.enabled === 'off');
   };
   // start on the values the first update aims at, so the dry sound is not doubled for the first 50 ms while the smoothing settles
   dry.gain.value = initial.enabled === 'off' ? 1 : 0; wet.gain.value = initial.enabled === 'off' ? 0 : 1;
