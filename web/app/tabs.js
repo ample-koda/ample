@@ -6,6 +6,7 @@ import { api, getToken } from './api.js';
 import { S, editSerial, notify, select, subscribe, undoHooks } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
+import { isOpenable } from '../lib/file-types.mjs';
 import { removeRecoveryDraft } from '../lib/recovery-drafts.mjs';
 
 const KIND = [
@@ -22,7 +23,7 @@ const untitledKey = () => `ample.untitled:${S.project?.id || ''}`;
 const untitledMap = () => { try { return JSON.parse(localStorage.getItem(untitledKey()) || '{}') || {}; } catch { return {}; } };
 const rememberUntitled = (map) => { try { localStorage.setItem(untitledKey(), JSON.stringify(map)); } catch { /* storage may be blocked */ } };
 const isUntitled = (path) => Object.prototype.hasOwnProperty.call(untitledMap(), path);
-const T = { tabs: [], active: '', state: {}, hidden: 0, bar: null, popup: null, internal: false, remote: new Map(), channel: null, windowId: Math.random().toString(36).slice(2) };
+const T = { tabs: [], active: '', state: {}, hidden: 0, bar: null, popup: null, remote: new Map(), channel: null, windowId: Math.random().toString(36).slice(2) };
 const post = (message) => { try { T.channel?.postMessage({ ...message, from: T.windowId }); } catch { /* a closed channel */ } };
 const detachedPath = () => new URLSearchParams(location.search).get('tab');
 const key = () => `ample.tabs:${S.project?.id || ''}`;
@@ -42,35 +43,64 @@ function factsOf(path) {
 }
 
 const previewOn = () => { try { return localStorage.getItem('ample.tabs.preview') === '1'; } catch { return false; } };
+// extensions that openProjectFile (main.js) can show; anything else gets no tab (the studio only toasts for it). A song is not one of them: it opens through ample:open.
+const viewable = (path) => kindOf(path) !== 'image' && isOpenable(path);
 
-function add(path) {
-  const existing = T.tabs.find((t) => t.path === path);
-  if (existing) { existing.preview = false; return; }   // opened for real (a double click, an edit): the tab stays
+/** Adds a tab, or replaces the previous unmodified preview or shared media tab. */
+function add(path, preview) {
   if (!path) return;
+  const existing = T.tabs.find((t) => t.path === path);
+  if (existing) { if (!preview) existing.preview = false; return; }
   const kind = kindOf(path);
-  const shared = SHARED.has(kind) ? T.tabs.find((t) => kindOf(t.path) === kind) : null;
-  if (shared) shared.path = path; else T.tabs.push({ path });
+  const replaced = T.tabs.find((t) => kindOf(t.path) === kind && (SHARED.has(kind) || (preview && t.preview && !factsOf(t.path).dirty)));
+  if (replaced) { replaced.path = path; replaced.preview = preview; }
+  else T.tabs.push({ path, preview });
 }
 
-function openFile(path) {
-  T.internal = true;
-  try { document.dispatchEvent(new CustomEvent(kindOf(path) === 'song' ? 'ample:open' : 'ample:open-file', { detail: path })); } finally { T.internal = false; }
+let opening;
+const tabOpenOptions = new WeakMap();
+
+/** Register the request synchronously so a later open can supersede it before its first await. */
+export function beginTabOpen(request) {
+  opening = request;
+  return () => opening === request;
+}
+
+function answered(e) {
+  const { path, ok, request } = e.detail;
+  if (opening !== request) return;
+  opening = null;
+  if (ok && (request.type === 'ample:open' || viewable(path))) {
+    const options = tabOpenOptions.get(request);
+    if (!options?.existing) add(path, options?.preview);
+    T.active = path;
+    refreshState();
+  }
+  save();
+  render();
+}
+
+function openFile(path, options) {
+  const request = new CustomEvent(kindOf(path) === 'song' ? 'ample:open' : 'ample:open-file', { detail: path });
+  tabOpenOptions.set(request, options);
+  document.dispatchEvent(request);
 }
 
 function activate(path) {
-  if (T.remote.has(path)) { remoteChoice(path); return; }   // one editor per file, in whatever window
-  T.active = path;
-  save(); render();
-  if (!(kindOf(path) === 'song' && path === S.path)) openFile(path);
-  else import('./source.js').then((m) => m.resetSourceFile());   // the song is open already: the Source view still has to leave a text file that was open there
+  openFile(path, { existing: true });
 }
 
+export function isTabReactivation(request) { return tabOpenOptions.get(request)?.existing === true; }
+
+let stateGeneration = 0;
 async function refreshState() {
+  const mine = ++stateGeneration;
   if (document.visibilityState !== 'visible' || !T.tabs.length) return;
   const paths = T.tabs.map((t) => t.path).filter((p) => !(kindOf(p) === 'song' && p === S.path));
   if (!paths.length) { render(); return; }
   try {
-    const answer = await api.get(`/api/tabs/state?paths=${encodeURIComponent(paths.join(','))}`);
+    const answer = await api.get(`/api/tabs/state?${paths.map((p) => `paths=${encodeURIComponent(p)}`).join('&')}`);
+    if (mine !== stateGeneration) return;
     T.state = Object.fromEntries((answer.items || []).map((i) => [i.path, i]));
     // a file that is gone from the project closes its tab
     T.tabs = T.tabs.filter((t) => T.state[t.path]?.exists !== false || t.path === S.path);
@@ -87,7 +117,6 @@ async function openUntitled() {
     path = made.path || path;
     const doc = await api.get(`/api/doc?path=${encodeURIComponent(path)}`);
     const map = untitledMap(); map[path] = doc.text; rememberUntitled(map);
-    add(path); T.active = path; save();
     document.dispatchEvent(new CustomEvent('ample:open', { detail: path }));
   } catch (error) { toast(error.message || String(error)); }
 }
@@ -100,31 +129,32 @@ async function dropBlankUntitled(except) {
     try {
       const saved = await api.get(`/api/doc/saved?path=${encodeURIComponent(name)}`);
       const current = S.path === name && S.doc ? S.doc.text : saved.saved;
-      if (!saved.dirty && saved.saved === map[name] && current === map[name]) { await api.delete(`/api/project/file?path=${encodeURIComponent(name)}`); delete map[name]; T.tabs = T.tabs.filter((t) => t.path !== name); }
+      if (!saved.dirty && saved.saved === map[name] && current === map[name]) { await api.delete(`/api/project/file?path=${encodeURIComponent(name)}`); delete map[name]; T.tabs = T.tabs.filter((t) => t.path !== name); save(); }
       else if (saved.saved !== map[name] && !saved.dirty) delete map[name];   // it was saved over by someone else: it is an ordinary song now
     } catch { delete map[name]; }
   }
   rememberUntitled(map); render();
 }
 
-/** The first save of a new song: where should it go? The song is written to the chosen place, the blank file goes away and the song opens from its new place. */
-async function placeUntitled(path) {
+/** The first save of a new song: where should it go? The song is written to the chosen place, the blank file goes away and the song opens from its new place.
+ *  With close (Close, then Save) it only writes: no tab and no open for the new place, so the close can go on to the neighbouring tab. Returns the new place, or false. */
+async function placeUntitled(path, { close = false } = {}) {
   const name = el('input', { id: 'untitled-name', type: 'text', value: 'my-song', 'aria-label': 'Song name' });
   const folder = el('input', { id: 'untitled-folder', type: 'text', placeholder: 'folder (empty: the project folder)', 'aria-label': 'Folder' });
   const choice = await ask('Save the new song', 'Where should this song be saved? A name is letters, digits, _ and -.', [{ label: 'Cancel', value: false }, { label: 'Save', value: true, primary: true }],
     [el('label', { className: 'untitled-row' }, ['name ', name]), el('label', { className: 'untitled-row' }, ['folder ', folder])]);
   if (!choice) return false;
   try {
-    if (S.path === path && S.doc?.dirty) await api.put('/api/doc', { path, text: S.doc.text, baseVersion: S.doc.version }).catch(() => {});
+    if (S.path === path && S.doc?.dirty) await api.put('/api/doc', { path, text: S.doc.text, baseVersion: S.doc.version });   // a failed sync (a version conflict) stops the save: the draft stays
     const made = await api.post('/api/doc/save-as', { path, name: name.value.trim(), folder: folder.value.trim() });
     await api.post('/api/doc/revert', { path }).catch(() => {});
     await api.delete(`/api/project/file?path=${encodeURIComponent(path)}`).catch(() => {});
     const map = untitledMap(); delete map[path]; rememberUntitled(map);
-    T.tabs = T.tabs.filter((t) => t.path !== path);
-    add(made.path); T.active = made.path; save();
-    document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
     toast(`Saved as ${made.path}.`);
-    return true;
+    if (close) return made.path;   // the closing tab stays until closeTab takes it away; an open of the new place could land after the close and bring its tab back
+    T.tabs = T.tabs.filter((t) => t.path !== path);
+    document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
+    return made.path;
   } catch (error) { toast(error.message || String(error)); return false; }
 }
 
@@ -152,23 +182,38 @@ async function tabUndo(kind) {
   return false;
 }
 
+const closing = new Set();   // one close operation per tab at a time
 async function closeTab(path) {
   const tab = T.tabs.find((t) => t.path === path);
-  if (!tab) return;
+  if (!tab || closing.has(path)) return;
+  closing.add(path);
+  try { await closeTabNow(path, tab); } finally { closing.delete(path); }
+}
+async function closeTabNow(path, tab) {
   const facts = factsOf(path);
+  let closed = path;   // what Undo reopens: a new song saved on close comes back under its new name
   if (facts.dirty) {
     const choice = await ask('Close with unsaved changes', `${baseName(path)} has unsaved changes.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Discard changes', value: 'discard' }, { label: 'Save', value: 'save', primary: true }]);
     if (choice === 'cancel' || !choice) return;
-    try {
-      if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
-      else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
-    } catch (error) { toast(error.message || String(error)); return; }
+    if (choice === 'save' && isUntitled(path)) {   // the first save asks for a name; cancelled or failed keeps Untitled open
+      const placed = await placeUntitled(path, { close: true });   // written without opening it: the close goes on below and the neighbouring tab becomes active
+      if (!placed) return;
+      closed = placed;
+    } else {
+      try {
+        if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
+        else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
+      } catch (error) { toast(error.message || String(error)); return; }
+    }
   }
   const index = T.tabs.findIndex((t) => t.path === path);
-  lastClose = { path, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
+  if (index < 0) { render(); return; }   // the tab went away while the question was open
+  lastClose = { path: closed, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
   T.tabs.splice(index, 1);
   if (T.active === path) {
-    const next = T.tabs[Math.min(index, T.tabs.length - 1)];
+    const neighbours = T.tabs.filter((candidate) => !T.remote.has(candidate.path));
+    const next = neighbours[Math.min(index, neighbours.length - 1)];
+    T.active = '';
     if (next) activate(next.path); else { await openUntitled(); return; }   // there is always one editor
   }
   save(); refreshState(); render();
@@ -180,7 +225,7 @@ function tabMenu(x, y, path) {
   if (T.remote.has(path)) items.push({ label: 'Bring the window to the front', fn: () => post({ type: 'focus', path }) }, { label: 'Take it back into this window', fn: () => post({ type: 'putback', path }) });
   else {
     if (!mobile && !detachedPath()) items.push({ label: 'Open in a window', fn: () => detach(path) });
-    items.push({ label: 'Save', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); refreshState(); } catch (e) { toast(e.message || String(e)); } } },
+    items.push({ label: 'Save', fn: async () => { try { if (isUntitled(path)) { await placeUntitled(path); refreshState(); return; } await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); refreshState(); } catch (e) { toast(e.message || String(e)); } } },
       { label: 'Revert', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/revert' : '/api/wc/revert', { path }); try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable */ } refreshState(); if (path === S.path) document.dispatchEvent(new CustomEvent('ample:open', { detail: path })); } catch (e) { toast(e.message || String(e)); } } });
   }
   items.push({ label: 'Close', fn: () => closeTab(path) }, { label: 'Close others', fn: async () => { for (const t of [...T.tabs]) if (t.path !== path && !T.remote.has(t.path)) await closeTab(t.path); } },
@@ -213,13 +258,25 @@ function openChannel() {
       return;
     }
     if (data.type === 'detached') { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); if (T.active === data.path) { const next = T.tabs.find((t) => !T.remote.has(t.path)); if (next) activate(next.path); } render(); }
-    else if (data.type === 'alive' && T.remote.has(data.path)) T.remote.get(data.path).seen = Date.now();
-    else if (data.type === 'attached') { T.remote.delete(data.path); T.active = data.path; save(); render(); activate(data.path); if (data.state) { setTimeout(() => applyViewState(data.state), 700); setTimeout(() => applyViewState(data.state), 1800); } }
+    else if (data.type === 'alive') { if (T.remote.has(data.path)) T.remote.get(data.path).seen = Date.now(); else { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); render(); } }   // a popup that resumed (or a reloaded main window) takes its ownership again
+    else if (data.type === 'attached') { T.remote.delete(data.path); add(data.path); activate(data.path); if (data.state) { const p = data.path; const stillWanted = () => !opening && T.active === p; const again = () => { if (stillWanted()) applyViewState(data.state, stillWanted); }; setTimeout(again, 700); setTimeout(again, 1800); } }
   };
 }
 
 /** A file that is open in another window: bring that window to the front, or take the file back here (that window closes and this one shows what it showed). */
+const asking = new Set();   // one question per file, however many open paths ask at once
+/** True when another window holds this file; then the focus / take-back question is shown and the caller must not open an editor. */
+export function openedElsewhere(path) {
+  if (!T.remote.has(path)) return false;
+  remoteChoice(path);
+  return true;
+}
 async function remoteChoice(path) {
+  if (asking.has(path)) return;
+  asking.add(path);
+  try { await remoteChoiceNow(path); } finally { asking.delete(path); }
+}
+async function remoteChoiceNow(path) {
   const choice = await ask('Open in another window', `${baseName(path)} is open in another window. There is only one editor per file.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Bring that window to the front', value: 'focus' }, { label: 'Take it back here', value: 'take', primary: true }]);
   if (choice === 'focus') post({ type: 'focus', path });
   else if (choice === 'take') post({ type: 'putback', path });
@@ -238,10 +295,11 @@ async function captureViewState() {
 }
 
 /** Shows again what the other window showed, as far as this file allows it. */
-async function applyViewState(state) {
-  if (!state) return;
+async function applyViewState(state, stillWanted = () => true) {
+  if (!state || !stillWanted()) return;
   try {
     const { setView } = await import('./views.js');
+    if (!stillWanted()) return;
     const work = $('#work');
     if (work) { work.classList.toggle('noR', state.rightOpen === false); work.classList.toggle('noL', state.leftOpen === false); }
     if (Array.isArray(state.stack) && state.stack.length && state.stack[0] === 'root') S.stack = state.stack;
@@ -251,6 +309,7 @@ async function applyViewState(state) {
     if (state.sel) { try { select(state.sel); } catch { /* the block may be gone */ } }
     if (state.mode === 'src' && state.line) {
       setTimeout(() => {
+        if (!stillWanted()) return;
         const ta = document.querySelector('#se-ta');
         if (!ta) return;
         const lines = ta.value.split('\n');
@@ -271,7 +330,6 @@ function startDetached(path) {
   window.addEventListener('pagehide', () => post({ type: 'attached', path }));
   const back = el('button', { type: 'button', id: 'tab-putback', className: 'primary', textContent: 'Put back in the main window', onclick: putBack });
   $('header')?.append(back);
-  add(path); T.active = path;
   openFile(path);
 }
 async function putBack() { let state = null; try { state = await captureViewState(); } catch { /* the tab comes back without the view */ } post({ type: 'attached', path: detachedPath(), state }); window.close(); }
@@ -300,7 +358,7 @@ function tabElement(tab) {
   div.oncontextmenu = (e) => { e.preventDefault(); tabMenu(e.clientX, e.clientY, path); };
   if (T.remote.has(path)) { div.classList.add('remote'); div.title = `${path} (open in another window: click to bring it to the front)`; }
   div.onauxclick = (e) => { if (e.button === 1) { e.preventDefault(); closeTab(path); } };
-  div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(path); } else if (e.key === 'Delete') closeTab(path); };
+  div.onkeydown = (e) => { if (e.target !== div) return; const sibs = [...div.parentElement.children].filter((n) => !n.hidden); const at = sibs.indexOf(div); const go = (n) => { if (n) { e.preventDefault(); n.focus(); } }; if (e.key === 'ArrowRight') go(sibs[(at + 1) % sibs.length]); else if (e.key === 'ArrowLeft') go(sibs[(at - 1 + sibs.length) % sibs.length]); else if (e.key === 'Home') go(sibs[0]); else if (e.key === 'End') go(sibs[sibs.length - 1]); else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(path); } else if (e.key === 'Delete') closeTab(path); };
   return div;
 }
 
@@ -322,7 +380,10 @@ function render() {
   const more = el('button', { type: 'button', id: 'tabs-more', className: 'tabs-more', title: 'All open files', 'aria-haspopup': 'listbox', textContent: `▾ ${T.tabs.length}`, onclick: (e) => { e.stopPropagation(); togglePopup(more); } });
   const saveAllButton = dirtyCount ? el('button', { type: 'button', id: 'tabs-saveall', className: 'tabs-saveall', textContent: `Save all (${dirtyCount})`, title: 'Save every file with unsaved changes (Ctrl+Shift+S)', onclick: saveAll }) : '';
   T.recent ??= createRecentFilesToggle();   // Recent lives with the tabs now: one place for the files that are open and the ones that were
+  const had = document.activeElement && T.bar.contains(document.activeElement) ? document.activeElement : null;
+  const hadPath = had?.closest?.('.tab')?.dataset.path, hadX = !!had?.classList?.contains('tab-x');
   T.bar.replaceChildren(list, more, T.recent, saveAllButton);
+  if (hadPath) { const node = [...list.children].find((n) => n.dataset.path === hadPath); (hadX ? node?.querySelector('.tab-x') : node)?.focus?.(); }
   T.bar.hidden = T.tabs.length < 1;
   requestAnimationFrame(() => { fit(list); more.classList.toggle('some', T.hidden > 0); });
 }
@@ -343,8 +404,9 @@ function togglePopup(anchor) {
       const row = el('div', { className: `tabs-row${tab.path === T.active ? ' on' : ''}`, role: 'option', tabIndex: 0, 'data-path': tab.path }, [
         el('span', { className: 'tab-name', textContent: baseName(tab.path) }), el('span', { className: 'tabs-folder', textContent: folderOf(tab.path) }),
         el('span', { className: 'tabs-facts', textContent: [f.dirty ? 'unsaved' : '', f.graphBroken ? 'cannot be read into blocks' : f.errors ? `${f.errors} error(s)` : '', f.warnings ? `${f.warnings} warning(s)` : ''].filter(Boolean).join(' · ') })]);
+      if (tab.path !== T.active) row.append(el('button', { type: 'button', className: 'tabs-row-x', textContent: '×', title: 'Close', 'aria-label': `Close ${baseName(tab.path)}`, onclick: async (e) => { e.stopPropagation(); await closeTab(tab.path); paint(); } }));
       row.onclick = () => { closePopup(); activate(tab.path); };
-      row.onkeydown = (e) => { if (e.key === 'Enter') row.click(); };
+      row.onkeydown = (e) => { if (e.target === row && e.key === 'Enter') row.click(); };
       rows.append(row);
     }
     if (phone) {
@@ -383,13 +445,20 @@ export async function saveAll() {
   try { localStorage.setItem(CHECKPOINT_KEY, checkbox.checked ? '1' : '0'); } catch { /* storage may be blocked */ }
   const targets = choice === 'active' ? dirty.filter((p) => p === T.active) : dirty;
   if (!targets.length) { toast('The active file has no unsaved changes.'); return; }
+  let detail = { saved: 0, skipped: 0, failed: 0 };
   try {
     if (checkbox.checked) { try { await api.post('/api/history/checkpoint', { label: 'Before Save all' }); } catch (error) { toast(`No checkpoint was made: ${error.message || error}`); } }
-    for (const path of targets) { if (isUntitled(path)) { await placeUntitled(path); continue; } await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); }
-    toast(`Saved ${targets.length} file${targets.length === 1 ? '' : 's'}.`);
+    const outcome = { saved: 0, skipped: 0, failed: 0 };
+    for (const path of targets) {
+      if (isUntitled(path)) { if (await placeUntitled(path)) outcome.saved++; else outcome.skipped++; continue; }
+      try { await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); outcome.saved++; } catch (error) { outcome.failed++; toast(error.message || String(error)); }
+    }
+    detail = outcome;
+    if (!outcome.skipped && !outcome.failed) toast(`Saved ${outcome.saved} file${outcome.saved === 1 ? '' : 's'}.`);
+    else toast(`Saved ${outcome.saved}, not saved ${outcome.skipped + outcome.failed} (${outcome.skipped} skipped, ${outcome.failed} failed).`);
   } catch (error) { toast(error.message || String(error)); }
   await refreshState();
-  document.dispatchEvent(new CustomEvent('ample:saved-all'));
+  document.dispatchEvent(new CustomEvent('ample:saved-all', { detail }));
 }
 
 /** What Koda is told about the open files: the list of tabs with their state, and for the ones with unsaved changes what changed (a short diff of the saved text against the working text). */
@@ -428,22 +497,42 @@ export function initTabs() {
   try { const stored = JSON.parse(localStorage.getItem(key()) || 'null'); for (const p of stored?.paths || []) add(p); T.active = stored?.active || ''; } catch { /* a damaged list starts empty */ }
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
   undoHooks.push(tabUndo);
-  document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
-  document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
   // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
   document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
   // a tab for a file without opening it: what you look at stays (the files that Koda changed arrive like this, with their unsaved mark)
-  document.addEventListener('ample:add-tab', (e) => { if (!T.internal && e.detail) { add(e.detail); save(); render(); refreshState(); } });
+  document.addEventListener('ample:add-tab', (e) => { if (e.detail) { add(e.detail); save(); render(); refreshState(); } });
+  // the answers to the open requests (main.js): one that went through is committed, a refused one is taken back; a song opened by any route is what the editor shows
+  document.addEventListener('ample:open-result', answered);
   // the option "preview tabs" (Project settings): a single click in the Project panel opens a tab in italics that the next single click replaces; a double click or an edit keeps it
   document.addEventListener('ample:preview-file', (e) => {
     if (!previewOn()) return;
     const path = e.detail;
+    if (kindOf(path) !== 'song' && !viewable(path)) return;   // a song opens through its own route (ample:open); any other file only when the opener can show it
     if (T.tabs.some((t) => t.path === path)) { if (T.active !== path) activate(path); return; }
-    const old = T.tabs.find((t) => t.preview && kindOf(t.path) === kindOf(path) && !factsOf(t.path).dirty);
-    if (old) old.path = path; else T.tabs.push({ path, preview: true });
-    T.active = path; save(); render(); openFile(path);
+    openFile(path, { preview: true });
   });
-  document.addEventListener('ample:song-opened', () => { add(S.path); T.active = S.path; save(); render(); refreshState(); setTimeout(() => dropBlankUntitled(S.path), 600); });
+  document.addEventListener('ample:song-opened', () => {
+    if (!opening) {
+      if (!T.tabs.some((t) => t.path === S.path)) add(S.path);
+      T.active = S.path; save(); render(); refreshState();
+    }
+    const opened = S.path;
+    setTimeout(() => { if (S.path === opened) dropBlankUntitled(opened); }, 600);
+  });
+  // leaving the page with a blank, untouched new song: the file goes away too, so it does not stay in the project
+  window.addEventListener('pagehide', (event) => {
+    if (event.persisted || detachedPath()) return;
+    try {
+      const map = untitledMap();
+      for (const name of Object.keys(map)) {
+        const untouched = S.path === name ? S.doc && !S.doc.dirty && S.doc.text === map[name] : false;
+        if (!untouched) continue;
+        fetch(`/api/project/file?path=${encodeURIComponent(name)}`, { method: 'DELETE', headers: { 'X-Ample-Token': getToken() }, keepalive: true }).catch(() => {});
+        delete map[name]; T.tabs = T.tabs.filter((t) => t.path !== name); if (T.active === name) T.active = T.tabs[0]?.path || ''; save();
+      }
+      rememberUntitled(map);
+    } catch { /* leaving anyway */ }
+  });
   // the first save of a new song asks where it goes
   const intercept = (event) => { if (T.active && isUntitled(T.active) && factsOf(T.active).dirty) { event.preventDefault(); event.stopImmediatePropagation(); placeUntitled(T.active); } };
   $('#btn-save')?.addEventListener('click', intercept, true);
@@ -460,4 +549,12 @@ export function initTabs() {
   else setInterval(() => { for (const [path, w] of T.remote) if (Date.now() - w.seen > 9000) { T.remote.delete(path); toast(`${baseName(path)}: its window was lost, the tab is back here.`); render(); } }, 3000);
   setInterval(refreshState, 3000);
   render(); refreshState();
+  // Reopen a stored non-song tab through the same lifecycle as a click.
+  if (!mine && T.active && kindOf(T.active) !== 'song') {
+    const restored = T.active;
+    T.active = S.path || '';
+    render();
+    if (viewable(restored) && T.tabs.some((t) => t.path === restored)) setTimeout(() => { if (!opening && T.active === S.path) activate(restored); }, 0);
+    else { save(); render(); }
+  }
 }

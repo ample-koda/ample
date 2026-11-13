@@ -1198,6 +1198,7 @@ body.detached #tabbar,body.detached #banner{display:none}
 .tabs-rows{overflow:auto}
 .tabs-row{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:center;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px}
 .tabs-row:hover,.tabs-row.on{background:var(--panel2)}
+.tabs-row-x{margin-left:auto;min-width:32px;min-height:32px;background:none;border:0;color:inherit;cursor:pointer}
 .tabs-folder,.tabs-facts{color:var(--dim);font-size:11px}
 .tabs-facts{grid-column:1 / -1}
 .saveall-cp{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px}
