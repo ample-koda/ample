@@ -5,7 +5,7 @@ import { S } from './store.js';
 import { toast } from './ui.js';
 import { takeCache } from '../lib/take-cache.mjs';
 import { playbackOutput } from './playback-volume.js';
-import { audioDataId, stop as stopPlayer } from './player.js';
+import { audioDataId, setExternalPlayer, stop as stopPlayer } from './player.js';
 
 export const preview = { muted: new Set(), solo: new Set() };
 export const previewActive = () => preview.muted.size > 0 || preview.solo.size > 0;
@@ -27,6 +27,9 @@ export const takeBlockOf = (line) => line.chain.at(-1) || line.sources.find((s) 
 let context = null, playing = null;
 
 export function stopMix() { try { playing?.stop(); } catch { /* already stopped */ } playing = null; }
+
+// Hear it takes part in the transport: it shows as playing (the Mixer meter follows the shared output) and the main Stop ends it.
+setExternalPlayer({ playing: () => playing !== null, take: () => 'playlist', stop: () => stopMix() });
 
 // decoded takes live in the shared byte-budgeted cache (evicts the least recently used), not in a second unbounded map
 const bufferOf = (dataId) => takeCache.getDecoded(`playlist:${dataId}`, async () => {
