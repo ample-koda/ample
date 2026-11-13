@@ -78,7 +78,8 @@ public sealed class BuildStats
     /// <param name="songSeconds">The length of the song.</param>
     /// <param name="elapsedSeconds">The wall-clock time of the build.</param>
     /// <param name="parallelism">How many blocks may render at once (a build of a chain of light blocks runs one after the other).</param>
-    public void Record(IReadOnlyList<(string Type, long Bytes)> rendered, double songSeconds, double elapsedSeconds, int parallelism = 1)
+    /// <param name="chainLength">The longest run of rendered blocks that each waited for the previous one; only the blocks beside that run could share workers.</param>
+    public void Record(IReadOnlyList<(string Type, long Bytes)> rendered, double songSeconds, double elapsedSeconds, int parallelism = 1, int chainLength = 1)
     {
         if (rendered.Count == 0 || songSeconds <= 0)
         {
@@ -93,7 +94,7 @@ public sealed class BuildStats
 
         int heavy = rendered.Count(r => Heavy.Contains(r.Type)), light = rendered.Count - heavy;
         double lightShare = light * songSeconds * lightPace;
-        double effective = elapsedSeconds * Math.Max(1, Math.Min(parallelism, rendered.Count));
+        double effective = elapsedSeconds * Math.Max(1, Math.Min(parallelism, (rendered.Count + Math.Max(1, chainLength) - 1) / Math.Max(1, chainLength)));
         if (heavy > 0)
         {
             double observed = Math.Max(0, effective - lightShare) / (heavy * songSeconds);

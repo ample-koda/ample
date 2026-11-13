@@ -49,7 +49,7 @@ internal static class StorageApi
             types[block.Name] = block.Type;
         }
 
-        List<string> stale = [.. plan.Blocks.Where(b => b.Status == "stale").Select(b => types.GetValueOrDefault(b.Block, "mixer"))];
+        List<string> stale = [.. plan.Blocks.Where(b => b.Status is "stale" or "waiting").Select(b => types.GetValueOrDefault(b.Block, "mixer"))];   // a waiting block renders after its stale input does
         double seconds = s.Engine.SongSeconds(parsed);
         if (range is { } r)
         {
@@ -91,7 +91,11 @@ internal static class StorageApi
 
             List<(string Type, long Bytes)> rendered = [.. report.Blocks.Where(b => b.Status == "rendered" && b.TakeId is not null).Select(b => (types.GetValueOrDefault(b.Block, "mixer"), s.Bank.SizeOfTake(b.TakeId!)))];
             BuildStats stats = BuildStats.Load(s.Root);
-            stats.Record(rendered, Math.Max(1, s.Engine.SongSeconds(parsed)), elapsedSeconds, 4);
+            HashSet<string> done = [.. report.Blocks.Where(b => b.Status == "rendered").Select(b => b.Block)];
+            Dictionary<string, int> depth = [];
+            int Depth(Ample.Language.BlockNode b, int guard) => depth.TryGetValue(b.Name, out int d) ? d : depth[b.Name] = guard > 64 ? 1 : 1 + b.Froms.Select(f => parsed.Blocks.FirstOrDefault(x => x.Name == f.Block)).Where(x => x is not null && done.Contains(x.Name)).Select(x => Depth(x!, guard + 1)).DefaultIfEmpty(0).Max();
+            int chain = Math.Max(1, parsed.Blocks.Where(b => done.Contains(b.Name)).Select(b => Depth(b, 0)).DefaultIfEmpty(1).Max());   // the critical path: blocks that wait for each other cannot share workers
+            stats.Record(rendered, Math.Max(1, s.Engine.SongSeconds(parsed)), elapsedSeconds, Ample.Engine.Engine.BuildParallelism.Effective(0, Ample.Engine.Engine.BuildParallelism.OfProject(s.Root)), chain);
         }
         catch (Exception ex) when (ex is IOException or AmpleException)
         {

@@ -33,4 +33,25 @@ public sealed class BuildStatsTests
             Directory.Delete(root, true);
         }
     }
+
+    [Fact]
+    public void A_serial_chain_is_not_stretched_by_the_worker_limit()
+    {
+        string a = Directory.CreateTempSubdirectory("ample-stats-").FullName, b = Directory.CreateTempSubdirectory("ample-stats-").FullName;
+        try
+        {
+            (string, long)[] four = [("reverb", 1000), ("reverb", 1000), ("reverb", 1000), ("reverb", 1000)];
+            BuildStats.Load(a).Record(four, 100, 8, 4, 4);   // four blocks one after the other
+            BuildStats.Load(b).Record(four, 100, 8, 4, 1);   // four independent blocks
+            double serial = BuildStats.Load(a).Estimate(["reverb"], 100).Seconds, parallel = BuildStats.Load(b).Estimate(["reverb"], 100).Seconds;
+            Assert.True(serial < parallel);
+            // the serial build ran 8 s for 4 blocks: 2 s of wall time per block, not 8 s of worker time
+            Assert.Equal(BuildStats.Load(a).Estimate(["reverb", "reverb", "reverb", "reverb"], 100).Seconds, 4 * serial, 6);
+        }
+        finally
+        {
+            Directory.Delete(a, true);
+            Directory.Delete(b, true);
+        }
+    }
 }
