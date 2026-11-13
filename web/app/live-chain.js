@@ -267,10 +267,11 @@ async function makeLocal(s, item) {
 const hitDrums = (plan, item) => item.tpl === 'drums' && !plan.items.some((other) => other.kind === 'local' && other.inputs.some((link) => link.from === item.id));
 /** A knob of the drums: the hits of the new pattern replace the queued ones at once (hits already heard are not rendered again). */
 async function updateDrumHits(s, item) {
-  const token = (s.drumToken = (s.drumToken || 0) + 1);
+  const tokens = (s.drumTokens ||= new Map()), token = (tokens.get(item.id) || 0) + 1;
+  tokens.set(item.id, token);
   try {
     const voicePlan = await drumVoicePlan(item, { paramsOf: effective });
-    if (session !== s || token !== s.drumToken) return;
+    if (session !== s || token !== tokens.get(item.id)) return;
     s.drumPlans.set(item.id, voicePlan); s.localKeys.set(item.id, localKey(item));
     s.slots.get(item.id)?.node.set(voicePlan);
   } catch (error) { if (session === s) toast(error?.message || String(error)); }
@@ -282,20 +283,23 @@ function rerender(s, id) {
   clearTimeout(s.renders.get(id)?.timer);
   const entry = { timer: 0 };
   s.renders.set(id, entry);
+  const dirty = new Set();
   entry.timer = setTimeout(async () => {
     try {
       for (const item of s.plan.items.filter((i) => i.kind === 'local')) {
-        const stale = item.id === id || item.inputs.some((i) => s.dirty?.has(i.from));
+        const stale = item.id === id || item.inputs.some((i) => dirty.has(i.from));
         if (!stale) continue;
-        (s.dirty ||= new Set()).add(item.id);
+        dirty.add(item.id);
+        const revs = (s.revs ||= new Map()), rev = (revs.get(item.id) || 0) + 1;
+        revs.set(item.id, rev);
         const audio = await makeLocal(s, item);
-        if (session !== s) return;
+        if (session !== s || revs.get(item.id) !== rev) return;   // a newer render of this block started: the older result must not replace it
         s.buffers.set(item.id, toBuffer(s.context, audio));
         s.localKeys.set(item.id, localKey(item));
         swap(s, item.id, s.buffers.get(item.id));
         if (item.tpl === 'normalize') emit();   // the note on the chip says the new gain
       }
-    } catch (error) { if (session === s) toast(error?.message || String(error)); } finally { s.dirty = null; }
+    } catch (error) { if (session === s) toast(error?.message || String(error)); }
   }, 150);
 }
 
@@ -306,7 +310,11 @@ function swap(s, id, buffer) {
   node.buffer = buffer; node.loop = true; if (s.region && s.region.start + s.region.length <= buffer.duration) { node.loopStart = s.region.start; node.loopEnd = s.region.start + s.region.length; } fade.gain.value = 0; node.connect(fade).connect(slot.out);
   node.start(now, position % buffer.duration);
   fade.gain.setTargetAtTime(1, now, .008); slot.fade.gain.cancelScheduledValues(now); slot.fade.gain.setTargetAtTime(0, now, .008);
-  const old = slot.node; try { old.stop(now + .12); } catch { /* ended */ }
+  const old = slot.node, oldFade = slot.fade; try { old.stop(now + .12); } catch { /* ended */ }
+  old.onended = () => {   // the crossfade is over: release the retired pair (idempotent, a Stop may have done it already)
+    for (const n of [old, oldFade]) { try { n.disconnect(); } catch { /* apart */ } s.disposables = s.disposables.filter((d) => d !== n); }
+    s.sources = s.sources.filter((d) => d !== old);
+  };
   s.sources.push(node); s.disposables.push(node, fade);
   s.swaps = (s.swaps || 0) + 1;
   if (s.gliding?.delete(id)) emitSoon();   // the exact sound is in: the glide is over
@@ -415,6 +423,7 @@ export async function setCompareBuilt(on) {
   const s = session;
   if (!s || s.starting) return null;
   if (!on) {
+    s.compareIntent = (s.compareIntent || 0) + 1;   // cancels a comparison that is still loading
     if (!s.builtTake) return false;
     fade(s, s.liveGain, 1); fade(s, s.builtTake.gain, 0);
     const old = s.builtTake;
@@ -425,8 +434,12 @@ export async function setCompareBuilt(on) {
   }
   const take = takeOf(s.target);
   if (!take) { toast(`Build ${s.target} first: there is no built sound of it to compare with.`); return null; }
-  const buffer = await decodedInput(`chain:${take}`, () => fetchTakeAudio(take));
-  if (session !== s) return null;
+  if (s.builtTake || s.comparePending) return true;   // one comparison source at most
+  const intent = (s.compareIntent = (s.compareIntent || 0) + 1);
+  s.comparePending = true;
+  let buffer;
+  try { buffer = await decodedInput(`chain:${take}`, () => fetchTakeAudio(take)); } finally { if (s.compareIntent === intent) s.comparePending = false; }
+  if (session !== s || s.compareIntent !== intent) return null;
   const node = s.context.createBufferSource(), gain = s.context.createGain(), now = s.context.currentTime;
   node.buffer = buffer; node.loop = true; gain.gain.value = 0; node.connect(gain).connect(playbackOutput(s.context));
   // the live chain is late by the look-ahead of its blocks (a limiter); the built sound is delayed by the same amount so the two line up
