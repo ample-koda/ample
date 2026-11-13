@@ -36,7 +36,7 @@ namespace Ample.Msi
                 if (ui && Ask(session, Describe(running) + "\r\n\r\nClose AMPLE now and go on with the installation? AMPLE is asked to stop by itself first. Cancel stops the installation.", OkCancel) != MessageResult.OK)
                     return ActionResult.UserExit;
 
-                AskToStop(session);
+                AskToStop(session, running);
                 running = WaitUntilGone(folder, WaitSeconds);
                 if (running.Count == 0) return ActionResult.Success;
 
@@ -102,8 +102,8 @@ namespace Ample.Msi
             return running;
         }
 
-        /// <summary>The hub gets its exit signal; every server of the registry is asked to stop itself (it kills nothing).</summary>
-        private static void AskToStop(Session session)
+        /// <summary>The hub gets its exit signal; every server of the registry that runs from this installation (same process as the scan) is asked to stop itself (it kills nothing).</summary>
+        private static void AskToStop(Session session, List<Proc> running)
         {
             try { using (EventWaitHandle exit = EventWaitHandle.OpenExisting(@"Local\AMPLE-Hub-Exit")) exit.Set(); session.Log("AmpleClose: the hub was signalled"); }
             catch (Exception) { session.Log("AmpleClose: no hub signal (an older hub, or none)"); }
@@ -119,7 +119,10 @@ namespace Ample.Msi
                     Match port = Regex.Match(File.ReadAllText(json), "\"port\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
                     string launch = Path.ChangeExtension(json, ".launch");
                     Match token = File.Exists(launch) ? Regex.Match(File.ReadAllText(launch), "#token=([^\\s\"]+)") : Match.Empty;
-                    if (!port.Success || !token.Success) continue;
+                    Match pid = Regex.Match(File.ReadAllText(json), "\"pid\"s*:s*(d+)", RegexOptions.IgnoreCase);
+                    if (!port.Success || !token.Success || !pid.Success) continue;
+                    int pidValue = int.Parse(pid.Groups[1].Value);
+                    if (!running.Exists(p => p.Id == pidValue)) { session.Log("AmpleClose: skipped a server outside this installation (pid " + pidValue + ")"); continue; }
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:" + port.Groups[1].Value + "/api/shutdown");
                     request.Method = "POST"; request.ContentLength = 0; request.Timeout = 4000; request.Headers["X-Ample-Token"] = token.Groups[1].Value;
                     using (request.GetResponse()) { session.Log("AmpleClose: a server on port " + port.Groups[1].Value + " was asked to stop"); }
