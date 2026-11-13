@@ -47,16 +47,19 @@ export function voiceFor(program) {
  * The notes that start in the time window [from, to) seconds of the song, as events to play: start and duration in seconds, the voice and a gain.
  * rows come from `mergeTies(absolute(model))`; a note without a channel or program plays what the connected instrument has (defaults).
  */
-export function eventsInWindow(rows, { ppq, bpm, from, to, program = 0, channel = 0, map = null }) {
+export function eventsInWindow(rows, { ppq, bpm, from, to, program = 0, channel = 0, map = null, sustained = false }) {
   // `map` (tempoMap of audio-clock.mjs) puts the notes on a song with tempo changes; without it the tempo is the constant `bpm`
   const secondsPerTick = 60 / bpm / ppq, out = [];
   for (const n of rows) {
     const start = map ? map.secondsAt(n.at / ppq) : n.at * secondsPerTick;
-    if (start < from || start >= to) continue;
+    const held = sustained && start < from && (n.channel ?? channel) !== 9;   // a note already sounding at the left edge: the rest of it starts there
+    if (!held && (start < from || start >= to)) continue;
     const ch = n.channel ?? channel, prog = n.program ?? program;
-    const duration = Math.max(0.03, map ? map.secondsAt((n.at + n.length) / ppq) - start : n.length * secondsPerTick);
+    const endSeconds = map ? map.secondsAt((n.at + n.length) / ppq) : (n.at + n.length) * secondsPerTick;
+    if (held && endSeconds <= from) continue;
+    const duration = Math.max(0.03, endSeconds - (held ? from : start));
     const gain = Math.pow(Math.max(1, Math.min(127, n.velocity)) / 127, 1.4) * 0.45;
-    out.push(ch === 9 ? { ...n, start, duration, gain, pitch: n.pitch, ...drumFor(n.pitch) } : { ...n, start, duration, gain, pitch: n.pitch, voice: voiceFor(prog) });
+    out.push(ch === 9 ? { ...n, start: held ? from : start, duration, gain, pitch: n.pitch, ...drumFor(n.pitch) } : { ...n, start: held ? from : start, duration, gain, pitch: n.pitch, voice: voiceFor(prog) });
   }
   return out;
 }

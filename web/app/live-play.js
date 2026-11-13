@@ -108,7 +108,7 @@ export function startLive({ rows, bpm, tempoChanges = null, ppq, instrument, fro
       const lapEnd = span > 0 ? loopStart + (lap + 1) * span : clipEnd;
       const end = Math.min(u1, lapEnd);
       if (end <= u0) break;
-      for (const e of eventsInWindow(rows(), { ppq, bpm: bpm(), from: u0 - lap * span, to: end - lap * span, program, channel, map: tempoChanges ? tempoMap(tempoChanges(), bpm()) : null })) {
+      for (const e of eventsInWindow(rows(), { ppq, bpm: bpm(), from: u0 - lap * span, to: end - lap * span, program, channel, map: tempoChanges ? tempoMap(tempoChanges(), bpm()) : null, sustained: u0 === from || (span > 0 && Math.abs(u0 - lap * span - loopStart) < 1e-6) })) {
         const at = origin + e.start + lap * span;
         if (at < ctx.currentTime) continue;
         const event = span ? { ...e, duration: Math.min(e.duration, lapEnd - lap * span - e.start) } : e;

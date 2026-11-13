@@ -41,7 +41,18 @@ async function saveAs() {
   document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
 }
 
+const revertHandlers = new Set();
+/** An editor with its own staged state registers { can(), run() }: Revert then restores that instead of the song. */
+export function onRevert(handler) { revertHandlers.add(handler); return () => revertHandlers.delete(handler); }
+const ownRevert = () => [...revertHandlers].find((h) => h.can());
+
 async function revert() {
+  const own = ownRevert();
+  if (own) {
+    if (!(await ask('Revert changes', 'Throws away every change since the file was saved.', [{ label: 'Revert', value: true, primary: true }, { label: 'Keep', value: false }]))) return;
+    await own.run();
+    return;
+  }
   if (!(await ask('Revert changes', 'Throws away every change since the file was saved.', [{ label: 'Revert', value: true, primary: true }, { label: 'Keep', value: false }]))) return;
   await api.post('/api/doc/revert', { path: S.path });
   await reloadDoc();
@@ -75,7 +86,7 @@ export function createSaveControl({ compact = false } = {}) {
     showMenu(rect.left, rect.bottom + 2, [
       item('Save', can.save, saveEverything),
       item('Save as...', can.saveAs, saveAs),
-      item('Revert changes', can.revert, revert),
+      item('Revert changes', can.revert || !!ownRevert(), revert),
       '-',
       item('Export...', can.export, () => openProjects('backup')),
       item('Export package (.ampletx)...', !!S.path, openExportDialog),

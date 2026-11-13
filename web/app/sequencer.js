@@ -15,7 +15,7 @@ import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } f
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
 import { lostAnything, lossText, restoreLost, sequenceLoss } from '../lib/seq-loss.mjs';
 import { V, registerView, setView } from './views.js';
-import { createSaveControl, beforeSave, typedProbe, refreshSaveControls } from './savecontrol.js';
+import { createSaveControl, beforeSave, onRevert, typedProbe, refreshSaveControls } from './savecontrol.js';
 import { openProjectFilePicker } from './filepicker.js';
 import { playProjectFile, playTransient, stop as stopPlayback } from './player.js';
 import { attachGmPicker } from './gm-picker.js';
@@ -123,6 +123,7 @@ export function initSequencer() {
   }, true);
   typedProbe(() => V.mode === 'seq' && dirty());
   beforeSave(async () => { if (V.mode === 'seq' && dirty()) await writeFile(); });
+  onRevert({ can: () => V.mode === 'seq' && dirty(), run: () => { const parsed = parseSeq(Q.snapshot); if (!parsed.seq) { toast('The saved sequence could not be read.'); return; } Q.seq = parsed.seq; Q.undo = []; Q.redo = []; Q.clip = -1; Q.stale = true; Q.pattern = Q.seq.patterns.some((p) => p.name === Q.pattern) ? Q.pattern : (Q.seq.patterns[0]?.name ?? null); render(); refreshSaveControls(); scheduleLive(); toast('Reverted the sequence to the saved version.'); } });
   subscribe(() => { if (V.mode === 'seq' && !Q.busy) { const lanes = $('#sq-lanes'); if (lanes) paintLanes(lanes); } });
 }
 
@@ -243,7 +244,8 @@ function placeRack(rack, main) {
 }
 function scrollPlaces(root) {
   const places = SCROLLERS.map((selector) => [selector, root.querySelector(selector)?.scrollTop ?? 0, root.querySelector(selector)?.scrollLeft ?? 0]);
-  return { places, self: [root.scrollTop, root.scrollLeft], parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null };
+  const FOCUSABLE = 'button,input,select,textarea,[tabindex]', active = document.activeElement, focusIndex = active && root.contains(active) ? [...root.querySelectorAll(FOCUSABLE)].indexOf(active) : -1;
+  return { focusIndex, FOCUSABLE, places, self: [root.scrollTop, root.scrollLeft], parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null };
 }
 function restoreScroll(root, saved) {
   const apply = () => {
@@ -251,6 +253,7 @@ function restoreScroll(root, saved) {
     if (saved.parent && root.parentElement) { root.parentElement.scrollTop = saved.parent[0]; root.parentElement.scrollLeft = saved.parent[1]; }
     for (const [selector, top, left] of saved.places) { const node = root.querySelector(selector); if (node) { node.scrollTop = top; node.scrollLeft = left; } }
   };
+  if (saved.focusIndex >= 0) root.querySelectorAll(saved.FOCUSABLE)[saved.focusIndex]?.focus({ preventScroll: true });   // the edited clip or step keeps the keyboard
   apply();
   requestAnimationFrame(apply);
 }

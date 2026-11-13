@@ -54,3 +54,14 @@ test('events can be placed with a tempo map (a tempo change inside the song)', a
   const constant = eventsInWindow(rows, { ppq: 1000, bpm: 120, from: 0, to: 10, map: tempoMap([{ beat: 0, bpm: 120 }]) });
   assert.deepEqual(constant.map((e) => e.start), eventsInWindow(rows, { ppq: 1000, bpm: 120, from: 0, to: 10 }).map((e) => e.start));
 });
+
+import { eventsInWindow as heldWindow } from '../live-synth.mjs';
+import { test as heldTest } from 'node:test';
+import heldAssert from 'node:assert/strict';
+heldTest('a note already sounding at the left edge is cropped to the window start', () => {
+  const rows = [{ at: 0, length: 960, pitch: 60, velocity: 100 }];
+  const args = { ppq: 480, bpm: 120, from: 0.5, to: 1 };
+  heldAssert.equal(heldWindow(rows, args).length, 0);
+  const [e] = heldWindow(rows, { ...args, sustained: true });
+  heldAssert.equal(e.start, 0.5); heldAssert.ok(Math.abs(e.duration - 0.5) < 1e-9);
+});
