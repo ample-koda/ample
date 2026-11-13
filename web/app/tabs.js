@@ -115,7 +115,7 @@ async function placeUntitled(path) {
     [el('label', { className: 'untitled-row' }, ['name ', name]), el('label', { className: 'untitled-row' }, ['folder ', folder])]);
   if (!choice) return false;
   try {
-    if (S.path === path && S.doc?.dirty) await api.put('/api/doc', { path, text: S.doc.text, baseVersion: S.doc.version }).catch(() => {});
+    if (S.path === path && S.doc?.dirty) await api.put('/api/doc', { path, text: S.doc.text, baseVersion: S.doc.version });   // a failed sync (a version conflict) stops the save: the draft stays
     const made = await api.post('/api/doc/save-as', { path, name: name.value.trim(), folder: folder.value.trim() });
     await api.post('/api/doc/revert', { path }).catch(() => {});
     await api.delete(`/api/project/file?path=${encodeURIComponent(path)}`).catch(() => {});
@@ -159,6 +159,7 @@ async function closeTab(path) {
   if (facts.dirty) {
     const choice = await ask('Close with unsaved changes', `${baseName(path)} has unsaved changes.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Discard changes', value: 'discard' }, { label: 'Save', value: 'save', primary: true }]);
     if (choice === 'cancel' || !choice) return;
+    if (choice === 'save' && isUntitled(path)) { if (!(await placeUntitled(path))) return; refreshState(); render(); return; }   // the first save asks for a name; cancelled keeps the tab open
     try {
       if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
       else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
@@ -180,7 +181,7 @@ function tabMenu(x, y, path) {
   if (T.remote.has(path)) items.push({ label: 'Bring the window to the front', fn: () => post({ type: 'focus', path }) }, { label: 'Take it back into this window', fn: () => post({ type: 'putback', path }) });
   else {
     if (!mobile && !detachedPath()) items.push({ label: 'Open in a window', fn: () => detach(path) });
-    items.push({ label: 'Save', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); refreshState(); } catch (e) { toast(e.message || String(e)); } } },
+    items.push({ label: 'Save', fn: async () => { try { if (isUntitled(path)) { await placeUntitled(path); refreshState(); return; } await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); refreshState(); } catch (e) { toast(e.message || String(e)); } } },
       { label: 'Revert', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/revert' : '/api/wc/revert', { path }); try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable */ } refreshState(); if (path === S.path) document.dispatchEvent(new CustomEvent('ample:open', { detail: path })); } catch (e) { toast(e.message || String(e)); } } });
   }
   items.push({ label: 'Close', fn: () => closeTab(path) }, { label: 'Close others', fn: async () => { for (const t of [...T.tabs]) if (t.path !== path && !T.remote.has(t.path)) await closeTab(t.path); } },
@@ -383,13 +384,20 @@ export async function saveAll() {
   try { localStorage.setItem(CHECKPOINT_KEY, checkbox.checked ? '1' : '0'); } catch { /* storage may be blocked */ }
   const targets = choice === 'active' ? dirty.filter((p) => p === T.active) : dirty;
   if (!targets.length) { toast('The active file has no unsaved changes.'); return; }
+  let detail = { saved: 0, skipped: 0, failed: 0 };
   try {
     if (checkbox.checked) { try { await api.post('/api/history/checkpoint', { label: 'Before Save all' }); } catch (error) { toast(`No checkpoint was made: ${error.message || error}`); } }
-    for (const path of targets) { if (isUntitled(path)) { await placeUntitled(path); continue; } await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); }
-    toast(`Saved ${targets.length} file${targets.length === 1 ? '' : 's'}.`);
+    const outcome = { saved: 0, skipped: 0, failed: 0 };
+    for (const path of targets) {
+      if (isUntitled(path)) { if (await placeUntitled(path)) outcome.saved++; else outcome.skipped++; continue; }
+      try { await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); outcome.saved++; } catch (error) { outcome.failed++; toast(error.message || String(error)); }
+    }
+    detail = outcome;
+    if (!outcome.skipped && !outcome.failed) toast(`Saved ${outcome.saved} file${outcome.saved === 1 ? '' : 's'}.`);
+    else toast(`Saved ${outcome.saved}, not saved ${outcome.skipped + outcome.failed} (${outcome.skipped} skipped, ${outcome.failed} failed).`);
   } catch (error) { toast(error.message || String(error)); }
   await refreshState();
-  document.dispatchEvent(new CustomEvent('ample:saved-all'));
+  document.dispatchEvent(new CustomEvent('ample:saved-all', { detail }));
 }
 
 /** What Koda is told about the open files: the list of tabs with their state, and for the ones with unsaved changes what changed (a short diff of the saved text against the working text). */
