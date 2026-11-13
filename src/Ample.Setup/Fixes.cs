@@ -45,11 +45,11 @@ namespace Ample.Setup
         private const int WingetNothingToDo = -1978335189;   // 0x8A15002B: already installed and up to date
 
         /// <summary>Runs one fix in this process. Returns null when it worked, else the reason.</summary>
-        internal static string Run(Fix fix, string ample, string home, Action<int, string> report)
+        internal static string Run(Fix fix, string ample, string home, Action<int, string> report, CancellationToken cancel = default(CancellationToken))
         {
             try
             {
-                if (fix.Kind == "pack") return RunPack(fix, ample, home, report);
+                if (fix.Kind == "pack") return RunPack(fix, ample, home, report, cancel);
                 if (fix.Kind == "pack-remove") return RunPackRemove(fix, ample, home);
                 if (fix.Kind == "winget") return RunWinget(fix, report);
                 return "Unknown kind of fix: " + fix.Kind;
@@ -58,7 +58,7 @@ namespace Ample.Setup
             catch (Exception ex) { return ex.Message; }
         }
 
-        private static string RunPack(Fix fix, string ample, string home, Action<int, string> report)
+        private static string RunPack(Fix fix, string ample, string home, Action<int, string> report, CancellationToken cancel)
         {
             ProcessStartInfo start = new ProcessStartInfo(ample, "packs install " + fix.Id + " --progress --home \"" + home + "\"")
             {
@@ -66,6 +66,7 @@ namespace Ample.Setup
             };
             string last = null;
             using (Process process = Process.Start(start))
+            using (cancel.Register(() => { try { if (!process.HasExited) process.Kill(); } catch (Exception) { /* already gone */ } }))
             {
                 process.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) last = e.Data; };
                 process.BeginErrorReadLine();
@@ -80,6 +81,7 @@ namespace Ample.Setup
                 }
 
                 process.WaitForExit();
+                if (cancel.IsCancellationRequested) return "Cancelled by you.";
                 return process.ExitCode == 0 ? null : (last ?? "ample stopped with exit code " + process.ExitCode + ".");
             }
         }

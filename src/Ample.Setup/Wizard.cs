@@ -63,6 +63,15 @@ namespace Ample.Setup
         private bool finished;
         private bool healthStarted;
         private bool healthBusy;
+        private bool? restartRecommendation;
+        private readonly Label restartNote = new Label();
+        private readonly Button recheck = new ThemedButton();
+        private readonly Button copyReport = new ThemedButton();
+        private readonly StringBuilder healthReport = new StringBuilder();
+        private HashSet<string> lastOpen;
+        private volatile bool stopRequested;
+        private bool running;
+        private System.Threading.CancellationTokenSource runCancel;
 
         internal Wizard(string mode, bool runtimeOk)
         {
@@ -108,7 +117,8 @@ namespace Ample.Setup
             Place();
             back.Click += (s, e) => Go(page - 1);
             next.Click += async (s, e) => await OnNext();
-            cancel.Click += (s, e) => Close();
+            cancel.Click += (s, e) => { if (running) RequestStop(); else Close(); };
+            FormClosing += (s, e) => { if (running) { e.Cancel = true; RequestStop(); } };
             Controls.AddRange(new Control[] { back, next, cancel });
             Show(0);
         }
@@ -182,7 +192,11 @@ namespace Ample.Setup
             healthStatus.AutoSize = false; healthStatus.Size = new Size(528, 20); healthStatus.Location = new Point(0, 28); healthStatus.ForeColor = Ink; healthStatus.Text = "Looking at what AMPLE needs on this PC...";
             healthBar.Style = ProgressBarStyle.Marquee; healthBar.MarqueeAnimationSpeed = 30; healthBar.Size = new Size(528, 8); healthBar.Location = new Point(0, 52);
             healthRows.Location = new Point(0, 66); healthRows.Size = new Size(528, 192); healthRows.AutoScroll = true; healthRows.FlowDirection = FlowDirection.TopDown; healthRows.WrapContents = false;
-            p.Controls.AddRange(new Control[] { healthStatus, healthBar, healthRows });
+            foreach (Button b in new[] { copyReport, recheck }) { b.FlatStyle = FlatStyle.Flat; b.BackColor = Card; b.ForeColor = Ink; b.FlatAppearance.BorderColor = Accent; b.Height = 24; b.Width = 96; b.Top = 0; }
+            copyReport.Text = "Copy report"; copyReport.Left = 330; recheck.Text = "Recheck"; recheck.Left = 432;
+            copyReport.Click += (s, e) => { try { Clipboard.SetText(healthReport.Length > 0 ? healthReport.ToString() : "No health report yet."); } catch (Exception) { /* the clipboard may be busy */ } };
+            recheck.Click += async (s, e) => await RunDoctorAsync();
+            p.Controls.AddRange(new Control[] { healthStatus, healthBar, healthRows, copyReport, recheck });
             return p;
         }
 
@@ -193,7 +207,8 @@ namespace Ample.Setup
             startAmple.Checked = true; startAmple.AutoSize = true; startAmple.ForeColor = Ink; startAmple.Location = new Point(0, 8);
             startHub.Text = "Start the AMPLE tray hub (a tray icon to start, stop and restart AMPLE)";
             startHub.Checked = runtimeOk && hubPresent; startHub.Enabled = runtimeOk && hubPresent; startHub.AutoSize = true; startHub.ForeColor = Ink; startHub.Location = new Point(0, 44);
-            p.Controls.Add(startAmple); p.Controls.Add(startHub);
+            restartNote.AutoSize = false; restartNote.Size = new Size(520, 36); restartNote.Location = new Point(0, 28); restartNote.ForeColor = Warn;
+            p.Controls.Add(startAmple); p.Controls.Add(startHub); p.Controls.Add(restartNote);
             if (!runtimeOk && hubPresent)
                 p.Controls.Add(new Label { AutoSize = false, Size = new Size(520, 60), Location = new Point(0, 76), ForeColor = Warn, Text = "The tray hub needs the .NET 9 Desktop Runtime, which is not installed. The check on the previous page can install it for all users (that asks for administrator permission); then start the hub from the Start menu." });
             return p;
@@ -222,7 +237,14 @@ namespace Ample.Setup
             for (int i = 0; i < pages.Count; i++) pages[i].Visible = i == index;
             Control current = pages[index];
             FitForPage(current);
-            if (current == actionsPage && mode == "reconfigure" && true) { startAmple.Checked = LoginChanged; }
+            if (current == actionsPage && mode == "reconfigure")
+            {
+                bool recommended = LoginChanged;
+                if (!restartRecommendation.HasValue) startAmple.Checked = recommended;
+                else if (restartRecommendation.Value != recommended) restartNote.Text = "Because you changed the sign-in option, restarting AMPLE is now " + (recommended ? "recommended" : "not needed") + ". Your own choice above was kept.";
+                restartRecommendation = recommended;
+            }
+
             if (current == healthPage && !healthStarted) { healthStarted = true; _ = RunDoctorAsync(); }
             if (current == packsPage && !packsLoaded && !packsLoading) { _ = LoadPacksAsync(); }
             back.Visible = index > 0 && !finished && current != resultPage;
@@ -253,15 +275,25 @@ namespace Ample.Setup
             if (pages[page] != actionsPage) { Go(page + 1); return; }
             // the actions page: run the steps
             Go(pages.Count - 1);
-            next.Enabled = false; back.Visible = false; cancel.Enabled = false;
+            next.Enabled = false; back.Visible = false;
+            cancel.Text = "Stop"; running = true; stopRequested = false; runCancel = new System.Threading.CancellationTokenSource();
             string choice = Choice, name = user.Text.Trim(), secret = password.Text;
             bool doAmple = startAmple.Checked, doHub = startHub.Checked && runtimeOk && hubPresent;
             List<Fix> fixes = SelectedFixes;
             fixes.AddRange(PackFixes());
             await Task.Run(() => RunSteps(choice, name, secret, fixes, doAmple, doHub));
             finished = true;
-            cancel.Enabled = true;
+            running = false; cancel.Text = "Cancel"; cancel.Enabled = true;
             Show(pages.Count - 1);
+        }
+
+        // Stop: the download that runs is cancelled, the steps that have not started are skipped; an administrator installer that already runs has to finish
+        private void RequestStop()
+        {
+            if (stopRequested) return;
+            stopRequested = true; cancel.Enabled = false;
+            try { runCancel.Cancel(); } catch (ObjectDisposedException) { /* finished meanwhile */ }
+            Log("Stopping: pending steps are skipped. A system installer that is already running cannot be interrupted safely and finishes first.");
         }
 
         private bool ValidSignIn()
@@ -276,14 +308,28 @@ namespace Ample.Setup
 
         private async Task RunDoctorAsync()
         {
-            healthBusy = true; next.Enabled = false;
+            if (healthBusy) return;
+            healthBusy = true; next.Enabled = false; recheck.Enabled = false;
+            healthBar.Visible = true; healthStatus.Text = "Looking at what AMPLE needs on this PC...";
+            Dictionary<string, bool> before = fixBoxes.ToDictionary(b => ((Fix)b.Tag).Key, b => b.Checked, StringComparer.Ordinal);
             List<Finding> findings = await Task.Run(() => ReadFindings());
             healthRows.SuspendLayout();
             healthRows.Controls.Clear();
             fixBoxes.Clear();
+            healthReport.Clear();
             foreach (Finding f in findings) AddRow(f);
+            foreach (CheckBox b in fixBoxes) { bool was; if (before.TryGetValue(((Fix)b.Tag).Key, out was)) b.Checked = was; }
             healthRows.ResumeLayout();
             healthBar.Visible = false;
+            recheck.Enabled = true;
+            HashSet<string> nowOpen = new HashSet<string>(findings.Where(f => f.Level != "ok").Select(f => f.Name), StringComparer.Ordinal);
+            if (lastOpen != null)
+            {
+                int resolved = lastOpen.Count(n => !nowOpen.Contains(n)), still = lastOpen.Count(n => nowOpen.Contains(n));
+                results.AppendText("Health recheck: " + resolved + " resolved, " + still + " still open" + (nowOpen.Count > still ? ", " + (nowOpen.Count - still) + " new" : "") + ".\r\n");
+            }
+
+            lastOpen = nowOpen;
             // the sound packs are optional downloads (and removals): they are not "things to look at"
             Func<Finding, bool> isPack = x => x.Name.StartsWith("sound pack:", StringComparison.Ordinal);
             int open = findings.Count(f => f.Level != "ok" && !isPack(f)), fixable = findings.Count(f => f.Level != "ok" && f.Fix != null && !isPack(f));
@@ -306,13 +352,10 @@ namespace Ample.Setup
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
                 };
                 start.EnvironmentVariables["AMPLE_HOME"] = home;
-                string json;
-                using (Process process = Process.Start(start))
-                {
-                    json = process.StandardOutput.ReadToEnd();
-                    process.StandardError.ReadToEnd();
-                    process.WaitForExit(60000);
-                }
+                string json, errors; int exit;
+                string timeout = ProcessRunner.Capture(start, 60000, out json, out errors, out exit);
+                if (timeout != null) throw new Exception("the health check: " + timeout);
+                if (json.Trim().Length == 0) throw new Exception("the health check gave no answer (exit code " + exit + ")" + (errors.Trim().Length > 0 ? ": " + errors.Trim() : ""));
 
                 foreach (object o in (object[])new JavaScriptSerializer().DeserializeObject(json))
                 {
@@ -325,7 +368,7 @@ namespace Ample.Setup
             }
             catch (Exception ex)
             {
-                list.Add(new Finding { Level = "missing", Name = "the check itself", Detail = "The check did not run: " + ex.Message, Hint = "" });
+                list.Add(new Finding { Level = "missing", Name = "the check itself", Detail = "The check did not run: " + ex.Message, Hint = "Press Recheck to try again, or continue: the other pages still work." });
             }
 
             if (hubPresent && !runtimeOk)
@@ -343,15 +386,18 @@ namespace Ample.Setup
         {
             Color colour = f.Level == "ok" ? Good : f.Level == "note" ? Warn : Bad;
             string glyph = f.Level == "ok" ? "✓" : f.Level == "note" ? "i" : "✕";
-            string detail = f.Detail.Length > 70 ? f.Detail.Substring(0, 70) + "..." : f.Detail;
+            string detail = f.Detail;
             bool choice = f.Fix != null && (f.Level != "ok" || f.Fix.Kind == "pack-remove");   // a sound pack that is installed offers its removal (unticked)
-            Panel row = new Panel { Width = 500, Height = choice ? 66 : 24, Margin = new Padding(0, 0, 0, 2) };
+            string text = f.Name + (detail.Length > 0 && f.Level != "ok" ? ": " + detail : "") + (f.Hint.Length > 0 && f.Level != "ok" ? "\r\nHint: " + f.Hint : "");
+            healthReport.AppendLine("[" + f.Level + "] " + text.Replace("\r\n", " | "));
+            int textHeight = Math.Max(22, TextRenderer.MeasureText(text, Font, new Size(478, 0), TextFormatFlags.WordBreak).Height + 4);
+            Panel row = new Panel { Width = 500, Height = textHeight + 2 + (choice ? 42 : 0), Margin = new Padding(0, 0, 0, 2) };
             row.Controls.Add(new Label { Text = glyph, ForeColor = colour, Font = new Font("Segoe UI Semibold", 10f), AutoSize = false, Size = new Size(20, 22), Location = new Point(0, 0) });
-            row.Controls.Add(new Label { Text = f.Name + (detail.Length > 0 && f.Level != "ok" ? ": " + detail : ""), ForeColor = Ink, AutoSize = false, AutoEllipsis = true, Size = new Size(478, 22), Location = new Point(22, 1) });
+            row.Controls.Add(new Label { Text = text, ForeColor = Ink, AutoSize = false, UseMnemonic = false, Size = new Size(478, textHeight), Location = new Point(22, 1) });
             if (choice)
             {
                 string size = f.Fix.SizeMb > 0 ? " (about " + f.Fix.SizeMb + " MB)" : "";
-                CheckBox box = new CheckBox { Text = f.Fix.Title + size + (f.Fix.Admin ? "  [needs administrator permission]" : ""), Tag = f.Fix, AutoSize = false, Size = new Size(476, 40), Location = new Point(22, 24), CheckAlign = ContentAlignment.TopLeft, TextAlign = ContentAlignment.TopLeft, ForeColor = f.Fix.Admin ? Warn : Ink, Checked = f.Fix.Kind == "pack" && f.Fix.Id == "soundfont" };
+                CheckBox box = new CheckBox { Text = f.Fix.Title + size + (f.Fix.Admin ? "  [needs administrator permission]" : ""), Tag = f.Fix, AutoSize = false, Size = new Size(476, 40), Location = new Point(22, textHeight + 2), CheckAlign = ContentAlignment.TopLeft, TextAlign = ContentAlignment.TopLeft, ForeColor = f.Fix.Admin ? Warn : Ink, Checked = f.Fix.Kind == "pack" && f.Fix.Id == "soundfont" };
                 box.CheckedChanged += (s, e) => UpdateShield();
                 fixBoxes.Add(box);
                 row.Controls.Add(box);
@@ -401,14 +447,16 @@ namespace Ample.Setup
             // the fixes that need no administrator permission first, then the ones that do (one UAC prompt each)
             foreach (Fix fix in fixes.OrderBy(f => f.Admin))
             {
+                if (stopRequested) { Log("SKIPPED  " + fix.Title + " (stopped by you)"); done++; continue; }
                 string heading = counter() + (fix.Admin ? "(administrator permission) " : "") + fix.Title;
                 Say(heading); Progress(fix.Kind == "pack" ? 0 : -1);
                 Action<int, string> report = (percent, text) => { Progress(percent); Say(heading + "\r\n" + text); };
-                string problem = fix.Admin ? FixRunner.RunElevated(fix, ample, home, report) : FixRunner.Run(fix, ample, home, report);
+                string problem = fix.Admin ? FixRunner.RunElevated(fix, ample, home, report) : FixRunner.Run(fix, ample, home, report, runCancel.Token);
                 Log(problem == null ? "OK  " + fix.Title : "FAILED  " + fix.Title + ": " + problem);
                 done++;
             }
 
+            if (stopRequested && (doHub || doAmple)) { Log("SKIPPED  " + (doAmple ? "Starting AMPLE" : "Starting the tray hub") + " (stopped by you)."); doHub = doAmple = false; }
             if (doHub || doAmple)
             {
                 Say(counter() + (doAmple ? (mode == "fresh" ? "starting AMPLE" : "restarting AMPLE") : "starting the tray hub")); Progress(-1);
@@ -455,16 +503,39 @@ namespace Ample.Setup
 
         private void WriteLogin(bool on)
         {
-            string text = File.Exists(HubJson) ? File.ReadAllText(HubJson) : string.Empty;
-            string port = Regex.Match(text, "\"mainPort\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase).Groups[1].Value;
-            string others = Regex.Match(text, "\"acceptOthers\"\\s*:\\s*(true|false)", RegexOptions.IgnoreCase).Groups[1].Value;
-            string atLogin = Regex.Match(text, "\"startAtLogin\"\\s*:\\s*(true|false)", RegexOptions.IgnoreCase).Groups[1].Value;
             Directory.CreateDirectory(home);
-            string json = "{\n  \"mainPort\": " + (port.Length > 0 ? port : "0") + ",\n  \"mainLogin\": " + (on ? "true" : "false") + ",\n  \"acceptOthers\": " + (others.Length > 0 ? others.ToLowerInvariant() : "true") + ",\n  \"startAtLogin\": " + (atLogin.Length > 0 ? atLogin.ToLowerInvariant() : "true") + "\n}\n";
-            string temporary = HubJson + ".tmp";
-            File.WriteAllText(temporary, json, new UTF8Encoding(false));
-            if (File.Exists(HubJson)) File.Delete(HubJson);
-            File.Move(temporary, HubJson);
+            using (System.Threading.Mutex gate = new System.Threading.Mutex(false, "Local\\AmpleHubSettings"))
+            {
+                bool owned = false;
+                try { owned = gate.WaitOne(5000); } catch (System.Threading.AbandonedMutexException) { owned = true; }
+                try
+                {
+                    Dictionary<string, object> settings = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                    if (File.Exists(HubJson))
+                    {
+                        string text = File.ReadAllText(HubJson);
+                        if (text.Trim().Length > 0)
+                        {
+                            Dictionary<string, object> parsed;
+                            try { parsed = new JavaScriptSerializer().DeserializeObject(text) as Dictionary<string, object>; }
+                            catch (Exception ex) { throw new InvalidOperationException("hub.json is not valid JSON, so it was left alone (" + ex.Message + ")"); }
+                            if (parsed == null) throw new InvalidOperationException("hub.json is not a JSON object, so it was left alone");
+                            foreach (KeyValuePair<string, object> pair in parsed) settings[pair.Key] = pair.Value;
+                        }
+                    }
+
+                    if (!settings.ContainsKey("mainPort")) settings["mainPort"] = 0;
+                    if (!settings.ContainsKey("acceptOthers")) settings["acceptOthers"] = true;
+                    if (!settings.ContainsKey("startAtLogin")) settings["startAtLogin"] = true;
+                    settings["mainLogin"] = on;
+                    string json = new JavaScriptSerializer().Serialize(settings) + "\n";
+                    string temporary = HubJson + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                    File.WriteAllText(temporary, json, new UTF8Encoding(false));
+                    if (File.Exists(HubJson)) File.Replace(temporary, HubJson, null);
+                    else File.Move(temporary, HubJson);
+                }
+                finally { if (owned) gate.ReleaseMutex(); }
+            }
         }
 
         private static string RunAmple(string exe, string arguments, string input, out int code)

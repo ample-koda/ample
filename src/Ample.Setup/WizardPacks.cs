@@ -19,7 +19,7 @@ namespace Ample.Setup
         {
             internal string Id, Tier, Title, License, Author, Description;
             internal long Bytes, InstalledBytes;
-            internal bool Installed, CreditRequired;
+            internal bool Installed, CreditRequired, Remove;
             internal CheckBox Box;
         }
 
@@ -44,7 +44,7 @@ namespace Ample.Setup
                 string choice = label;
                 Button b = new Button { Text = label, FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Ink, Height = 24, Width = choice.Length > 6 ? 176 : 56, Top = 48, Left = x };
                 b.FlatAppearance.BorderColor = Accent;
-                b.Click += (s, e) => { foreach (PackInfo pack in packs) pack.Box.Checked = choice == "All" || (choice != "None" && !pack.CreditRequired); };
+                b.Click += (s, e) => { foreach (PackInfo pack in packs.Where(x => !x.Installed)) pack.Box.Checked = choice == "All" || (choice != "None" && !pack.CreditRequired); };
                 p.Controls.Add(b);
                 x += b.Width + 6;
             }
@@ -85,15 +85,15 @@ namespace Ample.Setup
 
         private async Task LoadPacksAsync()
         {
-            packsLoading = true; next.Enabled = false;
+            packsLoading = true; next.Enabled = false; packsProblem = null;
             List<PackInfo> found = await Task.Run(() => ReadPacks());
             packRows.SuspendLayout();
             packRows.Controls.Clear();
             packs.Clear();
             foreach (PackInfo info in found) { packs.Add(info); packRows.Controls.Add(PackRow(info)); }
             packRows.ResumeLayout();
-            packsLoaded = true; packsLoading = false;
-            packsStatus.Text = packs.Count == 0 ? (packsProblem != null ? "The list of packs could not be read: " + packsProblem : "This version of AMPLE has no sound packs to offer.") : "Tick what you want on this computer; untick an installed pack to remove it.";
+            packsLoaded = packsProblem == null; packsLoading = false;
+            packsStatus.Text = packs.Count == 0 ? (packsProblem != null ? "The list of packs could not be read: " + packsProblem : "This version of AMPLE has no sound packs to offer.") : "Tick the packs to download. Installed packs stay as they are; use Remove on a pack to take it away.";
             UpdatePacksSummary();
             Show(page);
         }
@@ -108,13 +108,10 @@ namespace Ample.Setup
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
                 };
                 start.EnvironmentVariables["AMPLE_HOME"] = home;
-                string json;
-                using (Process process = Process.Start(start))
-                {
-                    json = process.StandardOutput.ReadToEnd();
-                    process.StandardError.ReadToEnd();
-                    process.WaitForExit(60000);
-                }
+                string json, errors; int exit;
+                string timeout = ProcessRunner.Capture(start, 60000, out json, out errors, out exit);
+                if (timeout != null) { packsProblem = "listing the packs: " + timeout + ". Go back and forward to try again."; return list; }
+                if (json.Trim().Length == 0) { packsProblem = "no answer from ample (exit code " + exit + ")" + (errors.Trim().Length > 0 ? ": " + errors.Trim() : ""); return list; }
 
                 foreach (object o in (object[])new JavaScriptSerializer().DeserializeObject(json))
                 {
@@ -146,13 +143,21 @@ namespace Ample.Setup
             Font small = new Font("Segoe UI", 8.5f);
             Panel row = new Panel { Width = width, BackColor = Card, Margin = new Padding(0, 0, 0, 6), Padding = new Padding(8, 6, 8, 6) };
             int y = 4;
-            info.Box = new CheckBox { Text = info.Title, Checked = info.Installed, AutoSize = false, Size = new Size(width - 20, 22), Location = new Point(8, y), ForeColor = Ink, Font = new Font("Segoe UI Semibold", 9.5f) };
+            info.Box = new CheckBox { Text = info.Title, Checked = info.Installed, Enabled = !info.Installed, AutoSize = false, Size = new Size(width - 100, 22), Location = new Point(8, y), ForeColor = Ink, Font = new Font("Segoe UI Semibold", 9.5f) };
             info.Box.CheckedChanged += (s, e) => UpdatePacksSummary();
             row.Controls.Add(info.Box);
+            if (info.Installed)
+            {
+                Button remove = new Button { Text = "Remove", FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Ink, Height = 22, Width = 80, Location = new Point(width - 90, y) };
+                remove.FlatAppearance.BorderColor = Bad;
+                remove.Click += (s, e) => { info.Remove = !info.Remove; remove.Text = info.Remove ? "Keep" : "Remove"; UpdatePacksSummary(); };
+                row.Controls.Add(remove);
+            }
+
             y += 24;
 
             string licence = info.CreditRequired
-                ? "CREDIT REQUIRED. Creative Commons BY: if you publish music made with this pack you must credit " + (info.Author.Length > 0 ? info.Author : "its author") + ". Most people do not want that: leave it unticked" + (info.Installed ? ", or untick it to remove it" : "") + ". (" + info.License + ")"
+                ? "CREDIT REQUIRED. Creative Commons BY: if you publish music made with this pack you must credit " + (info.Author.Length > 0 ? info.Author : "its author") + ". Most people do not want that: leave it unticked" + (info.Installed ? ", or use Remove to take it away" : "") + ". (" + info.License + ")"
                 : "No credit needed: " + info.License + ".";
             y = AddWrapped(row, licence, small, info.CreditRequired ? Warn : Good, y, width - 20);
 
@@ -165,7 +170,7 @@ namespace Ample.Setup
                 tips.SetToolTip(row, info.Description);
             }
 
-            string state = info.Installed ? "Installed on this computer (" + Mb(info.InstalledBytes) + " on disk). Untick it to remove it." : "Not installed. Download about " + Mb(info.Bytes) + ".";
+            string state = info.Installed ? "Installed on this computer (" + Mb(info.InstalledBytes) + " on disk). Use Remove to take it away." : "Not installed. Download about " + Mb(info.Bytes) + ".";
             y = AddWrapped(row, state, small, info.Installed ? Good : Ink, y, width - 20);
             row.Height = y + 6;
             return row;
@@ -180,8 +185,8 @@ namespace Ample.Setup
 
         private void UpdatePacksSummary()
         {
-            int down = packs.Count(p => p.Box.Checked && !p.Installed), remove = packs.Count(p => !p.Box.Checked && p.Installed);
-            long downBytes = packs.Where(p => p.Box.Checked && !p.Installed).Sum(p => p.Bytes), removeBytes = packs.Where(p => !p.Box.Checked && p.Installed).Sum(p => p.InstalledBytes);
+            int down = packs.Count(p => p.Box.Checked && !p.Installed), remove = packs.Count(p => p.Remove);
+            long downBytes = packs.Where(p => p.Box.Checked && !p.Installed).Sum(p => p.Bytes), removeBytes = packs.Where(p => p.Remove).Sum(p => p.InstalledBytes);
             List<string> credit = packs.Where(p => p.Box.Checked && p.CreditRequired).Select(p => p.Title).ToList();
             StringBuilder text = new StringBuilder();
             text.Append(down == 0 && remove == 0 ? "Nothing changes." : "Next: " + (down > 0 ? down + " to download (about " + Mb(downBytes) + ")" : "") + (down > 0 && remove > 0 ? ", " : "") + (remove > 0 ? remove + " to remove (" + Mb(removeBytes) + ")" : "") + ".");
@@ -196,7 +201,7 @@ namespace Ample.Setup
             foreach (PackInfo p in packs)
             {
                 if (p.Box.Checked && !p.Installed) fixes.Add(new Fix { Kind = "pack", Id = p.Id, Title = "Download " + p.Title + " (about " + Mb(p.Bytes) + ")", SizeMb = (int)Math.Max(1, p.Bytes / 1048576) });
-                else if (!p.Box.Checked && p.Installed) fixes.Add(new Fix { Kind = "pack-remove", Id = p.Id, Title = "Remove " + p.Title + " (" + Mb(p.InstalledBytes) + ")", SizeMb = 0 });
+                else if (p.Remove) fixes.Add(new Fix { Kind = "pack-remove", Id = p.Id, Title = "Remove " + p.Title + " (" + Mb(p.InstalledBytes) + ")", SizeMb = 0 });
             }
 
             return fixes;
@@ -204,7 +209,7 @@ namespace Ample.Setup
 
         private bool ConfirmPackRemoval()
         {
-            List<PackInfo> remove = packs.Where(p => !p.Box.Checked && p.Installed).ToList();
+            List<PackInfo> remove = packs.Where(p => p.Remove).ToList();
             if (remove.Count == 0) return true;
             string names = string.Join("\r\n", remove.Take(12).Select(p => "  " + p.Title)) + (remove.Count > 12 ? "\r\n  and " + (remove.Count - 12) + " more" : "");
             return MessageBox.Show(this, "These sound packs will be removed from this computer:\r\n\r\n" + names + "\r\n\r\nYou can download them again here later. Remove them?", "AMPLE Tune-up", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
