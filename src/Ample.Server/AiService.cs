@@ -1133,24 +1133,28 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
     // ---- the status ----
 
     /// <summary>Where Codex stands: what the server allows, what the project chose, whether Codex can run and, when asked, whether it is signed in.</summary>
-    private static JsonArray? modelsCache;
-    private static DateTimeOffset modelsAt;
+    private static readonly Dictionary<string, (JsonArray Models, DateTimeOffset At)> modelsCache = [];
+
+    private static void ClearModels() { lock (modelsCache) { modelsCache.Clear(); } }
 
     /// <summary>The models Codex offers and the current account's usage limits.</summary>
-    public async Task<JsonObject> ModelsAsync(CancellationToken ct)
+    public async Task<JsonObject> ModelsAsync(CancellationToken ct, bool koda = false)
     {
         AiPolicy policy = AiPolicy.Read();
         AiAssistantSettings ai = Settings();
-        string? home = ai.Assistant == "codex-device" ? DeviceHome : null;
+        string? home = koda && KodaLinked ? KodaHome : ai.Assistant == "codex-device" ? DeviceHome : null;
+        string cacheKey = policy.CodexPath + "|" + (home ?? "server-account");
         JsonObject usage = new();
-        if (modelsCache is null || DateTimeOffset.UtcNow - modelsAt > TimeSpan.FromMinutes(10))
+        JsonArray? cached = null;
+        lock (modelsCache) { if (modelsCache.TryGetValue(cacheKey, out (JsonArray Models, DateTimeOffset At) e) && DateTimeOffset.UtcNow - e.At <= TimeSpan.FromMinutes(10)) { cached = e.Models; } }
+        if (cached is null)
         {
             try
             {
                 await using CodexRpc rpc = CodexRpc.Start(policy.CodexPath, home, s.Root, []);
                 await rpc.InitializeAsync(ct).ConfigureAwait(false);
                 JsonNode? list = await rpc.RequestAsync("model/list", new JsonObject(), TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
-                modelsCache = [.. (list?["data"] as JsonArray ?? []).Where(m => m?["hidden"]?.GetValue<bool>() != true).Select(m => (JsonNode)new JsonObject
+                cached = [.. (list?["data"] as JsonArray ?? []).Where(m => m?["hidden"]?.GetValue<bool>() != true).Select(m => (JsonNode)new JsonObject
                 {
                     ["id"] = m!["model"]?.GetValue<string>() ?? m["id"]?.GetValue<string>(),
                     ["name"] = m["displayName"]?.GetValue<string>(),
@@ -1159,7 +1163,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
                     ["defaultEffort"] = m["defaultReasoningEffort"]?.GetValue<string>(),
                     ["isDefault"] = m["isDefault"]?.GetValue<bool>() ?? false,
                 })];
-                modelsAt = DateTimeOffset.UtcNow;
+                lock (modelsCache) { modelsCache[cacheKey] = (cached, DateTimeOffset.UtcNow); }
             }
             catch (Exception ex) when (ex is AmpleException or TimeoutException or System.ComponentModel.Win32Exception or IOException)
             {
@@ -1185,7 +1189,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
             usage["error"] = ex.Message;
         }
 
-        return new JsonObject { ["models"] = modelsCache!.DeepClone(), ["default"] = AiPolicy.DefaultModel, ["usage"] = usage };
+        return new JsonObject { ["models"] = cached!.DeepClone(), ["default"] = AiPolicy.DefaultModel, ["usage"] = usage };
     }
 
     public async Task<JsonObject> StatusAsync(bool checkAuth, CancellationToken ct)
@@ -1476,18 +1480,32 @@ Answer in English, whatever language the question is in, unless the user asks fo
             if (method == "account/login/completed")
             {
                 login.State = p["success"]?.GetValue<bool>() == true ? "linked" : "failed";
+                ClearModels();
                 login.Error = p["error"]?.GetValue<string>();
                 _ = Task.Run(async () => { await login.Rpc.DisposeAsync().ConfigureAwait(false); });
             }
         };
-        await rpc.InitializeAsync(ct).ConfigureAwait(false);
-        JsonNode? answer = await rpc.RequestAsync("account/login/start", new JsonObject { ["type"] = "chatgptDeviceCode" }, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        JsonNode? answer;
+        try
+        {
+            await rpc.InitializeAsync(ct).ConfigureAwait(false);
+            answer = await rpc.RequestAsync("account/login/start", new JsonObject { ["type"] = "chatgptDeviceCode" }, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            login.State = "failed";
+            login.Error = "Codex sign-in could not be started: " + ex.Message;
+            await rpc.DisposeAsync().ConfigureAwait(false);
+            return KodaJson();
+        }
+
         login.UserCode = answer?["userCode"]?.GetValue<string>() ?? string.Empty;
         login.Url = answer?["verificationUrl"]?.GetValue<string>() ?? string.Empty;
         if (login.UserCode.Length == 0 || login.Url.Length == 0)
         {
             login.State = "failed";
             login.Error = "Codex did not return a device code.";
+            await rpc.DisposeAsync().ConfigureAwait(false);
         }
 
         return KodaJson();
@@ -1510,6 +1528,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     {
         await CancelKodaLoginAsync().ConfigureAwait(false);
         kodaDevice = null;
+        ClearModels();
         if (Directory.Exists(KodaHome))
         {
             Directory.Delete(KodaHome, true);
@@ -1543,12 +1562,25 @@ Answer in English, whatever language the question is in, unless the user asks fo
             if (method == "account/login/completed")
             {
                 login.State = p["success"]?.GetValue<bool>() == true ? "linked" : "failed";
+                ClearModels();
                 login.Error = p["error"]?.GetValue<string>();
                 _ = Task.Run(async () => { await FinishDeviceAsync(login).ConfigureAwait(false); });
             }
         };
-        await rpc.InitializeAsync(ct).ConfigureAwait(false);
-        JsonNode? answer = await rpc.RequestAsync("account/login/start", new JsonObject { ["type"] = "chatgptDeviceCode" }, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        JsonNode? answer;
+        try
+        {
+            await rpc.InitializeAsync(ct).ConfigureAwait(false);
+            answer = await rpc.RequestAsync("account/login/start", new JsonObject { ["type"] = "chatgptDeviceCode" }, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            login.State = "failed";
+            login.Error = "Codex sign-in could not be started: " + ex.Message;
+            await rpc.DisposeAsync().ConfigureAwait(false);
+            return DeviceJson()!;
+        }
+
         login.UserCode = answer?["userCode"]?.GetValue<string>() ?? string.Empty;
         login.Url = answer?["verificationUrl"]?.GetValue<string>() ?? string.Empty;
         login.LoginId = answer?["loginId"]?.GetValue<string>();
@@ -1556,6 +1588,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         {
             login.State = "failed";
             login.Error = "Codex did not return a device code.";
+            await rpc.DisposeAsync().ConfigureAwait(false);
         }
 
         return DeviceJson()!;
@@ -1600,6 +1633,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     {
         await CancelDeviceLoginAsync().ConfigureAwait(false);
         device = null;
+        ClearModels();
         if (Directory.Exists(DeviceHome))
         {
             Directory.Delete(DeviceHome, true);
