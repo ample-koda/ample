@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Ample.Hub.Core;
+using Ample.Storage.Projects;
 using Microsoft.Win32;
 
 namespace Ample.Hub;
@@ -22,11 +23,14 @@ internal static class Program
         MainInstance main = new(home, ample);
 
         HubSettings settings = HubSettings.Load(home);
+        // no hub.json yet: the installer's choice (the Run entry is there or not) is the preference, not the record default
+        bool firstSettings = !File.Exists(HubSettings.PathIn(home));
+        if (firstSettings) settings = settings with { StartAtLogin = HasRunEntry() };
         string? login = ValueOf(args, "--main-login");
         string? port = ValueOf(args, "--main-port");
         if (login is not null) settings = settings with { MainLogin = login == "on" };
         if (int.TryParse(port, out int p) && p is >= 0 and <= 65535) settings = settings with { MainPort = p };
-        if (login is not null || port is not null) settings.Save(home);
+        if (login is not null || port is not null || firstSettings) settings.Save(home);
 
         try
         {
@@ -48,30 +52,34 @@ internal static class Program
         return 0;
     }
 
+    private static bool HasRunEntry()
+    {
+        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, false);
+        return key?.GetValue(RunName) is not null;
+    }
+
     internal static void SetStartAtLogin(bool on)
     {
         using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, true);
         if (key is null) return;
+        if (on && key.GetValue(RunName) is string existing && existing == "\"" + Environment.ProcessPath + "\"") return;
         if (on) key.SetValue(RunName, "\"" + Environment.ProcessPath + "\"");
         else key.DeleteValue(RunName, false);
     }
 
     internal static void OpenStudio(MainInstance main)
     {
-        DateTime until = DateTime.UtcNow.AddSeconds(40);
-        while (DateTime.UtcNow < until)
-        {
-            HubState state = Task.Run(() => main.StateAsync(CancellationToken.None)).GetAwaiter().GetResult();
-            if (state.Main is not null && main.LaunchUrl(state.Main.Record) is { } url)
-            {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
-                return;
-            }
+        string? problem = Task.Run(() => OpenStudioAsync(main, CancellationToken.None)).GetAwaiter().GetResult();
+        if (problem is not null) MessageBox.Show(problem, "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
 
-            Thread.Sleep(500);
-        }
-
-        MessageBox.Show("The AMPLE server did not start in time. Use the tray menu to start it again.", "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    /// <summary>Waits (without blocking a UI thread, cancellable) until the main server is ready, then opens the browser; null when opened, else the problem.</summary>
+    internal static async Task<string?> OpenStudioAsync(MainInstance main, CancellationToken cancellationToken)
+    {
+        InstanceRecord? record = await main.WaitReadyAsync(TimeSpan.FromSeconds(40), cancellationToken);
+        if (record is null || main.LaunchUrl(record) is not { } url) return "The AMPLE server did not start in time. Use the tray menu to start it again.";
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+        return null;
     }
 
     private static void Run(Func<CancellationToken, Task<string?>> action)

@@ -45,8 +45,45 @@ public sealed class MainInstance
         return args;
     }
 
-    /// <summary>Starts the main server when it is not running. Returns false when it already ran.</summary>
+    // one transition (start, stop, restart) of the main instance at a time
+    private static readonly SemaphoreSlim gate = new(1, 1);
+
+    /// <summary>Gets a value indicating whether a start, stop or restart of the main instance is under way.</summary>
+    public static bool IsBusy => gate.CurrentCount == 0;
+
+    /// <summary>Waits until the main server is registered as running; null when it did not within the time.</summary>
+    public async Task<InstanceRecord?> WaitReadyAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        DateTime until = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < until)
+        {
+            using CancellationTokenSource probe = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            probe.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                HubState state = await StateAsync(probe.Token).ConfigureAwait(false);
+                if (state.Main is not null) return state.Main.Record;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // one slow probe: the deadline above still holds
+            }
+
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+        }
+
+        return null;
+    }
+
+    /// <summary>Starts the main server when it is not running. Returns false when it already ran (or a transition is under way).</summary>
     public async Task<bool> StartAsync(CancellationToken cancellationToken)
+    {
+        if (!await gate.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return false;
+        try { return await StartCoreAsync(cancellationToken).ConfigureAwait(false); }
+        finally { gate.Release(); }
+    }
+
+    private async Task<bool> StartCoreAsync(CancellationToken cancellationToken)
     {
         if ((await StateAsync(cancellationToken).ConfigureAwait(false)).Main is not null) return false;
         await EnsureProjectAsync(cancellationToken).ConfigureAwait(false);
@@ -71,6 +108,13 @@ public sealed class MainInstance
     /// <summary>Stops the main server; returns null when it stopped (or did not run), else the reason.</summary>
     public async Task<string?> StopAsync(CancellationToken cancellationToken)
     {
+        if (!await gate.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return "AMPLE is busy starting or stopping.";
+        try { return await StopCoreAsync(cancellationToken).ConfigureAwait(false); }
+        finally { gate.Release(); }
+    }
+
+    private async Task<string?> StopCoreAsync(CancellationToken cancellationToken)
+    {
         HubState state = await StateAsync(cancellationToken).ConfigureAwait(false);
         return state.Main is null ? null : await InstanceControl.StopAsync(Registry, state.Main.Record, Http, TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
     }
@@ -78,10 +122,48 @@ public sealed class MainInstance
     /// <summary>Stops, then starts the main server (so a new port or new program files apply).</summary>
     public async Task<string?> RestartAsync(CancellationToken cancellationToken)
     {
-        string? problem = await StopAsync(cancellationToken).ConfigureAwait(false);
-        if (problem is not null) return problem;
-        await StartAsync(cancellationToken).ConfigureAwait(false);
-        return null;
+        if (!await gate.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return "AMPLE is busy starting or stopping.";
+        try
+        {
+            string? problem = await StopCoreAsync(cancellationToken).ConfigureAwait(false);
+            if (problem is not null) return problem;
+            await StartCoreAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Checks that a port can be bound now (0 always can).</summary>
+    public static bool IsPortFree(int port)
+    {
+        if (port == 0) return true;
+        try
+        {
+            System.Net.Sockets.TcpListener listener = new(System.Net.IPAddress.Loopback, port);
+            listener.Start();
+            listener.Stop();
+            return true;
+        }
+        catch (System.Net.Sockets.SocketException) { return false; }
+    }
+
+    /// <summary>
+    /// Restarts on a new port: the new port is only kept when the server comes up on it; otherwise the old settings are restored and
+    /// the old port is started again. Null when done, else the reason.
+    /// </summary>
+    public async Task<string?> RestartOnPortAsync(int newPort, CancellationToken cancellationToken)
+    {
+        HubSettings old = HubSettings.Load(Home);
+        HubState before = await StateAsync(cancellationToken).ConfigureAwait(false);
+        if ((before.Main is null || before.Main.Record.Port != newPort) && !IsPortFree(newPort))
+            return "Port " + newPort.ToString(CultureInfo.InvariantCulture) + " is already in use by another program. The port was not changed.";
+
+        (old with { MainPort = newPort }).Save(Home);
+        string? problem = await RestartAsync(cancellationToken).ConfigureAwait(false);
+        if (problem is null && await WaitReadyAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false) is not null) return null;
+        old.Save(Home);
+        string? again = await RestartAsync(cancellationToken).ConfigureAwait(false);
+        return (problem ?? "AMPLE did not start on port " + newPort.ToString(CultureInfo.InvariantCulture) + ".") + " The old port " + old.MainPort.ToString(CultureInfo.InvariantCulture) + " was restored" + (again is null ? "." : " but AMPLE could not be restarted: " + again);
     }
 
     /// <summary>Stops an instance the hub did not start and starts it again from its own recipe; null when done, else the reason.</summary>

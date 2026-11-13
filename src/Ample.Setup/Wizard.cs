@@ -428,7 +428,11 @@ namespace Ample.Setup
                     {
                         string folder = Path.Combine(home, "projects", "Welcome");
                         Directory.CreateDirectory(folder);
-                        Process.Start(new ProcessStartInfo(ample, "serve --project \"" + folder + "\" --home \"" + home + "\"" + (wantLogin ? " --login" : "")) { UseShellExecute = false, CreateNoWindow = true });
+                        using (Process server = Process.Start(new ProcessStartInfo(ample, "serve --create --project \"" + folder + "\" --home \"" + home + "\"" + (wantLogin ? " --login" : "")) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true }))
+                        {
+                            // a server that fails to start (no project, port taken) exits within moments: wait a bounded time and report that instead of a false success
+                            if (server.WaitForExit(6000)) throw new InvalidOperationException("the server stopped at once (exit code " + server.ExitCode + "): " + server.StandardError.ReadToEnd().Trim());
+                        }
                         Log("OK  AMPLE started and the studio opens in your browser." + (mode == "fresh" ? string.Empty : " (A running AMPLE has to be stopped by you first: without the tray hub this setup cannot restart it.)"));
                     }
                     catch (Exception ex) { Log("FAILED  AMPLE did not start: " + ex.Message); }
