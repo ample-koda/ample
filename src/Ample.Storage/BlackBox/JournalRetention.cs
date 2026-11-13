@@ -10,7 +10,7 @@ namespace Ample.Storage.BlackBox;
 /// <summary>What a compaction did.</summary>
 /// <param name="Thinned">Segments replaced by hourly summaries.</param>
 /// <param name="Deleted">Old summaries removed.</param>
-/// <param name="BudgetWarning">True when the journal uses 80% or more of its budget after compaction.</param>
+/// <param name="BudgetWarning">True when the journal uses the warning share (20%, see <see cref="JournalRetention.WarnAtBytes"/>) or more of its budget after compaction; the same threshold as the status endpoint.</param>
 /// <param name="TotalBytes">Bytes used by the Redux archive, including nested artifacts.</param>
 public sealed record CompactionResult(int Thinned, int Deleted, bool BudgetWarning, long TotalBytes);
 
@@ -20,6 +20,23 @@ public sealed record CompactionPreview(int SegmentsToThin, int RecordsToThin, in
 /// <summary>Retention of AMPLE Redux: full detail for a number of days, then one summary line per hour and kind for a year, within a size budget. The newest segment is never thinned. The summaries that replace old segments hold only hours, kinds and counts and are not encrypted; the records themselves are, when the project is encrypted.</summary>
 public static class JournalRetention
 {
+    /// <summary>The size from which the archive warns: one fifth of the budget. Shared by the status endpoint and the compaction result.</summary>
+    public static long WarnAtBytes(long budgetBytes) => budgetBytes / 5;
+
+    /// <summary>Segments that hold a start record without a terminal record anywhere in the journal: they are kept until the command is resolved.</summary>
+    private static async ValueTask<HashSet<string>> UnresolvedSegments(IFileSystem fs, List<string> segments, DataCipher? cipher, CancellationToken cancellationToken)
+    {
+        List<(string Segment, JournalRecord Record)> all = [];
+        foreach (string seg in segments)
+        {
+            (List<JournalRecord> rows, _, _) = await Journal.ReadSegmentAsync(fs, seg, cipher, cancellationToken).ConfigureAwait(false);
+            all.AddRange(rows.Select(r => (seg, r)));
+        }
+
+        HashSet<string> done = [.. all.Where(x => x.Record.Phase is "ok" or "failed" or "resolved").Select(x => x.Record.Correlation)];
+        return [.. all.Where(x => x.Record.Phase == "start" && !done.Contains(x.Record.Correlation)).Select(x => x.Segment)];
+    }
+
     /// <summary>Gets aggregate bytes used by journal segments, summaries and archived artifacts without reading their contents.</summary>
     public static ValueTask<long> StorageBytesAsync(IFileSystem fs, string projectRoot, CancellationToken cancellationToken)
     {
@@ -38,13 +55,14 @@ public static class JournalRetention
         Dictionary<string, List<JournalRecord>> loaded = new(StringComparer.Ordinal);
         long after = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
         int records = 0, deleted = 0;
-        foreach (string segment in segments.Take(Math.Max(0, segments.Count - 1)))
+        HashSet<string> protectedSegments = await UnresolvedSegments(fs, segments, ProjectEncryption.CipherFor(projectRoot), cancellationToken).ConfigureAwait(false);
+        foreach (string segment in segments.Take(Math.Max(0, segments.Count - 1)).Where(x => !protectedSegments.Contains(x)))
         {
             (List<JournalRecord> rows, _, _) = await Journal.ReadSegmentAsync(fs, segment, ProjectEncryption.CipherFor(projectRoot), cancellationToken).ConfigureAwait(false);
             loaded[segment] = rows;
             if (rows.Count > 0 && now - rows[^1].At > TimeSpan.FromDays(settings.FullDetailDays)) AddThin(segment, rows);
         }
-        foreach (string segment in segments.Take(Math.Max(0, segments.Count - 1)))
+        foreach (string segment in segments.Take(Math.Max(0, segments.Count - 1)).Where(x => !protectedSegments.Contains(x)))
         {
             if (after <= settings.BudgetBytes) break;
             List<JournalRecord> rows = loaded.TryGetValue(segment, out List<JournalRecord>? saved) ? saved : (await Journal.ReadSegmentAsync(fs, segment, ProjectEncryption.CipherFor(projectRoot), cancellationToken).ConfigureAwait(false)).Records;
@@ -81,7 +99,8 @@ public static class JournalRetention
         int thinned = 0;
         int deleted = 0;
         List<string> segments = [.. fs.GetFiles(folder).Where(f => f.EndsWith(".seg", StringComparison.Ordinal)).Order(StringComparer.Ordinal)];
-        foreach (string seg in segments.Take(Math.Max(0, segments.Count - 1)).ToList())
+        HashSet<string> protectedSegments = await UnresolvedSegments(fs, segments, cipher, cancellationToken).ConfigureAwait(false);
+        foreach (string seg in segments.Take(Math.Max(0, segments.Count - 1)).Where(x => !protectedSegments.Contains(x)).ToList())
         {
             (List<JournalRecord> records, _, _) = await Journal.ReadSegmentAsync(fs, seg, cipher, cancellationToken).ConfigureAwait(false);
             if (records.Count > 0 && now - records[^1].At > TimeSpan.FromDays(settings.FullDetailDays))
@@ -93,7 +112,7 @@ public static class JournalRetention
         }
 
         long total = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
-        foreach (string seg in segments.Take(Math.Max(0, segments.Count - 1)).ToList())
+        foreach (string seg in segments.Take(Math.Max(0, segments.Count - 1)).Where(x => !protectedSegments.Contains(x)).ToList())
         {
             if (total <= settings.BudgetBytes)
             {
@@ -117,7 +136,7 @@ public static class JournalRetention
         }
 
         total = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
-        return new CompactionResult(thinned, deleted, total >= settings.BudgetBytes * 0.8, total);
+        return new CompactionResult(thinned, deleted, total >= WarnAtBytes(settings.BudgetBytes), total);
     }
 
     private static async ValueTask Thin(IFileSystem fs, string segment, List<JournalRecord> records, CancellationToken cancellationToken)

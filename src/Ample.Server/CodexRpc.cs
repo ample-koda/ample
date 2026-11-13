@@ -91,11 +91,21 @@ internal sealed class CodexRpc : IAsyncDisposable
         long id = Interlocked.Increment(ref nextId);
         TaskCompletionSource<JsonNode?> source = new(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = source;
-        await WriteAsync(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject() }).ConfigureAwait(false);
         using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(timeout);
         try
         {
+            try
+            {
+                await WriteAsync(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject() }, limit.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The deadline covers queueing and writing. A partly written line cannot be retried safely, so the connection is closed.
+                StopNow();
+                throw new TimeoutException($"Codex did not accept {method} in time.");
+            }
+
             using (limit.Token.Register(() => source.TrySetException(new TimeoutException($"Codex did not answer {method} in time.{(Stderr.Length > 0 ? " " + Stderr[..Math.Min(300, Stderr.Length)] : string.Empty)}"))))
             {
                 return await source.Task.ConfigureAwait(false);
@@ -117,15 +127,15 @@ internal sealed class CodexRpc : IAsyncDisposable
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.NotSupportedException) { /* already stopped */ }
     }
 
-    private async Task WriteAsync(JsonObject message)
+    private async Task WriteAsync(JsonObject message, CancellationToken cancellationToken = default)
     {
         string line = message.ToJsonString();
         Raw?.Invoke(">> " + (line.Length > 4000 ? line[..4000] + "…" : line));
-        await writer.WaitAsync().ConfigureAwait(false);
+        await writer.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await process.StandardInput.WriteLineAsync(line).ConfigureAwait(false);
-            await process.StandardInput.FlushAsync().ConfigureAwait(false);
+            await process.StandardInput.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+            await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
