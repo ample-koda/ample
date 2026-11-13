@@ -51,3 +51,7 @@
 .snapshot-bar .snap-slot.filled{border-color:var(--acc);color:var(--acc)}
 .snapshot-bar .snap-store.on{background:var(--warn);color:var(--on-warn)}
 .snapshot-bar .snap-morph{flex:1;min-width:140px}
+
+/* 0.1.18 review: snapshots on one or two lines (snap-compact) */
+.snapshot-bar{flex-wrap:wrap;gap:4px 6px;padding:4px 8px;margin-top:8px;font-size:12px}.snapshot-bar button,.snapshot-bar select,.snapshot-bar input{padding:1px 6px;min-height:0}.snapshot-bar .snap-morph{min-width:100px}
+.snapshot-bar select{width:auto;min-width:0;max-width:4.5em;flex:none}.snapshot-bar .snap-morph{flex:1 1 90px;min-width:90px}

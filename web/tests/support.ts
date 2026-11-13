@@ -56,6 +56,13 @@ const origin = () => new URL(launchUrl()).origin;
 
 /** Puts the demo song back (through the API) and opens the app on a clean browser state. */
 export async function openApp(page: Page, options: { reset?: boolean } = {}) {
+  // The screenshot runs (tools/screenshots) must not show the "drive is low on free space" hint of the PC they run on.
+  if (process.env.AMPLE_SHOTS) await page.route('**/api/storage', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const r = await route.fetch(); const body = await r.json();
+    if (body?.overview) body.overview.lowDisk = false;
+    await route.fulfill({ response: r, json: body });
+  });
   const headers = { 'X-Ample-Token': token(), 'Content-Type': 'application/json' };
   if (options.reset === false) {
     await page.goto(launchUrl());

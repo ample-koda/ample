@@ -506,7 +506,7 @@ export function openPianoRollLite(blockId, options = {}) {
     // the scale (laneScale): a faint line and its value at a quarter, half, three quarters and the top of the lane, so a bar can be read and dragged to a value
     const marks = [0.25, 0.5, 0.75, 1].map((frac) => ({ frac, value: Math.round(def.min + frac * (def.max - def.min)) }));
     velocity.dataset.laneScale = marks.map((m) => m.value).join(' ');
-    c.save(); c.font = '9px ui-monospace,Consolas,monospace'; c.textBaseline = 'middle';
+    c.save(); c.font = '700 12px ui-monospace,Consolas,monospace'; c.textBaseline = 'middle';
     for (const m of marks) {
       const y = Math.round(VEL_H - 3 - inner * m.frac) + 0.5;
       c.strokeStyle = t.line; c.globalAlpha = 0.6; c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke();

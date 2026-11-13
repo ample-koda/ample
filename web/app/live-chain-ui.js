@@ -12,7 +12,7 @@ const dbWidth = (peak) => (peak > 1e-5 ? Math.max(0, Math.min(100, (20 * Math.lo
 function paint(state) {
   if (!state.active) { bar?.remove(); bar = null; meters.clear(); cancelAnimationFrame(frame); return; }
   const titleOf = (id) => flat().nodes.find((n) => n.id === id)?.title || id;
-  if (!bar) { bar = el('section', { className: 'livechain', 'aria-label': 'Live chain', role: 'region' }); document.body.append(bar); }
+  if (!bar) { bar = el('section', { className: 'livechain', 'aria-label': 'Live chain', role: 'region' }); const bottom = document.getElementById('bbody'); if (bottom) bottom.before(bar); else document.body.append(bar); }
   meters.clear();
   const chips = state.items.filter((item) => item.kind !== 'source').map((item) => {
     const left = el('b'), right = el('b'), meter = el('span', { className: 'lcmeter', 'aria-hidden': 'true' }, [el('i', {}, [left]), el('i', {}, [right])]);

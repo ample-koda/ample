@@ -1314,3 +1314,14 @@ kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px sol
 .sqgridrow{position:relative}.sqrowhead{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--acc);box-shadow:0 0 6px var(--acc);pointer-events:none;z-index:2}.sqrowhead[hidden]{display:none}
 .palette-tooltip .pt-params{margin-top:6px;font:11px ui-monospace,Consolas,monospace;color:#cfe0f0}
 .keysheet .keychange,.keysheet .keyreset,.keysheet .keyresetall{font-size:11px;padding:1px 7px;margin-left:6px}.keyconflict{color:var(--bad)}.keyrow.keyclash{outline:1px solid var(--bad);border-radius:4px}.keysheet .keys{display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px}
+
+/* 0.1.18 review: mobile mixer: short names, aligned M/S, strips that fit the panel */
+@media(max-width:700px){
+  .mixview{align-items:stretch;padding-bottom:12px}
+  .mixfader{height:min(26vh,200px)}.mixmeterbody{height:calc(min(26vh,200px) + 38px)}
+  .mixsrc{display:block;width:100%;max-width:100%;font-size:9px;text-align:center;overflow:hidden;text-overflow:clip}
+  .mixchan{width:38px;align-items:center}
+  .mixms{display:flex;gap:2px;justify-content:center;width:100%}
+  .mixms .mixmute,.mixms .mixsolo,.mixchan .mixmute,.mixchan .mixsolo{width:18px!important;min-width:18px!important;height:22px!important;min-height:22px!important;padding:0!important;font-size:10px}
+  .mixstrip>button{margin-top:2px;min-height:32px}
+}

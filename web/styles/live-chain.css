@@ -1,5 +1,5 @@
 /* The bar of the live chain (web/app/live-chain-ui.js): the blocks the sound passes through, a bypass switch and a wide stereo meter for each. */
-.livechain { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: min(96vw, 1100px); padding: 8px 12px; background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow-2, 0 8px 24px #0006); }
+.livechain { position: relative; margin: 4px auto; flex: none; z-index: 5; width: fit-content; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: min(96vw, 1100px); padding: 8px 12px; background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow-2, 0 8px 24px #0006); }
 .livechain .lctitle { font-weight: 600; color: var(--acc); }
 .livechain .lcchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
 .livechain .lcchip.bypassed strong { opacity: .55; text-decoration: line-through; }
@@ -12,10 +12,10 @@
 .livechain .lcstop { margin-left: auto; }
 
 /* the badge under a parameter of the Advanced window: live / re-renders / needs build (web/lib/live-parameters.mjs) */
-.live-badge { display: block; margin-top: 2px; font-size: 10px; letter-spacing: .02em; color: var(--dim); }
+.live-badge { display: block; margin-top: 2px; font-size: 12px; letter-spacing: .02em; color: var(--text); }
 .live-badge.live-param { color: var(--ok); }
 .live-badge.live-rebuild { color: var(--acc); }
-.live-badge.live-offline { color: var(--dim); }
+.live-badge.live-offline { color: var(--muted, var(--text)); }
 .livechain .lccompare.on { background: var(--acc); color: var(--on-accent); }
 .parity-badge { font-size: 11px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel3); }
 .parity-badge.parity-exact { color: var(--ok); border-color: var(--ok); }

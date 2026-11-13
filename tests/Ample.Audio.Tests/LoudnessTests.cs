@@ -16,6 +16,15 @@ public sealed class LoudnessTests
     }
 
     [Fact]
+    public void The_browser_loudness_meter_uses_the_same_reference_value()
+    {
+        // web/lib/test/clientside-normalize.test.mjs checks the same sound (997 Hz, 0.05 peak, mono, 48 kHz, 3 s) against -29.0 LUFS within 0.1: the two implementations agree on it
+        const int rate = 48000;
+        short[] sine = [.. Enumerable.Range(0, rate * 3).Select(i => (short)Math.Round(32768 * 0.05 * Math.Sin(2 * Math.PI * 997 * i / rate)))];
+        Assert.InRange(Loudness.IntegratedLufs(sine, rate)!.Value, -29.1, -28.9);
+    }
+
+    [Fact]
     public void Silence_and_very_short_sounds_have_no_loudness()
     {
         Assert.Null(Loudness.IntegratedLufs(new short[48000 * 2], 48000));
