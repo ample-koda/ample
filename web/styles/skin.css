@@ -322,3 +322,4 @@ body:has(#keys-dock), html:has(#keys-dock) { overscroll-behavior: none; }
   .project-file-picker.new-file .project-picker-actions{flex-wrap:wrap}
   .project-file-picker.new-file .project-picker-actions button{min-height:40px}
 }
+.mls-review-bar-input { width: 3.5em; min-height: 32px; }
