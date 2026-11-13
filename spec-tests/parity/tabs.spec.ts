@@ -8,7 +8,16 @@ freshServer({ files: { 'one.wav': tinyWav, 'two.wav': tinyWav } });
 test.beforeEach(async ({ page }) => { await openApp(page, { reset: false }); });
 
 const makeFile = (path: string, text = 'hello\n') => api('/api/file', { method: 'PUT', body: { path, text } });
-const open = (page: Page, path: string) => page.evaluate((p) => document.dispatchEvent(new CustomEvent('ample:open-file', { detail: p })), path);
+const open = (page: Page, path: string) => page.evaluate((p) => new Promise<void>((resolve) => {
+  const request = new CustomEvent('ample:open-file', { detail: p });
+  const done = (event: Event) => {
+    if ((event as CustomEvent).detail.request !== request) return;
+    document.removeEventListener('ample:open-result', done);
+    resolve();
+  };
+  document.addEventListener('ample:open-result', done);
+  document.dispatchEvent(request);
+}), path);
 
 test('the open song has a tab, and opening files adds tabs that can be switched and closed', async ({ page }) => {
   await expect(page.locator('#tabbar')).toBeVisible();
@@ -24,9 +33,10 @@ test('the open song has a tab, and opening files adds tabs that can be switched 
 });
 
 test('audio files share one tab, and an image (no viewer in the studio) gets none', async ({ page }) => {
-  await page.evaluate(() => { document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'one.wav' })); document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'two.wav' })); document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'pic.png' })); });
-  await expect(page.locator('#tabbar .tab[data-path="two.wav"]')).toHaveCount(1);   // the next audio file took the place of the first
-  await page.waitForTimeout(1000);   // the answers of the opens have arrived: the tab stays because two.wav played
+  await open(page, 'one.wav');
+  await expect(page.locator('#tabbar .tab[data-path="one.wav"]')).toHaveCount(1);
+  await open(page, 'two.wav');
+  await open(page, 'pic.png');
   await expect(page.locator('#tabbar .tab[data-path$=".wav"]')).toHaveCount(1);
   await expect(page.locator('#tabbar .tab[data-path="two.wav"]')).toHaveCount(1);
   await expect(page.locator('#tabbar .tab[data-path="pic.png"]')).toHaveCount(0);
