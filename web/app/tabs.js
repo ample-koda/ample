@@ -152,9 +152,14 @@ async function tabUndo(kind) {
   return false;
 }
 
+const closing = new Set();   // one close operation per tab at a time
 async function closeTab(path) {
   const tab = T.tabs.find((t) => t.path === path);
-  if (!tab) return;
+  if (!tab || closing.has(path)) return;
+  closing.add(path);
+  try { await closeTabNow(path, tab); } finally { closing.delete(path); }
+}
+async function closeTabNow(path, tab) {
   const facts = factsOf(path);
   if (facts.dirty) {
     const choice = await ask('Close with unsaved changes', `${baseName(path)} has unsaved changes.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Discard changes', value: 'discard' }, { label: 'Save', value: 'save', primary: true }]);
@@ -165,6 +170,7 @@ async function closeTab(path) {
     } catch (error) { toast(error.message || String(error)); return; }
   }
   const index = T.tabs.findIndex((t) => t.path === path);
+  if (index < 0) return;   // the tab went away while we waited
   lastClose = { path, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
   T.tabs.splice(index, 1);
   if (T.active === path) {
@@ -213,8 +219,8 @@ function openChannel() {
       return;
     }
     if (data.type === 'detached') { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); if (T.active === data.path) { const next = T.tabs.find((t) => !T.remote.has(t.path)); if (next) activate(next.path); } render(); }
-    else if (data.type === 'alive' && T.remote.has(data.path)) T.remote.get(data.path).seen = Date.now();
-    else if (data.type === 'attached') { T.remote.delete(data.path); T.active = data.path; save(); render(); activate(data.path); if (data.state) { setTimeout(() => applyViewState(data.state), 700); setTimeout(() => applyViewState(data.state), 1800); } }
+    else if (data.type === 'alive') { if (T.remote.has(data.path)) T.remote.get(data.path).seen = Date.now(); else { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); render(); } }   // a popup that resumed (or a reloaded main window) takes its ownership again
+    else if (data.type === 'attached') { T.remote.delete(data.path); T.active = data.path; save(); render(); activate(data.path); if (data.state) { const p = data.path; const again = () => { if (T.active === p) applyViewState(data.state, () => T.active === p); }; setTimeout(again, 700); setTimeout(again, 1800); } }
   };
 }
 
@@ -238,8 +244,8 @@ async function captureViewState() {
 }
 
 /** Shows again what the other window showed, as far as this file allows it. */
-async function applyViewState(state) {
-  if (!state) return;
+async function applyViewState(state, stillWanted = () => true) {
+  if (!state || !stillWanted()) return;
   try {
     const { setView } = await import('./views.js');
     const work = $('#work');
@@ -251,6 +257,7 @@ async function applyViewState(state) {
     if (state.sel) { try { select(state.sel); } catch { /* the block may be gone */ } }
     if (state.mode === 'src' && state.line) {
       setTimeout(() => {
+        if (!stillWanted()) return;
         const ta = document.querySelector('#se-ta');
         if (!ta) return;
         const lines = ta.value.split('\n');
@@ -428,8 +435,8 @@ export function initTabs() {
   try { const stored = JSON.parse(localStorage.getItem(key()) || 'null'); for (const p of stored?.paths || []) add(p); T.active = stored?.active || ''; } catch { /* a damaged list starts empty */ }
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
   undoHooks.push(tabUndo);
-  document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
-  document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
+  document.addEventListener('ample:open', (e) => { if (T.internal) return; if (T.remote.has(e.detail)) { remoteChoice(e.detail); return; } add(e.detail); T.active = e.detail; save(); render(); });
+  document.addEventListener('ample:open-file', (e) => { if (T.internal) return; if (T.remote.has(e.detail)) { remoteChoice(e.detail); return; } add(e.detail); T.active = e.detail; save(); render(); });
   // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
   document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
   // a tab for a file without opening it: what you look at stays (the files that Koda changed arrive like this, with their unsaved mark)
