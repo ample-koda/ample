@@ -432,9 +432,9 @@ export function initTabs() {
   try { const stored = JSON.parse(localStorage.getItem(key()) || 'null'); for (const p of stored?.paths || []) add(p); T.active = stored?.active || ''; } catch { /* a damaged list starts empty */ }
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
   undoHooks.push(tabUndo);
-  document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
+  document.addEventListener('ample:open', (e) => { if (!T.internal) { T.prevActive = T.active; add(e.detail); T.active = e.detail; save(); render(); } });
   document.addEventListener('ample:open-refused', (e) => { if (T.active === e.detail && T.prevActive && T.prevActive !== e.detail && T.tabs.some((t) => t.path === T.prevActive)) { T.active = T.prevActive; save(); render(); } });
-  document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
+  document.addEventListener('ample:open-file', (e) => { if (!T.internal) { T.prevActive = T.active; add(e.detail); T.active = e.detail; save(); render(); } });
   // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
   document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
   // a tab for a file without opening it: what you look at stays (the files that Koda changed arrive like this, with their unsaved mark)

@@ -2,6 +2,7 @@
 // (selection, zoom, groups). Every change of the song goes through edit(), which calls the edit API.
 
 import { api, ApiError } from './api.js';
+import { readNotes } from '../lib/notes-load.mjs';
 import { stop } from './player.js';
 import { containerView, flatGraph, pruneGroups, regionReveal } from './graph.js';
 import { ask, toast } from './ui.js';
@@ -310,7 +311,7 @@ export async function setModuleLevel(length) {
 }
 
 const notesKey = () => `ample.notes:${S.project ? S.project.id : ''}:${S.path}`;
-const notesFile = () => `notes/${S.path.replace(/[\/]/g, '_')}.notes.json`;
+const notesFile = () => notesFileFor(S.path);
 let notesTimer = 0;
 /** Block notes live in the project (notes/<song>.notes.json, written through the command bus), so they travel with the project and its history. */
 export function saveNotes() {
@@ -319,14 +320,9 @@ export function saveNotes() {
   const text = JSON.stringify(S.notes, null, 2);
   notesTimer = setTimeout(() => { api.put('/api/file', { path, text }).catch(() => {}); }, 400);
 }
-async function loadNotes() {
-  try { const file = await api.get(`/api/file?path=${encodeURIComponent(notesFile())}&optional=1`); if (file.text == null) throw new Error('no notes file yet'); S.notes = JSON.parse(file.text || '{}'); return; } catch { S.notes = {}; }
-  // Notes that an older version kept in this browser move into the project once.
-  try {
-    const old = JSON.parse(localStorage.getItem(notesKey()) || '{}');
-    if (Object.keys(old).length) { S.notes = old; saveNotes(); }
-  } catch { /* storage may be blocked */ }
-}
+const notesFileFor = (path) => `notes/${path.replace(/[\/]/g, '_')}.notes.json`;
+/** Reads the notes of one song and returns them; the caller commits them only while that song is still the one being opened. */
+const loadNotes = (path) => readNotes({ get: (url) => api.get(url), file: notesFileFor(path), legacyKey: `ample.notes:${S.project ? S.project.id : ''}:${path}`, storage: localStorage });
 
 const workKey = (path) => `ample.work:${S.project ? S.project.id : ''}:${path}`;
 let workTimer = 0, workHold = false;
@@ -464,8 +460,10 @@ export async function openDoc(path) {
   if (gen !== openGeneration) return true;   // a newer open owns the editor now
   S.path = path;
   S.groups = loadGroups();
-  await loadNotes();
+  const loaded = await loadNotes(path).catch(() => ({ notes: {}, migrate: false }));
   if (gen !== openGeneration) return true;
+  S.notes = loaded.notes;
+  if (loaded.migrate) saveNotes();   // notes an older version kept in this browser move into the project once
   S.stack = ['root'];
   S.moduleStack = [];
   S.modulePath = null;
