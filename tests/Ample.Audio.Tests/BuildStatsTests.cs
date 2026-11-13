@@ -33,4 +33,22 @@ public sealed class BuildStatsTests
             Directory.Delete(root, true);
         }
     }
+
+    [Fact]
+    public void A_serial_chain_is_not_multiplied_by_workers()
+    {
+        (string, long)[] four = [("reverb", 1000), ("reverb", 1000), ("reverb", 1000), ("reverb", 1000)];
+        string a = Directory.CreateTempSubdirectory("ample-stats-").FullName, b = Directory.CreateTempSubdirectory("ample-stats-").FullName;
+        try
+        {
+            BuildStats.Load(a).Record(four, 100, 8, 4, 4);   // four blocks one after the other
+            BuildStats.Load(b).Record(four, 100, 8, 4, 1);   // four independent blocks
+            Assert.True(BuildStats.Load(a).Estimate(["reverb"], 100).Seconds < BuildStats.Load(b).Estimate(["reverb"], 100).Seconds);
+        }
+        finally
+        {
+            Directory.Delete(a, true);
+            Directory.Delete(b, true);
+        }
+    }
 }

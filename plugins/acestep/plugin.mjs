@@ -184,6 +184,7 @@ serve({
     // A linked melody is therefore a concrete request input, never an ignored graph edge.
     if (melody) { body[s.melodyField || 'melody'] = JSON.parse(melody); }
     const timeoutMs = (s.timeoutS || 900) * 1000, started = Date.now();
+    const remaining = () => { const left = timeoutMs - (Date.now() - started); if (left <= 0) { throw new Error('the ACE-Step render timeout of ' + (s.timeoutS || 900) + ' seconds expired'); } return left; };
     // Fail before creating a take if the configured server cannot perform the extraction stage.
     const mode = isVoice ? isolationMode(s) : 'off';
     const isolationModel = mode === 'ace' ? await vocalExtractionModel(getProps, s) : '';
@@ -229,7 +230,7 @@ serve({
       if (!lm) { throw new Error('no ACE-Step language model (acestep-5Hz-lm-*.gguf) in modelsFolder'); }
       fs.writeFileSync(path.join(cliDir, 'req.json'), JSON.stringify({ ...b, lm_model: lm }));
       const st = stage('plan'); st.begin();
-      await runCli(cliTool('ace-lm'), ['--models', s.modelsFolder, '--request', 'req.json'], cliDir, ctx, timeoutMs);
+      await runCli(cliTool('ace-lm'), ['--models', s.modelsFolder, '--request', 'req.json'], cliDir, ctx, remaining());
       st.end();
       const file = fs.readdirSync(cliDir).filter(n => /^req.+\.json$/.test(n)).sort()[0];
       if (!file) { throw new Error('ace-lm wrote no plan'); }
@@ -246,7 +247,7 @@ serve({
       fs.writeFileSync(path.join(cliDir, 'synth.json'), JSON.stringify(r));
       if (ref) { fs.writeFileSync(path.join(cliDir, 'ref.wav'), ref); }
       const st = stage('synthesis'); st.begin();
-      await runCli(cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'synth.json', ...(ref ? ['--ref-audio', 'ref.wav'] : []), ...(ref && r.task_type === 'cover' ? ['--src-audio', 'ref.wav'] : [])], cliDir, ctx, timeoutMs);
+      await runCli(cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'synth.json', ...(ref ? ['--ref-audio', 'ref.wav'] : []), ...(ref && r.task_type === 'cover' ? ['--src-audio', 'ref.wav'] : [])], cliDir, ctx, remaining());
       st.end();
       return fs.readFileSync(path.join(cliDir, 'synth.wav'));
     } : async (r, ref) => {
@@ -259,7 +260,7 @@ serve({
       fs.writeFileSync(path.join(cliDir, 'source.wav'), source);
       fs.writeFileSync(path.join(cliDir, 'extract.json'), JSON.stringify(r));
       const st = stage('vocal extraction'); st.begin();
-      await runCli(cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'extract.json', '--src-audio', 'source.wav'], cliDir, ctx, timeoutMs);
+      await runCli(cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'extract.json', '--src-audio', 'source.wav'], cliDir, ctx, remaining());
       st.end();
       return fs.readFileSync(path.join(cliDir, 'extract.wav'));
     } : async (r, source) => {
