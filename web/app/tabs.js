@@ -70,7 +70,7 @@ async function refreshState() {
   const paths = T.tabs.map((t) => t.path).filter((p) => !(kindOf(p) === 'song' && p === S.path));
   if (!paths.length) { render(); return; }
   try {
-    const answer = await api.get(`/api/tabs/state?paths=${encodeURIComponent(paths.join(','))}`);
+    const answer = await api.get(`/api/tabs/state?${paths.map((p) => `paths=${encodeURIComponent(p)}`).join('&')}`);
     T.state = Object.fromEntries((answer.items || []).map((i) => [i.path, i]));
     // a file that is gone from the project closes its tab
     T.tabs = T.tabs.filter((t) => T.state[t.path]?.exists !== false || t.path === S.path);
@@ -300,7 +300,7 @@ function tabElement(tab) {
   div.oncontextmenu = (e) => { e.preventDefault(); tabMenu(e.clientX, e.clientY, path); };
   if (T.remote.has(path)) { div.classList.add('remote'); div.title = `${path} (open in another window: click to bring it to the front)`; }
   div.onauxclick = (e) => { if (e.button === 1) { e.preventDefault(); closeTab(path); } };
-  div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(path); } else if (e.key === 'Delete') closeTab(path); };
+  div.onkeydown = (e) => { if (e.target !== div) return; const sibs = [...div.parentElement.children].filter((n) => !n.hidden); const at = sibs.indexOf(div); const go = (n) => { if (n) { e.preventDefault(); n.focus(); } }; if (e.key === 'ArrowRight') go(sibs[(at + 1) % sibs.length]); else if (e.key === 'ArrowLeft') go(sibs[(at - 1 + sibs.length) % sibs.length]); else if (e.key === 'Home') go(sibs[0]); else if (e.key === 'End') go(sibs[sibs.length - 1]); else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(path); } else if (e.key === 'Delete') closeTab(path); };
   return div;
 }
 
@@ -322,7 +322,10 @@ function render() {
   const more = el('button', { type: 'button', id: 'tabs-more', className: 'tabs-more', title: 'All open files', 'aria-haspopup': 'listbox', textContent: `▾ ${T.tabs.length}`, onclick: (e) => { e.stopPropagation(); togglePopup(more); } });
   const saveAllButton = dirtyCount ? el('button', { type: 'button', id: 'tabs-saveall', className: 'tabs-saveall', textContent: `Save all (${dirtyCount})`, title: 'Save every file with unsaved changes (Ctrl+Shift+S)', onclick: saveAll }) : '';
   T.recent ??= createRecentFilesToggle();   // Recent lives with the tabs now: one place for the files that are open and the ones that were
+  const had = document.activeElement && T.bar.contains(document.activeElement) ? document.activeElement : null;
+  const hadPath = had?.closest?.('.tab')?.dataset.path, hadX = !!had?.classList?.contains('tab-x');
   T.bar.replaceChildren(list, more, T.recent, saveAllButton);
+  if (hadPath) { const node = [...list.children].find((n) => n.dataset.path === hadPath); (hadX ? node?.querySelector('.tab-x') : node)?.focus?.(); }
   T.bar.hidden = T.tabs.length < 1;
   requestAnimationFrame(() => { fit(list); more.classList.toggle('some', T.hidden > 0); });
 }
@@ -343,8 +346,9 @@ function togglePopup(anchor) {
       const row = el('div', { className: `tabs-row${tab.path === T.active ? ' on' : ''}`, role: 'option', tabIndex: 0, 'data-path': tab.path }, [
         el('span', { className: 'tab-name', textContent: baseName(tab.path) }), el('span', { className: 'tabs-folder', textContent: folderOf(tab.path) }),
         el('span', { className: 'tabs-facts', textContent: [f.dirty ? 'unsaved' : '', f.graphBroken ? 'cannot be read into blocks' : f.errors ? `${f.errors} error(s)` : '', f.warnings ? `${f.warnings} warning(s)` : ''].filter(Boolean).join(' · ') })]);
+      if (tab.path !== T.active) row.append(el('button', { type: 'button', className: 'tabs-row-x', textContent: '×', title: 'Close', 'aria-label': `Close ${baseName(tab.path)}`, onclick: async (e) => { e.stopPropagation(); await closeTab(tab.path); paint(); } }));
       row.onclick = () => { closePopup(); activate(tab.path); };
-      row.onkeydown = (e) => { if (e.key === 'Enter') row.click(); };
+      row.onkeydown = (e) => { if (e.target === row && e.key === 'Enter') row.click(); };
       rows.append(row);
     }
     if (phone) {
