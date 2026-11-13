@@ -16,7 +16,7 @@ import { initPlayLights } from './play-fx.js';
 import { stopTranscription } from './transcription.js';
 import { V, initViews, setView, updateBanner } from './views.js';
 import { initTabs } from './tabs.js';
-import { initSource, openProjectTextFile, resetSourceFile } from './source.js';
+import { initSource, openProjectTextFile, resetSourceFile, confirmLeaveTextFile } from './source.js';
 import { initProjectPanel, refreshProjectPanel, revealInProject } from './projectpanel.js';
 import { createSaveControl } from './savecontrol.js';
 import { mountStudioGallery } from './studio/index.js';
@@ -232,8 +232,16 @@ function wire() {
   initProjects();
   onPlayer(renderPlaybackState);
   onLiveChange(() => renderPlaybackState());
-  document.addEventListener('ample:open', (e) => { resetSourceFile(); openDoc(e.detail).catch((x) => toast(x.message)); });
-  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => toast(x.message)));
+  document.addEventListener('ample:open', async (e) => {
+    const path = e.detail;
+    const refused = () => document.dispatchEvent(new CustomEvent('ample:open-refused', { detail: path }));
+    try {
+      if (!(await confirmLeaveTextFile(path))) { refused(); return; }   // unapplied text of a Source file is asked about before anything is reset
+      resetSourceFile();
+      if ((await openDoc(path)) === false) refused();
+    } catch (x) { toast(x.message); refused(); }
+  });
+  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => { toast(x.message); document.dispatchEvent(new CustomEvent('ample:open-refused', { detail: e.detail })); }));
   document.addEventListener('ample:reveal-file', (e) => revealInProject(e.detail));
   $('#lib-q').oninput = renderLib;
   document.addEventListener('ample:components-changed', () => { renderLib(); import('./component-library.js').then((m) => m.refreshComponentLibraryIfOpen()).catch(() => {}); });

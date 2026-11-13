@@ -453,14 +453,19 @@ export async function loadProject() {
   else notify();
 }
 
+let openGeneration = 0;
+/** Opens a song. Returns false when the open was refused or superseded by a newer open. */
 export async function openDoc(path) {
   const leftPath = S.path, leftText = S.doc?.text;
-  if (path !== S.path) { const { confirmSongSwitch } = await import('./source.js'); if (!(await confirmSongSwitch(path))) return; }
+  if (path !== S.path) { const { confirmSongSwitch } = await import('./source.js'); if (!(await confirmSongSwitch(path))) return false; }
+  const gen = ++openGeneration;
   if (path !== S.path) stopBuild();
   const doc = await api.get(`/api/doc?path=${encodeURIComponent(path)}`);
+  if (gen !== openGeneration) return true;   // a newer open owns the editor now
   S.path = path;
   S.groups = loadGroups();
   await loadNotes();
+  if (gen !== openGeneration) return true;
   S.stack = ['root'];
   S.moduleStack = [];
   S.modulePath = null;
@@ -482,9 +487,11 @@ export async function openDoc(path) {
   setDoc(doc);
   const keepWorkRecord = await resumeWork(stored, doc);
   workHold = false;
+  if (gen !== openGeneration) return true;
   if (keepWorkRecord) persistWorkSoon();
   await restoreModuleNavigation();
   await refreshModuleGraph();
+  if (gen !== openGeneration) return true;
   activateHistory(false);
   notify();
   try { await api.post('/api/project/last-song', { path }); } catch (error) { toast(`Could not remember the last song: ${error.message}`); }

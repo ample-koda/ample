@@ -1300,7 +1300,7 @@ async function openFileLink(path) {
 export async function openProjectTextFile(path) {
   SE.files = await api.get('/api/project/files');
   if (!SE.files.some((file) => file.path === path) || (!isEditableSourceFile(path) && !/\.amplet$/i.test(path))) { toast(`${path} is not an editable text file.`); return; }
-  if (!(await confirmEditorSwitch(path))) return;
+  if (!(await confirmEditorSwitch(path))) { document.dispatchEvent(new CustomEvent('ample:open-refused', { detail: path })); return; }
   SE.loadedFor = '';
   SE.file = null;
   await loadFile(path);
@@ -1310,6 +1310,13 @@ export async function openProjectTextFile(path) {
 }
 
 /** Going to a song (its tab, the Project panel): the Source view shows that song again instead of a text file that was open before. */
+/** Before the Source view leaves a text file for a song: unapplied text asks first. False: stay. */
+export async function confirmLeaveTextFile(path) {
+  if (!SE.file || SE.file === S.path || /.amplet$/i.test(SE.file)) return true;
+  SE.text = $('#se-ta')?.value ?? SE.text;
+  return confirmEditorSwitch(path);
+}
+
 export function resetSourceFile() {
   if (SE.file && SE.file !== S.path && !/\.amplet$/i.test(SE.file)) { SE.file = null; SE.loadedFor = ''; if (V.mode === 'src') render(); }   // already looking at Source: it shows the song at once
 }

@@ -59,18 +59,22 @@ function openFile(path) {
 
 function activate(path) {
   if (T.remote.has(path)) { remoteChoice(path); return; }   // one editor per file, in whatever window
+  T.prevActive = T.active;   // restored when the editor refuses or fails to open the file (open-refused)
   T.active = path;
   save(); render();
   if (!(kindOf(path) === 'song' && path === S.path)) openFile(path);
-  else import('./source.js').then((m) => m.resetSourceFile());   // the song is open already: the Source view still has to leave a text file that was open there
+  else import('./source.js').then(async (m) => { if (await m.confirmLeaveTextFile(path)) m.resetSourceFile(); else document.dispatchEvent(new CustomEvent('ample:open-refused', { detail: path })); });   // the song is open already: the Source view still has to leave a text file that was open there
 }
 
+let stateGeneration = 0;
 async function refreshState() {
   if (document.visibilityState !== 'visible' || !T.tabs.length) return;
   const paths = T.tabs.map((t) => t.path).filter((p) => !(kindOf(p) === 'song' && p === S.path));
   if (!paths.length) { render(); return; }
+  const mine = ++stateGeneration;
   try {
     const answer = await api.get(`/api/tabs/state?paths=${encodeURIComponent(paths.join(','))}`);
+    if (mine !== stateGeneration) return;   // a newer poll was started: this older answer must not overwrite it
     T.state = Object.fromEntries((answer.items || []).map((i) => [i.path, i]));
     // a file that is gone from the project closes its tab
     T.tabs = T.tabs.filter((t) => T.state[t.path]?.exists !== false || t.path === S.path);
@@ -429,6 +433,7 @@ export function initTabs() {
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
   undoHooks.push(tabUndo);
   document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
+  document.addEventListener('ample:open-refused', (e) => { if (T.active === e.detail && T.prevActive && T.prevActive !== e.detail && T.tabs.some((t) => t.path === T.prevActive)) { T.active = T.prevActive; save(); render(); } });
   document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
   // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
   document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
