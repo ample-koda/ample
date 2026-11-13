@@ -49,7 +49,7 @@ internal static class StorageApi
             types[block.Name] = block.Type;
         }
 
-        List<string> stale = [.. plan.Blocks.Where(b => b.Status == "stale").Select(b => types.GetValueOrDefault(b.Block, "mixer"))];
+        List<string> stale = [.. plan.Blocks.Where(b => b.Status is "stale" or "waiting").Select(b => types.GetValueOrDefault(b.Block, "mixer"))];   // a waiting block renders after its stale input does
         double seconds = s.Engine.SongSeconds(parsed);
         if (range is { } r)
         {
@@ -91,7 +91,7 @@ internal static class StorageApi
 
             List<(string Type, long Bytes)> rendered = [.. report.Blocks.Where(b => b.Status == "rendered" && b.TakeId is not null).Select(b => (types.GetValueOrDefault(b.Block, "mixer"), s.Bank.SizeOfTake(b.TakeId!)))];
             BuildStats stats = BuildStats.Load(s.Root);
-            stats.Record(rendered, Math.Max(1, s.Engine.SongSeconds(parsed)), elapsedSeconds, 4);
+            stats.Record(rendered, Math.Max(1, s.Engine.SongSeconds(parsed)), elapsedSeconds, Ample.Engine.Engine.BuildParallelism.Effective(0, Ample.Engine.Engine.BuildParallelism.OfProject(s.Root)));
         }
         catch (Exception ex) when (ex is IOException or AmpleException)
         {
