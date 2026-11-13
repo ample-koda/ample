@@ -107,8 +107,9 @@ async function dropBlankUntitled(except) {
   rememberUntitled(map); render();
 }
 
-/** The first save of a new song: where should it go? The song is written to the chosen place, the blank file goes away and the song opens from its new place. */
-async function placeUntitled(path) {
+/** The first save of a new song: where should it go? The song is written to the chosen place, the blank file goes away and the song opens from its new place.
+ *  With close (Close, then Save) it only writes: no tab and no open for the new place, so the close can go on to the neighbouring tab. Returns the new place, or false. */
+async function placeUntitled(path, { close = false } = {}) {
   const name = el('input', { id: 'untitled-name', type: 'text', value: 'my-song', 'aria-label': 'Song name' });
   const folder = el('input', { id: 'untitled-folder', type: 'text', placeholder: 'folder (empty: the project folder)', 'aria-label': 'Folder' });
   const choice = await ask('Save the new song', 'Where should this song be saved? A name is letters, digits, _ and -.', [{ label: 'Cancel', value: false }, { label: 'Save', value: true, primary: true }],
@@ -120,11 +121,12 @@ async function placeUntitled(path) {
     await api.post('/api/doc/revert', { path }).catch(() => {});
     await api.delete(`/api/project/file?path=${encodeURIComponent(path)}`).catch(() => {});
     const map = untitledMap(); delete map[path]; rememberUntitled(map);
+    toast(`Saved as ${made.path}.`);
+    if (close) return made.path;   // the closing tab stays until closeTab takes it away; an open of the new place could land after the close and bring its tab back
     T.tabs = T.tabs.filter((t) => t.path !== path);
     add(made.path); T.active = made.path; save();
     document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
-    toast(`Saved as ${made.path}.`);
-    return made.path;   // truthy: the new place, so a close can finish by closing it
+    return made.path;
   } catch (error) { toast(error.message || String(error)); return false; }
 }
 
@@ -156,17 +158,24 @@ async function closeTab(path) {
   const tab = T.tabs.find((t) => t.path === path);
   if (!tab) return;
   const facts = factsOf(path);
+  let closed = path;   // what Undo reopens: a new song saved on close comes back under its new name
   if (facts.dirty) {
     const choice = await ask('Close with unsaved changes', `${baseName(path)} has unsaved changes.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Discard changes', value: 'discard' }, { label: 'Save', value: 'save', primary: true }]);
     if (choice === 'cancel' || !choice) return;
-    if (choice === 'save' && isUntitled(path)) { const placed = await placeUntitled(path); if (!placed) return; await closeTab(placed); return; }   // the first save asks for a name; cancelled or failed keeps Untitled open; saved, the song under its new name closes too
-    try {
-      if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
-      else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
-    } catch (error) { toast(error.message || String(error)); return; }
+    if (choice === 'save' && isUntitled(path)) {   // the first save asks for a name; cancelled or failed keeps Untitled open
+      const placed = await placeUntitled(path, { close: true });   // written without opening it: the close goes on below and the neighbouring tab becomes active
+      if (!placed) return;
+      closed = placed;
+    } else {
+      try {
+        if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
+        else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
+      } catch (error) { toast(error.message || String(error)); return; }
+    }
   }
   const index = T.tabs.findIndex((t) => t.path === path);
-  lastClose = { path, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
+  if (index < 0) { render(); return; }   // the tab went away while the question was open
+  lastClose = { path: closed, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
   T.tabs.splice(index, 1);
   if (T.active === path) {
     const next = T.tabs[Math.min(index, T.tabs.length - 1)];
