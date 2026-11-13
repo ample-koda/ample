@@ -291,7 +291,7 @@ function render() {
       el('button', { id: 'sq-play', className: 'primary', textContent: '▶ Play', title: Q.stale || !Q.builtTake ? 'Build what changed, then play (Space). It starts at the first of the chosen bars, or at the bar you clicked on the ruler, or at bar 1.' : 'Play (Space). It starts at the first of the chosen bars, or at the bar you clicked on the ruler, or at bar 1.', onclick: () => playNow().catch((e) => { setStatus(''); toast(e.message || String(e)); }) }),
       el('button', { id: 'sq-stop', textContent: '■ Stop', title: 'Stop playing', disabled: !loopState().playing, onclick: () => stopNow() }),
       el('button', { id: 'sq-repeat', className: Q.repeat ? 'on' : '', textContent: '⟳ Loop', 'aria-pressed': String(Q.repeat), title: 'On: when it reaches the end it starts again (the chosen bars, or the whole song when none are chosen). Off: it plays once and stops.', onclick: () => { Q.repeat = !Q.repeat; setLoopRange(loopSeconds(), Q.repeat).catch(() => {}); render(); } }),
-      el('button', { id: 'sq-live', className: Q.live ? 'on' : '', textContent: '● Live', 'aria-pressed': String(Q.live), title: 'On: a change you make while it plays is built in the background and you hear it the next time the loop comes round. Off: changes are heard the next time you press Play.', onclick: () => { Q.live = !Q.live; render(); } }),
+      el('button', { id: 'sq-live', className: Q.live ? 'on' : '', textContent: '● Live', 'aria-pressed': String(Q.live), title: 'On: a change you make while it plays is built in the background and you hear it the next time the loop comes round. Off: changes are heard the next time you press Play.', onclick: () => { Q.live = !Q.live; if (!Q.live) { clearTimeout(liveTimer); Q.liveAgain = false; } render(); } }),
       el('span', { id: 'sq-pos', className: 'sqpos', textContent: `bar ${Q.cursor}` }),
       ...(Q.range ? [el('span', { id: 'sq-range', className: 'sqrangelabel', textContent: `repeat bars ${Q.range.at} to ${Q.range.at + Q.range.bars - 1}` }), el('button', { id: 'sq-range-clear', textContent: '✕', title: 'Do not repeat a part: repeat the whole song', onclick: () => chooseRange(null).catch(() => {}) })] : []),
       el('span', { id: 'sq-status', className: 'sqstatus', textContent: Q.status }),
@@ -396,15 +396,17 @@ async function liveSwap() {
   try {
     do {
       Q.liveAgain = false;
-      if (!loopState().playing || Q.error) return;
+      if (!Q.live || !loopState().playing || Q.error) return;
       setStatus('building the change...');
       await writeFile();
       Q.wroteLive = true;
       await build(Q.blockId);
+      if (!Q.live) return;
       const take = S.build.takes?.[Q.blockId];
       if (!take) { setStatus('the change could not be built'); return; }
       Q.builtTake = take; Q.stale = false;
       if (Q.liveAgain) continue;
+      if (!Q.live) return;
       await swapTake(take);
       setStatus('the change plays when the loop comes round');
     } while (Q.liveAgain);
@@ -953,7 +955,7 @@ function paintLanes(host) {
     row.append(el('span', { className: 'seqname', textContent: `lane ${n}` }));
     Q.seq.channels.forEach((c) => {
       const on = names.includes(c.name);
-      row.append(el('button', { className: `sqchip${on ? ' on' : ''}`, textContent: c.name, 'aria-pressed': String(on), disabled: locked, title: on ? `Take ${c.name} out of lane ${n}` : `Put ${c.name} in lane ${n}`, onclick: () => setLanes({ ...lanes, [n]: on ? names.filter((x) => x !== c.name) : [...names, c.name] }) }));
+      row.append(el('button', { className: `sqchip${on ? ' on' : ''}`, textContent: c.name, 'aria-pressed': String(on), disabled: locked, title: on ? `Take ${c.name} out of lane ${n}` : `Put ${c.name} in lane ${n}`, onclick: () => setLanes({ ...parseLanes((node()?.params.lanes ?? '').replace(/^"|"$/g, ''), [{ name: 'all' }]), [n]: on ? names.filter((x) => x !== c.name) : [...names, c.name] }) }));
     });
     if (names.length) row.append(el('button', { className: 'sqrender', textContent: 'Render to file...', title: 'Build the block and write this lane as a WAV or MP3 file of the project', onclick: () => renderLane(n).catch((e) => toast(e.message || String(e))) }));
     host.append(row);
