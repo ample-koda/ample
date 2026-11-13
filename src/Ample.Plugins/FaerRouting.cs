@@ -63,17 +63,29 @@ public static class FaerRouting
         if (UsesFaer(routes.Song) && !renderers.Any(renderer => renderer is PluginRenderer && renderer.BlockType == "ace-music")) throw new AmpleException("AMP5380", "The ACE song plugin is required for Faer song routing.");
         if (UsesFaer(routes.Voice) && !renderers.Any(renderer => renderer is PluginRenderer && renderer.BlockType == "ai-voice")) throw new AmpleException("AMP5380", "The ACE voice plugin is required for Faer voice routing.");
         FaerProfile? profile = FaerProfile.LoadLocal();
-        if (profile is null && (routes.Song == "faer" || routes.Voice == "faer" || routes.Separation == "faer")) throw new AmpleException("AMP5380", "This machine has no Faer connection profile.");
         return renderers.Select(renderer =>
         {
             if (renderer is not PluginRenderer plugin) return renderer;
             string route = renderer.BlockType == "ace-music" ? routes.Song : renderer.BlockType is ("ai-voice" or "voice-clone") ? routes.Voice : "local";
+            if (route == "faer" && profile is null) return new MissingProfileRenderer(renderer);
             if (route == "local" || profile is null) return AddLease(renderer, spark);
             IBlockRenderer onFaer = new FaerPluginRenderer(plugin, profile, jobsFolder);
             if (route == "faer") return onFaer;
             string capability = renderer.BlockType switch { "ace-music" => "song", "ai-voice" => "voice-ace", _ => "voice-clone" };
             return new FaerElseLocalRenderer(onFaer, AddLease(renderer, spark), profile, capability);
         }).ToArray();
+    }
+
+    // A strict Faer route without a profile on this machine fails on the block that needs it, so local-only builds keep working.
+    private sealed class MissingProfileRenderer(IBlockRenderer inner) : IBlockRenderer
+    {
+        public string BlockType => inner.BlockType;
+        public string Id => inner.Id;
+        public string Version => inner.Version;
+        public string Determinism => inner.Determinism;
+        public string ToolprintJson => inner.ToolprintJson;
+        public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken) =>
+            throw new AmpleException("AMP5380", "This machine has no Faer connection profile.");
     }
 
     private static IBlockRenderer AddLease(IBlockRenderer renderer, FaerSpark spark) =>
