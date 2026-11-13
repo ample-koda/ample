@@ -587,8 +587,25 @@ public sealed partial class Takebank
     {
         EnsureWritable();
         List<TakeDataRef> refs = [];
+        List<(byte[] Buffer, int Offset, int Count, string Id)> stored = [];
         foreach ((string role, Stream data) in outputs)
         {
+            // Aliased roles (the same buffer under several names) are written and hashed once.
+            if (data is MemoryStream ms && ms.TryGetBuffer(out ArraySegment<byte> seg) && seg.Array is { } array && ms.Position == 0)
+            {
+                (byte[] Buffer, int Offset, int Count, string Id) known = stored.FirstOrDefault(s => ReferenceEquals(s.Buffer, array) && s.Offset == seg.Offset && s.Count == seg.Count);
+                if (known.Id is not null)
+                {
+                    refs.Add(new TakeDataRef(role, known.Id));
+                    continue;
+                }
+
+                string id = await PutDataAsync(data, cancellationToken).ConfigureAwait(false);
+                stored.Add((array, seg.Offset, seg.Count, id));
+                refs.Add(new TakeDataRef(role, id));
+                continue;
+            }
+
             refs.Add(new TakeDataRef(role, await PutDataAsync(data, cancellationToken).ConfigureAwait(false)));
         }
 
