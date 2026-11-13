@@ -1,5 +1,6 @@
 // Starts the app: token, project, panels, header buttons, event stream. @ample:layout
 
+import { extensionOf, AUDIO_EXTENSIONS, MIDI_EXTENSIONS, SEQUENCE_EXTENSIONS, LYRICS_EXTENSIONS, TEXT_EXTENSIONS } from '../lib/file-types.mjs';
 import { $, showMenu, toast } from './ui.js';
 import { api, connectEvents, initToken } from './api.js';
 import { S, bakeDynamicHelpers, quiet, redo, build, dirty, flat, graphBroken, loadHistory, loadProject, notify, onBlockProgress, onBuildProgress, openDoc, readOnly, refreshInputs, reloadDoc, save, select, stopBuild, subscribe, subscribeSelection, undo, errors } from './store.js';
@@ -165,21 +166,21 @@ function renderAll() {
 }
 
 async function openProjectFile(path) {
-  const extension = path.slice(path.lastIndexOf('.')).toLowerCase();
+  const extension = extensionOf(path);
   const node = flat().nodes.find((item) => item.params?.file === path);
-  if (['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'].includes(extension)) { await playProjectFile(path); return; }
-  if (['.mid', '.midi'].includes(extension)) {
+  if (AUDIO_EXTENSIONS.includes(extension)) { await playProjectFile(path); return; }
+  if (MIDI_EXTENSIONS.includes(extension)) {
     const details = await api.get(`/api/midi/info?file=${encodeURIComponent(path)}`);
     if (node) select(node.id);
     toast(`${details.tracks} MIDI tracks · ${Math.round(60_000_000 / details.microsecondsPerQuarter)} BPM · ${details.bars} bars · ${details.lengthTicks} ticks`);
     return;
   }
   // a sequence file: the sequencer of the block that uses it, or the text of the file when no block uses it yet
-  if (extension === '.seq' || extension === '.ampleseq') { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) { await openProjectTextFile(path); return; }   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
+  if (SEQUENCE_EXTENSIONS.includes(extension)) { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) { await openProjectTextFile(path); return; }   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
     // in the Source view a tab of a sequence file shows its text there (switching between the song and its sequence file); elsewhere it opens the sequencer
     if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return; } await openProjectTextFile(path); return; }
-  if (['.lyr', '.lrc', '.amplelrc'].includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return; }
-  if (['.lyr', '.lrc', '.amplelrc', '.srt', '.txt', '.chords', '.md', '.csv', '.json', '.amplec'].includes(extension)) { await openProjectTextFile(path); return; }
+  if (LYRICS_EXTENSIONS.includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return; }
+  if (TEXT_EXTENSIONS.includes(extension)) { await openProjectTextFile(path); return; }
   toast(`${path} is selected in the Project panel; no editor is registered for this file type.`);
 }
 

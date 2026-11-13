@@ -6,6 +6,7 @@ import { api, getToken } from './api.js';
 import { S, editSerial, notify, select, subscribe, undoHooks } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
+import { isOpenable } from '../lib/file-types.mjs';
 import { removeRecoveryDraft } from '../lib/recovery-drafts.mjs';
 
 const KIND = [
@@ -53,8 +54,7 @@ function add(path) {
 }
 
 // extensions that openProjectFile (main.js) can show; anything else gets no tab (the studio only toasts for it)
-const VIEWABLE = /.(wav|flac|mp3|ogg|m4a|aif|aiff|mid|midi|seq|ampleseq|lyr|lrc|amplelrc|srt|txt|chords|md|csv|json|amplec|amplet|module)$/i;
-const viewable = (path) => kindOf(path) !== 'image' && VIEWABLE.test(path);
+const viewable = (path) => kindOf(path) !== 'image' && isOpenable(path);
 
 function openFile(path) {
   T.internal = true;
