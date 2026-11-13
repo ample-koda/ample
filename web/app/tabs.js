@@ -124,7 +124,7 @@ async function placeUntitled(path) {
     add(made.path); T.active = made.path; save();
     document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
     toast(`Saved as ${made.path}.`);
-    return true;
+    return made.path;   // truthy: the new place, so a close can finish by closing it
   } catch (error) { toast(error.message || String(error)); return false; }
 }
 
@@ -159,7 +159,7 @@ async function closeTab(path) {
   if (facts.dirty) {
     const choice = await ask('Close with unsaved changes', `${baseName(path)} has unsaved changes.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Discard changes', value: 'discard' }, { label: 'Save', value: 'save', primary: true }]);
     if (choice === 'cancel' || !choice) return;
-    if (choice === 'save' && isUntitled(path)) { if (!(await placeUntitled(path))) return; refreshState(); render(); return; }   // the first save asks for a name; cancelled keeps the tab open
+    if (choice === 'save' && isUntitled(path)) { const placed = await placeUntitled(path); if (!placed) return; await closeTab(placed); return; }   // the first save asks for a name; cancelled or failed keeps Untitled open; saved, the song under its new name closes too
     try {
       if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
       else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
