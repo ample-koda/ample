@@ -52,6 +52,10 @@ function add(path) {
   if (shared) shared.path = path; else T.tabs.push({ path });
 }
 
+// extensions that openProjectFile (main.js) can show; anything else gets no tab (the studio only toasts for it)
+const VIEWABLE = /.(wav|flac|mp3|ogg|m4a|aif|aiff|mid|midi|seq|ampleseq|lyr|lrc|amplelrc|srt|txt|chords|md|csv|json|amplec|amplet|module)$/i;
+const viewable = (path) => kindOf(path) !== 'image' && VIEWABLE.test(path);
+
 function openFile(path) {
   T.internal = true;
   try { document.dispatchEvent(new CustomEvent(kindOf(path) === 'song' ? 'ample:open' : 'ample:open-file', { detail: path })); } finally { T.internal = false; }
@@ -429,7 +433,7 @@ export function initTabs() {
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
   undoHooks.push(tabUndo);
   document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
-  document.addEventListener('ample:open-file', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
+  document.addEventListener('ample:open-file', (e) => { if (!T.internal && viewable(e.detail)) { add(e.detail); T.active = e.detail; save(); render(); } });
   // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
   document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
   // a tab for a file without opening it: what you look at stays (the files that Koda changed arrive like this, with their unsaved mark)
@@ -438,12 +442,13 @@ export function initTabs() {
   document.addEventListener('ample:preview-file', (e) => {
     if (!previewOn()) return;
     const path = e.detail;
+    if (!viewable(path)) return;
     if (T.tabs.some((t) => t.path === path)) { if (T.active !== path) activate(path); return; }
     const old = T.tabs.find((t) => t.preview && kindOf(t.path) === kindOf(path) && !factsOf(t.path).dirty);
     if (old) old.path = path; else T.tabs.push({ path, preview: true });
     T.active = path; save(); render(); openFile(path);
   });
-  document.addEventListener('ample:song-opened', () => { add(S.path); T.active = S.path; save(); render(); refreshState(); setTimeout(() => dropBlankUntitled(S.path), 600); });
+  document.addEventListener('ample:song-opened', () => { if (!T.tabs.some((t) => t.path === S.path)) add(S.path); T.active = S.path; save(); render(); refreshState(); setTimeout(() => dropBlankUntitled(S.path), 600); });
   // the first save of a new song asks where it goes
   const intercept = (event) => { if (T.active && isUntitled(T.active) && factsOf(T.active).dirty) { event.preventDefault(); event.stopImmediatePropagation(); placeUntitled(T.active); } };
   $('#btn-save')?.addEventListener('click', intercept, true);
@@ -460,4 +465,7 @@ export function initTabs() {
   else setInterval(() => { for (const [path, w] of T.remote) if (Date.now() - w.seen > 9000) { T.remote.delete(path); toast(`${baseName(path)}: its window was lost, the tab is back here.`); render(); } }, 3000);
   setInterval(refreshState, 3000);
   render(); refreshState();
+  // a restored non-song tab is opened through the normal lifecycle, so the marker and the editor agree
+  if (!mine && T.active && kindOf(T.active) !== 'song' && viewable(T.active) && T.tabs.some((t) => t.path === T.active)) setTimeout(() => openFile(T.active), 0);
+  else if (!mine && T.active && kindOf(T.active) !== 'song') { T.active = S.path || ''; save(); render(); }
 }
