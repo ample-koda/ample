@@ -148,17 +148,29 @@ async function settings(body) {
   row('AMPLE Redux budget (MiB)', budget, 'Explicit archive compaction uses this budget; records are never pruned automatically or journaling switched off.');
   row('full detail (days)', full, 'Records of this age keep their pre-images.');
   row('thinned until (days)', thin, 'Older records are thinned; the hash chain stays intact.');
-  row('default engine', engine);
+  row('default engine', engine, 'Stored with the project. A block or song that names its own engine always wins. Empty clears it.');
   // how many blocks a build of this project renders at once: empty follows the server (one per core), a number can only be lower than the limit of the server
   const limit = s.parallelismLimit ?? 1;
   const parallelism = el('input', { id: 'ps-parallelism', type: 'number', min: 1, max: limit, step: 1, value: s.buildParallelism ?? '', placeholder: `server: ${limit}` });
-  row('render in parallel (blocks)', parallelism, `How many blocks of a build render at the same time. Empty follows the server: ${limit} (this machine has ${s.cores ?? limit} cores). A number is at most ${limit}; it changes how fast a build is, never what it makes.`);
+  row('render in parallel (blocks)', parallelism, `${s.buildParallelism > limit ? `Saved: ${s.buildParallelism}, effective on this machine: ${limit}. ` : ''}How many blocks of a build render at the same time. Empty follows the server: ${limit} (this machine has ${s.cores ?? limit} cores). A number is at most ${limit}; it changes how fast a build is, never what it makes.`);
   const kodaLang = el('select', { id: 'ps-koda-language' }, [el('option', { value: 'en', textContent: 'English' }), el('option', { value: 'nl', textContent: 'Nederlands' })]);
   kodaLang.value = s.koda?.language === 'nl' ? 'nl' : 'en';
   row('Koda language', kodaLang, "The language of Koda's own words and of its answers (Dutch answers keep the English AMPLE term in brackets). Saved with the project.");
   const previewTabs = el('input', { id: 'ps-tabs-preview', type: 'checkbox', checked: localStorage.getItem('ample.tabs.preview') === '1', onchange: (e) => { e.stopPropagation(); try { localStorage.setItem('ample.tabs.preview', e.target.checked ? '1' : '0'); } catch { /* storage may be blocked */ } }, oninput: (e) => e.stopPropagation() });
   row('Preview tabs', el('label', {}, [previewTabs, ' a single click in the Project panel opens a preview tab']), 'Off: a file opens in a tab with a double click. On: a single click opens a tab in italics that the next single click replaces; a double click or an edit keeps it. Kept in this browser.');
-  saveBar('ps-save', 'Save general', () => api.post('/api/project/settings', { blackBoxBudget: Number(budget.value) * 1048576, fullDetailDays: Number(full.value), thinnedDays: Number(thin.value), defaultEngine: engine.value.trim(), buildParallelism: parallelism.value === '' ? null : Number(parallelism.value) }).then(() => import('./koda-lang.js').then((m) => m.saveKodaLanguage(kodaLang.value))));
+  saveBar('ps-save', 'Save general', async () => {
+    // one request, only the fields that changed (a saved value the server now caps, for example parallelism, must not block unrelated edits)
+    const patch = {};
+    if (Number(budget.value) !== Math.round(s.blackBox.budgetBytes / 1048576)) patch.blackBoxBudget = Number(budget.value) * 1048576;
+    if (Number(full.value) !== s.blackBox.fullDetailDays) patch.fullDetailDays = Number(full.value);
+    if (Number(thin.value) !== s.blackBox.thinnedDays) patch.thinnedDays = Number(thin.value);
+    if (engine.value.trim() !== (s.defaultEngine || '')) patch.defaultEngine = engine.value.trim();   // empty clears it
+    if (parallelism.value !== String(s.buildParallelism ?? '')) patch.buildParallelism = parallelism.value === '' ? null : Number(parallelism.value);
+    const langNow = s.koda?.language === 'nl' ? 'nl' : 'en';
+    if (kodaLang.value !== langNow) patch.koda = { language: kodaLang.value };
+    if (Object.keys(patch).length) await api.post('/api/project/settings', patch);
+    if (patch.koda) (await import('./koda-lang.js')).useKodaLanguage(kodaLang.value);
+  });
   panel = panels.search;
   const braveKey = el('input', { id: 'ps-brave-key', type: 'password', autocomplete: 'new-password', placeholder: s.braveSearchKeyConfigured ? 'Configured; leave empty to keep' : 'Paste Brave Search API key', disabled: !s.braveSearchKeyStoreAvailable });
   const clearBraveKey = el('input', { id: 'ps-brave-clear', type: 'checkbox' });
@@ -191,8 +203,9 @@ async function settings(body) {
     else { const capabilities = remote.status?.capabilities || {}; readiness.textContent = `Faer connection: ready. ACE song ${capabilities.song?.ready ? 'available' : 'unavailable'}; ACE voice ${capabilities['voice-ace']?.ready ? 'available' : 'unavailable'}; voice clone ${capabilities['voice-clone']?.ready ? 'available' : 'unavailable'}; separation ${capabilities.separation?.ready ? 'available' : 'unavailable'}.`; }
   }).catch(() => { readiness.textContent = 'Faer connection: status check failed.'; });
   saveBar('ps-save-audio', 'Save audio routing', async () => {
-    if (song.value !== (s.faer?.song || 'local') || voice.value !== (s.faer?.voice || 'local') || separation.value !== (s.faer?.separation || 'local') || songModel.value.trim() !== (s.faer?.songModel || '') || voiceModel.value.trim() !== (s.faer?.voiceModel || '')) stopBuild();
+    const changed = song.value !== (s.faer?.song || 'local') || voice.value !== (s.faer?.voice || 'local') || separation.value !== (s.faer?.separation || 'local') || songModel.value.trim() !== (s.faer?.songModel || '') || voiceModel.value.trim() !== (s.faer?.voiceModel || '');
     await api.post('/api/project/settings', { faer: { song: song.value, voice: voice.value, separation: separation.value, songModel: songModel.value.trim(), voiceModel: voiceModel.value.trim() } });
+    if (changed) stopBuild();   // only after the server accepted the routing: a rejected edit must not cancel a running build
   });
   // safe saves: a checkpoint before and after every save, and an autosave every few minutes (kept in .ample/auto-checkpoint.json, not in project.json)
   const auto = await api.get('/api/project/auto-checkpoint');
