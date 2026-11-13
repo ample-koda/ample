@@ -33,6 +33,9 @@ export function initLayout() {
     $('#lip-right').setAttribute('aria-expanded', String(!saved.noR));
   };
   const resized = () => window.dispatchEvent(new Event('resize'));
+  // the panel may take what is under the header, banner and tab bar, but the canvas keeps 200 px: --bmax follows the real top of the work area
+  const fit = () => { const room = Math.max(120, Math.round(innerHeight - $('#work').getBoundingClientRect().top - 200)); bottom.style.setProperty('--bmax', `${room}px`); return room; };
+  window.addEventListener('resize', fit);
   const flip = (k) => { saved[k] = !saved[k]; store(saved); apply(); resized(); };
   // on a narrow screen the sidebars are not columns: the same buttons open them as a drawer over the canvas (not remembered)
   const narrow = matchMedia('(max-width:900px)');
@@ -78,7 +81,7 @@ export function initLayout() {
     grip.setPointerCapture(e.pointerId);
     const y0 = e.clientY, h0 = bottom.getBoundingClientRect().height;
     let frame = 0, nextY = y0;
-    const move = (y) => { saved.bh = Math.max(120, Math.min(innerHeight - 200, Math.round(h0 + (y0 - y)))); saved.min = false; bottom.classList.remove('min'); bottom.style.setProperty('--bh', `${saved.bh}px`); };
+    const move = (y) => { saved.bh = Math.max(120, Math.min(fit(), Math.round(h0 + (y0 - y)))); saved.min = false; bottom.classList.remove('min'); bottom.style.setProperty('--bh', `${saved.bh}px`); };
     grip.onpointermove = (ev) => {
       nextY = ev.clientY;
       if (!frame) frame = requestAnimationFrame(() => { frame = 0; move(nextY); });
@@ -103,5 +106,6 @@ export function initLayout() {
   resizeSide('#lgrip', 'lw', 'l');
   resizeSide('#rgrip', 'rw', 'r');
   apply();
+  fit();
   resized();
 }

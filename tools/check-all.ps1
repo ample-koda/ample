@@ -9,6 +9,8 @@ $sourceRevision = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { 'unknown' }
 
 # dotnet picks its SDK from the folder it runs in: run it inside the repository, where global.json pins the SDK. From the folder above (no global.json)
 # a machine with a newer SDK, such as a GitHub runner, builds with that one (newer compiler and analyzers than the ones this repository is written for).
+# Older Node versions (the CI runner's) do not know --test-isolation: pass it only when this Node lists it.
+[string[]]$nodeIsolation = if ((node --help | Out-String) -match '--test-isolation') { @('--test-isolation=none') } else { @() }
 Push-Location -LiteralPath (Join-Path $repositoryRoot 'ample')
 try {
   dotnet restore $solution
@@ -28,18 +30,18 @@ try {
   dotnet format $solution --no-restore --verify-no-changes
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\parity-report.test.mjs')
+  node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\tools\parity-report.test.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   node (Join-Path $repositoryRoot 'ample\tools\parity-report.mjs') --check --require-complete
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\validate-spec.test.mjs')
-  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\quarantine-failed.test.mjs')
-  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\tools\issue-sync\sync.test.mjs')
+  node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\tools\validate-spec.test.mjs')
+  node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\tools\quarantine-failed.test.mjs')
+  node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\tools\issue-sync\sync.test.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\faer\server.test.mjs') (Join-Path $repositoryRoot 'ample\faer\gpu-manager.test.mjs')
+  node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\faer\server.test.mjs') (Join-Path $repositoryRoot 'ample\faer\gpu-manager.test.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   node (Join-Path $repositoryRoot 'ample\tools\validate-spec.mjs')
@@ -48,7 +50,7 @@ try {
   node (Join-Path $repositoryRoot 'ample\tools\gen-prng-vectors.mjs') --check
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\web\lib\test\stable-rng.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\geometry.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\history.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\lyrics.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\pluginui.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\stepseq.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\numfield.test.mjs')
+  node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\web\lib\test\stable-rng.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\geometry.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\history.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\lyrics.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\pluginui.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\stepseq.test.mjs') (Join-Path $repositoryRoot 'ample\web\lib\test\numfield.test.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   node (Join-Path $repositoryRoot 'ample\tools\gen-editor-assets.mjs') --check
@@ -56,7 +58,7 @@ try {
 
   $textMate = Join-Path $repositoryRoot 'ample\node_modules\vscode-textmate'
   if (Test-Path -LiteralPath $textMate) {
-    node --test --test-isolation=none (Join-Path $repositoryRoot 'ample\editors\vscode\test\grammar.test.mjs')
+    node --test @nodeIsolation (Join-Path $repositoryRoot 'ample\editors\vscode\test\grammar.test.mjs')
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   } elseif ($Full) {
     throw 'Full check requires npm install in ample/ for the VS Code grammar tests.'

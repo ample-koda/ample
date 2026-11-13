@@ -30,6 +30,7 @@ import { humanizeMidiEvents } from '../lib/clientside-midi-humanize.mjs';
 import { arpeggiateMidiEvents } from '../lib/clientside-midi-arpeggiator.mjs';
 import { parseEffectiveGranularSeed } from '../lib/clientside-granular.mjs';
 import { barBeats } from '../lib/meter.mjs';
+import { fitLiveBars, liveBarsNote } from '../lib/live-bars.mjs';
 import { fireNotes, followSeries } from '../lib/control-follow.mjs';
 import { curveLevel } from '../lib/control-live.mjs';
 import { decodedInput, fetchTakeAudio } from './studio/preview/audio.js';
@@ -52,6 +53,10 @@ const tempo = () => Number(S.doc?.project?.tempo) || 120;
 const samplesPerBar = (rate) => Math.floor(barBeats() * 60 * rate * 1000 / Math.round(tempo() * 1000));
 /** The bars of the song (the longest block), the same count the "Build and play preview" uses. */
 export const songBars = () => Math.max(0, ...flat().nodes.flatMap((node) => (node.parts?.length ? node.parts.map((part) => part.at + part.length - 1) : [Number(node.params?.bars) || 0]))) || 8;
+
+/** The bars the live chain plays: the song, or the first bars that fit the working set (long songs loop their first bars; the badge says so). */
+export const liveBars = () => fitLiveBars(songBars(), samplesPerBar(RATE));
+const capNote = (item) => { const note = liveBarsNote(songBars(), liveBars()); if (note) infos.set(item.id, note); else if (/^previewing bars/.test(infos.get(item.id) || '')) infos.delete(item.id); };
 
 async function effectiveSeed(block) {
   const key = `${S.path}#${block}`;
@@ -79,7 +84,7 @@ async function clipNotes(clip) {
 
 /** The notes a fire block makes from its control: a follow of a built sound (its take) or a curve, per millisecond. */
 async function fireOf(chain, paramsOf) {
-  const bars = songBars(), per = samplesPerBar(RATE), source = chain.fire.source;
+  const bars = liveBars(), per = samplesPerBar(RATE), source = chain.fire.source;
   let values;
   if (chain.fire.tpl === 'curve') {
     const params = paramsOf(source), count = Math.floor(bars * per * 1000 / RATE) + 1;
@@ -127,7 +132,7 @@ const hitBuffers = new Map(), noises = new Map();   // every hit is rendered onc
  * (drum-core.mjs), so a pattern or song knob only changes which hits play and when; nothing is rendered again for the hits that were heard before.
  */
 export async function drumVoicePlan(item, { paramsOf }) {
-  const full = { ...paramsOf(item.id), tempo: tempo() }, bars = songBars(), node = flat().nodes.find((n) => n.id === item.id);
+  const full = { ...paramsOf(item.id), tempo: tempo() }, bars = liveBars(), node = flat().nodes.find((n) => n.id === item.id);
   if (!builtinDrumSongSupported(full)) throw new Error('The live drums play beat-A and beat-B (and their song sequence); other patterns are built by the server.');
   if (drumWorkingSetBytes(bars * samplesPerBar(RATE)) > 128 * 1024 * 1024) throw new Error('The drums are too long for the live preview.');
   const seed = String(await effectiveSeed(item.id));
@@ -148,6 +153,7 @@ export async function drumVoicePlan(item, { paramsOf }) {
  */
 export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
   const params = paramsOf(item.id), bpm = tempo();
+  capNote(item);
   if (item.tpl === 'midi') {
     // the whole midi file through the pack SoundFont in the browser (the server's built-in GM render of a midi block, played here); levels as the server: loudest sample at -6 dBFS
     const file = String(params.file || '').replace(/^"|"$/g, ''), response = await fetch(`/api/midi/notes?${new URLSearchParams({ file, track: String(params.track || 'all').replace(/^"|"$/g, '') })}`, { headers: { 'X-Ample-Token': getToken() }, signal });
@@ -163,7 +169,7 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
   }
   if (item.tpl === 'sequencer') {
     // the lanes of an inline sequence, played by the tone renderer of the build preview; every output (mix, lane1..8) comes from one render, kept while the sequence and the song do not change
-    const bars = songBars(), per = samplesPerBar(RATE), key = JSON.stringify([item.base, params.sequence, params.lanes, params.gain, params.channels, bars, per]);
+    const bars = liveBars(), per = samplesPerBar(RATE), key = JSON.stringify([item.base, params.sequence, params.lanes, params.gain, params.channels, bars, per]);
     if (!cache.sequences.has(key)) {
       cache.sequences.clear();
       const plan = sequencePreviewPlan(params.sequence, params.lanes, 1, bars);
@@ -175,7 +181,7 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
   }
   if (item.voice) {
     // an instrument that plays the notes of a clip: the same renderers as the "Build and play preview" (and the piano roll), made again when a knob or a note changes
-    const bars = songBars(), per = samplesPerBar(RATE), node = flat().nodes.find((n) => n.id === item.id), notes = await notesOf(item.midi, paramsOf);
+    const bars = liveBars(), per = samplesPerBar(RATE), node = flat().nodes.find((n) => n.id === item.id), notes = await notesOf(item.midi, paramsOf);
     let channels;
     if (item.voice === 'synth') channels = await renderSynthChannels(notes, params, RATE, 1, bars, per, signal);
     else if (item.voice === 'piano') channels = [await renderPianoChannels(notes, RATE, 1, bars, per, signal)];
@@ -188,10 +194,10 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
     if (params.channels === 'stereo' && channels.length === 1) channels = [channels[0], channels[0]];
     return { sampleRate: RATE, channels };
   }
-  if (item.tpl === 'silence') return silenceAudio(params, Math.round(songBars() * samplesPerBar(RATE) * (context?.sampleRate || RATE) / RATE), context?.sampleRate || RATE);
+  if (item.tpl === 'silence') return silenceAudio(params, Math.round(liveBars() * samplesPerBar(RATE) * (context?.sampleRate || RATE) / RATE), context?.sampleRate || RATE);
   if (item.tpl === 'click' || item.tpl === 'import-audio' || item.tpl === 'ambience') {
     // sources from nothing or from a file of the project, made by the same functions as the "Build and play preview"
-    const node = flat().nodes.find((n) => n.id === item.id), bars = songBars();
+    const node = flat().nodes.find((n) => n.id === item.id), bars = liveBars();
     if (item.tpl === 'click') return clickAudio(params, node?.parts || [], samplesPerBar(RATE), RATE, 1, bars);
     const audio = item.tpl === 'import-audio' ? await importAudio(node, context, signal, new Map(), null, bars) : await previewAmbience(node, context, signal, null, bars);
     if (!audio) throw new Error(`${item.id} has no sound the browser can make.`);
@@ -206,13 +212,13 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
   if (item.tpl === 'join' || item.tpl === 'crossfade' || item.tpl === 'splitter') {
     const sounds = item.inputs.map((link) => ({ audio: inputs.get(link.from), lane: link.lane })).filter((entry) => entry.audio);
     if (!sounds.length) throw new Error(`${item.id} has no sound to work on.`);
-    const rate = sounds[0].audio.sampleRate, bars = songBars();
+    const rate = sounds[0].audio.sampleRate, bars = liveBars();
     if (item.tpl === 'splitter') return splitAudio(sounds[0].audio)[item.port];
     if (item.tpl === 'crossfade') return crossfadeAudio(sounds.find((s) => s.lane === 0)?.audio, sounds.find((s) => s.lane === 1)?.audio, params, bpm, 1, bars, rate, signal);
     return joinAudio(sounds.map((s) => ({ audio: s.audio, index: s.lane + 1 })), params, bpm, bars, rate, signal);
   }
   if (item.tpl === 'drums') {
-    const full = { ...params, tempo: bpm }, bars = songBars(), node = flat().nodes.find((n) => n.id === item.id);
+    const full = { ...params, tempo: bpm }, bars = liveBars(), node = flat().nodes.find((n) => n.id === item.id);
     if (!builtinDrumSongSupported(full)) throw new Error('The live drums play beat-A and beat-B (and their song sequence); other patterns are built by the server.');
     if (drumWorkingSetBytes(bars * samplesPerBar(RATE)) > 128 * 1024 * 1024) throw new Error('The drums are too long for the live preview.');
     const activeBars = (node?.parts?.length ? node.parts.flatMap((part) => Array.from({ length: part.length }, (_, k) => part.at + k)) : Array.from({ length: bars }, (_, k) => 1 + k)).filter((bar) => bar >= 1 && bar <= bars);
@@ -220,7 +226,7 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
     return { sampleRate: RATE, channels };
   }
   if (item.tpl === 'sampler') {
-    const bars = songBars(), per = samplesPerBar(RATE), file = String(params.file || '').replace(/^"|"$/g, '').trim();
+    const bars = liveBars(), per = samplesPerBar(RATE), file = String(params.file || '').replace(/^"|"$/g, '').trim();
     if (params.enabled === 'off') return { sampleRate: RATE, channels: [new Float32Array(bars * per)] };
     const notes = await notesOf(item.midi, paramsOf), decoded = await sampleOf(file, context);
     if (samplerWorkingSetBytes(bars * per, decoded.numberOfChannels, decoded.length, decoded.numberOfChannels) > 128 * 1024 * 1024) throw new Error('The sampler is too large for the live preview.');

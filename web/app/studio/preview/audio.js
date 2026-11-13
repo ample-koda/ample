@@ -17,6 +17,7 @@ const playerClock = () => { const state = window.AMPLE_PLAYER?.state?.() || {}; 
 
 const CHORUS_BASE_MS = 20;   // same fixed base delay as the server's ModDelay(x, rate, 20, depth, period, 0, mix)
 const number = (params, name, fallback) => {
+  if (/^\s*(auto|lfo|env|fadein|fadeout)\(/.test(String(params[name] ?? ''))) return fallback;   // an expression is not a number: stripping its letters made auto(0s:0, 238s:0) read as 2380 (+48 dB)
   const value = Number.parseFloat(String(params[name] ?? '').replace(/[^+\-\d.e]/gi, ''));
   return Number.isFinite(value) ? value : fallback;
 };
@@ -553,9 +554,9 @@ export async function renderApproximatePreview({ takeId, type, params, tempo, so
   return encodeWav(await context.startRendering());
 }
 
-export async function fetchTakeAudio(takeId) {
+export async function fetchTakeAudio(takeId, role = '') {
   if (!takeId) throw new Error('Build and select the upstream input before previewing this effect.');
-  const response = await fetch(`/api/takes/${encodeURIComponent(takeId)}/download?format=wav`, { headers: { 'X-Ample-Token': getToken() } });
+  const response = await fetch(`/api/takes/${encodeURIComponent(takeId)}/download?format=wav${role ? `&role=${encodeURIComponent(role)}` : ''}`, { headers: { 'X-Ample-Token': getToken() } });
   if (!response.ok) throw new Error(`Could not read the selected input take (${response.status}).`);
   const blob = await response.blob();
   if (!(blob instanceof Blob) || blob.size === 0) throw new Error('The selected input take has no preview audio.');

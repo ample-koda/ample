@@ -812,7 +812,7 @@ export async function buildAndPlayClientPreview() {
             for (const [port, audio] of Object.entries(result)) memo.set(`${id}:${port}`, audio);
             localApproximationSources.add(node.id);
             return result[output] || null;
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
@@ -841,7 +841,7 @@ export async function buildAndPlayClientPreview() {
               memo.set(key, audio);
               return audio;
             }
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
@@ -864,7 +864,7 @@ export async function buildAndPlayClientPreview() {
                 return audio;
               }
             }
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
@@ -876,7 +876,7 @@ export async function buildAndPlayClientPreview() {
           localApproximationSources.add(node.id);
           memo.set(key, audio);
           return audio;
-        } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+        } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
         return audio;
@@ -897,11 +897,11 @@ export async function buildAndPlayClientPreview() {
               memo.set(key, audio);
               return audio;
             }
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         if (source && set !== 'analog-808' && Number(node.params.humanize || 0) === 0 && String(node.params.pattern || 'bass-A') === 'bass-A') {
           try { const audio = await previewPitchedSampleSet(node, context, controller.signal, S.range || null, totalBars, resolveMidiNotes); localApproximationSources.add(node.id); memo.set(key, audio); return audio; }
-          catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
@@ -938,7 +938,7 @@ export async function buildAndPlayClientPreview() {
                 }
               }
             }
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
@@ -959,11 +959,11 @@ export async function buildAndPlayClientPreview() {
               memo.set(key, audio);
               return audio;
             }
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         if (source && String(node.params.set || 'felt-piano') !== 'felt-piano' && Number(node.params.humanize || 0) === 0) {
           try { const audio = await previewPitchedSampleSet(node, context, controller.signal, S.range || null, totalBars, resolveMidiNotes); localApproximationSources.add(node.id); memo.set(key, audio); return audio; }
-          catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
@@ -982,7 +982,7 @@ export async function buildAndPlayClientPreview() {
             localExactSources.add(node.id);
             memo.set(key, audio);
             return audio;
-          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${error.message}`); }
+          } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);

@@ -39,7 +39,7 @@ import { recentFilePaths, rememberRecentFile } from './recent-files.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { barBeats } from '../lib/meter.mjs';
 
-const SE = { file: null, text: '', orig: '', edit: true, diags: [], lsp: null, files: [], ctrl: false, comp: null, timer: 0, loadedFor: '', fontSize: 12 };
+const SE = { file: null, textFile: null, text: '', orig: '', edit: true, diags: [], lsp: null, files: [], ctrl: false, comp: null, timer: 0, loadedFor: '', fontSize: 12 };
 let sourceParseTimer = 0, sourceParseSeq = 0;
 const lines = (t) => t.split('\n');
 const escH = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -264,7 +264,7 @@ let draftTimer = 0;
 function saveSourceDraft() {
   clearTimeout(draftTimer);
   const text = $('#se-ta')?.value ?? SE.text;
-  if (!SE.file || !SE.edit || text === SE.orig || S.peek) return;
+  if (!SE.file || SE.textFile !== SE.file || !SE.edit || text === SE.orig || S.peek) return;
   try { saveRecoveryDraft(localStorage, S.project?.id || '', SE.file, text, SE.orig, Date.now()); } catch { /* storage can be full */ }
 }
 function saveSourceDraftSoon() { clearTimeout(draftTimer); draftTimer = setTimeout(saveSourceDraft, 250); }
@@ -406,7 +406,11 @@ async function confirmEditorSwitch(path) {
 addEventListener('pagehide', saveSourceDraft);
 
 /* ---------- loading ---------- */
+// a load that is overtaken by a newer one (a quick tab or view switch) must not put its text into the state of the newer file
+let loadToken = 0;
 async function loadFile(file) {
+  const loadMine = ++loadToken;
+  SE.textFile = null;   // SE.text and SE.orig belong to no file until this load has finished; nothing is written meanwhile
   sourceParseSeq++;
   clearTimeout(sourceParseTimer);
   S.sourceEditMessage = null;
@@ -414,21 +418,28 @@ async function loadFile(file) {
   SE.edit = file !== 'ample.lock';
   if (isModuleSource()) {
     const r = await api.get(`/api/module/source?path=${encodeURIComponent(file)}`);
-    SE.text = await recoverSourceDraft(file, r.text);
+    const drafted = await recoverSourceDraft(file, r.text);
+    if (loadMine !== loadToken) return;
+    SE.text = drafted;
     SE.orig = r.text;
   } else if (isSong()) {
-    SE.text = await recoverSourceDraft(file, S.doc.text);
+    const drafted = await recoverSourceDraft(file, S.doc.text);
+    if (loadMine !== loadToken) return;
+    SE.text = drafted;
     SE.orig = S.doc.text;
     SE.syncedText = SE.text;
     const errorCount = (S.doc.diagnostics || []).filter((diagnostic) => diagnostic.severity === 'error').length;
     if (errorCount) S.sourceEditMessage = `Properties are hidden while the source has ${errorCount} error${errorCount === 1 ? '' : 's'}. Fix the code to sync the block view.`;
   } else {
     const r = await api.get(`/api/file?path=${encodeURIComponent(file)}`);
-    SE.text = await recoverSourceDraft(file, r.text);
+    const drafted = await recoverSourceDraft(file, r.text);
+    if (loadMine !== loadToken) return;
+    SE.text = drafted;
     SE.orig = r.text;
     // an unsaved draft is the working copy of the file too: its tab shows the unsaved mark, and a build that uses the file reads it (this is how the files that Koda changed arrive)
     if (SE.text !== r.text) api.put('/api/wc', { path: file, text: SE.text }).catch(() => {});
   }
+  SE.textFile = file;
   rememberRecentFile(file);
   SE.diags = []; SE.allDiags = [];
   if (isSong()) {
@@ -1377,6 +1388,7 @@ beforeSave(async () => { if (typedHere() && !(await apply())) throw new Error('T
 
 export async function apply() {
   const ta = $('#se-ta');
+  if (SE.textFile !== SE.file) return false;   // the text in the editor is not (yet) the text of SE.file: never write it there
   SE.text = ta.value;
   if (!SE.edit) return false;
   if (isModuleSource()) {
@@ -1883,6 +1895,7 @@ let syncTimer = 0;
 async function syncSong({ quiet = true } = {}) {
   const ta = $('#se-ta');
   if (!ta || !isSong() || !SE.edit || !S.doc) return true;
+  if (SE.textFile !== SE.file) return false;
   SE.text = ta.value;
   if (SE.text === SE.orig) return true;
   if (S.doc.text !== SE.orig && SE.text !== S.doc.text) return quiet ? false : apply();
@@ -1895,6 +1908,12 @@ async function syncSong({ quiet = true } = {}) {
 const syncSoon = () => { clearTimeout(syncTimer); syncTimer = setTimeout(() => { if (V.mode === 'src') syncSong({ quiet: true }).catch(() => {}); }, 1500); };
 
 export function initSource() {
+  // Leaving for the Blocks view makes the song's tab the active one (tabs.js); the editor must follow, or the tab says song while the editor still holds a sequence file and a later Save mixes the two. Typed text is kept as a recovery draft of its own file first.
+  document.addEventListener('ample:view', (e) => {
+    if (e.detail !== 'blocks' || !SE.file || SE.file === S.path || /.amplet$/i.test(SE.file)) return;
+    saveSourceDraft();
+    SE.file = null; SE.textFile = null; SE.loadedFor = '';
+  });
   document.addEventListener('ample:song-opened', () => {
     rememberRecentFile(S.path);
     SE.file = null;

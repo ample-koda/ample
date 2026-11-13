@@ -120,3 +120,12 @@ test('a vocoder with a voice and a carrier is made in the browser (plan 4.5)', (
   assert.deepEqual(plan.items.find((i) => i.id === 'v').inputs, [{ from: 'piano', lane: 0 }, { from: 'bass', lane: 1 }]);
   assert.equal(plan.items.find((i) => i.id === 'v').kind, 'local');
 });
+
+test('a lane of a built sequencer plays its own audio of the take (role), not the mix of all lanes', () => {
+  const nodes = [{ id: 'score', tpl: 'sequencer', params: { file: 'a.ampleseq' } }, node('vol', 'volume')];
+  const plan = planChain({ nodes, links: [{ from: 'score', to: 'vol', type: 'audio', inName: 'in', outName: 'lane2' }], target: 'vol', takeOf: (id) => (id === 'score' ? 'ts' : null) });
+  assert.equal(plan.ok, true);
+  assert.equal(plan.items[0].id, 'score:lane2'); assert.equal(plan.items[0].take, 'ts'); assert.equal(plan.items[0].role, 'lane2');
+  const mix = planChain({ nodes, links: [link('score', 'vol')], target: 'vol', takeOf: (id) => (id === 'score' ? 'ts' : null) });
+  assert.equal(mix.items[0].role, undefined);
+});

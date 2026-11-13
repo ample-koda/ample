@@ -1,6 +1,7 @@
 // Tab-local listening volume (left and right, optionally linked), downstream of audio processing. Never saved in the song.
 // Every output goes through playbackOutput(), so this is also the one place that can meter whatever is audible.
 import { getContext, hasAudio } from '../lib/audio-engine.mjs';
+import { safetyCurve, PRESCALE } from '../lib/safety-curve.mjs';
 let left = 1, right = 1, linked = true, mediaContext = null;
 const chains = new Set(), outputs = new WeakMap(), listeners = new Set(), registered = new WeakSet();
 const clamp = (value) => Math.max(0, Math.min(1.5, Number.isFinite(value) ? value : 1));
@@ -35,7 +36,9 @@ export function playbackOutput(context) {
   const channel = () => { const gain = context.createGain(), analyser = context.createAnalyser(); analyser.fftSize = 1024; gain.connect(analyser); return { gain, analyser }; };
   const l = channel(), r = channel();
   l.gain.gain.value = left; r.gain.gain.value = right;
-  input.connect(split); split.connect(l.gain, 0); split.connect(r.gain, 1);
+  // the safety stage: a live sum past 1.0 (mixer gains, a bus, many voices) is shaped softly to 0.98 here, before the listening volume, instead of clipping hard at the device
+  const pre = context.createGain(), safety = context.createWaveShaper(); pre.gain.value = PRESCALE; safety.curve = safetyCurve(); safety.oversample = 'none';
+  input.connect(pre).connect(safety).connect(split); split.connect(l.gain, 0); split.connect(r.gain, 1);
   l.gain.connect(merge, 0, 0); r.gain.connect(merge, 0, 1); merge.connect(context.destination);
   const chain = { context, input, left: l.gain, right: r.gain, analysers: [l.analyser, r.analyser], buffer: new Float32Array(1024) };
   outputs.set(context, chain); chains.add(new WeakRef(chain));

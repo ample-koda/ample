@@ -134,7 +134,9 @@ export function planChain({ nodes, links, target, takeOf }) {
       if (local) { const problem = local(); return problem || null; }
       const take = takeOf(baseId(id));
       if (!take) return `Build ${baseId(id)} first: the live chain loops the built sound of the blocks it starts from and never builds by itself.`;
-      seen.add(id); items.push({ id, kind: 'source', tpl: node.tpl, take, inputs: [] });
+      // a lane of a sequencer is its own audio of the take (role lane2); the plain take is the mix of all lanes
+      const lane = node.tpl === 'sequencer' && /^lane\d+$/.test(id.split(':')[1] || '') ? id.split(':')[1] : '';
+      seen.add(id); items.push({ id, kind: 'source', tpl: node.tpl, take, ...(lane ? { role: lane } : {}), inputs: [] });
       return null;
     }
     visiting.add(id);

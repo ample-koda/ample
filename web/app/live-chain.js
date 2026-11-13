@@ -20,6 +20,8 @@ import { barBeats } from '../lib/meter.mjs';
 import { chainLevel, chainTyped, controlTargets, controlledValue } from '../lib/control-live.mjs';
 import { followSeries } from '../lib/control-follow.mjs';
 import { parameterLive } from '../lib/live-parameters.mjs';
+import { gainAtSeconds } from '../lib/live-auto.mjs';
+import { isAutomation } from '../lib/automation-model.mjs';
 import { regionAt, positionIn } from '../lib/loop-region.mjs';
 import { createCpuMonitor, estimateLoad, heaviest } from '../lib/cpu-monitor.mjs';
 
@@ -30,9 +32,16 @@ const emit = () => listeners.forEach((f) => f(chainState()));
 export const onChain = (f) => { listeners.add(f); return () => listeners.delete(f); };
 
 const paramsOf = (id) => ({ ...(flat().nodes.find((n) => n.id === id)?.params || {}) });
+/** A volume gain written as auto(...) / fadein(...) / fadeout(...) is a number at the loop position (the server applies the curve per sample; the live graph follows it every 40 ms). */
+const withAuto = (id, params) => {
+  const s = session;
+  if (!s || flat().nodes.find((n) => n.id === id)?.tpl !== 'volume' || !isAutomation(params.gain)) return params;
+  const db = gainAtSeconds(params.gain, s.t0 === undefined ? 0 : Math.max(0, loopPosition(s, s.context.currentTime)), barSeconds(s));
+  return db === null ? params : { ...params, gain: `${Math.round(Math.max(-60, db) * 10) / 10} dB` };
+};
 const takeOf = (id) => S.build?.takes?.[id];
 const planNow = (target) => planChain({ nodes: flat().nodes.map((n) => ({ id: n.id, tpl: n.tpl, params: n.params })), links: flat().links, target, takeOf });
-const signatureOf = (plan) => JSON.stringify(plan.items.map((i) => [i.id, i.kind, i.take || '', i.inputs, i.midi || null, i.key || null]));
+const signatureOf = (plan) => JSON.stringify(plan.items.map((i) => [i.id, i.kind, i.take || '', i.role || '', i.inputs, i.midi || null, i.key || null]));
 
 const blockLatency = () => [...session.built.values()].reduce((sum, entry) => sum + (entry.graph.latency || 0), 0);
 const contextLatency = () => { try { return outputLatency(); } catch { return { base: 0, output: 0 }; } };
@@ -160,7 +169,7 @@ export function prewarm(target) {
       const sources = plan.items.filter((i) => i.kind === 'source');
       for (const item of sources) {
         if (token !== warm.token) return;
-        await decodedInput(`chain:${item.take}`, () => fetchTakeAudio(item.take));
+        await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role));
       }
       if (token !== warm.token) return;
       await prepareWorklets(getContext());
@@ -180,7 +189,7 @@ export async function startChain(target) {
   session = mine;
   try {
     const buffers = new Map();
-    for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, await decodedInput(`chain:${item.take}`, () => fetchTakeAudio(item.take)));
+    for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role)));
     if (session !== mine) return false;
     const context = liveAudioContext();
     await context.resume();
@@ -207,6 +216,7 @@ export async function startChain(target) {
     }
     build(mine);
     startControls(mine);
+    startAutomation(mine);
     loadTakeTimes(mine);
     mine.starting = false;
     try { const capacity = context.renderCapacity; if (capacity) { capacity.start({ updateInterval: .25 }); capacity.onupdate = (event) => chainFeedLoad(event.averageLoad); mine.capacity = capacity; } } catch { /* no render capacity here: the figure is estimated */ }
@@ -332,7 +342,7 @@ function build(s) {
       pre.fftSize = post.fftSize = 4096; pre.smoothingTimeConstant = post.smoothingTimeConstant = .7;
       input.connect(pre); out.connect(post); s.disposables.push(pre, post);
       s.spectra.set(item.id, { pre, post, preBins: new Float32Array(pre.frequencyBinCount), postBins: new Float32Array(post.frequencyBinCount), preWave: new Float32Array(2048), postWave: new Float32Array(2048) });
-      const graph = liveEffectGraph(context, input, out, item.tpl, paramsOf(item.id), s.tempo, s.impulses.get(item.id), clock);
+      const graph = liveEffectGraph(context, input, out, item.tpl, withAuto(item.id, paramsOf(item.id)), s.tempo, s.impulses.get(item.id), clock);
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
@@ -367,7 +377,7 @@ function refresh(force = false) {
   for (const [id, entry] of session.built) {
     const song = paramsOf(id), previous = session.last.get(id);
     if (previous && JSON.stringify(previous.song) !== JSON.stringify(song)) session.override.delete(id);   // the written value has arrived: it replaces the preview
-    const params = { ...song, ...(session.override.get(id) || {}) };
+    const params = withAuto(id, { ...song, ...(session.override.get(id) || {}) });
     if (entry.kind === 'effect' && session.bypass.has(id)) params.enabled = 'off';
     const key = JSON.stringify([params, anySolo]);
     if (!force && previous?.key === key) { session.last.set(id, { key, song }); continue; }
@@ -490,9 +500,14 @@ function startControls(s) {
   };
   s.controlTimer = setInterval(tick, 40);
 }
+/** Volume gains that are curves: heard at the loop position, set again every 40 ms (the graph smooths each step). */
+function startAutomation(s) {
+  if (!flat().nodes.some((n) => n.tpl === 'volume' && isAutomation(n.params?.gain))) return;
+  s.autoTimer = setInterval(() => { if (session === s && !s.starting) refresh(); }, 40);
+}
 
 function dispose(s) {
-  clearInterval(s.controlTimer);
+  clearInterval(s.controlTimer); clearInterval(s.autoTimer);
   try { if (s.capacity) { s.capacity.onupdate = null; s.capacity.stop(); } } catch { /* gone */ }
   s.sources.forEach((node) => { try { node.stop(); } catch { /* not started */ } });
   if (s.builtTake) { try { s.builtTake.node.stop(); s.builtTake.node.disconnect(); s.builtTake.gain.disconnect(); } catch { /* gone */ } }
