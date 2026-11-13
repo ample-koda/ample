@@ -3,6 +3,8 @@
 import { getContext } from '../lib/audio-engine.mjs';
 import { S } from './store.js';
 import { toast } from './ui.js';
+import { takeCache } from '../lib/take-cache.mjs';
+import { playbackOutput } from './playback-volume.js';
 import { audioDataId, stop as stopPlayer } from './player.js';
 
 export const preview = { muted: new Set(), solo: new Set() };
@@ -23,19 +25,16 @@ export const heard = (lines) => (preview.solo.size ? lines.filter((l) => preview
 export const takeBlockOf = (line) => line.chain.at(-1) || line.sources.find((s) => s.block)?.block || null;
 
 let context = null, playing = null;
-const buffers = new Map();   // dataId -> AudioBuffer
 
 export function stopMix() { try { playing?.stop(); } catch { /* already stopped */ } playing = null; }
 
-async function bufferOf(dataId) {
-  if (buffers.has(dataId)) return buffers.get(dataId);
+// decoded takes live in the shared byte-budgeted cache (evicts the least recently used), not in a second unbounded map
+const bufferOf = (dataId) => takeCache.getDecoded(`playlist:${dataId}`, async () => {
   context ||= getContext();
   const response = await fetch(`/api/data/${dataId}`);
   if (!response.ok) throw new Error('A take could not be loaded.');
-  const buffer = await context.decodeAudioData(await response.arrayBuffer());
-  buffers.set(dataId, buffer);
-  return buffer;
-}
+  return context.decodeAudioData(await response.arrayBuffer());
+});
 
 /**
  * Plays the mix of the heard lines for `bars` ({ firstBar, bars }) at `secondsPerBar`. A line without a take is named and the preview asks for a build.
@@ -64,7 +63,7 @@ export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
     node.buffer = mix;
     const g = context.createGain();
     g.gain.value = gain;
-    node.connect(g).connect(context.destination);
+    node.connect(g).connect(playbackOutput(context));
     node.onended = () => { if (playing === node) playing = null; };
     node.start();
     playing = node;
