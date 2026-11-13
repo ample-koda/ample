@@ -376,6 +376,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         SortedDictionary<string, (string TakeId, string Role)> sources = new(StringComparer.Ordinal);
         FromLine? dropped = null;
         Dictionary<string, byte[]> inputs = [];
+        List<Func<Task>> loads = [];   // audio is read only when the block must render: a cache hit resolves from take ids alone
         foreach (FromLine f in block.Dependencies().Where(f => !f.Disabled))
         {
             BlockResult? up = results.Get(f.Block);
@@ -402,19 +403,28 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             TakeDataRef? exact = take.Data.FirstOrDefault(d => d.Role == f.Output);
             if (exact is null && doc.Blocks.FirstOrDefault(b => b.Name == f.Block)?.Type == "sequencer") return new BlockResult(block.Name, "skipped", null, $"AMP5251: its input '{f.Input}' comes from '{f.Block}.{f.Output}', which carries no channels: name them in the lanes of '{f.Block}' (for example lanes lane1=kick).");
             TakeDataRef data = exact ?? take.Data[0];
-            byte[] input = [];
+            BlockNode? upstream = doc.Blocks.FirstOrDefault(b => b.Name == f.Block);
+            string slot = f.Input == "region_in" ? "in" : f.Input;   // a region goes through an effect as the sound it is
+            inputs[slot] = [];
             if (!options.PlanOnly)
             {
-                await using Stream s = bank.OpenData(data.DataId);
-                using MemoryStream ms = new();
-                await s.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-                input = ms.ToArray();
+                string dataId = data.DataId;
+                FromLine from = f;
+                loads.Add(async () =>
+                {
+                    byte[] input;
+                    await using (Stream s = bank.OpenData(dataId))
+                    {
+                        using MemoryStream ms = new();
+                        await s.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+                        input = ms.ToArray();
+                    }
+
+                    if (BlockTiming.IsTimeline(owner) && upstream is not null && !BlockTiming.IsArranged(upstream, doc, []) && spec.Templates[upstream.Type].Outputs.Any(p => p.Name == from.Output && p.Type == "audio")) input = BlockTiming.Place(input, BlockTiming.Origin(upstream, doc, []), range, spb);
+                    inputs[slot] = input;
+                });
             }
 
-            BlockNode? upstream = doc.Blocks.FirstOrDefault(b => b.Name == f.Block);
-            if (!options.PlanOnly && BlockTiming.IsTimeline(owner) && upstream is not null && !BlockTiming.IsArranged(upstream, doc, []) && spec.Templates[upstream.Type].Outputs.Any(p => p.Name == f.Output && p.Type == "audio")) input = BlockTiming.Place(input, BlockTiming.Origin(upstream, doc, []), range, spb);
-            string slot = f.Input == "region_in" ? "in" : f.Input;   // a region goes through an effect as the sound it is
-            inputs[slot] = input;
             sources[slot] = (up.TakeId, data.Role);
         }
 
@@ -423,7 +433,8 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
 
         if (ReferenceFile(projectRoot, block) is { } voiceSample)
         {
-            if (!options.PlanOnly) inputs["reference"] = await File.ReadAllBytesAsync(voiceSample, cancellationToken).ConfigureAwait(false);
+            inputs["reference"] = [];
+            if (!options.PlanOnly) loads.Add(async () => inputs["reference"] = await File.ReadAllBytesAsync(voiceSample, cancellationToken).ConfigureAwait(false));
         }
 
         List<PlanInput> pinned = [];
@@ -437,12 +448,17 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         string? melodyId = block.Freeze == "plan" ? options.Control?.PinnedMelodyDataId(block.Name) : null;
         if (melodyId is not null)
         {
+            inputs["melody"] = [];
             if (!options.PlanOnly)
             {
-                await using Stream melodyStream = bank.OpenData(melodyId);
-                using MemoryStream melody = new();
-                await melodyStream.CopyToAsync(melody, cancellationToken).ConfigureAwait(false);
-                inputs["melody"] = melody.ToArray();
+                string pinnedMelody = melodyId;
+                loads.Add(async () =>
+                {
+                    await using Stream melodyStream = bank.OpenData(pinnedMelody);
+                    using MemoryStream melody = new();
+                    await melodyStream.CopyToAsync(melody, cancellationToken).ConfigureAwait(false);
+                    inputs["melody"] = melody.ToArray();
+                });
             }
 
             pinned.Add(new PlanInput("data", melodyId, null));
@@ -639,6 +655,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             return new BlockResult(owner.Name, "adopted", kept.TakeId, null);
         }
 
+        foreach (Func<Task> load in loads) await load().ConfigureAwait(false);
         TakeTicket ticket = await bank.BeginAsync(plan, cancellationToken).ConfigureAwait(false);
         try
         {
