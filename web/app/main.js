@@ -168,21 +168,25 @@ function renderAll() {
 async function openProjectFile(path) {
   const extension = extensionOf(path);
   const node = flat().nodes.find((item) => item.params?.file === path);
-  if (AUDIO_EXTENSIONS.includes(extension)) { await playProjectFile(path); return; }
+  if (AUDIO_EXTENSIONS.includes(extension)) { await playProjectFile(path); return true; }
   if (MIDI_EXTENSIONS.includes(extension)) {
     const details = await api.get(`/api/midi/info?file=${encodeURIComponent(path)}`);
     if (node) select(node.id);
     toast(`${details.tracks} MIDI tracks · ${Math.round(60_000_000 / details.microsecondsPerQuarter)} BPM · ${details.bars} bars · ${details.lengthTicks} ticks`);
-    return;
+    return true;
   }
   // a sequence file: the sequencer of the block that uses it, or the text of the file when no block uses it yet
-  if (SEQUENCE_EXTENSIONS.includes(extension)) { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) { await openProjectTextFile(path); return; }   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
+  if (SEQUENCE_EXTENSIONS.includes(extension)) { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) return openProjectTextFile(path);   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
     // in the Source view a tab of a sequence file shows its text there (switching between the song and its sequence file); elsewhere it opens the sequencer
-    if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return; } await openProjectTextFile(path); return; }
-  if (LYRICS_EXTENSIONS.includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return; }
-  if (TEXT_EXTENSIONS.includes(extension)) { await openProjectTextFile(path); return; }
+    if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return true; } return openProjectTextFile(path); }
+  if (LYRICS_EXTENSIONS.includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return true; }
+  if (TEXT_EXTENSIONS.includes(extension)) return openProjectTextFile(path);
   toast(`${path} is selected in the Project panel; no editor is registered for this file type.`);
+  return false;
 }
+
+/** Every open request (an ample:open or ample:open-file event) gets one answer, ample:open-result { path, ok, request }, so the one who asked keeps or takes back its own request (tabs.js). */
+const answerOpen = (request, ok) => document.dispatchEvent(new CustomEvent('ample:open-result', { detail: { path: request.detail, ok, request } }));
 
 function wire() {
   $('#btn-save').onclick = save;
@@ -233,8 +237,15 @@ function wire() {
   initProjects();
   onPlayer(renderPlaybackState);
   onLiveChange(() => renderPlaybackState());
-  document.addEventListener('ample:open', (e) => { resetSourceFile(); openDoc(e.detail).catch((x) => toast(x.message)); });
-  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => toast(x.message)));
+  document.addEventListener('ample:open', async (e) => {
+    const path = e.detail;
+    try {
+      resetSourceFile();
+      await openDoc(path);
+      answerOpen(e, S.path === path);   // a refused or overtaken open leaves another song in the editor
+    } catch (x) { toast(x.message); answerOpen(e, false); }
+  });
+  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).then((opened) => answerOpen(e, opened !== false), (x) => { toast(x.message); answerOpen(e, false); }));
   document.addEventListener('ample:reveal-file', (e) => revealInProject(e.detail));
   $('#lib-q').oninput = renderLib;
   document.addEventListener('ample:components-changed', () => { renderLib(); import('./component-library.js').then((m) => m.refreshComponentLibraryIfOpen()).catch(() => {}); });

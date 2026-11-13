@@ -1299,14 +1299,15 @@ async function openFileLink(path) {
 
 export async function openProjectTextFile(path) {
   SE.files = await api.get('/api/project/files');
-  if (!SE.files.some((file) => file.path === path) || (!isEditableSourceFile(path) && !/\.amplet$/i.test(path))) { toast(`${path} is not an editable text file.`); return; }
-  if (!(await confirmEditorSwitch(path))) return;
+  if (!SE.files.some((file) => file.path === path) || (!isEditableSourceFile(path) && !/\.amplet$/i.test(path))) { toast(`${path} is not an editable text file.`); return false; }
+  if (!(await confirmEditorSwitch(path))) return false;
   SE.loadedFor = '';
   SE.file = null;
   await loadFile(path);
   SE.loadedFor = path === S.path ? S.path : '';
   setView('src', true);
   render();
+  return true;
 }
 
 /** Going to a song (its tab, the Project panel): the Source view shows that song again instead of a text file that was open before. */

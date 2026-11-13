@@ -43,30 +43,52 @@ function factsOf(path) {
 }
 
 const previewOn = () => { try { return localStorage.getItem('ample.tabs.preview') === '1'; } catch { return false; } };
-
-function add(path) {
-  const existing = T.tabs.find((t) => t.path === path);
-  if (existing) { existing.preview = false; return; }   // opened for real (a double click, an edit): the tab stays
-  if (!path) return;
-  const kind = kindOf(path);
-  const shared = SHARED.has(kind) ? T.tabs.find((t) => kindOf(t.path) === kind) : null;
-  if (shared) shared.path = path; else T.tabs.push({ path });
-}
-
-// extensions that openProjectFile (main.js) can show; anything else gets no tab (the studio only toasts for it)
+// extensions that openProjectFile (main.js) can show; anything else gets no tab (the studio only toasts for it). A song is not one of them: it opens through ample:open.
 const viewable = (path) => kindOf(path) !== 'image' && isOpenable(path);
 
-function openFile(path) {
+/** Adds the tab of a file (or takes over the shared audio or image tab) and returns how to take that change back, for an open that is refused. */
+function add(path) {
+  const existing = T.tabs.find((t) => t.path === path);
+  if (existing) { const was = existing.preview; existing.preview = false; return () => { existing.preview = was; }; }   // opened for real (a double click, an edit): the tab stays
+  if (!path) return () => {};
+  const kind = kindOf(path);
+  const shared = SHARED.has(kind) ? T.tabs.find((t) => kindOf(t.path) === kind) : null;
+  if (shared) { const was = shared.path; shared.path = path; return () => { if (shared.path === path) shared.path = was; }; }
+  const tab = { path }; T.tabs.push(tab);
+  return () => { T.tabs = T.tabs.filter((t) => t !== tab); };
+}
+
+// An open request shows in the row at once; the editor answers every request once (ample:open-result from main.js, with the request event). A request that went through is
+// committed (the stored tab list, the file the editor shows); a refused or failed one takes its own change of the row back, unless a newer request is on the screen by then.
+let shown = '';   // the file the editor really shows: where a refused open goes back to
+const undoOf = new WeakMap();   // open request (event) -> how to take its change of the row back
+function back(path, undo) {
+  if (T.active !== path) return;   // a newer request is on the screen: that one decides
+  undo?.();
+  T.active = [shown, S.path].find((p) => p && T.tabs.some((t) => t.path === p)) || T.tabs[0]?.path || '';
+  save(); render();
+}
+function track(request, path, undo) { undoOf.set(request, () => back(path, undo)); }
+function answered(e) {
+  const { path, ok, request } = e.detail || {};
+  const undo = undoOf.get(request);
+  undoOf.delete(request);
+  if (ok) { shown = path; if (T.active === path) save(); } else undo?.();
+}
+
+function openFile(path, undo) {
+  const request = new CustomEvent(kindOf(path) === 'song' ? 'ample:open' : 'ample:open-file', { detail: path });
+  track(request, path, undo);
   T.internal = true;
-  try { document.dispatchEvent(new CustomEvent(kindOf(path) === 'song' ? 'ample:open' : 'ample:open-file', { detail: path })); } finally { T.internal = false; }
+  try { document.dispatchEvent(request); } finally { T.internal = false; }
 }
 
 function activate(path) {
   if (T.remote.has(path)) { remoteChoice(path); return; }   // one editor per file, in whatever window
   T.active = path;
-  save(); render();
+  render();   // stored once the open went through (answered)
   if (!(kindOf(path) === 'song' && path === S.path)) openFile(path);
-  else import('./source.js').then((m) => m.resetSourceFile());   // the song is open already: the Source view still has to leave a text file that was open there
+  else { shown = path; save(); import('./source.js').then((m) => m.resetSourceFile()); }   // the song is open already: the Source view still has to leave a text file that was open there
 }
 
 async function refreshState() {
@@ -432,21 +454,26 @@ export function initTabs() {
   try { const stored = JSON.parse(localStorage.getItem(key()) || 'null'); for (const p of stored?.paths || []) add(p); T.active = stored?.active || ''; } catch { /* a damaged list starts empty */ }
   if (S.path) { add(S.path); if (!T.active || kindOf(T.active) === 'song') T.active = S.path; }
   undoHooks.push(tabUndo);
-  document.addEventListener('ample:open', (e) => { if (!T.internal) { add(e.detail); T.active = e.detail; save(); render(); } });
-  document.addEventListener('ample:open-file', (e) => { if (!T.internal && viewable(e.detail)) { add(e.detail); T.active = e.detail; save(); render(); } });
+  document.addEventListener('ample:open', (e) => { if (!T.internal) { track(e, e.detail, add(e.detail)); T.active = e.detail; render(); } });
+  document.addEventListener('ample:open-file', (e) => { if (!T.internal && viewable(e.detail)) { track(e, e.detail, add(e.detail)); T.active = e.detail; render(); } });
   // leaving the sequencer for the Blocks view: the sequence file's tab no longer is the one you are on, the song's tab is
   document.addEventListener('ample:view', (e) => { if (e.detail === 'blocks' && S.path && /\.(ampleseq|seq)$/i.test(T.active || '')) { T.active = S.path; save(); render(); } });
   // a tab for a file without opening it: what you look at stays (the files that Koda changed arrive like this, with their unsaved mark)
   document.addEventListener('ample:add-tab', (e) => { if (!T.internal && e.detail) { add(e.detail); save(); render(); refreshState(); } });
+  // the answers to the open requests (main.js): one that went through is committed, a refused one is taken back; a song opened by any route is what the editor shows
+  shown = S.path || '';
+  document.addEventListener('ample:open-result', answered);
+  document.addEventListener('ample:song-opened', () => { shown = S.path; });
   // the option "preview tabs" (Project settings): a single click in the Project panel opens a tab in italics that the next single click replaces; a double click or an edit keeps it
   document.addEventListener('ample:preview-file', (e) => {
     if (!previewOn()) return;
     const path = e.detail;
-    if (!viewable(path)) return;
+    if (kindOf(path) !== 'song' && !viewable(path)) return;   // a song opens through its own route (ample:open); any other file only when the opener can show it
     if (T.tabs.some((t) => t.path === path)) { if (T.active !== path) activate(path); return; }
     const old = T.tabs.find((t) => t.preview && kindOf(t.path) === kindOf(path) && !factsOf(t.path).dirty);
-    if (old) old.path = path; else T.tabs.push({ path, preview: true });
-    T.active = path; save(); render(); openFile(path);
+    let undo;   // a refused open puts the old preview back, or takes the new preview tab away
+    if (old) { const was = old.path; old.path = path; undo = () => { if (old.path === path) old.path = was; }; } else { const tab = { path, preview: true }; T.tabs.push(tab); undo = () => { T.tabs = T.tabs.filter((t) => t !== tab); }; }
+    T.active = path; render(); openFile(path, undo);
   });
   document.addEventListener('ample:song-opened', () => { if (!T.tabs.some((t) => t.path === S.path)) add(S.path); T.active = S.path; save(); render(); refreshState(); setTimeout(() => dropBlankUntitled(S.path), 600); });
   // the first save of a new song asks where it goes
