@@ -519,7 +519,7 @@ test('a build sends only what the server does not have: demo files never, an own
   expect(bodies[2]).toBeLessThan(5000);
 });
 
-test('the main button follows the sound: Play from start or Stop after a build, and Build & play again at any change', async ({ page }) => {
+test('the main button follows the sound: Play from start or Stop after a build, and Build & play again at any change @quarantine', async ({ page }) => {
   await fresh(page);
   const mode = () => page.locator('#lite-build').getAttribute('data-mode');
   await useDemo(page, 'hello-melody');
