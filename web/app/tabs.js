@@ -444,6 +444,19 @@ export function initTabs() {
     T.active = path; save(); render(); openFile(path);
   });
   document.addEventListener('ample:song-opened', () => { add(S.path); T.active = S.path; save(); render(); refreshState(); setTimeout(() => dropBlankUntitled(S.path), 600); });
+  // leaving the page with a blank, untouched new song: the file goes away too, so it does not stay in the project
+  window.addEventListener('pagehide', () => {
+    try {
+      const map = untitledMap();
+      for (const name of Object.keys(map)) {
+        const untouched = S.path === name ? S.doc && !S.doc.dirty && S.doc.text === map[name] : false;
+        if (!untouched) continue;
+        fetch(`/api/project/file?path=${encodeURIComponent(name)}`, { method: 'DELETE', headers: { 'X-Ample-Token': getToken() }, keepalive: true }).catch(() => {});
+        delete map[name]; T.tabs = T.tabs.filter((t) => t.path !== name); if (T.active === name) T.active = T.tabs[0]?.path || ''; save();
+      }
+      rememberUntitled(map);
+    } catch { /* leaving anyway */ }
+  });
   // the first save of a new song asks where it goes
   const intercept = (event) => { if (T.active && isUntitled(T.active) && factsOf(T.active).dirty) { event.preventDefault(); event.stopImmediatePropagation(); placeUntitled(T.active); } };
   $('#btn-save')?.addEventListener('click', intercept, true);
