@@ -30,11 +30,14 @@ let channelAnalysers = [];
 let channelData = [];
 let liveEffect = null;
 let auditionBlock = null;
-const externals = new Set();   // other players that share the Stop button (the looping player of the sequencer, the live chain): { playing(), take(), stop() }
+const externals = new Set();   // other players that share the Stop button (the looping player of the sequencer, the live chain): { playing(), take(), stop(), loading?() }
 const externalPlaying = () => [...externals].find((player) => player.playing());
+const externalLoading = () => [...externals].map((player) => player.loading?.()).find(Boolean) || null;   // an external player that is still preparing (Playlist Hear it while its takes load)
 
 /** Lets a second player (gapless looping with Web Audio) take part: it shows in playerState, stops with Stop and is stopped when a take plays here. */
 export const setExternalPlayer = (player) => { externals.add(player); };
+/** An external player tells the transport that it started, ended or began preparing, so the header (Stop) and the meters follow it. */
+export const notifyPlayer = () => emit();
 
 async function prepareMeterAudio() {
   if (meterReady || (!window.AudioContext && !window.webkitAudioContext)) return;
@@ -89,7 +92,7 @@ export const playerState = () => ({
   auditionBlock,
   source: current?.filePath || null,
   playing: (!audio.paused && !audio.ended) || !!externalPlaying(),
-  loading: pendingPlay?.takeId || null,
+  loading: pendingPlay?.takeId || externalLoading(),
   time: externalPlaying()?.time ? externalPlaying().time() : audio.currentTime || 0,   // an external player (the live chain) may tell where its loop is, so the step-pattern effects follow it
   duration: externalPlaying()?.duration ? externalPlaying().duration() : Number.isFinite(audio.duration) ? audio.duration : 0,
   loop: audio.loop || Boolean(loopRegion), loopRegion: loopRegion ? [...loopRegion] : null,

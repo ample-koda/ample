@@ -5,7 +5,7 @@ import { S } from './store.js';
 import { toast } from './ui.js';
 import { takeCache } from '../lib/take-cache.mjs';
 import { playbackOutput } from './playback-volume.js';
-import { audioDataId, setExternalPlayer, stop as stopPlayer } from './player.js';
+import { audioDataId, notifyPlayer, setExternalPlayer, stop as stopPlayer } from './player.js';
 
 export const preview = { muted: new Set(), solo: new Set() };
 export const previewActive = () => preview.muted.size > 0 || preview.solo.size > 0;
@@ -24,12 +24,21 @@ export const heard = (lines) => (preview.solo.size ? lines.filter((l) => preview
 /** The block whose take stands for the line: the last one in its chain (its bus), else its source. */
 export const takeBlockOf = (line) => line.chain.at(-1) || line.sources.find((s) => s.block)?.block || null;
 
-let context = null, playing = null;
+// `generation` names the newest audition: Stop, Clear, a newer Hear it and a take played elsewhere raise it, and an audition whose takes are still loading checks it after
+// every wait, so a superseded one never starts a source (#103). `pending` is the audition that is preparing: the transport shows it as loading, so Stop can cancel it.
+let context = null, playing = null, pending = null, generation = 0;
 
-export function stopMix() { try { playing?.stop(); } catch { /* already stopped */ } playing = null; }
+export function stopMix() {
+  generation++;
+  const had = playing !== null || pending !== null;
+  try { playing?.stop(); } catch { /* already stopped */ }
+  playing = null; pending = null;
+  if (had) notifyPlayer();
+}
 
-// Hear it takes part in the transport: it shows as playing (the Mixer meter follows the shared output) and the main Stop ends it.
-setExternalPlayer({ playing: () => playing !== null, take: () => 'playlist', stop: () => stopMix() });
+// Hear it takes part in the transport: it shows as loading and then playing (the Mixer meter follows the shared output), and the main Stop ends or cancels it.
+setExternalPlayer({ playing: () => playing !== null, loading: () => pending, take: () => 'playlist', stop: () => stopMix() });
+document.addEventListener('ample:open', () => stopMix());   // leaving the song ends it too, as it does the live chain
 
 // decoded takes live in the shared byte-budgeted cache (evicts the least recently used), not in a second unbounded map
 const bufferOf = (dataId) => takeCache.getDecoded(`playlist:${dataId}`, async () => {
@@ -46,14 +55,19 @@ const bufferOf = (dataId) => takeCache.getDecoded(`playlist:${dataId}`, async ()
 export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
   stopMix();
   stopPlayer();
+  const token = ++generation, song = S.path;
+  const current = () => token === generation && song === S.path;   // a song opened another way while the takes loaded also ends it
   const chosen = heard(lines);
   if (!chosen.length) { toast('Every line is muted: nothing to hear.'); return false; }
   const missing = chosen.filter((l) => !S.build.takes?.[takeBlockOf(l)]);
   if (missing.length) { toast(`Build first: no take yet for ${missing.map((l) => l.name).join(', ')}.`); return false; }
   const from = (bars?.firstBar || 1) - 1, count = bars?.bars || Math.max(1, Math.floor(maxSeconds / secondsPerBar));
   const seconds = Math.min(count * secondsPerBar, maxSeconds);
+  pending = 'playlist';
+  notifyPlayer();
   try {
     const decoded = await Promise.all(chosen.map(async (l) => bufferOf(await audioDataId(S.build.takes[takeBlockOf(l)]))));
+    if (!current()) return false;   // stopped, cleared or replaced while the takes loaded
     context ||= getContext();
     const rate = decoded[0].sampleRate, length = Math.max(1, Math.floor(seconds * rate)), start = Math.floor(from * secondsPerBar * rate);
     const mix = context.createBuffer(2, length, rate);
@@ -67,12 +81,16 @@ export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
     const g = context.createGain();
     g.gain.value = gain;
     node.connect(g).connect(playbackOutput(context));
-    node.onended = () => { if (playing === node) playing = null; };
+    node.onended = () => { if (playing === node) { playing = null; notifyPlayer(); } };
     node.start();
-    playing = node;
+    playing = node; pending = null;
+    notifyPlayer();
     return true;
   } catch (e) {
+    if (!current()) return false;   // a superseded audition says nothing
     toast(e.message || String(e));
     return false;
+  } finally {
+    if (token === generation && pending !== null) { pending = null; notifyPlayer(); }   // it failed or its song was left: no longer preparing
   }
 }
