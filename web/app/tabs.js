@@ -219,7 +219,19 @@ function openChannel() {
 }
 
 /** A file that is open in another window: bring that window to the front, or take the file back here (that window closes and this one shows what it showed). */
+const asking = new Set();   // one question per file, however many open paths ask at once
+/** True when another window holds this file; then the focus / take-back question is shown and the caller must not open an editor. */
+export function openedElsewhere(path) {
+  if (!T.remote.has(path)) return false;
+  remoteChoice(path);
+  return true;
+}
 async function remoteChoice(path) {
+  if (asking.has(path)) return;
+  asking.add(path);
+  try { await remoteChoiceNow(path); } finally { asking.delete(path); }
+}
+async function remoteChoiceNow(path) {
   const choice = await ask('Open in another window', `${baseName(path)} is open in another window. There is only one editor per file.`, [{ label: 'Cancel', value: 'cancel' }, { label: 'Bring that window to the front', value: 'focus' }, { label: 'Take it back here', value: 'take', primary: true }]);
   if (choice === 'focus') post({ type: 'focus', path });
   else if (choice === 'take') post({ type: 'putback', path });

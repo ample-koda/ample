@@ -15,7 +15,7 @@ import { initArrangement, previewSong, renderArrangement } from './arrangement.j
 import { initPlayLights } from './play-fx.js';
 import { stopTranscription } from './transcription.js';
 import { V, initViews, setView, updateBanner } from './views.js';
-import { initTabs } from './tabs.js';
+import { initTabs, openedElsewhere } from './tabs.js';
 import { initSource, openProjectTextFile, resetSourceFile } from './source.js';
 import { initProjectPanel, refreshProjectPanel, revealInProject } from './projectpanel.js';
 import { createSaveControl } from './savecontrol.js';
@@ -232,8 +232,8 @@ function wire() {
   initProjects();
   onPlayer(renderPlaybackState);
   onLiveChange(() => renderPlaybackState());
-  document.addEventListener('ample:open', (e) => { resetSourceFile(); openDoc(e.detail).catch((x) => toast(x.message)); });
-  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => toast(x.message)));
+  document.addEventListener('ample:open', (e) => { if (openedElsewhere(e.detail)) return; resetSourceFile(); openDoc(e.detail).catch((x) => toast(x.message)); });
+  document.addEventListener('ample:open-file', (e) => openedElsewhere(e.detail) || openProjectFile(e.detail).catch((x) => toast(x.message)));
   document.addEventListener('ample:reveal-file', (e) => revealInProject(e.detail));
   $('#lib-q').oninput = renderLib;
   document.addEventListener('ample:components-changed', () => { renderLib(); import('./component-library.js').then((m) => m.refreshComponentLibraryIfOpen()).catch(() => {}); });
