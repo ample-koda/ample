@@ -137,28 +137,66 @@ async function settings(body) {
   const saveBar = (id, label, work) => {
     const tab = Object.keys(panels).find((k) => panels[k] === panel);
     panel.append(el('button', { id, className: 'primary ps-save', type: 'button', textContent: label, onclick: async () => {
-      try { await work(); dirty.delete(tab); paints[tab](); toast(`Saved: ${TAB_LABELS[tab] || tab}.`); rerender(tab); } catch (e) { toast(`${e.code ? `${e.code}: ` : ''}${e.message}`); }
+      const btn = document.getElementById(id), panelNode = panels[tab];
+      if (btn.disabled) return;
+      btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+      panelNode.querySelector('.ps-error')?.remove(); panelNode.querySelectorAll('[aria-invalid]').forEach((n) => n.removeAttribute('aria-invalid'));
+      try { await work(); dirty.delete(tab); paints[tab](); toast(`Saved: ${TAB_LABELS[tab] || tab}.`); rerender(tab); } catch (e) {
+        btn.disabled = false; btn.removeAttribute('aria-busy');
+        const message = `${e.code ? `${e.code}: ` : ''}${e.message}`;
+        const error = el('div', { className: 'note ps-error', role: 'alert', textContent: message, style: 'color:var(--danger,#d33)' });
+        btn.before(error);
+        // focus the field the message is about: an invalid number first, else the field whose label shares a word with the message, else the first field
+        const fields = [...panelNode.querySelectorAll('input[id], select[id]')];
+        const words = message.toLowerCase().match(/[a-z]{4,}/g) || [];
+        const named = fields.find((n) => { const l = (panelNode.querySelector(`label[for="${n.id}"]`)?.textContent || '').toLowerCase(); return l && words.some((w) => l.includes(w)); });
+        const target = fields.find((n) => !n.checkValidity()) || named || fields[0];
+        if (target) { target.setAttribute('aria-invalid', 'true'); target.setAttribute('aria-describedby', `${target.getAttribute('aria-describedby') || ''} ps-error-${tab}`.trim()); error.id = `ps-error-${tab}`; target.focus(); }
+        toast(message);
+      }
     } }));
   };
-  const row = (label, node, note) => { const d = el('div', { className: 'prop ps-row' }); d.append(el('label', { textContent: label }), node); panel.append(d); if (note) panel.append(el('div', { className: 'note ps-row-note', textContent: note })); };
+  // scope: where the setting lives and when it applies ("Project", "This browser, immediate", "Server limit")
+  const row = (label, node, note, scope) => {
+    const d = el('div', { className: 'prop ps-row' });
+    const control = node.id ? node : node.querySelector?.('input[id], select[id]');
+    const lab = el('label', { textContent: label });
+    if (control) { lab.htmlFor = control.id; if (note) { control.setAttribute('aria-describedby', `${control.id}-help`); } }
+    d.append(lab, node);
+    if (scope) lab.append(el('span', { className: 'ps-scope', textContent: ` [${scope}]`, style: 'opacity:.7;font-size:.85em' }));
+    panel.append(d);
+    if (note) panel.append(el('div', { id: control ? `${control.id}-help` : undefined, className: 'note ps-row-note', textContent: note }));
+  };
   const budget = el('input', { id: 'ps-budget', type: 'number', min: 1, value: Math.round(s.blackBox.budgetBytes / 1048576) });
   const full = el('input', { id: 'ps-full', type: 'number', min: 1, value: s.blackBox.fullDetailDays });
   const thin = el('input', { id: 'ps-thin', type: 'number', min: 1, value: s.blackBox.thinnedDays });
   const engine = el('input', { id: 'ps-engine', value: s.defaultEngine || '', placeholder: 'none' });
-  row('AMPLE Redux budget (MiB)', budget, 'Explicit archive compaction uses this budget; records are never pruned automatically or journaling switched off.');
-  row('full detail (days)', full, 'Records of this age keep their pre-images.');
-  row('thinned until (days)', thin, 'Older records are thinned; the hash chain stays intact.');
-  row('default engine', engine);
+  row('AMPLE Redux budget (MiB)', budget, 'Explicit archive compaction uses this budget; records are never pruned automatically or journaling switched off.', 'Project');
+  row('full detail (days)', full, 'Records of this age keep their pre-images.', 'Project');
+  row('thinned until (days)', thin, 'Older records are thinned; the hash chain stays intact.', 'Project');
+  row('default engine', engine, 'Stored with the project. A block or song that names its own engine always wins. Empty clears it.', 'Project');
   // how many blocks a build of this project renders at once: empty follows the server (one per core), a number can only be lower than the limit of the server
   const limit = s.parallelismLimit ?? 1;
   const parallelism = el('input', { id: 'ps-parallelism', type: 'number', min: 1, max: limit, step: 1, value: s.buildParallelism ?? '', placeholder: `server: ${limit}` });
-  row('render in parallel (blocks)', parallelism, `How many blocks of a build render at the same time. Empty follows the server: ${limit} (this machine has ${s.cores ?? limit} cores). A number is at most ${limit}; it changes how fast a build is, never what it makes.`);
+  row('render in parallel (blocks)', parallelism, `${s.buildParallelism > limit ? `Saved: ${s.buildParallelism}, effective on this machine: ${limit}. ` : ''}How many blocks of a build render at the same time. Empty follows the server: ${limit} (this machine has ${s.cores ?? limit} cores). A number is at most ${limit}; it changes how fast a build is, never what it makes.`, `Project, limited by server: ${limit}`);
   const kodaLang = el('select', { id: 'ps-koda-language' }, [el('option', { value: 'en', textContent: 'English' }), el('option', { value: 'nl', textContent: 'Nederlands' })]);
   kodaLang.value = s.koda?.language === 'nl' ? 'nl' : 'en';
-  row('Koda language', kodaLang, "The language of Koda's own words and of its answers (Dutch answers keep the English AMPLE term in brackets). Saved with the project.");
+  row('Koda language', kodaLang, "The language of Koda's own words and of its answers (Dutch answers keep the English AMPLE term in brackets). Saved with the project.", 'Project');
   const previewTabs = el('input', { id: 'ps-tabs-preview', type: 'checkbox', checked: localStorage.getItem('ample.tabs.preview') === '1', onchange: (e) => { e.stopPropagation(); try { localStorage.setItem('ample.tabs.preview', e.target.checked ? '1' : '0'); } catch { /* storage may be blocked */ } }, oninput: (e) => e.stopPropagation() });
-  row('Preview tabs', el('label', {}, [previewTabs, ' a single click in the Project panel opens a preview tab']), 'Off: a file opens in a tab with a double click. On: a single click opens a tab in italics that the next single click replaces; a double click or an edit keeps it. Kept in this browser.');
-  saveBar('ps-save', 'Save general', () => api.post('/api/project/settings', { blackBoxBudget: Number(budget.value) * 1048576, fullDetailDays: Number(full.value), thinnedDays: Number(thin.value), defaultEngine: engine.value.trim(), buildParallelism: parallelism.value === '' ? null : Number(parallelism.value) }).then(() => import('./koda-lang.js').then((m) => m.saveKodaLanguage(kodaLang.value))));
+  row('Preview tabs', el('label', {}, [previewTabs, ' a single click in the Project panel opens a preview tab']), 'Off: a file opens in a tab with a double click. On: a single click opens a tab in italics that the next single click replaces; a double click or an edit keeps it. Kept in this browser.', 'This browser, applies immediately');
+  saveBar('ps-save', 'Save general', async () => {
+    // one request, only the fields that changed (a saved value the server now caps, for example parallelism, must not block unrelated edits)
+    const patch = {};
+    if (Number(budget.value) !== Math.round(s.blackBox.budgetBytes / 1048576)) patch.blackBoxBudget = Number(budget.value) * 1048576;
+    if (Number(full.value) !== s.blackBox.fullDetailDays) patch.fullDetailDays = Number(full.value);
+    if (Number(thin.value) !== s.blackBox.thinnedDays) patch.thinnedDays = Number(thin.value);
+    if (engine.value.trim() !== (s.defaultEngine || '')) patch.defaultEngine = engine.value.trim();   // empty clears it
+    if (parallelism.value !== String(s.buildParallelism ?? '')) patch.buildParallelism = parallelism.value === '' ? null : Number(parallelism.value);
+    const langNow = s.koda?.language === 'nl' ? 'nl' : 'en';
+    if (kodaLang.value !== langNow) patch.koda = { language: kodaLang.value };
+    if (Object.keys(patch).length) await api.post('/api/project/settings', patch);
+    if (patch.koda) (await import('./koda-lang.js')).useKodaLanguage(kodaLang.value);
+  });
   panel = panels.search;
   const braveKey = el('input', { id: 'ps-brave-key', type: 'password', autocomplete: 'new-password', placeholder: s.braveSearchKeyConfigured ? 'Configured; leave empty to keep' : 'Paste Brave Search API key', disabled: !s.braveSearchKeyStoreAvailable });
   const clearBraveKey = el('input', { id: 'ps-brave-clear', type: 'checkbox' });
@@ -171,9 +209,9 @@ async function settings(body) {
   const song = route('ps-faer-song', s.faer?.song || 'local', true);
   const voice = route('ps-faer-voice', s.faer?.voice || 'local', true);
   const separation = route('ps-faer-separation', s.faer?.separation || 'local');
-  row('song generation', song, 'ACE music can run on the configured Faer server. "Faer, else local" uses Faer when it is connected and ready, otherwise the local ACE-Step server (started when needed).');
-  row('voice generation', voice, 'ACE voice and voice-clone require their remote workers to be ready.');
-  row('stem separation', separation, 'Requires a Faer separation worker.');
+  row('song generation', song, 'ACE music can run on the configured Faer server. "Faer, else local" uses Faer when it is connected and ready, otherwise the local ACE-Step server (started when needed).', 'Project');
+  row('voice generation', voice, 'ACE voice and voice-clone require their remote workers to be ready.', 'Project');
+  row('stem separation', separation, 'Requires a Faer separation worker.', 'Project');
   // the default ACE models of the project: a family or a .gguf file; a block can still choose its own with its engine parameter (for example engine "faer:xl-sft")
   const modelList = el('datalist', { id: 'ps-model-list' }, ['default', 'turbo', 'sft', 'base', 'xl-turbo', 'xl-sft', 'xl-base'].map((family) => el('option', { value: family })));
   api.get('/api/ace/models').then((models) => (models.models || []).filter((m) => m.role === 'dit').forEach((m) => modelList.append(el('option', { value: m.file })))).catch(() => {});
@@ -191,8 +229,9 @@ async function settings(body) {
     else { const capabilities = remote.status?.capabilities || {}; readiness.textContent = `Faer connection: ready. ACE song ${capabilities.song?.ready ? 'available' : 'unavailable'}; ACE voice ${capabilities['voice-ace']?.ready ? 'available' : 'unavailable'}; voice clone ${capabilities['voice-clone']?.ready ? 'available' : 'unavailable'}; separation ${capabilities.separation?.ready ? 'available' : 'unavailable'}.`; }
   }).catch(() => { readiness.textContent = 'Faer connection: status check failed.'; });
   saveBar('ps-save-audio', 'Save audio routing', async () => {
-    if (song.value !== (s.faer?.song || 'local') || voice.value !== (s.faer?.voice || 'local') || separation.value !== (s.faer?.separation || 'local') || songModel.value.trim() !== (s.faer?.songModel || '') || voiceModel.value.trim() !== (s.faer?.voiceModel || '')) stopBuild();
+    const changed = song.value !== (s.faer?.song || 'local') || voice.value !== (s.faer?.voice || 'local') || separation.value !== (s.faer?.separation || 'local') || songModel.value.trim() !== (s.faer?.songModel || '') || voiceModel.value.trim() !== (s.faer?.voiceModel || '');
     await api.post('/api/project/settings', { faer: { song: song.value, voice: voice.value, separation: separation.value, songModel: songModel.value.trim(), voiceModel: voiceModel.value.trim() } });
+    if (changed) stopBuild();   // only after the server accepted the routing: a rejected edit must not cancel a running build
   });
   // safe saves: a checkpoint before and after every save, and an autosave every few minutes (kept in .ample/auto-checkpoint.json, not in project.json)
   const auto = await api.get('/api/project/auto-checkpoint');

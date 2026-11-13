@@ -220,7 +220,7 @@ public sealed class RestorePreImageCommand(JournalRecord source) : ICommand
 }
 
 /// <summary>Changes the project settings in <c>project.json</c>; the old file is the pre-image.</summary>
-public sealed class SetSettingsCommand(ProjectSettings settings) : ICommand
+public sealed class SetSettingsCommand(ProjectSettings settings, ProjectSettings? basis = null) : ICommand
 {
     /// <inheritdoc />
     public string Kind => "project.settings";
@@ -230,6 +230,22 @@ public sealed class SetSettingsCommand(ProjectSettings settings) : ICommand
 
     private static string FilePath(CommandContext c) => Path.Combine(c.ProjectRoot, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile);
 
+    /// <summary>With a basis (the settings the request started from), only the settings groups this request changed are applied onto the current file, so two saves of unrelated groups compose.</summary>
+    private ProjectSettings Merge(ProjectSettings current)
+    {
+        ProjectSettings was = basis!;
+        return current with
+        {
+            BlackBox = Equals(settings.BlackBox, was.BlackBox) ? current.BlackBox : settings.BlackBox,
+            DefaultEngine = settings.DefaultEngine == was.DefaultEngine ? current.DefaultEngine : settings.DefaultEngine,
+            ProjectPanel = Equals(settings.ProjectPanel, was.ProjectPanel) ? current.ProjectPanel : settings.ProjectPanel,
+            Faer = Equals(settings.Faer, was.Faer) ? current.Faer : settings.Faer,
+            Koda = Equals(settings.Koda, was.Koda) ? current.Koda : settings.Koda,
+            Ai = Equals(settings.Ai, was.Ai) ? current.Ai : settings.Ai,
+            BuildParallelism = settings.BuildParallelism == was.BuildParallelism ? current.BuildParallelism : settings.BuildParallelism,
+        };
+    }
+
     /// <inheritdoc />
     public async ValueTask<string?> PreImageAsync(CommandContext context, CancellationToken cancellationToken) =>
         JsonSerializer.Serialize(new { path = ProjectLayout.AmpleFolder + "/" + ProjectLayout.ProjectFile, existed = true, text = await context.Fs.ReadAllTextAsync(FilePath(context), cancellationToken).ConfigureAwait(false) });
@@ -238,7 +254,7 @@ public sealed class SetSettingsCommand(ProjectSettings settings) : ICommand
     public async ValueTask ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         ProjectManifest manifest = ProjectFile.Parse(await context.Fs.ReadAllTextAsync(FilePath(context), cancellationToken).ConfigureAwait(false));
-        await AtomicFile.WriteTextAsync(context.Fs, FilePath(context), ProjectFile.Serialize(manifest with { Settings = settings }), cancellationToken).ConfigureAwait(false);
+        await AtomicFile.WriteTextAsync(context.Fs, FilePath(context), ProjectFile.Serialize(manifest with { Settings = basis is null ? settings : Merge(manifest.Settings) }), cancellationToken).ConfigureAwait(false);
     }
 }
 
