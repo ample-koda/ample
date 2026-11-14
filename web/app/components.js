@@ -5,6 +5,7 @@ import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { S, applyText, notify, aliasComponentTakes } from './store.js';
 import { ask, toast } from './ui.js';
 import { cardHeightOf } from './component-ui.js';
+import { pickVersion } from '../lib/component-versions.mjs';
 
 const PREFIX = 'Components';
 
@@ -23,11 +24,7 @@ export function sealLabel(version) {
 
 /** The version of a template a block gets for the version text of its header (1.8 gets the highest 1.8.x, nothing gets the default). */
 export function versionOf(template, request) {
-  const versions = template?.componentVersions || [];
-  const text = String(request || '').replace(/^[v^~]/, '');
-  if (!text) return versions.find((v) => v.version === template.version) || versions[0] || null;
-  const matches = versions.filter((v) => v.version === text || v.version.startsWith(`${text}.`));
-  return matches.sort((a, b) => b.version.localeCompare(a.version, 'en', { numeric: true }))[0] || null;
+  return pickVersion(template?.componentVersions || [], request, template?.version);   // the rules of the build: ^ and ~ are ranges (issue 112)
 }
 
 /** The rows the properties panel shows for a block that is a component instance: where it comes from, which version it got and what its seal says. */

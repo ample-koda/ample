@@ -131,6 +131,7 @@ export async function openProjectFilePicker(current, accept, mode, options = {})
   };
   const chooseFile = async (item) => {
     if (item.isDir) { await selectFolder(item); return; }   // a folder in the list opens it
+    if (mode === 'folder') { detail.textContent = 'This is a file: choose a folder.'; return; }   // a search also lists files; a file is never the folder (issue 96)
     if (isNew) return;   // in the new-file dialog a file in the list only shows what is already there
     selected = item.path;
     choose.disabled = false;

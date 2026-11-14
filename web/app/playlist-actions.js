@@ -138,7 +138,8 @@ export async function moveClipToLine(clip, fromLine, toLine, songBars) {
   const bus = toLine.chain.filter((b) => ['bus', 'mixer'].includes(nodeOf(b)?.tpl)).at(-1);
   if (!bus) { toast('The other line has no bus to connect to.'); return false; }
   const sources = fromLine.sources.filter((s) => s.block);
-  if (sources.length === 1 && sources[0].block === clip.block && !sources[0].pre.length) {
+  // the whole block is moved by a cable only when this clip is its one placement; with more placements one of them is moved as a copy (issue 102)
+  if (sources.length === 1 && sources[0].block === clip.block && !sources[0].pre.length && partsOf(clip.block, songBars).length === 1) {
     const edge = (activeDoc().blocks || []).flatMap((b) => b.froms.filter((f) => f.block === clip.block).map((f) => ({ to: b.name, input: f.input, output: f.output })))[0];
     if (!edge) return false;
     const connect = connectOps(clip.block, edge.output, bus);

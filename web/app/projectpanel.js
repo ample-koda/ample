@@ -375,6 +375,13 @@ function renderDetailRows(host, body, visible, columns, makeRow, scrolled = null
   state.render();
 }
 
+/** Open as text always shows the text of the file, also for a file that a sequencer or lyrics block uses (issue 99). */
+function openAsText(path) {
+  const event = new CustomEvent('ample:open-file', { detail: path });
+  event.asText = true;
+  document.dispatchEvent(event);
+}
+
 function renderContents(host) {
   clearTilePreviews();
   optionalCellObserver?.disconnect();
@@ -559,7 +566,7 @@ async function contextMenu(event, item) {
   const x = event.clientX, y = event.clientY;
   const add = item.isDir ? [await addMenuItems(item.path)] : [];
   const use = useMenuItems(item);
-  const text = !item.isDir && /.(lyr|lrc|amplelrc|chordpro|chords|txt|md|csv|json|module|amplec|seq|ampleseq)$/i.test(item.path) ? [{ label: 'Open as text', fn: () => document.dispatchEvent(new CustomEvent('ample:open-file', { detail: item.path })) }] : [];
+  const text = !item.isDir && /.(lyr|lrc|amplelrc|chordpro|chords|txt|md|csv|json|module|amplec|seq|ampleseq)$/i.test(item.path) ? [{ label: 'Open as text', fn: () => openAsText(item.path) }] : [];
   const pack = !item.isDir && PACKAGE_NAME.test(item.path) ? [{ label: 'Import...', fn: () => import('./package.js').then((module) => module.openImportDialog(item.path)) }] : [];
   showMenu(x, y, [
     { label: pack.length ? 'Open read-only' : 'Open', fn: () => openItem(item) },

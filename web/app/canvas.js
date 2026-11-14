@@ -1401,6 +1401,11 @@ async function duplicate(n) {
     } catch (error) { toast(error.message); }
     return;
   }
+  // a component instance is copied as it is written: the version pin, the placement and the inputs go with it (issue 113)
+  if (S.tpl[n.tpl]?.component) {
+    if (await editAll([{ type: 'copyBlock', block: n.id, newName: name }, { type: 'setLayout', block: name, x: snap(n.x + 30), y: snap(n.y + 30) }])) { select(name); notify(); }
+    return;
+  }
   const ops = [{ type: 'addBlock', blockType: n.tpl, name }, ...Object.entries(n.params).map(([k, v]) => ({ type: 'setParameter', block: name, name: k, value: v })), { type: 'setLayout', block: name, x: snap(n.x + 30), y: snap(n.y + 30) }];
   if (await edit(ops)) { select(name); notify(); }
 }

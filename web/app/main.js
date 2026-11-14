@@ -272,6 +272,7 @@ function wire() {
     if (openedElsewhere(path)) return;
     const stillWanted = beginTabOpen(request);
     try {
+      if (request.type === 'ample:open-file' && request.asText) { answerOpen(request, await openProjectTextFile(path, stillWanted) !== false); return; }
       if (request.type === 'ample:open-file') {
         answerOpen(request, await openProjectFile(path, stillWanted) !== false);
         return;
