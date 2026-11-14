@@ -160,11 +160,18 @@ async function settings(body) {
   row('Preview tabs', el('label', {}, [previewTabs, ' a single click in the Project panel opens a preview tab']), 'Off: a file opens in a tab with a double click. On: a single click opens a tab in italics that the next single click replaces; a double click or an edit keeps it. Kept in this browser.');
   saveBar('ps-save', 'Save general', () => api.post('/api/project/settings', { blackBoxBudget: Number(budget.value) * 1048576, fullDetailDays: Number(full.value), thinnedDays: Number(thin.value), defaultEngine: engine.value.trim(), buildParallelism: parallelism.value === '' ? null : Number(parallelism.value) }).then(() => import('./koda-lang.js').then((m) => m.saveKodaLanguage(kodaLang.value))));
   panel = panels.search;
-  const braveKey = el('input', { id: 'ps-brave-key', type: 'password', autocomplete: 'new-password', placeholder: s.braveSearchProjectKey ? 'Project key stored; leave empty to keep' : 'Paste Brave Search API key', disabled: !s.braveSearchKeyStoreAvailable });
-  const clearBraveKey = el('input', { id: 'ps-brave-clear', type: 'checkbox' });
-  row('Brave Search API key', braveKey, s.braveSearchKeyStoreAvailable ? (s.braveSearchProjectKey ? 'A project-specific key is stored encrypted in this Windows user profile. It is never returned to the page or stored in the project folder.' : (s.braveSearchServerKey ? 'No project key is stored. The server-wide key is in use.' : 'No project key is stored. Optional: DuckDuckGo remains available without a key.')) : 'Project key storage requires Windows DPAPI. On other systems, configure the server environment variable instead.');
-  row('remove saved key', el('label', {}, [clearBraveKey, ' Clear project key']), (s.braveSearchProjectKey ? (s.braveSearchServerKey ? 'After clearing, the server-wide key will be used.' : 'After clearing, DuckDuckGo will be used (no key).') : 'There is no project key to clear.'));
-  saveBar('ps-save-search', 'Save web search', () => api.post('/api/project/settings', { braveSearchApiKey: braveKey.value.trim(), clearBraveSearchApiKey: clearBraveKey.checked }));
+  const storeOk = !!s.braveSearchKeyStoreAvailable;
+  const hasProject = storeOk && !!s.braveSearchProjectKey;
+  const hasServer = !!s.braveSearchServerKey;
+  const braveKey = el('input', { id: 'ps-brave-key', type: 'password', autocomplete: 'new-password', placeholder: hasProject ? 'Project key stored; leave empty to keep' : 'Paste Brave Search API key', disabled: !storeOk, 'aria-label': 'Brave Search API key for this project' });
+  const clearBraveKey = el('input', { id: 'ps-brave-clear', type: 'checkbox', disabled: !hasProject, 'aria-label': 'Clear the project Brave Search API key' });
+  // Keep, replace or clear: a typed key and the clear box exclude each other.
+  braveKey.addEventListener('input', () => { if (braveKey.value.trim()) clearBraveKey.checked = false; clearBraveKey.disabled = !hasProject || !!braveKey.value.trim(); });
+  clearBraveKey.addEventListener('change', () => { if (clearBraveKey.checked) braveKey.value = ''; });
+  const effective = hasProject ? 'Active key: the project key.' : (hasServer ? 'Active key: the server-wide key (no project key is stored).' : 'No Brave key is active; DuckDuckGo remains available without a key.');
+  row('Brave Search API key', braveKey, (storeOk ? (hasProject ? 'A project-specific key is stored encrypted in this Windows user profile. It is never returned to the page or stored in the project folder. ' : '') : 'Project key storage requires Windows DPAPI. On other systems, configure the server environment variable instead. ') + effective);
+  row('remove saved key', el('label', {}, [clearBraveKey, ' Clear project key']), hasProject ? (hasServer ? 'After clearing, the server-wide key will be used.' : 'After clearing, no Brave key will be active; DuckDuckGo remains available.') : 'There is no project key to clear.');
+  saveBar('ps-save-search', 'Save web search', () => api.post('/api/project/settings', { braveSearchApiKey: braveKey.value.trim(), clearBraveSearchApiKey: clearBraveKey.checked && !braveKey.value.trim() }));
   panel = panels.audio;
   panel.append(el('h4', { textContent: 'Faer (remote GPU) audio', style: 'padding:0;margin:0 0 4px' }));
   const route = (id, value, either) => { const select = el('select', { id }, [el('option', { value: 'local', textContent: 'Local ACE server', title: 'ACE-Step running on this machine' }), el('option', { value: 'faer', textContent: 'Faer (remote GPU)', title: 'Faer is the remote GPU service' }), ...(either ? [el('option', { value: 'faer-else-local', textContent: 'Faer, else local ACE server', title: 'Use Faer (remote GPU) when it is ready, otherwise the local ACE server' })] : [])]); select.value = value; return select; };

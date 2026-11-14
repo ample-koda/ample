@@ -110,6 +110,24 @@ internal sealed partial class AiService
     private static DateTimeOffset? LastBraveSearchAt;
     private const int EstimatedBraveMonthlyLimit = 1000;
 
+    /// <summary>The Brave key used at search time: the project key, else the per-project environment key, else the server-wide environment key. Blank values count as not set.</summary>
+    internal static string? ResolveBraveKey(string? projectKey, Guid projectId)
+    {
+        if (!string.IsNullOrWhiteSpace(projectKey)) return projectKey;
+        string? perProject = Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY_" + projectId.ToString("N", CultureInfo.InvariantCulture).ToUpperInvariant());
+        if (!string.IsNullOrWhiteSpace(perProject)) return perProject;
+        string? global = Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY");
+        return string.IsNullOrWhiteSpace(global) ? null : global;
+    }
+
+    /// <summary>Which Brave key a search would use: project, server or none. Presence only, never a value.</summary>
+    internal static (bool Project, bool Server, string Source) BraveKeyStatus(string home, Guid projectId)
+    {
+        bool project = OperatingSystem.IsWindows() && AiProjectSecretStore.IsConfigured(home, projectId);
+        bool server = !string.IsNullOrWhiteSpace(ResolveBraveKey(null, projectId));
+        return (project, server, project ? "project" : server ? "server" : "none");
+    }
+
     public static async Task<JsonObject> WebSearchAsync(string token, string libraryHome, string query, string limitText, string offsetText, string providerText, string? projectApiKey, CancellationToken ct)
     {
         AiTask task = ContextTokens.TryGetValue(token, out AiTask? found) ? found : throw new AmpleException("AMP5458", "This task is no longer running.");
@@ -145,7 +163,7 @@ internal sealed partial class AiService
             AiWebSearchSafety.RememberResultUrls(task, ddgResults);
             return new JsonObject { ["allowed"] = true, ["provider"] = "DuckDuckGo Instant Answer API", ["query"] = clean, ["results"] = ddgResults, ["note"] = "DuckDuckGo's official free API returns Instant Answers, not full web search results. Results from DuckDuckGo." };
         }
-        string? apiKey = projectApiKey ?? Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY_" + task.ProjectId.ToString("N", CultureInfo.InvariantCulture).ToUpperInvariant()) ?? Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY");
+        string? apiKey = ResolveBraveKey(projectApiKey, task.ProjectId);
         if (string.IsNullOrWhiteSpace(apiKey)) return new JsonObject { ["allowed"] = false, ["configured"] = false, ["note"] = "No Brave Search key is configured for this project. Add it in AMPLE Project settings; a server-wide AMPLE_BRAVE_SEARCH_API_KEY is also accepted. Keys are never returned or logged." };
         if (AiWebSearchSafety.TryGetCachedBrave(apiKey, clean, limit, offset, DateTimeOffset.UtcNow, out JsonObject cached))
             return await CachedBraveResultAsync(libraryHome, task, apiKey, cached, ct).ConfigureAwait(false);
