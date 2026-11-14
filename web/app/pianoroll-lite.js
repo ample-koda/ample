@@ -40,6 +40,7 @@ import { LANE_DEFS, laneFraction, laneFromY, laneRamp, laneValueOf } from '../li
 import { knobFactor, rowVolume, scaleVelocity } from '../lib/lite-grid.mjs';
 import { createMetronomeCursor } from '../lib/metronome-cursor.mjs';
 import { SNAPS, TOOLS, autoScrollDelta, clipEndBars, createCommitQueue, dragLoop, gridLevels, hasHiddenData, hitLoop, litePlayRange, nearestStart, openCentre, scrollYForCentre, sliceNote, snapBeats, snapTick, toolForKey, typingPitch } from '../lib/lite-roll-model.mjs';
+import { closeAction, closeQuestion, discardedMessage, onCloseTake, playedCount } from '../lib/jam-close.mjs';
 import { extendedParts } from '../lib/clip-parts.mjs';
 import { GRID_KEYS, LONG_PRESS_MS, ROLL_KEYS, isLongPress, longPressAction, pinchStart, pinchView } from '../lib/lite-touch.mjs';
 import { adjustRows, clampMove, clipboardText, cloneRows, copyItems, createThrottle, drawRow, duplicateRows, itemsFromText, mergedRows, moveRows, pasteRows, quantizeRows, removeRows, resizeRows, rowIndexAt, sliceRow, soundingPitches, soundingRows, velocityRows } from '../lib/lite-gestures.mjs';
@@ -228,7 +229,7 @@ export function openPianoRollLite(blockId, options = {}) {
   const consumerTimer = setInterval(() => { if (!panel.isConnected) clearInterval(consumerTimer); else paintConsumers(); }, 1200);
   setTimeout(paintConsumers, 0);
   const badgeEl = el('span', { className: 'mls-badge', role: 'status', title: 'What you hear when you play a single note' });
-  const closeButton = el('button', { type: 'button', className: 'mls-close', textContent: '✕', title: 'Close', 'aria-label': 'Close AMPLE Jam', onclick: () => { backStack = []; saveViewNow(); panel.close(); } });
+  const closeButton = el('button', { type: 'button', className: 'mls-close', textContent: '✕', title: 'Close', 'aria-label': 'Close AMPLE Jam', onclick: () => closeWindow() });
   const menuButton = el('button', { type: 'button', className: 'mls-wbtn mls-menu-btn', textContent: '☰', title: 'Menu', 'aria-label': 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
   const title = el('div', { className: 'mls-title metal-title' }, [el('span', { className: 'mls-eqbg', 'aria-hidden': 'true' }, Array.from({ length: 46 }, (_, i) => { const bar = el('i'); bar.style.setProperty('--d', (0.7 + ((i * 37) % 11) / 10 * 1.5).toFixed(2)); bar.style.setProperty('--dl', (((i * 13) % 10) / 10).toFixed(2)); return bar; })), jamIcon(), el('strong', { textContent: 'AMPLE Jam' }), el('span', { className: 'mls-clip', textContent: node.title }), badgeEl, menuButton, closeButton]);
   const toolsGroup = el('span', { className: 'mls-tools', role: 'group', 'aria-label': 'Tools' }, [...toolButtons.values()]);
@@ -656,6 +657,17 @@ export function openPianoRollLite(blockId, options = {}) {
     loopFor(true);
     if (state.player) restartLooping(); else togglePlay(false);
     toast('Waiting for you: the metronome keeps going. Your first note starts the take from the beginning. Press ● again for an endless take (it can run past the end of the clip).');
+  }
+  /** The close button: while a take with played notes is being recorded the person chooses what happens to it. */
+  async function closeWindow() {
+    const played = playedCount(rec);
+    if (onCloseTake({ recording: rec.on, played }) === 'discard') {
+      const q = closeQuestion(played);
+      const action = closeAction(await ask(q.title, q.body, q.buttons));
+      if (action === 'finish') { toggleRecording(); return; }
+      if (action === 'stay') return;
+    }
+    backStack = []; saveViewNow(); panel.close();
   }
   function cancelRecording() {
     rec.on = false; rec.waiting = false; rec.t0 = null; rec.notes = []; rec.open.clear(); loopFor(rec.loopWas); toggle(recordButton, false); paintRecord();
@@ -1970,6 +1982,12 @@ Press to hear this sound. Right-click a row's cells to delete.`, event);
   if (options.track) lanesCtl.setVisible(true);
   panel.addEventListener('close', () => {
     flushWheel(); saveViewNow();
+    // closing the window is not Stop: a take that is still being recorded is not added to the clip
+    const played = playedCount(rec);
+    if (onCloseTake({ recording: rec.on, played }) === 'discard') {
+      rec.notes = []; rec.open.clear(); rec.waiting = false; rec.on = false;
+      toast(discardedMessage(played));
+    }
     stopPlayback(false); unregisterKeys(); stopMidiState(); stopMidiNotes(); review.stop(); vkb.dispose(); audition.dispose(); stopStore(); resizeObserver.disconnect(); clearTimeout(layoutTimer); cancelAnimationFrame(frame); cancelAnimationFrame(tickFrame); clearInterval(metroTimer); cancelAnimationFrame(autoFrame);
     jamVoice?.stop(); rememberRect(); windowChrome.dispose(); openPanels.delete(blockId); panel.remove(); options.onClose?.();
   });
