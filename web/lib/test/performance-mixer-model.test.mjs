@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSession, createPerformMixer, clampValue, quote, parts } from '../performance-mixer-model.mjs';
 
-const song = () => ({ nodes: [{ id: 'mix1', params: { gains: '"0 -3 0 0"', pan: '"c c c c"' } }, { id: 'rev', params: { mix: '20 %' } }, { id: 'bus1', params: { gains: '"0 0 0 0"', solo: 'off' } }] });
+const song = () => ({
+  nodes: [
+    { id: 'mix1', params: { gains: '"0 -3 0 0"', pan: '"c c c c"' } },
+    { id: 'rev', params: { mix: '20 %' } },
+    { id: 'bus1', params: { gains: '"0 0 0 0"', solo: 'off' } },
+  ],
+});
 const rig = (over = {}) => {
   const doc = song(); const log = { preview: [], edits: [], reverts: [] };
   const m = createPerformMixer({
@@ -75,7 +81,10 @@ test('the bus solo PARAMETER is not confused with a per-input solo flag', () => 
 
 test('reset restores exactly the song values in the sound, including defaults the song does not write', () => {
   const r = rig();
-  r.m.performSet('mix1', 'gains', '"-6 -3 0 0"'); r.m.performMute('mix1', 2); r.m.performSet('mix1', 'pan', '"l c c c"'); r.m.performSet('rev', 'mix', '90 %');
+  r.m.performSet('mix1', 'gains', '"-6 -3 0 0"');
+  r.m.performMute('mix1', 2);
+  r.m.performSet('mix1', 'pan', '"l c c c"');
+  r.m.performSet('rev', 'mix', '90 %');
   r.log.preview.length = 0;
   r.m.performReset();
   assert.equal(r.s.size, 0);
@@ -92,7 +101,10 @@ test('reset restores exactly the song values in the sound, including defaults th
 
 test('Apply is ONE edit call, writes what is heard against the song as it is now, and clears only after success', async () => {
   const r = rig();
-  r.m.performSet('mix1', 'gains', '"-6 -3 0 0"'); r.m.performMute('mix1', 3); r.m.performSet('mix1', 'pan', '"l c c c"'); r.m.performSet('rev', 'mix', '40 %');
+  r.m.performSet('mix1', 'gains', '"-6 -3 0 0"');
+  r.m.performMute('mix1', 3);
+  r.m.performSet('mix1', 'pan', '"l c c c"');
+  r.m.performSet('rev', 'mix', '40 %');
   r.doc.nodes[0].params.gains = '"0 -3 -9 0"'; // the song changed meanwhile: input 3 (index 2) is not overwritten by a stale value
   const res = await r.m.performApply();
   assert.equal(r.log.edits.length, 1);

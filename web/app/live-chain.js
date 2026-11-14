@@ -479,7 +479,10 @@ export function chainPreview(block, name, value) {
   refresh();
 }
 
-/** Takes the preview of one parameter back: the song's value plays again (also for a value the song does not write, where its default plays). */
+/**
+ * Takes the preview of one parameter back: the song's value plays again (also for a value the song does not write,
+ * where its default plays).
+ */
 export function chainRevert(block, name) {
   const mine = session?.override.get(block);
   if (!mine || !(name in mine)) return;
