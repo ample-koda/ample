@@ -164,5 +164,7 @@ test('launchBatch: one timestamp for start, stop and keep; a bad entry changes n
   const before = log.length;
   assert.throws(() => p.launchBatch(104, [{ lane: 'bass', action: 'stop' }, { lane: 'drums', action: 'start', clip: 'nope' }]));
   assert.equal(h('A', 'bass').stopped, null); assert.equal(log.length, before);
-  assert.throws(() => p.launchBatch(50, []), RangeError);
+  assert.throws(() => p.launchBatch(NaN, []), RangeError);
+  p.addClip('lead', { id: 'L' }); p.launchBatch(50, [{ lane: 'lead', action: 'start', clip: 'L' }]); // late: starts at once
+  assert.equal(log.at(-1).when, 50);
 });

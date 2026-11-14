@@ -115,7 +115,8 @@ export function createPerformance({ now, play, bpm = 120, beatsPerBar = 4, quant
      */
     launchBatch(at, batch) {
       tick();
-      if (!Number.isFinite(at) || at < clock()) throw new RangeError(`the batch time ${at} is not a time from now on`);
+      if (!Number.isFinite(at)) throw new RangeError(`the batch time ${at} is not a time`);
+      clock(); // a time that has just passed (a late tick) starts every lane at once, together
       const items = batch.map((b) => {
         const l = getLane(b.lane);
         if (b.action === 'start') {
