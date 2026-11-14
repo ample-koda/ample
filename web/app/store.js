@@ -776,6 +776,27 @@ export async function resolveCheckpointDraft(path, choice) {
   try { removeWorkRecord(localStorage, project, path); } catch { /* storage may be blocked */ }
 }
 
+/**
+ * The first browser recovery copy that differs from the file on the server, found WITHOUT writing anything (null when there is none).
+ * A checkpoint looks for it before it saves a single file,
+ * so cancelling the question leaves the saved files and the recovery copies as they were.
+ */
+export async function firstCheckpointDraftConflict() {
+  const records = listWorkRecords(localStorage, S.project?.id || '');
+  for (const record of records) {
+    if (record.path === S.path || record.path === S.modulePath) continue;
+    const module = /^modules\/.*\.module$/i.test(record.path);
+    let current;
+    try {
+      current = module
+        ? await api.get(`/api/module/doc?path=${encodeURIComponent(record.path)}`)
+        : await api.get(`/api/doc?path=${encodeURIComponent(record.path)}`);
+    } catch (e) { if (/There is no file/.test(e.message)) continue; throw e; }
+    if (record.text !== current.text) return new CheckpointDraftConflict(record.path, module);
+  }
+  return null;
+}
+
 /** Saves the current working documents without creating per-file auto-checkpoints; the caller creates one checkpoint after the whole batch succeeds. */
 export async function saveForCheckpoint() {
   await editsDone();
