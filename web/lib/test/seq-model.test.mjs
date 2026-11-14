@@ -128,3 +128,24 @@ test('edits keep the comments of what they do not touch, and a comment leaves wi
   assert.equal(formatSeq(removeClip(seq, 0)).includes('# the first verse'), false);
   assert.equal(formatSeq(duplicatePattern(seq, 'verse').seq).split('# the verse, four bars').length, 2);   // the copy has no comment of its own
 });
+
+test('editing one lane keeps `all` in the other lanes, also when a channel is renamed or removed', async () => {
+  const { parseLanesRaw, toggleLaneChannel } = await import('../seq-model.mjs');
+  const channels = [{ name: 'kick' }, { name: 'hat' }, { name: 'lead' }];
+  const text = '"lane1=all lane2=hat"';
+  assert.deepEqual(parseLanesRaw(text), { 1: ['all'], 2: ['hat'] });
+  assert.equal(formatLanes(parseLanesRaw(text)), 'lane1=all lane2=hat');
+  // add a channel to lane 2: lane 1 stays `all`
+  assert.equal(formatLanes(toggleLaneChannel(text, channels, 2, 'lead')), 'lane1=all lane2=hat+lead');
+  // take a channel out of lane 2
+  assert.equal(formatLanes(toggleLaneChannel(text, channels, 2, 'hat')), 'lane1=all');
+  // taking a channel out of the `all` lane itself writes that lane out as names, and only that lane
+  assert.equal(formatLanes(toggleLaneChannel(text, channels, 1, 'hat')), 'lane1=kick+lead lane2=hat');
+  // the old behaviour for contrast: a parse with the real channels expanded every lane
+  assert.equal(formatLanes(parseLanes(text, channels)), 'lane1=kick+hat+lead lane2=hat');
+  // rename and remove work on the raw lanes and leave `all` alone
+  assert.equal(formatLanes(lanesRenamed(parseLanesRaw(text), 'hat', 'hh')), 'lane1=all lane2=hh');
+  assert.equal(formatLanes(lanesWithout(parseLanesRaw(text), 'hat')), 'lane1=all');
+  // a lane that mixes `all` with names is `all`
+  assert.deepEqual(parseLanesRaw('lane1=kick+all'), { 1: ['all'] });
+});

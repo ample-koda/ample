@@ -22,9 +22,10 @@ import { attachGmPicker } from './gm-picker.js';
 import { dragHasFiles, draggedFile } from './dragfile.js';
 import { uploadProjectFiles } from './filepicker.js';
 import { unlockAudio, startLoopPlayer, stopLoopPlayer, setLoopRange, seekLoopPlayer, swapTake, state as loopState } from './loopplayer.js';
+import { createLiveSwap } from '../lib/live-swap.mjs';
 import { barAt, barOfClick, barSeconds, rangeFromDrag, rangeSeconds } from '../lib/loop-model.mjs';
 import {
-  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseSeq,
+  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
@@ -199,6 +200,8 @@ async function extractSequence() {
   toast(`The sequence is in ${path} now, and the block uses it.`);
 }
 const lanesNow = () => parseLanes((node()?.params.lanes ?? '').replace(/^"|"$/g, ''), Q.seq.channels);
+/** The lanes as the source writes them (`all` stays `all`): for edits that are not about the names of one lane. */
+const lanesRawNow = () => parseLanesRaw((node()?.params.lanes ?? '').replace(/^"|"$/g, ''));
 
 async function setLanes(lanes) {
   const text = formatLanes(lanes);
@@ -390,28 +393,7 @@ function scheduleLive() {
   liveTimer = setTimeout(() => liveSwap().catch((e) => { setStatus('the new version could not be built'); toast(e.message || String(e)); }), 700);
 }
 
-async function liveSwap() {
-  if (Q.liveBusy) { Q.liveAgain = true; return; }
-  Q.liveBusy = true;
-  try {
-    do {
-      Q.liveAgain = false;
-      if (!Q.live || !loopState().playing || Q.error) return;
-      setStatus('building the change...');
-      await writeFile();
-      Q.wroteLive = true;
-      await build(Q.blockId);
-      if (!Q.live) return;
-      const take = S.build.takes?.[Q.blockId];
-      if (!take) { setStatus('the change could not be built'); return; }
-      Q.builtTake = take; Q.stale = false;
-      if (Q.liveAgain) continue;
-      if (!Q.live) return;
-      await swapTake(take);
-      setStatus('the change plays when the loop comes round');
-    } while (Q.liveAgain);
-  } finally { Q.liveBusy = false; }
-}
+const liveSwap = createLiveSwap({ state: Q, isPlaying: () => loopState().playing, write: () => writeFile(), build: () => build(Q.blockId), takeOf: () => S.build.takes?.[Q.blockId], swap: (take) => swapTake(take), setStatus: (text) => setStatus(text) });
 
 let tickFrame = 0;
 function startTick() {
@@ -552,13 +534,13 @@ function paintRack(host, locked) {
     dropOnChannel(host, row, c, locked);
     const color = el('input', { type: 'color', className: 'sqcolor', value: /^#[0-9a-f]{6}$/i.test(c.settings.color ?? '') ? c.settings.color : colorOf(index), disabled: locked, 'aria-label': `Colour of ${c.name}` });
     color.onchange = () => commit(setChannel(Q.seq, c.name, { color: color.value }));
-    const name = el('button', { className: 'sqname', textContent: c.name, title: 'Rename this channel', disabled: locked, onclick: async () => { const input = el('input', { value: c.name }); if (!(await ask('Rename channel', 'Letters, digits, - and _. The lanes follow.', [{ label: 'OK', value: true, primary: true }, { label: 'Cancel', value: false }], [input]))) return; const next = renameChannel(Q.seq, c.name, input.value.trim()); if (!next) { toast('That name is taken or not allowed.'); return; } await setLanes(lanesRenamed(lanesNow(), c.name, input.value.trim())); commit(next); } });
+    const name = el('button', { className: 'sqname', textContent: c.name, title: 'Rename this channel', disabled: locked, onclick: async () => { const input = el('input', { value: c.name }); if (!(await ask('Rename channel', 'Letters, digits, - and _. The lanes follow.', [{ label: 'OK', value: true, primary: true }, { label: 'Cancel', value: false }], [input]))) return; const next = renameChannel(Q.seq, c.name, input.value.trim()); if (!next) { toast('That name is taken or not allowed.'); return; } await setLanes(lanesRenamed(lanesRawNow(), c.name, input.value.trim())); commit(next); } });
     const type = el('select', { disabled: locked, 'aria-label': `Type of ${c.name}` }, TYPES.map((t) => el('option', { value: t, textContent: t, selected: t === c.type })));
     type.onchange = () => commit(setChannel(Q.seq, c.name, { type: type.value }));
     const toggle = (key, label, title) => el('button', { className: `sqtoggle${c.settings[key] === 'on' ? ' on' : ''}`, textContent: label, title, disabled: locked, 'aria-pressed': String(c.settings[key] === 'on'), onclick: () => commit(setChannel(Q.seq, c.name, { [key]: c.settings[key] === 'on' ? null : 'on' })) });
     const number = (key, label, min, max, fallback) => { const input = el('input', { type: 'number', className: 'seqn', value: c.settings[key] ?? fallback, min, max, title: label, disabled: locked, 'aria-label': `${label} of ${c.name}` }); input.onchange = () => commit(setChannel(Q.seq, c.name, { [key]: String(Math.max(min, Math.min(max, Math.round(Number(input.value) || 0)))) })); return input; };
     row.append(el('span', { className: 'sqlight', 'data-channel': c.name, title: 'Lights up while this channel sounds', 'aria-hidden': 'true' }), color, name, type, toggle('mute', 'M', `Mute ${c.name}`), toggle('solo', 'S', `Solo ${c.name}`), number('vol', 'Level in dB', -60, 12, 0), number('pan', 'Pan', -32, 32, 0),
-      el('button', { className: 'seqx', textContent: '✕', title: `Remove ${c.name} (its rows go too)`, disabled: locked, onclick: async () => { await setLanes(lanesWithout(lanesNow(), c.name)); commit(removeChannel(Q.seq, c.name)); } }));
+      el('button', { className: 'seqx', textContent: '✕', title: `Remove ${c.name} (its rows go too)`, disabled: locked, onclick: async () => { await setLanes(lanesWithout(lanesRawNow(), c.name)); commit(removeChannel(Q.seq, c.name)); } }));
     const details = el('div', { className: 'sqdetails' });
     // the General MIDI program: type a number or a name (the browser suggests the names), the name of the chosen instrument is shown under the row
     const gmName = el('span', { className: 'sqgmname' });
@@ -955,7 +937,7 @@ function paintLanes(host) {
     row.append(el('span', { className: 'seqname', textContent: `lane ${n}` }));
     Q.seq.channels.forEach((c) => {
       const on = names.includes(c.name);
-      row.append(el('button', { className: `sqchip${on ? ' on' : ''}`, textContent: c.name, 'aria-pressed': String(on), disabled: locked, title: on ? `Take ${c.name} out of lane ${n}` : `Put ${c.name} in lane ${n}`, onclick: () => setLanes({ ...parseLanes((node()?.params.lanes ?? '').replace(/^"|"$/g, ''), [{ name: 'all' }]), [n]: on ? names.filter((x) => x !== c.name) : [...names, c.name] }) }));
+      row.append(el('button', { className: `sqchip${on ? ' on' : ''}`, textContent: c.name, 'aria-pressed': String(on), disabled: locked, title: on ? `Take ${c.name} out of lane ${n}` : `Put ${c.name} in lane ${n}`, onclick: () => setLanes(toggleLaneChannel(node()?.params.lanes ?? '', Q.seq.channels, n, c.name)) }));
     });
     if (names.length) row.append(el('button', { className: 'sqrender', textContent: 'Render to file...', title: 'Build the block and write this lane as a WAV or MP3 file of the project', onclick: () => renderLane(n).catch((e) => toast(e.message || String(e))) }));
     host.append(row);
