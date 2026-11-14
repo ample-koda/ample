@@ -114,7 +114,7 @@ internal static class HistoryCliCommands
             output.WriteLine($"{changes.Count.ToString(CultureInfo.InvariantCulture)} change(s) if {p.GetValue(source)} replaces {p.GetValue(to)}.");
             if (p.GetValue(yes))
             {
-                NodeInfo n = await h.PromoteAsync(p.GetValue(source)!, p.GetValue(to)!, t);
+                NodeInfo n = await h.PromoteAsync(p.GetValue(source)!, p.GetValue(to)!, cancellationToken: t);
                 output.WriteLine($"Promoted: {p.GetValue(to)} is now {Short(n.NodeId)}. The old state stays in the history.");
             }
 

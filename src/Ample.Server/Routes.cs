@@ -3455,7 +3455,8 @@ public static class Routes
         add("GET", "/api/history/promote-preview", "history", "What promoting garage into studio would change.", false, s is null ? null : () => Ok(s.History.PreviewPromote()));
         add("POST", "/api/history/promote", "history", "Replaces studio with garage (the old studio stays in the history).", true, s is null ? null : async (HttpContext c) =>
         {
-            NodeInfo n = await s.History.PromoteAsync(cancellationToken: c.RequestAborted);
+            JsonElement promoteBody = Obj(await Body(c));
+            NodeInfo n = await s.History.PromoteAsync(cancellationToken: c.RequestAborted, expectedHead: Opt(promoteBody, "expect"));
             s.ForgetDocs();
             events!.Publish("history.changed", new { kind = "promote" });
             return Ok(new { node = n.NodeId });

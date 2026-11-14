@@ -379,4 +379,47 @@ public sealed class HistoryTests
 
         Assert.Equal(head, r.History.Resolve("same").NodeId);
     }
+
+    [Fact]
+    public async Task Promote_with_the_revision_that_was_shown_makes_it_the_main_branch()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        string shown = r.History.LineOf("garage").Head;
+
+        NodeInfo promoted = await r.History.PromoteAsync(expectedHead: shown);
+
+        Assert.Equal(promoted.NodeId, r.History.LineOf("studio").Head);
+        Assert.Equal("garage v2", (await r.History.PeekAsync("studio"))["song.amplet"]);
+    }
+
+    [Fact]
+    public async Task Promote_refuses_when_the_branch_has_a_newer_revision_than_the_one_that_was_shown()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        string shown = r.History.LineOf("garage").Head;
+        string studioBefore = r.History.LineOf("studio").Head;
+        r.Write("song.amplet", "garage v3");
+        await r.History.CheckpointAsync("arrived after the preview");
+
+        AmpleException refused = await Assert.ThrowsAsync<AmpleException>(async () => await r.History.PromoteAsync(expectedHead: shown));
+
+        Assert.Equal("AMP5244", refused.DiagnosticCode);
+        Assert.Equal(studioBefore, r.History.LineOf("studio").Head);
+    }
+
+    [Fact]
+    public async Task Promote_without_an_expected_revision_still_takes_the_tip_of_the_branch()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+
+        NodeInfo promoted = await r.History.PromoteAsync();
+
+        Assert.Equal(promoted.NodeId, r.History.LineOf("studio").Head);
+    }
 }

@@ -286,10 +286,16 @@ public sealed class HistoryService
     public IReadOnlyList<FileChange> PreviewPromote(string from = "garage", string to = "studio") => Diff(to, from);
 
     /// <summary>Makes the head of <paramref name="from"/> the new head of <paramref name="to"/> (default garage into studio). The old head stays in the history. Promote is replace-with-preview, not a merge.</summary>
-    public async ValueTask<NodeInfo> PromoteAsync(string from = "garage", string to = "studio", CancellationToken cancellationToken = default)
+    public async ValueTask<NodeInfo> PromoteAsync(string from = "garage", string to = "studio", string? expectedHead = null, CancellationToken cancellationToken = default)
     {
         LineInfo source = LineOf(from);
         LineOf(to);
+        // what was shown in the preview is what is promoted: a revision that arrived on the branch meanwhile makes the person look again (issue 152)
+        if (expectedHead is { Length: > 0 } && !string.Equals(source.Head, expectedHead, StringComparison.Ordinal))
+        {
+            throw new AmpleException("AMP5244", $"The branch {from} has a newer revision than the one that was shown. Look at the preview again, then make it the main branch.");
+        }
+
         Quality.QualityService.Enforce(root, bank, clock, "promote");
         if (CurrentLine == to && await IsDirtyAsync(cancellationToken).ConfigureAwait(false))
         {
