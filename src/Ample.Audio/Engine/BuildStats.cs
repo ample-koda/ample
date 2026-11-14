@@ -12,6 +12,11 @@ namespace Ample.Audio.Engine;
 /// <param name="Builds">How many earlier builds the numbers rest on.</param>
 public sealed record BuildEstimate(int Blocks, long Bytes, double Seconds, string Basis, int Builds);
 
+/// <summary>A block that renders in a build: its type and the blocks of the same list (by index) it has to wait for.</summary>
+/// <param name="Type">The block type (it decides the pace).</param>
+/// <param name="After">The indexes of the blocks that must be finished before this one starts.</param>
+public sealed record RenderStep(string Type, IReadOnlyList<int> After);
+
 /// <summary>
 /// The size and time estimate of a build. A block of type X is expected to store <c>bytes per second of song</c> and to render at a pace per
 /// second of song; both start as educated guesses (a stereo 16 bit WAV of the whole song; light blocks fast, GM, plugin and AI blocks slow) and are
@@ -77,9 +82,8 @@ public sealed class BuildStats
     /// <param name="rendered">The type and the stored size of every block that rendered.</param>
     /// <param name="songSeconds">The length of the song.</param>
     /// <param name="elapsedSeconds">The wall-clock time of the build.</param>
-    /// <param name="parallelism">How many blocks may render at once (a build of a chain of light blocks runs one after the other).</param>
-    /// <param name="chainLength">The longest run of rendered blocks that each waited for the previous one; only the blocks beside that run could share workers.</param>
-    public void Record(IReadOnlyList<(string Type, long Bytes)> rendered, double songSeconds, double elapsedSeconds, int parallelism = 1, int chainLength = 1)
+    /// <param name="concurrency">How many blocks ran at once on average, from <see cref="Concurrency"/> (1: one after the other). The elapsed time times this is the work that was done.</param>
+    public void Record(IReadOnlyList<(string Type, long Bytes)> rendered, double songSeconds, double elapsedSeconds, double concurrency = 1)
     {
         if (rendered.Count == 0 || songSeconds <= 0)
         {
@@ -94,7 +98,7 @@ public sealed class BuildStats
 
         int heavy = rendered.Count(r => Heavy.Contains(r.Type)), light = rendered.Count - heavy;
         double lightShare = light * songSeconds * lightPace;
-        double effective = elapsedSeconds * Math.Max(1, Math.Min(parallelism, (rendered.Count + Math.Max(1, chainLength) - 1) / Math.Max(1, chainLength)));
+        double effective = elapsedSeconds * Math.Max(1, concurrency);
         if (heavy > 0)
         {
             double observed = Math.Max(0, effective - lightShare) / (heavy * songSeconds);
@@ -109,6 +113,91 @@ public sealed class BuildStats
         builds++;
         Save();
     }
+
+    private double Pace(string type) => Heavy.Contains(type) ? heavyPace : lightPace;
+
+    /// <summary>Whether a block with this status in a plan-only pass renders in the build: a stale block does, and so does a waiting one, which follows a stale input (a plan cannot know that input comes out the same, so it counts the worst case).</summary>
+    public static bool WillRender(string status) => status is "stale" or "waiting";
+
+    /// <summary>The blocks that render, each with the rendering blocks it takes its input from (an input that does not render, because it is cached or skipped, does not make it wait).</summary>
+    /// <param name="blocks">Every block of the song: name, type and the names of the blocks it takes input from.</param>
+    /// <param name="rendered">The names of the blocks that render.</param>
+    public static IReadOnlyList<RenderStep> StepsOf(IEnumerable<(string Name, string Type, IReadOnlyList<string> Inputs)> blocks, IReadOnlySet<string> rendered)
+    {
+        List<(string Name, string Type, IReadOnlyList<string> Inputs)> mine = [.. blocks.Where(b => rendered.Contains(b.Name))];
+        Dictionary<string, int> at = new(StringComparer.Ordinal);
+        for (int i = 0; i < mine.Count; i++)
+        {
+            at.TryAdd(mine[i].Name, i);
+        }
+
+        return [.. mine.Select((b, i) => new RenderStep(b.Type, [.. b.Inputs.Where(n => at.TryGetValue(n, out int j) && j != i).Select(n => at[n]).Distinct()]))];
+    }
+
+    /// <summary>
+    /// How long, in seconds per second of song, the steps take on this many workers. A block starts as soon as the blocks it waits for are finished and a worker is free (the earlier
+    /// ones in the list first), and takes the pace of its kind. A chain takes the sum of its blocks, independent blocks the longest of them, a mixer of many sources the slowest source
+    /// plus the mixer.
+    /// </summary>
+    public double Wall(IReadOnlyList<RenderStep> steps, int workers)
+    {
+        int n = steps.Count, limit = Math.Max(1, workers);
+        int[] waiting = [.. steps.Select(s => s.After.Count)];
+        List<int>[] followers = [.. steps.Select(_ => new List<int>())];
+        for (int i = 0; i < n; i++)
+        {
+            foreach (int before in steps[i].After)
+            {
+                followers[before].Add(i);
+            }
+        }
+
+        List<int> ready = [.. Enumerable.Range(0, n).Where(i => waiting[i] == 0)];
+        List<(double At, int Index)> running = [];
+        double now = 0;
+        int finished = 0;
+        while (finished < n)
+        {
+            while (ready.Count > 0 && running.Count < limit)
+            {
+                int next = ready[0];
+                ready.RemoveAt(0);
+                running.Add((now + Pace(steps[next].Type), next));
+            }
+
+            if (running.Count == 0)
+            {
+                // a wait that never ends (not a song that can build): the rest is counted one after the other
+                return now + steps.Where((_, i) => waiting[i] > 0).Sum(s => Pace(s.Type));
+            }
+
+            (double at, int done) = running.MinBy(r => r.At);
+            running.Remove((at, done));
+            now = at;
+            finished++;
+            foreach (int after in followers[done])
+            {
+                if (--waiting[after] == 0)
+                {
+                    ready.Add(after);
+                    ready.Sort();
+                }
+            }
+        }
+
+        return now;
+    }
+
+    /// <summary>How many blocks run at once on average on this many workers: all the work divided by the wall time (1: one after the other).</summary>
+    public double Concurrency(IReadOnlyList<RenderStep> steps, int workers)
+    {
+        double wall = Wall(steps, workers);
+        return wall > 0 ? Math.Max(1, steps.Sum(s => Pace(s.Type)) / wall) : 1;
+    }
+
+    /// <summary>Estimates a build of these steps on this many workers: the same space as the sum of the blocks, and the time of the schedule (<see cref="Wall"/>) instead of the sum.</summary>
+    public BuildEstimate Estimate(IReadOnlyList<RenderStep> steps, double songSeconds, int workers) =>
+        Estimate([.. steps.Select(s => s.Type)], songSeconds) with { Seconds = songSeconds * Wall(steps, workers) };
 
     private void Save()
     {
