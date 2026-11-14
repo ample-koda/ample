@@ -5608,16 +5608,20 @@ Answer in English, whatever language the question is in, unless the user asks fo
     }
 
     /// <summary>Applies an accepted proposal: a checkpoint first, then the files other than the open song are written (journaled), and the new text of the song is returned for the editor, which applies it as one undoable change.</summary>
-    public async Task<JsonObject> AcceptAsync(string id, bool anyway, IEnumerable<string>? include, CancellationToken ct, IEnumerable<string>? moves = null)
+    public async Task<JsonObject> AcceptAsync(
+        string id, bool anyway, IEnumerable<string>? include, CancellationToken ct,
+        IEnumerable<string>? moves = null, string? activeSong = null)
     {
         // one review action at a time: a second press of Accept (or of Reject while it is applied) says so instead of racing the first
         AiTask gated = GetTask(id);
         if (!await gated.ReviewGate.WaitAsync(0, ct).ConfigureAwait(false)) throw new AmpleException("AMP5458", "This proposal is being applied already: wait a moment.");
-        try { return await AcceptCoreAsync(id, anyway, include, ct, moves).ConfigureAwait(false); }
+        try { return await AcceptCoreAsync(id, anyway, include, ct, moves, activeSong).ConfigureAwait(false); }
         finally { gated.ReviewGate.Release(); }
     }
 
-    private async Task<JsonObject> AcceptCoreAsync(string id, bool anyway, IEnumerable<string>? include, CancellationToken ct, IEnumerable<string>? moves = null)
+    private async Task<JsonObject> AcceptCoreAsync(
+        string id, bool anyway, IEnumerable<string>? include, CancellationToken ct,
+        IEnumerable<string>? moves = null, string? activeSong = null)
     {
         AiTask task = GetTask(id);
         if (task.PolicyViolation is not null) throw new AmpleException("AMP5481", "This proposal is refused for good: it would widen the policy of the song (" + task.PolicyViolation + "). Capabilities and limits can only be widened by the owner, by hand.");
@@ -5653,6 +5657,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
         NodeInfo? checkpoint = await s.History.CheckpointAsync("Before AI change: " + (task.Request.Prompt.Length > 60 ? task.Request.Prompt[..60] + "…" : task.Request.Prompt), ct).ConfigureAwait(false);
         string historyRevision = (checkpoint ?? s.History.Node(s.History.LineOf(s.History.CurrentLine).Head)).NodeId;
         string? songText = await WriteAcceptedFilesAsync(task, chosen, moves, ct).ConfigureAwait(false);
+        bool songWritten = await WriteSongNotOpenAsync(task, songText, activeSong, ct).ConfigureAwait(false);
+        if (songWritten) songText = null;
         RecordWritten(task);
         task.Applied = true;
         task.Status = "accepted";
@@ -5663,7 +5669,39 @@ Answer in English, whatever language the question is in, unless the user asks fo
         sessionStore.UpdateTask(task);
         s.Events.Publish("files.changed", new { source = "ai" });
         JsonArray others = new([.. task.Changes.Where(c => c.Path != task.Request.Song).Select(c => (JsonNode)c.Path)]);
-        return new JsonObject { ["song"] = task.Request.Song, ["songText"] = songText, ["others"] = others, ["invalid"] = invalid };
+        return new JsonObject
+        {
+            ["song"] = task.Request.Song, ["songText"] = songText, ["songWritten"] = songWritten,
+            ["others"] = others, ["invalid"] = invalid,
+        };
+    }
+
+    /// <summary>
+    /// The accepted text of the song goes to the editor of the browser, which only works when that song is the one that is open there.
+    /// When the browser says another song is open (<c>activeSong</c>), the text is written to the song itself, so the accepted edit is not lost,
+    /// and the previous text is kept for Undo. When that write fails, the files that were already written are put back.
+    /// Returns true when the song was written.
+    /// </summary>
+    private async Task<bool> WriteSongNotOpenAsync(AiTask task, string? songText, string? activeSong, CancellationToken ct)
+    {
+        if (songText is null || string.IsNullOrEmpty(activeSong) || string.Equals(activeSong, task.Request.Song, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        try
+        {
+            string full = ProjectPath.Resolve(s.Root, task.Request.Song);
+            task.Undo[task.Request.Song] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
+            await s.Bus.ExecuteAsync(new WriteFileCommand(task.Request.Song, songText), ct).ConfigureAwait(false);
+            s.ForgetDoc(task.Request.Song);
+            return true;
+        }
+        catch
+        {
+            await RollbackWrittenAsync(task, CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
     }
 
     /// <summary>
@@ -5779,19 +5817,25 @@ Answer in English, whatever language the question is in, unless the user asks fo
     }
 
     /// <summary>Accepts checked files from a proposal and continues the same Codex thread.</summary>
-    public async Task<JsonObject> AcceptSelectedAndContinueAsync(string id, IEnumerable<string> paths, string message, IEnumerable<string>? include, CancellationToken ct, IEnumerable<string>? moves = null)
-        => await AcceptSelectedAsync(id, paths, message, include, true, ct, moves).ConfigureAwait(false);
+    public async Task<JsonObject> AcceptSelectedAndContinueAsync(
+        string id, IEnumerable<string> paths, string message, IEnumerable<string>? include, CancellationToken ct,
+        IEnumerable<string>? moves = null, string? activeSong = null)
+        => await AcceptSelectedAsync(id, paths, message, include, true, ct, moves, activeSong).ConfigureAwait(false);
 
     /// <summary>Applies selected files; continuation is an explicit separate choice.</summary>
-    public async Task<JsonObject> AcceptSelectedAsync(string id, IEnumerable<string> paths, string message, IEnumerable<string>? include, bool continuation, CancellationToken ct, IEnumerable<string>? moves = null)
+    public async Task<JsonObject> AcceptSelectedAsync(
+        string id, IEnumerable<string> paths, string message, IEnumerable<string>? include, bool continuation, CancellationToken ct,
+        IEnumerable<string>? moves = null, string? activeSong = null)
     {
         AiTask task = GetTask(id);
         if (!await task.ReviewGate.WaitAsync(0, ct).ConfigureAwait(false)) throw new AmpleException("AMP5458", "A review action is already running.");
-        try { return await AcceptSelectedCoreAsync(id, paths, message, include, continuation, ct, moves).ConfigureAwait(false); }
+        try { return await AcceptSelectedCoreAsync(id, paths, message, include, continuation, ct, moves, activeSong).ConfigureAwait(false); }
         finally { task.ReviewGate.Release(); }
     }
 
-    private async Task<JsonObject> AcceptSelectedCoreAsync(string id, IEnumerable<string> paths, string message, IEnumerable<string>? include, bool continuation, CancellationToken ct, IEnumerable<string>? moves = null)
+    private async Task<JsonObject> AcceptSelectedCoreAsync(
+        string id, IEnumerable<string> paths, string message, IEnumerable<string>? include, bool continuation, CancellationToken ct,
+        IEnumerable<string>? moves = null, string? activeSong = null)
     {
         AiTask task = GetTask(id);
         if (task.PolicyViolation is not null) throw new AmpleException("AMP5481", "This proposal is refused for good: it would widen the policy of the song (" + task.PolicyViolation + "). Capabilities and limits can only be widened by the owner, by hand.");
@@ -5859,13 +5903,19 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         songText = await ApplyMovesAsync(task, moves, songText, ct).ConfigureAwait(false);
+        bool songWritten = await WriteSongNotOpenAsync(task, songText, activeSong, ct).ConfigureAwait(false);
+        if (songWritten) songText = null;
         RecordWritten(task);
         task.Changes.RemoveAll(change => selected.Contains(change.Path, StringComparer.Ordinal));
         task.Add("info", "Accepted selected files: " + string.Join(", ", selected) + ". The remaining proposal stays in review; accepting does not start another turn.");
         sessionStore.SaveTask(task);
         sessionStore.UpdateTask(task);
         s.Events.Publish("files.changed", new { source = "ai" });
-        JsonObject result = new() { ["song"] = task.Request.Song, ["songText"] = songText, ["accepted"] = new JsonArray([.. selected.Select(path => (JsonNode)path)]) };
+        JsonArray acceptedPaths = new([.. selected.Select(path => (JsonNode)path)]);
+        JsonObject result = new()
+        {
+            ["song"] = task.Request.Song, ["songText"] = songText, ["songWritten"] = songWritten, ["accepted"] = acceptedPaths,
+        };
         if (continuation) result["continuation"] = ContinueRemainingCore(task, message);
         return result;
     }
