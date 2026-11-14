@@ -40,6 +40,7 @@ import { LANE_DEFS, laneFraction, laneFromY, laneRamp, laneValueOf } from '../li
 import { knobFactor, rowVolume, scaleVelocity } from '../lib/lite-grid.mjs';
 import { createMetronomeCursor } from '../lib/metronome-cursor.mjs';
 import { SNAPS, TOOLS, autoScrollDelta, clipEndBars, createCommitQueue, dragLoop, gridLevels, hasHiddenData, hitLoop, litePlayRange, nearestStart, openCentre, scrollYForCentre, sliceNote, snapBeats, snapTick, toolForKey, typingPitch } from '../lib/lite-roll-model.mjs';
+import { extendedParts } from '../lib/clip-parts.mjs';
 import { GRID_KEYS, LONG_PRESS_MS, ROLL_KEYS, isLongPress, longPressAction, pinchStart, pinchView } from '../lib/lite-touch.mjs';
 import { adjustRows, clampMove, clipboardText, cloneRows, copyItems, createThrottle, drawRow, duplicateRows, itemsFromText, mergedRows, moveRows, pasteRows, quantizeRows, removeRows, resizeRows, rowIndexAt, sliceRow, soundingPitches, soundingRows, velocityRows } from '../lib/lite-gestures.mjs';
 import { barBeats } from '../lib/meter.mjs';
@@ -626,13 +627,16 @@ export function openPianoRollLite(blockId, options = {}) {
       if (!extend && r.at >= clipEnd) continue;
       items.push(...splitAtBars(r.at, extend ? r.length : Math.min(r.length, clipEnd - r.at), r.pitch, r.velocity, ppq, r.bend ? { bend: r.bend } : {}));
     }
+    let longer = '';
     if (extend && bars > endBars()) {
-      const part = (flat().nodes.find((n) => n.id === node.id) ?? node).parts?.[0];
-      await edit([{ type: 'setParts', block: node.id, parts: [{ at: part?.at || 1, length: bars, name: part?.name || '' }] }]);
+      // only the placement that is open gets longer; every other place where the clip is used in the song stays as it is
+      const plan = extendedParts((flat().nodes.find((n) => n.id === node.id) ?? node).parts, bars);
+      await edit([{ type: 'setParts', block: node.id, parts: plan.parts }]);
+      longer = plan.clamped ? ', the clip is longer now (up to the next place where it is used)' : ', the clip is longer now';
     }
     if (!items.length) { toast('Nothing to keep in that part.'); return; }
     addNotes(items);
-    toast(`${items.length} note${items.length === 1 ? '' : 's'} kept${extend && bars > endBars() ? ', the clip is longer now' : ''}.`);
+    toast(`${items.length} note${items.length === 1 ? '' : 's'} kept${longer}.`);
   }
   function recordOff(pitch) {
     const held = rec.open.get(pitch); if (!held) return;
