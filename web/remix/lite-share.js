@@ -99,11 +99,12 @@ const remember = (entry) => { try { localStorage.setItem(myShares_(), JSON.strin
  * @param {() => Promise<Array<{path: string, text?: string, blob?: Blob}>>} context.snapshot all the files of the project
  * @param {{id: string, name: string}} context.project
  * @param {() => string | null} context.activeSong the song that is open (or null)
+ * @param {() => string | null} [context.lastBuilt] the song that was built last (or null): what Share names when a note or other file is open
  * @param {object} context.limits the limits of the page
  * @param {() => string} context.token the sign-in token (empty on the public Remix)
  * @param {(text: string, kind?: string) => void} context.toast
  */
-export function openPublish({ snapshot, project, activeSong, limits, token, toast }) {
+export function openPublish({ snapshot, project, activeSong, lastBuilt = () => null, limits, token, toast }) {
   const box = document.querySelector('#lite-publish-dialog');
   const $ = (selector) => box.querySelector(selector);
   const form = $('#lite-publish-form'), done = $('#lite-publish-done');
@@ -130,7 +131,10 @@ export function openPublish({ snapshot, project, activeSong, limits, token, toas
     all = await snapshot();
     files = await withHashes(neededFiles(all));
     const bytes = files.reduce((sum, f) => sum + (f.blob ? f.blob.size : new TextEncoder().encode(f.text).length), 0);
-    summary.textContent = `${files.length} file${files.length === 1 ? '' : 's'} (${sizeText(bytes)}). Files of a built-in demo are not uploaded: the server already has them.`;
+    const entry = pickEntry(files.map((f) => f.path), activeSong(), lastBuilt());
+    const sharing = entry ? `Sharing the song ${entry}. ` : 'There is no song to share yet. ';
+    const count = `${files.length} file${files.length === 1 ? '' : 's'} (${sizeText(bytes)})`;
+    summary.textContent = `${sharing}${count}. Files of a built-in demo are not uploaded: the server already has them.`;
   };
   refresh().catch((e) => { summary.textContent = String(e?.message ?? e); });
 
@@ -150,7 +154,7 @@ export function openPublish({ snapshot, project, activeSong, limits, token, toas
       (missing[0] ?? rights).focus();
       return fail(missing.length ? 'A share needs a title and an author.' : 'Tick the box: you made this, or you may share it.');
     }
-    const entry = pickEntry(files.map((f) => f.path), activeSong(), null);
+    const entry = pickEntry(files.map((f) => f.path), activeSong(), lastBuilt());
     const problems = checkBuild(entry ?? '', files, limits);
     if (!entry || problems.length) return fail(problems[0] ?? 'Add a song (.amplet) first.');
     go.disabled = true;
