@@ -139,6 +139,53 @@ test('Pressing Record twice while it waits gives an endless take; it can run pas
   expect(text).toMatch(/endless[^\n]* for ([3-9]|\d\d)/);
 });
 
+test('the take review: a click on the strip chooses one bar, the bar fields follow it and take typed values, Whole take is its own button', async ({ page }) => {
+  const panel = await openJam(page, 'rangetake');
+  await panel.getByRole('button', { name: /^MIDI in/ }).click();
+  const record = panel.getByRole('button', { name: /^Record:/ });
+  await record.click();
+  await record.click();
+  await expect(record).toHaveAttribute('data-mode', 'endless');
+  await expect.poll(() => panel.evaluate(((d: any) => Boolean(d.querySelector('.mls-btn[aria-pressed="true"][title^="Play"]'))) as never), { timeout: 20000 }).toBe(true);
+  await midi(page, [0x90, 60, 100]);
+  await page.waitForTimeout(300);
+  await midi(page, [0x80, 60, 0]);
+  await page.waitForTimeout(4800);
+  await midi(page, [0x90, 67, 100]);
+  await page.waitForTimeout(300);
+  await midi(page, [0x80, 67, 0]);
+  await record.click();
+  const review = panel.locator('.mls-review');
+  await expect(review).toBeVisible();
+  const first = review.getByLabel('First bar to keep'), last = review.getByLabel('Last bar to keep');
+  const bars = Number(await last.inputValue());
+  expect(bars).toBeGreaterThan(2);
+  await expect(first).toHaveValue('1');
+  // a click on the strip chooses one bar (the second), not the whole take
+  const box = (await review.locator('.mls-review-strip').boundingBox())!;
+  await page.mouse.click(box.x + box.width * 1.5 / bars, box.y + box.height / 2);
+  await expect(first).toHaveValue('2');
+  await expect(last).toHaveValue('2');
+  // typed values: first past last pulls last along; 0 and 99 are clamped; empty keeps the range
+  await first.fill('3'); await first.press('Enter');
+  await expect(last).toHaveValue('3');
+  await last.fill('99'); await last.press('Enter');
+  await expect(last).toHaveValue(String(bars));
+  await first.fill('0'); await first.press('Enter');
+  await expect(first).toHaveValue('1');
+  await first.fill(''); await first.press('Enter');
+  await expect(first).toHaveValue('1');
+  await expect(last).toHaveValue(String(bars));
+  // Escape puts the chosen bar back
+  await first.fill('2'); await first.press('Escape');
+  await expect(first).toHaveValue('1');
+  // Whole take is its own button
+  await first.fill('2'); await first.press('Enter');
+  await review.getByRole('button', { name: 'Whole take' }).click();
+  await expect(first).toHaveValue('1');
+  await expect(last).toHaveValue(String(bars));
+});
+
 test('the dock has a pill, the keyboard and a maximized layout with more octaves and knobs', async ({ page }) => {
   await addTemplateBlock(page, 'midi-clip', 'tune');
   await page.locator('#btn-keys').click();

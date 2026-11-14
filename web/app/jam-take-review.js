@@ -3,6 +3,7 @@
 import { el } from './ui.js';
 import { barAt, selectRows, takeBars } from '../lib/virtual-keys.mjs';
 import { barBeats } from '../lib/meter.mjs';
+import { editRange } from '../lib/take-range.mjs';
 
 /**
  * @param {{ ppq: number, clipBars: () => number, preview: (rows: object[], bars: number, done: () => void) => (() => void), keep: (choice: { rows: object[], bars: number, extend: boolean }) => void }} options
@@ -10,15 +11,15 @@ import { barBeats } from '../lib/meter.mjs';
 export function createTakeReview({ ppq, clipBars, preview, keep, keepLabel = 'Keep', keepTitle = 'Write the chosen bars into the clip', showExtend = true }) {
   const state = { notes: [], bars: 1, from: 0, to: 1, drag: null, stopPreview: null, width: 640, height: 70 };
   const info = el('output', { className: 'mls-review-info', 'aria-live': 'polite' });
-  const canvas = el('canvas', { className: 'mls-review-strip', 'aria-label': 'The take: drag over the bars to keep, or click one bar', title: 'Drag over the bars to keep; click to choose one bar' });
+  const canvas = el('canvas', { className: 'mls-review-strip', 'aria-label': 'The take: drag over the bars to keep, or click one bar. Use the bar fields for the keyboard', role: 'img', title: 'Drag over the bars to keep; click to choose one bar' });
   const play = el('button', { type: 'button', className: 'mls-btn', textContent: '▶ Preview', title: 'Listen to the bars that are chosen' });
   const extend = el('input', { type: 'checkbox', checked: true, id: 'mls-review-extend' });
   const extendLabel = el('label', { className: 'mls-review-extend', title: 'When the chosen bars are longer than the clip, make the clip longer; otherwise they are cut at the end of the clip' }, [extend, ' Make the clip longer if needed']);
   const keepButton = el('button', { type: 'button', className: 'mls-btn mls-review-keep', textContent: keepLabel, title: keepTitle });
   const whole = el('button', { type: 'button', className: 'mls-btn', textContent: 'Whole take', title: 'Choose all of it' });
-  const num = (label) => el('input', { type: 'number', min: '1', step: '1', className: 'mls-review-bar-input', 'aria-label': label });
+  const num = (label) => el('input', { type: 'number', min: '1', max: '1', step: '1', inputMode: 'numeric', className: 'mls-review-bar-input', 'aria-label': label });
   const fromInput = num('First bar to keep'), toInput = num('Last bar to keep');
-  const range = el('span', { className: 'mls-review-range' }, ['Bars ', fromInput, ' to ', toInput]);
+  const range = el('span', { className: 'mls-review-range', role: 'group', 'aria-label': 'Bars to keep' }, ['Bars ', fromInput, ' to ', toInput]);
   const discard = el('button', { type: 'button', className: 'mls-btn', textContent: 'Discard', title: 'Throw the take away' });
   const root = el('div', { className: 'mls-review', hidden: true, role: 'region', 'aria-label': 'Review of the take' }, [info, canvas, el('div', { className: 'mls-review-bar' }, [play, whole, range, ...(showExtend ? [extendLabel] : []), keepButton, discard])]);
 
@@ -64,12 +65,14 @@ export function createTakeReview({ ppq, clipBars, preview, keep, keepLabel = 'Ke
     if (state.drag && !state.drag.moved) { state.from = state.drag.start; state.to = state.drag.start + 1; describe(); draw(); }   // a click chooses that one bar; Whole take is its own button
     state.drag = null;
   };
-  const fromFields = () => {
+  const fromFields = (which) => () => {
     stop();
-    const a = Math.min(state.bars, Math.max(1, Math.round(Number(fromInput.value)) || 1)), b = Math.min(state.bars, Math.max(1, Math.round(Number(toInput.value)) || state.bars));
-    state.from = Math.min(a, b) - 1; state.to = Math.max(a, b); describe(); draw();
+    const r = editRange(which, (which === 'from' ? fromInput : toInput).value, { from: state.from + 1, to: state.to }, state.bars);
+    state.from = r.from - 1; state.to = r.to; describe(); draw();   // describe() also rewrites both fields, so a bad entry snaps back
   };
-  fromInput.onchange = toInput.onchange = fromFields;
+  fromInput.onchange = fromFields('from'); toInput.onchange = fromFields('to');
+  for (const input of [fromInput, toInput]) input.onkeydown = (event) => { if (event.key === 'Escape') { describe(); event.stopPropagation(); } };   // Escape puts the chosen bar back in the field
+  canvas.onpointercancel = () => { state.drag = null; };
   whole.onclick = () => { state.from = 0; state.to = state.bars; describe(); draw(); };
   play.onclick = () => {
     if (state.stopPreview) { stop(); return; }
