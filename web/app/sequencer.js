@@ -25,7 +25,7 @@ import { unlockAudio, startLoopPlayer, stopLoopPlayer, setLoopRange, seekLoopPla
 import { createLiveSwap } from '../lib/live-swap.mjs';
 import { barAt, barOfClick, barSeconds, rangeFromDrag, rangeSeconds } from '../lib/loop-model.mjs';
 import {
-  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
+  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
@@ -601,6 +601,18 @@ const isNoteChannel = (c) => c.type !== 'drum' && c.type !== 'loop' && c.type !=
 const patternNotes = (p) => { const rows = rowsOf(Q.seq, p); return Q.seq.channels.filter(isNoteChannel).reduce((sum, c) => sum + notesIn(rows[c.name] ?? ''), 0); };
 const patternColour = (p, i) => (/^#[0-9a-f]{6}$/i.test(p.color) ? p.color : colorOf(i));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** Deleting a pattern also removes its variations and every clip that plays them: say so first, and only when there is something besides the pattern itself. */
+async function deleteCurrentPattern(current) {
+  const { variations, clips } = deletePatternImpact(Q.seq, current.name);
+  if (variations.length || clips) {
+    const text = `Delete '${current.name}'? This also removes ${variations.length} variation${variations.length === 1 ? '' : 's'}${variations.length ? ' (' + variations.join(', ') + ')' : ''} and ${clips} clip${clips === 1 ? '' : 's'} in the playlist. Undo (Ctrl+Z) takes it back.`;
+    if (!(await ask('Delete pattern', text, [{ label: 'Cancel', value: false }, { label: 'Delete', value: true, primary: true }]))) return;
+  }
+  const next = deletePattern(Q.seq, current.name);
+  Q.pattern = next.patterns[0]?.name ?? null;
+  commit(next);
+}
+
 function paintPatterns(host, locked) {
   const box = el('div', { className: 'sqpatterns', id: 'sq-patterns' });
   const tabs = el('div', { className: 'sqtabs', role: 'tablist' });
@@ -638,7 +650,7 @@ function paintPatterns(host, locked) {
     el('button', { id: 'sq-pattern-variation', textContent: 'Variation', title: 'A variation starts with the rows of this pattern; change only what differs', disabled: locked || !current, onclick: () => { const r = addVariation(Q.seq, current.name); Q.pattern = r.name; commit(r.seq); } }),
     el('button', { id: 'sq-pattern-play', textContent: '⟳ Play pattern', title: 'Repeat the first place of this pattern in the playlist', disabled: !current, onclick: () => { const clip = Q.seq.clips.find((c) => c.pattern === current.name); if (!clip) { toast('Put this pattern in the playlist first.'); return; } repeatRange({ at: clip.at, bars: Math.min(clip.bars, current.bars) }); } }),
     el('button', { id: 'sq-pattern-rename', textContent: 'Rename', disabled: locked || !current, onclick: async () => { const name = await askName('Rename pattern', current.name); if (!name || name === current.name) return; const next = renamePattern(Q.seq, current.name, name); if (!next) { toast('That name is taken or not allowed.'); return; } Q.pattern = name; commit(next); } }),
-    el('button', { id: 'sq-pattern-delete', textContent: 'Delete', disabled: locked || !current, onclick: () => { const next = deletePattern(Q.seq, current.name); Q.pattern = next.patterns[0]?.name ?? null; commit(next); } }),
+    el('button', { id: 'sq-pattern-delete', textContent: 'Delete', disabled: locked || !current, onclick: () => deleteCurrentPattern(current).catch((e) => toast(e.message || String(e))) }),
   ]);
   box.append(el('div', { className: 'row' }, [tabs, buttons]));
   if (!current) { box.append(el('p', { className: 'note', textContent: 'No pattern yet: make one with New.' })); host.append(box); return; }

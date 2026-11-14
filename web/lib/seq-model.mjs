@@ -257,9 +257,25 @@ export function renamePattern(seq, from, to) {
   return out;
 }
 
+/** The names that leave with a pattern: the pattern, its variations and the variations of those (a variation cannot outlive its base). */
+function patternFamily(seq, name) {
+  const gone = new Set([name]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const p of seq.patterns) if (p.from && gone.has(p.from) && !gone.has(p.name)) { gone.add(p.name); grew = true; }
+  }
+  return gone;
+}
+
+/** What deleting a pattern takes with it, for the question before it happens: the variations (names) and the number of clips in the playlist. */
+export function deletePatternImpact(seq, name) {
+  const gone = patternFamily(seq, name);
+  return { variations: seq.patterns.filter((p) => gone.has(p.name) && p.name !== name).map((p) => p.name), clips: seq.clips.filter((c) => gone.has(c.pattern)).length };
+}
+
 export function deletePattern(seq, name) {
   const out = copy(seq);
-  const gone = new Set([name, ...out.patterns.filter((p) => p.from === name).map((p) => p.name)]);   // a variation cannot outlive its base
+  const gone = patternFamily(out, name);
   out.patterns = out.patterns.filter((p) => !gone.has(p.name));
   out.clips = out.clips.filter((c) => !gone.has(c.pattern));
   return out;

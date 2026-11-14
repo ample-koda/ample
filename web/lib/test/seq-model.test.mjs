@@ -129,6 +129,24 @@ test('edits keep the comments of what they do not touch, and a comment leaves wi
   assert.equal(formatSeq(duplicatePattern(seq, 'verse').seq).split('# the verse, four bars').length, 2);   // the copy has no comment of its own
 });
 
+test('deleting a pattern says what leaves with it: its variations (also variations of variations) and their clips', async () => {
+  const { deletePatternImpact, addVariation } = await import('../seq-model.mjs');
+  let { seq } = parseSeq(TEXT);
+  assert.deepEqual(deletePatternImpact(seq, 'verse'), { variations: [], clips: 1 });
+  const first = addVariation(seq, 'verse');
+  const second = addVariation(first.seq, first.name);
+  seq = addClip(second.seq, second.name, 2, 5, 2);
+  const impact = deletePatternImpact(seq, 'verse');
+  assert.deepEqual(impact.variations.sort(), [first.name, second.name].sort());
+  assert.equal(impact.clips, 2);
+  const after = deletePattern(seq, 'verse');
+  assert.deepEqual(after.patterns, [], 'nothing is left behind that points at the deleted base');
+  assert.deepEqual(after.clips, []);
+  // a variation on its own takes only itself and its clips
+  assert.deepEqual(deletePatternImpact(seq, second.name), { variations: [], clips: 1 });
+  assert.equal(deletePattern(seq, second.name).patterns.length, 2);
+});
+
 test('editing one lane keeps `all` in the other lanes, also when a channel is renamed or removed', async () => {
   const { parseLanesRaw, toggleLaneChannel } = await import('../seq-model.mjs');
   const channels = [{ name: 'kick' }, { name: 'hat' }, { name: 'lead' }];
@@ -147,5 +165,4 @@ test('editing one lane keeps `all` in the other lanes, also when a channel is re
   assert.equal(formatLanes(lanesRenamed(parseLanesRaw(text), 'hat', 'hh')), 'lane1=all lane2=hh');
   assert.equal(formatLanes(lanesWithout(parseLanesRaw(text), 'hat')), 'lane1=all');
   // a lane that mixes `all` with names is `all`
-  assert.deepEqual(parseLanesRaw('lane1=kick+all'), { 1: ['all'] });
-});
+  assert.deepEqual(parseLanesRaw('lane1=kick+all'), { 1: ['all'] });});
