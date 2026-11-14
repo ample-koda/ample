@@ -1036,6 +1036,19 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Contains("only render if the block before them changes the sound", cold.RootElement.GetProperty("text").GetString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_build_teaches_a_pace_per_block_type_from_the_time_the_blocks_really_worked()
+    {
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), "composition \"s\" { ample 1  tempo 120  master-seed 1 }\nmidi-clip c {\n  chords Am\n  bars 1\n}\npiano p pinned@2.0 at 1 for 1 {\n  set felt-piano\n  from c.notes -> notes\n}\nmaster master {\n  channels stereo\n}\n");
+        using HttpResponseMessage build = await Post("/api/build", new { path = "song.amplet", intent = "bake" });
+        Assert.True(build.IsSuccessStatusCode, await build.Content.ReadAsStringAsync(CancellationToken.None));
+        using JsonDocument stats = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder, ".ample", "analysis", "build-stats.json")));
+        JsonElement paces = stats.RootElement.GetProperty("paces");
+        Assert.True(paces.EnumerateObject().Any(), "no pace was learned");
+        Assert.All(paces.EnumerateObject(), p => Assert.True(p.Value.GetDouble() > 0, p.Name));
+        Assert.Equal(1, stats.RootElement.GetProperty("builds").GetInt32());
+    }
+
     private async Task<string> Text(string path) => await http.GetStringAsync(path, CancellationToken.None);
 
     private async Task<HttpResponseMessage> Post(string path, object body) => await http.PostAsync(path, Json(body), CancellationToken.None);
