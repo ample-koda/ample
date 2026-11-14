@@ -2,7 +2,10 @@ using System.Globalization;
 
 namespace Ample.Hub.Core;
 
-/// <summary>What <see cref="PortSwitch"/> needs from the main instance (a small seam so the decision logic runs without a server).</summary>
+/// <summary>
+/// What <see cref="PortSwitch"/> needs from the main instance (a small seam so the decision logic runs without a
+/// server).
+/// </summary>
 public interface IPortSwitchHost
 {
     /// <summary>Gets the port stored in the settings.</summary>
@@ -71,7 +74,8 @@ public static class PortSwitch
         // a stop that failed leaves the old server running on the old port: there is nothing to start again
         if (problem is not null) return problem + " The old port " + Text(old) + " was kept.";
         string? again = await host.RestartAsync(cancellationToken).ConfigureAwait(false);
-        return "AMPLE did not start on port " + Text(newPort) + ". The old port " + Text(old) + " was restored" + (again is null ? "." : " but AMPLE could not be restarted: " + again);
+        string restored = "AMPLE did not start on port " + Text(newPort) + ". The old port " + Text(old) + " was restored";
+        return restored + (again is null ? "." : " but AMPLE could not be restarted: " + again);
     }
 
     private static string Text(int port) => port.ToString(CultureInfo.InvariantCulture);

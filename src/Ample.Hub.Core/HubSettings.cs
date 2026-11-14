@@ -30,7 +30,10 @@ public sealed record HubSettings(int MainPort = 0, bool MainLogin = false, bool 
         }
     }
 
-    /// <summary>Writes the settings under the hub.json mutex, keeping fields this program does not know (see <see cref="HubSettingsStore"/>).</summary>
+    /// <summary>
+    /// Writes the settings under the hub.json mutex, keeping fields this program does not know (see <see
+    /// cref="HubSettingsStore"/>).
+    /// </summary>
     public void Save(string home)
     {
         HubSettingsStore.Update(home, _ => this);

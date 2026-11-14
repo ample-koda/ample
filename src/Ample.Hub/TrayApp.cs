@@ -14,7 +14,8 @@ internal sealed class TrayApp : ApplicationContext
     private string? pending;
     private int busy;
     private readonly CancellationTokenSource quit = new();
-    // finished actions come back to the UI thread through this control: its handle is created up front (a context menu that was never opened has none)
+    // finished actions come back to the UI thread through this control: its handle is created up front (a context menu
+    // that was never opened has none)
     private readonly Control ui = new();
     // the installer asks a running hub to quit by setting this event (it cannot close a window: the hub has none); the timer sees it within a few seconds
     private readonly EventWaitHandle exitSignal = new(false, EventResetMode.AutoReset, @"Local\AMPLE-Hub-Exit");
@@ -73,7 +74,8 @@ internal sealed class TrayApp : ApplicationContext
         menu.Items.Clear();
         if (state.Main is { } running)
         {
-            Add(menu.Items, $"Main instance: running on port {running.Record.Port}" + (pending is null ? string.Empty : $" ({pending}…)"), null, false);
+            string pendingText = pending is null ? string.Empty : $" ({pending}…)";
+            Add(menu.Items, $"Main instance: running on port {running.Record.Port}" + pendingText, null, false);
             Add(menu.Items, "Open the studio", OpenMain);
             Add(menu.Items, "Copy the URL", () => Clipboard.SetText(main.LaunchUrl(running.Record) ?? string.Empty));
             Add(menu.Items, "Restart", () => Do("Restarting AMPLE", main.RestartAsync), pending is null);
@@ -163,14 +165,20 @@ internal sealed class TrayApp : ApplicationContext
         using PortDialog dialog = new(current.MainPort);
         if (dialog.ShowDialog() != DialogResult.OK || dialog.Port == current.MainPort) return;
         int port = dialog.Port;
-        if (state.Main is not null && MessageBox.Show("Restart AMPLE now, so the new port applies? (If AMPLE cannot start on it, the old port is restored.)", "AMPLE", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+        const string restartQuestion =
+            "Restart AMPLE now, so the new port applies? (If AMPLE cannot start on it, the old port is restored.)";
+        if (state.Main is not null
+            && MessageBox.Show(restartQuestion, "AMPLE", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
             Do("Restarting AMPLE", t => main.RestartOnPortAsync(port, t));
             return;
         }
 
         try { HubSettingsStore.Update(main.Home, stored => stored with { MainPort = port }); }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { icon.ShowBalloonTip(5000, "AMPLE", ex.Message, ToolTipIcon.Warning); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            icon.ShowBalloonTip(5000, "AMPLE", ex.Message, ToolTipIcon.Warning);
+        }
     }
 
     private void ChooseSettings()
@@ -185,7 +193,10 @@ internal sealed class TrayApp : ApplicationContext
             return;
         }
 
-        if (Program.SetStartAtLogin(dialog.Result.StartAtLogin) is { } entryProblem) icon.ShowBalloonTip(5000, "AMPLE", entryProblem, ToolTipIcon.Warning);
+        if (Program.SetStartAtLogin(dialog.Result.StartAtLogin) is { } entryProblem)
+        {
+            icon.ShowBalloonTip(5000, "AMPLE", entryProblem, ToolTipIcon.Warning);
+        }
         if (dialog.Result.MainLogin != current.MainLogin && state.Main is not null && MessageBox.Show("Restart AMPLE now, so the sign-in setting applies?", "AMPLE", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             Do("Restarting AMPLE", main.RestartAsync);
         _ = RefreshAsync();

@@ -57,9 +57,12 @@ public sealed class MainInstance
     /// <param name="timeout">The total time to wait.</param>
     /// <param name="cancellationToken">Ends the wait.</param>
     /// <returns>The record of the running server, or null.</returns>
-    public Task<InstanceRecord?> WaitReadyAsync(TimeSpan timeout, CancellationToken cancellationToken) => WaitReadyAsync(0, timeout, cancellationToken);
+    public Task<InstanceRecord?> WaitReadyAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        => WaitReadyAsync(0, timeout, cancellationToken);
 
-    /// <summary>Waits until the main server is registered as running on a port (0: any port); null when it did not within the time.</summary>
+    /// <summary>
+    /// Waits until the main server is registered as running on a port (0: any port); null when it did not within the time.
+    /// </summary>
     /// <param name="port">The port it must run on (0: any).</param>
     /// <param name="timeout">The total time to wait.</param>
     /// <param name="cancellationToken">Ends the wait.</param>
@@ -78,13 +81,18 @@ public sealed class MainInstance
             TimeSpan.FromMilliseconds(500),
             cancellationToken);
 
-    /// <summary>Starts the main server when it is not running and waits (a bounded time) until it is registered. Returns false when it already ran (or a transition is under way).</summary>
+    /// <summary>
+    /// Starts the main server when it is not running and waits (a bounded time) until it is registered. Returns false when
+    /// it already ran (or a transition is under way).
+    /// </summary>
     /// <param name="cancellationToken">Cancels.</param>
     /// <returns>True when it was started.</returns>
     public async Task<bool> StartAsync(CancellationToken cancellationToken)
     {
         bool started = false;
-        if (!await Gate.TryRunAsync(async () => started = await StartCoreAsync(cancellationToken).ConfigureAwait(false)).ConfigureAwait(false)) return false;
+        bool ran = await Gate.TryRunAsync(async () => started = await StartCoreAsync(cancellationToken).ConfigureAwait(false))
+            .ConfigureAwait(false);
+        if (!ran) return false;
         return started;
     }
 
@@ -119,7 +127,9 @@ public sealed class MainInstance
     public async Task<string?> StopAsync(CancellationToken cancellationToken)
     {
         string? result = null;
-        if (!await Gate.TryRunAsync(async () => result = await StopCoreAsync(cancellationToken).ConfigureAwait(false)).ConfigureAwait(false)) return BusyText;
+        bool ran = await Gate.TryRunAsync(async () => result = await StopCoreAsync(cancellationToken).ConfigureAwait(false))
+            .ConfigureAwait(false);
+        if (!ran) return BusyText;
         return result;
     }
 
@@ -143,7 +153,9 @@ public sealed class MainInstance
     public async Task<string?> RestartAsync(CancellationToken cancellationToken)
     {
         string? result = null;
-        if (!await Gate.TryRunAsync(async () => result = await RestartCoreAsync(cancellationToken).ConfigureAwait(false)).ConfigureAwait(false)) return BusyText;
+        bool ran = await Gate.TryRunAsync(async () => result = await RestartCoreAsync(cancellationToken).ConfigureAwait(false))
+            .ConfigureAwait(false);
+        if (!ran) return BusyText;
         return result;
     }
 
@@ -173,7 +185,10 @@ public sealed class MainInstance
     public async Task<string?> RestartOnPortAsync(int newPort, CancellationToken cancellationToken)
     {
         string? result = null;
-        if (!await Gate.TryRunAsync(async () => result = await PortSwitch.RunAsync(new PortHost(this), newPort, cancellationToken).ConfigureAwait(false)).ConfigureAwait(false)) return BusyText;
+        bool ran = await Gate.TryRunAsync(
+            async () => result = await PortSwitch.RunAsync(new PortHost(this), newPort, cancellationToken).ConfigureAwait(false))
+            .ConfigureAwait(false);
+        if (!ran) return BusyText;
         return result;
     }
 
@@ -181,7 +196,8 @@ public sealed class MainInstance
     {
         public int StoredPort => HubSettings.Load(owner.Home).MainPort;
 
-        public async Task<int?> RunningPortAsync(CancellationToken cancellationToken) => (await owner.StateAsync(cancellationToken).ConfigureAwait(false)).Main?.Record.Port;
+        public async Task<int?> RunningPortAsync(CancellationToken cancellationToken)
+            => (await owner.StateAsync(cancellationToken).ConfigureAwait(false)).Main?.Record.Port;
 
         public bool IsPortFree(int port) => MainInstance.IsPortFree(port);
 
@@ -189,7 +205,8 @@ public sealed class MainInstance
 
         public Task<string?> RestartAsync(CancellationToken cancellationToken) => owner.RestartCoreAsync(cancellationToken);
 
-        public async Task<bool> WaitReadyAsync(int port, TimeSpan timeout, CancellationToken cancellationToken) => await owner.WaitReadyAsync(port, timeout, cancellationToken).ConfigureAwait(false) is not null;
+        public async Task<bool> WaitReadyAsync(int port, TimeSpan timeout, CancellationToken cancellationToken)
+            => await owner.WaitReadyAsync(port, timeout, cancellationToken).ConfigureAwait(false) is not null;
     }
 
     /// <summary>Stops an instance the hub did not start and starts it again from its own recipe; null when done, else the reason.</summary>

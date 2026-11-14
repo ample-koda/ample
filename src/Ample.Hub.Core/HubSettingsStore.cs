@@ -4,7 +4,8 @@ using System.Text.Json.Nodes;
 namespace Ample.Hub.Core;
 
 /// <summary>
-/// Writes <c>hub.json</c> the way every writer of that file has to: under the named mutex the setup (Tune-up) uses too, as a read-modify-write
+/// Writes <c>hub.json</c> the way every writer of that file has to: under the named mutex the setup (Tune-up) uses
+/// too, as a read-modify-write
 /// that keeps fields this program does not know, and never over a file that is not valid JSON.
 /// </summary>
 public static class HubSettingsStore
@@ -38,7 +39,10 @@ public static class HubSettingsStore
             if (existing.Count > 0)
             {
                 try { current = existing.Deserialize<HubSettings>(Json) ?? new HubSettings(); }
-                catch (JsonException ex) { throw new InvalidDataException("hub.json has a value of the wrong kind, so it was left alone (" + ex.Message + ")", ex); }
+                catch (JsonException ex)
+                {
+                    throw new InvalidDataException("hub.json has a value of the wrong kind, so it was left alone (" + ex.Message + ")", ex);
+                }
                 if (current.MainPort is < 0 or > 65535) current = new HubSettings();
             }
 
@@ -46,7 +50,8 @@ public static class HubSettingsStore
             JsonObject fresh = JsonSerializer.SerializeToNode(next, Json)!.AsObject();
             foreach (KeyValuePair<string, JsonNode?> field in fresh.ToList())
             {
-                string? key = existing.Select(e => e.Key).FirstOrDefault(k => string.Equals(k, field.Key, StringComparison.OrdinalIgnoreCase));
+                string? key = existing.Select(e => e.Key)
+                    .FirstOrDefault(k => string.Equals(k, field.Key, StringComparison.OrdinalIgnoreCase));
                 if (key is not null) existing.Remove(key);
                 existing[field.Key] = field.Value?.DeepClone();
             }
@@ -75,7 +80,14 @@ public static class HubSettingsStore
         if (!File.Exists(path)) return [];
         string text = File.ReadAllText(path);
         if (text.Trim().Length == 0) return [];
-        try { return JsonNode.Parse(text) as JsonObject ?? throw new InvalidDataException("hub.json is not a JSON object, so it was left alone."); }
-        catch (JsonException ex) { throw new InvalidDataException("hub.json is not valid JSON, so it was left alone (" + ex.Message + ")", ex); }
+        try
+        {
+            return JsonNode.Parse(text) as JsonObject
+                ?? throw new InvalidDataException("hub.json is not a JSON object, so it was left alone.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("hub.json is not valid JSON, so it was left alone (" + ex.Message + ")", ex);
+        }
     }
 }

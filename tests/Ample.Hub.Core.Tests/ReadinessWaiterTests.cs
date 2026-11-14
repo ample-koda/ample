@@ -24,7 +24,9 @@ public sealed class ReadinessWaiterTests
         FakeClock clock = new();
         int looks = 0;
 
-        string? found = await ReadinessWaiter.WaitAsync<string>(_ => Task.FromResult(++looks == 3 ? "ready" : null), () => clock.Now, clock.Delay, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), Pause, CancellationToken.None);
+        string? found = await ReadinessWaiter.WaitAsync<string>(
+            _ => Task.FromResult(++looks == 3 ? "ready" : null), () => clock.Now, clock.Delay,
+            TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), Pause, CancellationToken.None);
 
         Assert.Equal("ready", found);
         Assert.Equal(3, looks);
@@ -36,7 +38,9 @@ public sealed class ReadinessWaiterTests
         FakeClock clock = new();
         int looks = 0;
 
-        string? found = await ReadinessWaiter.WaitAsync<string>(_ => { looks++; return Task.FromResult<string?>(null); }, () => clock.Now, clock.Delay, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), Pause, CancellationToken.None);
+        string? found = await ReadinessWaiter.WaitAsync<string>(
+            _ => { looks++; return Task.FromResult<string?>(null); }, () => clock.Now, clock.Delay,
+            TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), Pause, CancellationToken.None);
 
         Assert.Null(found);
         Assert.InRange(looks, 4, 5);
@@ -70,7 +74,9 @@ public sealed class ReadinessWaiterTests
     {
         Stopwatch watch = Stopwatch.StartNew();
 
-        string? found = await ReadinessWaiter.WaitAsync<string>(async token => { await Task.Delay(Timeout.Infinite, token); return "never"; }, () => DateTime.UtcNow, Task.Delay, TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(30), Pause, CancellationToken.None);
+        string? found = await ReadinessWaiter.WaitAsync<string>(
+            async token => { await Task.Delay(Timeout.Infinite, token); return "never"; }, () => DateTime.UtcNow, Task.Delay,
+            TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(30), Pause, CancellationToken.None);
 
         Assert.Null(found);
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), "the 30 s look limit must not outlast the 200 ms deadline");
@@ -101,7 +107,9 @@ public sealed class ReadinessWaiterTests
     {
         FakeClock clock = new();
         using CancellationTokenSource cancel = new();
-        Task<string?> wait = ReadinessWaiter.WaitAsync<string>(async token => { await Task.Delay(Timeout.Infinite, token); return "never"; }, () => clock.Now, clock.Delay, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), Pause, cancel.Token);
+        Task<string?> wait = ReadinessWaiter.WaitAsync<string>(
+            async token => { await Task.Delay(Timeout.Infinite, token); return "never"; }, () => clock.Now, clock.Delay,
+            TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), Pause, cancel.Token);
 
         await cancel.CancelAsync();
 

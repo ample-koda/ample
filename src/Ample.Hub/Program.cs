@@ -25,7 +25,10 @@ internal static class Program
         HubSettings settings = HubSettings.Load(home);
         // no hub.json yet: the installer's choice (the Run entry is there or not) is the preference, not the record default
         bool firstSettings = !File.Exists(HubSettings.PathIn(home));
-        if (firstSettings) settings = settings with { StartAtLogin = RunEntryPolicy.InitialPreference(new RunEntryStore(), settings.StartAtLogin) };
+        if (firstSettings)
+        {
+            settings = settings with { StartAtLogin = RunEntryPolicy.InitialPreference(new RunEntryStore(), settings.StartAtLogin) };
+        }
         string? login = ValueOf(args, "--main-login");
         string? port = ValueOf(args, "--main-port");
         if (login is not null) settings = settings with { MainLogin = login == "on" };
@@ -89,11 +92,17 @@ internal static class Program
         if (problem is not null) MessageBox.Show(problem, "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
-    /// <summary>Waits (without blocking a UI thread, cancellable) until the main server is ready, then opens the browser; null when opened, else the problem.</summary>
+    /// <summary>
+    /// Waits (without blocking a UI thread, cancellable) until the main server is ready, then opens the browser; null when
+    /// opened, else the problem.
+    /// </summary>
     internal static async Task<string?> OpenStudioAsync(MainInstance main, CancellationToken cancellationToken)
     {
         InstanceRecord? record = await main.WaitReadyAsync(TimeSpan.FromSeconds(40), cancellationToken);
-        if (record is null || main.LaunchUrl(record) is not { } url) return "The AMPLE server did not start in time. Use the tray menu to start it again.";
+        if (record is null || main.LaunchUrl(record) is not { } url)
+        {
+            return "The AMPLE server did not start in time. Use the tray menu to start it again.";
+        }
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
         return null;
     }

@@ -1,6 +1,9 @@
 namespace Ample.Hub.Core;
 
-/// <summary>Polls until something is ready or a deadline passes. A probe has its own limit (and never runs past the deadline); cancelling the token ends the wait.</summary>
+/// <summary>
+/// Polls until something is ready or a deadline passes. A probe has its own limit (and never runs past the deadline);
+/// cancelling the token ends the wait.
+/// </summary>
 public static class ReadinessWaiter
 {
     /// <summary>Waits for a probe to give a value.</summary>
@@ -13,7 +16,9 @@ public static class ReadinessWaiter
     /// <param name="pause">The time between two looks.</param>
     /// <param name="cancellationToken">Ends the wait (an <see cref="OperationCanceledException"/>).</param>
     /// <returns>The value, or null when the deadline passed.</returns>
-    public static async Task<T?> WaitAsync<T>(Func<CancellationToken, Task<T?>> probe, Func<DateTime> utcNow, Func<TimeSpan, CancellationToken, Task> delay, TimeSpan timeout, TimeSpan probeLimit, TimeSpan pause, CancellationToken cancellationToken)
+    public static async Task<T?> WaitAsync<T>(
+        Func<CancellationToken, Task<T?>> probe, Func<DateTime> utcNow, Func<TimeSpan, CancellationToken, Task> delay,
+        TimeSpan timeout, TimeSpan probeLimit, TimeSpan pause, CancellationToken cancellationToken)
         where T : class
     {
         ArgumentNullException.ThrowIfNull(probe);
