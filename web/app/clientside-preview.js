@@ -106,8 +106,10 @@ async function planTakes(signal) {
   } catch { return null; }
 }
 
-async function buildAudio(node, context, signal, cache, serverSources) {
-  if (cache.has(node.id)) return cache.get(node.id);
+// role: the lane of a sequencer that was asked for (lane2); the plain take is the mix of all lanes, which must not stand for one lane (issue 80)
+async function buildAudio(node, context, signal, cache, serverSources, role = '') {
+  const cacheKey = role ? `${node.id}:${role}` : node.id;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
   signal.throwIfAborted();
   let takeId = plannedTakes?.get(node.id);
   if (!takeId) {
@@ -120,12 +122,12 @@ async function buildAudio(node, context, signal, cache, serverSources) {
     takeId = item?.takeId ?? item?.TakeId ?? S.build.takes[node.id];
   }
   if (!takeId) throw new Error(`The server did not return audio for “${node.id}”.`);
-  const response = await fetch(`/api/takes/${encodeURIComponent(takeId)}/download?format=wav`, { headers: { 'X-Ample-Token': getToken() }, signal });
-  if (!response.ok) throw new Error(`Could not read the stored audio for “${node.id}” (${response.status}).`);
+  const response = await fetch(`/api/takes/${encodeURIComponent(takeId)}/download?format=wav${role ? `&role=${encodeURIComponent(role)}` : ''}`, { headers: { 'X-Ample-Token': getToken() }, signal });
+  if (!response.ok) throw new Error(`Could not read the stored audio for “${node.id}${role ? ` (${role})` : ''}” (${response.status}).`);
   const decoded = await context.decodeAudioData(await response.arrayBuffer());
   const audio = { sampleRate: decoded.sampleRate, channels: Array.from({ length: decoded.numberOfChannels }, (_, channel) => decoded.getChannelData(channel).slice()) };
   serverSources.add(node.id);
-  return cacheAudio(node.id, audio, cache);
+  return cacheAudio(cacheKey, audio, cache);
 }
 
 async function effectiveSeed(block, signal) {
@@ -830,7 +832,8 @@ export async function buildAndPlayClientPreview() {
             return result[output] || null;
           } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
-        const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
+        const lane = /^laned+$/.test(output || '') ? output : '';   // only the connected lane is taken from the server take
+        const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources, lane);
         memo.set(key, audio);
         return audio;
       }
