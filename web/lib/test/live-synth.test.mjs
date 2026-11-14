@@ -55,13 +55,18 @@ test('events can be placed with a tempo map (a tempo change inside the song)', a
   assert.deepEqual(constant.map((e) => e.start), eventsInWindow(rows, { ppq: 1000, bpm: 120, from: 0, to: 10 }).map((e) => e.start));
 });
 
-import { eventsInWindow as heldWindow } from '../live-synth.mjs';
-import { test as heldTest } from 'node:test';
-import heldAssert from 'node:assert/strict';
-heldTest('a note already sounding at the left edge is cropped to the window start', () => {
+test('a note already sounding at the left edge is cropped to the window start', () => {
   const rows = [{ at: 0, length: 960, pitch: 60, velocity: 100 }];
   const args = { ppq: 480, bpm: 120, from: 0.5, to: 1 };
-  heldAssert.equal(heldWindow(rows, args).length, 0);
-  const [e] = heldWindow(rows, { ...args, sustained: true });
-  heldAssert.equal(e.start, 0.5); heldAssert.ok(Math.abs(e.duration - 0.5) < 1e-9);
+  assert.equal(eventsInWindow(rows, args).length, 0);
+  const [e] = eventsInWindow(rows, { ...args, sustained: true });
+  assert.equal(e.start, 0.5); assert.ok(Math.abs(e.duration - 0.5) < 1e-9);
+});
+
+test('a held note with less than the minimum duration left is skipped, not stretched past its end', () => {
+  const rows = [{ at: 0, length: 960, pitch: 60, velocity: 100 }];   // ends at 1 s
+  const args = { ppq: 480, bpm: 120, from: 0.99, to: 2, sustained: true };
+  assert.equal(eventsInWindow(rows, args).length, 0);
+  const [e] = eventsInWindow(rows, { ...args, from: 0.95 });
+  assert.ok(Math.abs(e.duration - 0.05) < 1e-9);
 });
