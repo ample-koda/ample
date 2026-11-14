@@ -811,7 +811,11 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
                 Assert.Equal(project ? "project" : server ? "server" : "none", status.Source);
                 // what the search really uses, with a project key (Windows) or without
                 string? used = AiService.ResolveBraveKey(project ? "synthetic-project-marker" : null, id);
-                Assert.Equal(project ? "synthetic-project-marker" : !string.IsNullOrWhiteSpace(perProject) ? perProject : !string.IsNullOrWhiteSpace(global) ? global : null, used);
+                string? expected = null;
+                if (!string.IsNullOrWhiteSpace(global)) expected = global;
+                if (!string.IsNullOrWhiteSpace(perProject)) expected = perProject;
+                if (project) expected = "synthetic-project-marker";
+                Assert.Equal(expected, used);
                 // after clearing the project key the source is the server key, or none
                 AiProjectSecretStore.Clear(home, id);
                 Assert.Equal(server ? "server" : "none", AiService.BraveKeyStatus(home, id).Source);
@@ -830,7 +834,11 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
     {
         string perProjectName;
         using (JsonDocument manifest = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder, ".ample", "project.json"))))
-            perProjectName = "AMPLE_BRAVE_SEARCH_API_KEY_" + manifest.RootElement.GetProperty("id").GetString()!.Replace("-", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+        {
+            string projectGuid = manifest.RootElement.GetProperty("id").GetString()!;
+            perProjectName = "AMPLE_BRAVE_SEARCH_API_KEY_"
+                + projectGuid.Replace("-", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+        }
         const string serverMarker = "synthetic-server-brave-marker";
         const string projectMarker = "synthetic-project-brave-marker";
         try
@@ -849,7 +857,8 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
             Assert.DoesNotContain(serverMarker, text, StringComparison.Ordinal);
             if (OperatingSystem.IsWindows())
             {
-                Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { braveSearchApiKey = projectMarker })).StatusCode);
+                HttpResponseMessage saved = await Post("/api/project/settings", new { braveSearchApiKey = projectMarker });
+                Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
                 text = await Text("/api/project/settings");
                 using (JsonDocument doc = JsonDocument.Parse(text))
                 {
@@ -860,7 +869,9 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
 
                 Assert.DoesNotContain(serverMarker, text, StringComparison.Ordinal);
                 Assert.DoesNotContain(projectMarker, text, StringComparison.Ordinal);
-                Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { braveSearchApiKey = "", clearBraveSearchApiKey = true })).StatusCode);
+                HttpResponseMessage cleared = await Post(
+                    "/api/project/settings", new { braveSearchApiKey = "", clearBraveSearchApiKey = true });
+                Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
                 Assert.Contains("\"braveSearchSource\":\"server\"", await Text("/api/project/settings"), StringComparison.Ordinal);
             }
 
