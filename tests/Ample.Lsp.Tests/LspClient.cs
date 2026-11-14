@@ -40,6 +40,8 @@ internal sealed class LspClient : IAsyncDisposable
     private readonly Task<int> serverTask;
     private readonly Task pump;
     private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonObject>> pending = new();
+    // Responses to SendIdAsync requests stay here after delivery: the reader removes the entry from 'pending' as soon as the answer arrives, which can be before ResponseAsync looks it up.
+    private readonly ConcurrentDictionary<long, Task<JsonObject>> sent = new();
     private readonly Channel<JsonObject> notifications = Channel.CreateUnbounded<JsonObject>();
     private long next;
 
@@ -105,13 +107,15 @@ internal sealed class LspClient : IAsyncDisposable
     {
         if (register)
         {
-            pending[id] = new TaskCompletionSource<JsonObject>(TaskCreationOptions.RunContinuationsAsynchronously);
+            TaskCompletionSource<JsonObject> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            pending[id] = tcs;
+            sent[id] = tcs.Task;
         }
 
         await channel.WriteAsync(JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = parameters }), cts.Token);
     }
 
-    public Task<JsonObject> ResponseAsync(long id) => pending[id].Task.WaitAsync(TimeSpan.FromSeconds(20));
+    public Task<JsonObject> ResponseAsync(long id) => sent[id].WaitAsync(TimeSpan.FromSeconds(20));
 
     public async Task NotifyAsync(string method, object? parameters) => await channel.WriteAsync(JsonSerializer.Serialize(new { jsonrpc = "2.0", method, @params = parameters }), cts.Token);
 
