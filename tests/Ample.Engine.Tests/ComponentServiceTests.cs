@@ -113,7 +113,11 @@ public sealed class ComponentServiceTests : IDisposable
     [Fact]
     public void Every_version_lists_its_own_ports_and_properties_not_the_ones_of_the_default_version()
     {
-        string both = "component demo.fx.twice version 1.0.0 {\n  id \"com.demo.twice\"\n  input source: Notes\n  property copies: Int = 2\n  output notes: Notes\n  process {\n    emit source\n  }\n}\n" + "component demo.fx.twice version 2.0.0 {\n  id \"com.demo.twice\"\n  input feed: Notes\n  property repeats: Int = 2\n  output notes: Notes\n  process {\n    emit feed\n  }\n}\n";
+        static string Twice(string version, string port, string property)
+            => $"component demo.fx.twice version {version} {{\n  id \"com.demo.twice\"\n  input {port}: Notes\n"
+            + $"  property {property}: Int = 2\n  output notes: Notes\n  process {{\n    emit {port}\n  }}\n}}\n";
+
+        string both = Twice("1.0.0", "source", "copies") + Twice("2.0.0", "feed", "repeats");
         using ModuleService service = Service(both);
         ComponentListing twice = Assert.Single(ComponentCatalog.List(service, Song(), EngineRig.Spec).Components);
         ComponentVersionInfo older = twice.Versions.Single(x => x.Version == "1.0.0");
