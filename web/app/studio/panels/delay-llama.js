@@ -282,7 +282,7 @@ function delayLlamaPanel(context) {
       live.ctx ||= getContext();
       await live.ctx.resume?.();
       const tempo = Number(S.doc?.project?.tempo) || 120, ppq = Number(clip.params.ppq) > 0 ? Number(clip.params.ppq) : 1_000_000, all = absolute(parse(text, ppq));
-      const seconds = 60 / tempo, firstBar = 1 + from / (4 * seconds), notes = all;
+      const seconds = 60 / tempo, firstBar = 1 + from / (barBeats() * seconds), notes = all;
       const voice = await llamaLive(live.ctx);
       voice.connect(live.ctx.destination); voice.allOff();
       const start = rec.cur ?? { vowel: vowelOf(), mouth: mouthOf() };
@@ -290,7 +290,7 @@ function delayLlamaPanel(context) {
       const t0 = live.ctx.currentTime + 0.15;
       let end = t0;
       for (const n of notes) {
-        const place = ((n.bar - 1) * 4 + n.start / ppq) * seconds, length = Math.max(0.05, (n.length / ppq) * seconds);
+        const place = ((n.bar - 1) * barBeats() + n.start / ppq) * seconds, length = Math.max(0.05, (n.length / ppq) * seconds);
         if (place + length <= from) continue;   // already over at the place it starts from
         const at = t0 + Math.max(0, place - from), stop = t0 + place + length - from;
         voice.noteOn(n.pitch, n.velocity, at, n.fine || 0); voice.noteOff(n.pitch, stop); end = Math.max(end, stop);

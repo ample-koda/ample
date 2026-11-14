@@ -1,4 +1,5 @@
 import { isQuoted, quoteLiteral, unquoteLiteral } from '../lib/string-literal.mjs';
+import { SEED_LINE } from '../lib/seed-line.mjs';
 import { aceDefaults, withEngineModel } from '../lib/ace-generation.mjs';
 import { propertiesIn, renderComponentUi, usesLayout } from './component-ui.js';
 import { liveOptions } from './component-live-ui.js';
@@ -344,7 +345,7 @@ export function renderProps() {
     const p = S.doc && S.doc.project;
     row('name', Object.assign(el('input', { value: p ? p.name : '', disabled: true })));
     row('tempo', Object.assign(el('input', { value: p ? p.tempo : '', disabled: true })));
-    const seedLine = /^((?:composition|project)\s+"(?:[^"\\]|\\.)*"\s*\{\s*(?:ample\s+\d+\s+)?tempo\s+\d+(?:\.\d+)?\s+master-seed\s+)(\d+)(\s*\})/m;
+    const seedLine = SEED_LINE;
     const seedMatch = seedLine.exec(S.doc?.text || '');
     const projectSeed = String(S.project?.masterSeed ?? '');
     const seedOverride = seedMatch && seedMatch[2] !== projectSeed ? seedMatch[2] : '';
