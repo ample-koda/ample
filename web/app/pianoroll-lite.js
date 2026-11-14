@@ -157,7 +157,12 @@ export function openPianoRollLite(blockId, options = {}) {
 
   // ---- view helpers ----
   const rows = () => mergeTies(absolute(model));
-  const explicitBars = () => { const part = (flat().nodes.find((n) => n.id === node.id) ?? node).parts?.[0]; return part ? part.length : 0; };
+  // the Jam of a row of a pattern is as long as the pattern, also where its last bars are empty (issue 252)
+  const explicitBars = () => {
+    if (options.pseudo && options.bars > 0) return options.bars;
+    const part = (flat().nodes.find((n) => n.id === node.id) ?? node).parts?.[0];
+    return part ? part.length : 0;
+  };
   const endBars = () => clipEndBars(explicitBars(), rows(), ppq, state.extraBars);
   const endTick = () => endBars() * bar;
   const rowsOf = (m) => mergeTies(absolute(m));
@@ -234,6 +239,8 @@ export function openPianoRollLite(blockId, options = {}) {
   const title = el('div', { className: 'mls-title metal-title' }, [el('span', { className: 'mls-eqbg', 'aria-hidden': 'true' }, Array.from({ length: 46 }, (_, i) => { const bar = el('i'); bar.style.setProperty('--d', (0.7 + ((i * 37) % 11) / 10 * 1.5).toFixed(2)); bar.style.setProperty('--dl', (((i * 13) % 10) / 10).toFixed(2)); return bar; })), jamIcon(), el('strong', { textContent: 'AMPLE Jam' }), el('span', { className: 'mls-clip', textContent: node.title }), badgeEl, menuButton, closeButton]);
   const toolsGroup = el('span', { className: 'mls-tools', role: 'group', 'aria-label': 'Tools' }, [...toolButtons.values()]);
   const toolbar = el('div', { className: 'mls-toolbar', role: 'toolbar', 'aria-label': 'AMPLE Jam tools' }, [el('span', { className: 'mls-tools mls-modes', role: 'group', 'aria-label': 'View' }, [...modeButtons.values()]), rowAdd, toolsGroup, typingButton, octaveDown, octaveLabel, octaveUp, ...(midiButton ? [midiButton] : []), touchButton, recordButton, playButton, selButton, stopButton, metroButton, loopButton, followButton, snapSelect, zoomOut, zoomIn, fitButton]);
+  // Record, Play, Stop and Loop stay in reach when the toolbar is scrolled on a phone (issue 259): the style pins them one after the other
+  [recordButton, playButton, stopButton, loopButton].forEach((button, i) => button.classList.add('mls-pin', `mls-pin-${i + 1}`));
   const ruler = el('canvas', { className: 'mls-ruler', 'aria-label': 'Ruler. Drag to make a loop bracket, click to set the playhead, double-click for the whole clip, right-click to clear.' });
   const keys = el('canvas', { className: 'mls-keys', 'aria-label': 'Piano keys. Press to hear a note.' });
   const grid = el('canvas', { className: 'mls-grid', tabIndex: 0, 'aria-label': 'Notes. Draw with the mouse, right-click deletes, Delete removes the selection, Space plays.' });

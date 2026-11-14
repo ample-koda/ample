@@ -842,7 +842,7 @@ function paintPatterns(host, locked) {
       const jamId = 'sq-' + (owner.block || owner.path || 'sequence') + '·' + c.name + '·' + current.name;
       const ownerOpen = () => Boolean(Q.seq) && (Q.blockId || '') === owner.block && Q.path === owner.path;
       const openJam = () => {
-        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite(jamId, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), voiceColor: /^#[0-9a-f]{6}$/i.test(c.settings.color ?? '') ? c.settings.color : colorOf(Q.seq.channels.indexOf(c)), pseudo: { id: jamId, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => {
+        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite(jamId, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), voiceColor: /^#[0-9a-f]{6}$/i.test(c.settings.color ?? '') ? c.settings.color : colorOf(Q.seq.channels.indexOf(c)), bars: current.bars, pseudo: { id: jamId, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => {
           if (!ownerOpen()) { toast('This Jam belongs to another sequencer: nothing was written.'); return false; }
           stageQuietly(setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()));
           return true;
