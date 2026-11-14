@@ -3,6 +3,7 @@
 import { el } from './ui.js';
 import { edit, flat, subscribe } from './store.js';
 import { playerState } from './player.js';
+import { outputLevels } from './playback-volume.js';
 import { blockLevels } from './play-fx.js';
 import { chainActive, chainLevels, chainPreview, chainState, onChain, startChain, stopChain } from './live-chain.js';
 
@@ -89,8 +90,9 @@ function animate() {
     const box = document.querySelector('#b-mixer.on');
     if (!box || !bars) return;
     const state = playerState();
+    const out = state.playing ? outputLevels() : { left: 0, right: 0 };   // the shared output: what is audible, whichever player makes it (take, loop, Hear it)
     const set = (bar, level) => { bar.style.height = `${Math.round((dbOf(level) + 60) / 60 * 100)}%`; };
-    set(bars.left, state.playing ? state.leftLevel || 0 : 0); set(bars.right, state.playing ? state.rightLevel || 0 : 0);
+    set(bars.left, out.left); set(bars.right, out.right);
     const levels = state.playing ? blockLevels() : null;
     for (const m of chanMeters) {
       const own = chainActive() && m.src ? chainLevels(m.src) : null;   // the live chain taps every input itself, left and right
@@ -100,7 +102,7 @@ function animate() {
     }
     for (const m of stripMeters) {
       const own = m.master ? null : (levels?.get(m.id) || 0);
-      if (m.master) { set(m.bars[0], state.playing ? state.leftLevel || 0 : 0); set(m.bars[1], state.playing ? state.rightLevel || 0 : 0); } else { set(m.bars[0], own); set(m.bars[1], own); }
+      if (m.master) { set(m.bars[0], out.left); set(m.bars[1], out.right); } else { set(m.bars[0], own); set(m.bars[1], own); }
     }
     frame = requestAnimationFrame(tick);
   };

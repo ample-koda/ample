@@ -36,6 +36,16 @@ export class ReverbStream {
     });
   }
 
+  /**
+   * Forgets the sound that was in the room (rings, damping and the low-cut), as a room that was never fed:
+   * a bypassed live reverb calls it when it stops computing, so waking it up does not play old sound.
+   */
+  reset() {
+    this.state = 0;
+    for (const comb of this.combs) { comb.ring.fill(0); comb.at = 0; comb.store = 0; }
+    for (const allpass of this.allpasses) { allpass.ring.fill(0); allpass.at = 0; }
+  }
+
   /** One sample in (-1..1), one sample out. */
   process(input) {
     const pcm = inputPcm(input);

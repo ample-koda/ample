@@ -978,6 +978,77 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Equal(both, await File.ReadAllTextAsync(Path.Combine(folder, "disk-conflict.amplet"), CancellationToken.None));
     }
 
+    private async Task<string?> DefaultEngine()
+    {
+        using JsonDocument document = JsonDocument.Parse(await Text("/api/project/settings"));
+        JsonElement engine = document.RootElement.GetProperty("defaultEngine");
+        return engine.ValueKind == JsonValueKind.String ? engine.GetString() : null;
+    }
+
+    [Fact]
+    public async Task The_default_engine_is_kept_when_left_out_and_cleared_by_an_empty_string_or_null()
+    {
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { defaultEngine = "turbo" })).StatusCode);
+        Assert.Equal("turbo", await DefaultEngine());
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { fullDetailDays = 11 })).StatusCode);
+        Assert.Equal("turbo", await DefaultEngine());   // left out: kept
+
+        foreach (object clear in new object[] { new { defaultEngine = "" }, new { defaultEngine = "   " }, new { defaultEngine = (string?)null } })
+        {
+            Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { defaultEngine = "turbo" })).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", clear)).StatusCode);
+            Assert.Null(await DefaultEngine());
+        }
+    }
+
+    [Fact]
+    public async Task A_saved_build_parallelism_above_the_server_limit_does_not_block_other_settings_and_no_new_value_above_it_is_taken()
+    {
+        int limit;
+        using (JsonDocument settings = JsonDocument.Parse(await Text("/api/project/settings")))
+        {
+            limit = settings.RootElement.GetProperty("parallelismLimit").GetInt32();
+        }
+
+        string file = Path.Combine(folder, ".ample", "project.json");
+        ProjectManifest manifest = ProjectFile.Parse(await File.ReadAllTextAsync(file));
+        await File.WriteAllTextAsync(file, ProjectFile.Serialize(manifest with { Settings = manifest.Settings with { BuildParallelism = limit + 5 } }));
+        async Task<int?> Saved() { using JsonDocument d = JsonDocument.Parse(await Text("/api/project/settings")); JsonElement e = d.RootElement.GetProperty("buildParallelism"); return e.ValueKind == JsonValueKind.Number ? e.GetInt32() : null; }
+
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { fullDetailDays = 11 })).StatusCode);   // an unrelated change
+        Assert.Equal(limit + 5, await Saved());
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { buildParallelism = limit + 5 })).StatusCode);   // the saved value sent back
+        Assert.NotEqual(HttpStatusCode.OK, (await Post("/api/project/settings", new { buildParallelism = limit + 6 })).StatusCode);   // another value above the limit
+        Assert.Equal(limit + 5, await Saved());
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { buildParallelism = 1 })).StatusCode);
+        Assert.Equal(1, await Saved());
+    }
+
+    [Fact]
+    public async Task The_estimate_of_a_cold_build_counts_the_blocks_that_wait_for_a_stale_one_and_says_so()
+    {
+        // nothing is built yet: every block renders, and the master only after the blocks before it (counting the stale blocks alone gives two of the three)
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), "composition \"s\" { ample 1  tempo 120  master-seed 1 }\nmidi-clip c {\n  chords Am\n  bars 1\n}\npiano p pinned@2.0 at 1 for 1 {\n  set felt-piano\n  from c.notes -> notes\n}\nmaster master {\n  channels stereo\n}\n");
+        using JsonDocument cold = JsonDocument.Parse(await Text("/api/build/estimate?path=song.amplet"));
+        Assert.True(cold.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal(3, cold.RootElement.GetProperty("blocks").GetInt32());   // the clip, the piano and the master
+        Assert.True(cold.RootElement.GetProperty("seconds").GetDouble() > 0);
+        Assert.Contains("only render if the block before them changes the sound", cold.RootElement.GetProperty("text").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_build_teaches_a_pace_per_block_type_from_the_time_the_blocks_really_worked()
+    {
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), "composition \"s\" { ample 1  tempo 120  master-seed 1 }\nmidi-clip c {\n  chords Am\n  bars 1\n}\npiano p pinned@2.0 at 1 for 1 {\n  set felt-piano\n  from c.notes -> notes\n}\nmaster master {\n  channels stereo\n}\n");
+        using HttpResponseMessage build = await Post("/api/build", new { path = "song.amplet", intent = "bake" });
+        Assert.True(build.IsSuccessStatusCode, await build.Content.ReadAsStringAsync(CancellationToken.None));
+        using JsonDocument stats = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder, ".ample", "analysis", "build-stats.json")));
+        JsonElement paces = stats.RootElement.GetProperty("paces");
+        Assert.True(paces.EnumerateObject().Any(), "no pace was learned");
+        Assert.All(paces.EnumerateObject(), p => Assert.True(p.Value.GetDouble() > 0, p.Name));
+        Assert.Equal(1, stats.RootElement.GetProperty("builds").GetInt32());
+    }
+
     private async Task<string> Text(string path) => await http.GetStringAsync(path, CancellationToken.None);
 
     private async Task<HttpResponseMessage> Post(string path, object body) => await http.PostAsync(path, Json(body), CancellationToken.None);

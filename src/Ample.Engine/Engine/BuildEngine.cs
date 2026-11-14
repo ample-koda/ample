@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -88,7 +89,8 @@ public sealed record BlockOverride(string Block, ulong? Seed, string? Intent, bo
 /// <param name="Status"><c>cached</c>, <c>rendered</c>, <c>deferred</c>, <c>skipped</c>, <c>failed</c> or <c>cancelled</c>.</param>
 /// <param name="TakeId">The take, when there is one.</param>
 /// <param name="Message">Why it was skipped or failed.</param>
-public sealed record BlockResult(string Block, string Status, string? TakeId, string? Message);
+/// <param name="Seconds">Only for a block that rendered: the seconds it really worked (reading its inputs and rendering and storing it), not the time it waited for the scheduler or for its inputs. <c>null</c> for every other block.</param>
+public sealed record BlockResult(string Block, string Status, string? TakeId, string? Message, double? Seconds = null);
 
 /// <summary>The outcome of a build.</summary>
 /// <param name="Blocks">Per block, in build order.</param>
@@ -377,6 +379,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         FromLine? dropped = null;
         Dictionary<string, byte[]> inputs = [];
         List<Func<Task>> loads = [];   // audio is read only when the block must render: a cache hit resolves from take ids alone
+        TimeSpan loading = TimeSpan.Zero;
         foreach (FromLine f in block.Dependencies().Where(f => !f.Disabled))
         {
             BlockResult? up = results.Get(f.Block);
@@ -661,7 +664,10 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             return new BlockResult(owner.Name, "adopted", kept.TakeId, null);
         }
 
+        long loadStart = Stopwatch.GetTimestamp();
         foreach (Func<Task> load in loads) await load().ConfigureAwait(false);
+        loading += Stopwatch.GetElapsedTime(loadStart);   // the reads happen here now, after the cache lookup; still a local of this block alone
+        long workStart = Stopwatch.GetTimestamp();
         TakeTicket ticket = await bank.BeginAsync(plan, cancellationToken).ConfigureAwait(false);
         try
         {
@@ -680,7 +686,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             if (metadata != "{}" && !outputs.Any(o => o.Role == "render-recipe")) storedOutputs.Add(("render-recipe", new MemoryStream(Encoding.UTF8.GetBytes(metadata))));
             TakeRecord take = await ticket.CommitAsync(storedOutputs, metadata, cancellationToken).ConfigureAwait(false);
             string? report = owner.Type is "meter" or "trim" && outputs.FirstOrDefault(o => o.Role == "report") is { } measured ? System.Text.Encoding.UTF8.GetString(measured.Data) : null;
-            return new BlockResult(owner.Name, "rendered", take.TakeId, report);
+            return new BlockResult(owner.Name, "rendered", take.TakeId, report, (loading + Stopwatch.GetElapsedTime(workStart)).TotalSeconds);
         }
         catch (OperationCanceledException)
         {

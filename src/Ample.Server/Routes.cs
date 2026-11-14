@@ -695,7 +695,9 @@ public static class Routes
             ProjectManifest manifest = ProjectFile.Parse(await File.ReadAllTextAsync(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), c.RequestAborted));
             long used = await JournalRetention.StorageBytesAsync(s.Context.Fs, s.Root, c.RequestAborted);
             long budget = manifest.Settings.BlackBox.BudgetBytes;
-            return Ok(new { usedBytes = used, warnAtBytes = budget / 5, budgetBytes = budget, state = used >= budget ? "limit" : used >= budget / 5 ? "warning" : "ok" });
+            long warnAt = JournalRetention.WarnAtBytes(budget);
+            string state = used >= budget ? "limit" : used >= warnAt ? "warning" : "ok";
+            return Ok(new { usedBytes = used, warnAtBytes = warnAt, budgetBytes = budget, state });
         });
         add("GET", "/api/redux/compact-preview", "redux", "Previews the exact records and bytes an explicit AMPLE Redux compaction would affect.", false, s is null ? null : async (HttpContext c) =>
         {
@@ -1885,7 +1887,7 @@ public static class Routes
                 return Ok(new { configured = true, connected = false });
             }
         });
-        add("POST", "/api/project/settings", "project", "Changes AMPLE Redux retention, the default engine, independent Faer capability routes and buildParallelism (how many blocks a build renders at once: 1 to the limit of the server, or null for the server's number; the master seed is a dangerous act of its own).", true, s is null ? null : async (HttpContext c) =>
+        add("POST", "/api/project/settings", "project", "Changes AMPLE Redux retention, the default engine (an empty string or null clears it, leaving it out keeps it), independent Faer capability routes and buildParallelism (how many blocks a build renders at once: 1 to the limit of the server, or null for the server's number; the master seed is a dangerous act of its own).", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
             ProjectManifest m = ProjectFile.Parse(await File.ReadAllTextAsync(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), c.RequestAborted));
@@ -1946,11 +1948,11 @@ public static class Routes
             if (b.TryGetProperty("buildParallelism", out JsonElement parallelismJson))
             {
                 if (parallelismJson.ValueKind == JsonValueKind.Null) parallelism = null;
-                else if (parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int asked) && asked >= 1 && asked <= Ample.Engine.Engine.BuildParallelism.ServerLimit) parallelism = asked;
+                else if (parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int asked) && asked >= 1 && (asked <= Ample.Engine.Engine.BuildParallelism.ServerLimit || asked == old.BuildParallelism)) parallelism = asked;
                 else throw new AmpleException("AMP5941", $"The build parallelism must be a whole number from 1 to {Ample.Engine.Engine.BuildParallelism.ServerLimit} (what this server allows), or null for the number of the server.");
             }
 
-            await s.Bus.ExecuteAsync(new SetSettingsCommand(old with { BuildParallelism = parallelism, BlackBox = bb, DefaultEngine = b.TryGetProperty("defaultEngine", out JsonElement e) && e.ValueKind == JsonValueKind.String && e.GetString()!.Length > 0 ? e.GetString() : old.DefaultEngine, ProjectPanel = panel, Faer = faer, Koda = koda, Ai = ai }), c.RequestAborted);
+            await s.Bus.ExecuteAsync(new SetSettingsCommand(old with { BuildParallelism = parallelism, BlackBox = bb, DefaultEngine = b.TryGetProperty("defaultEngine", out JsonElement e) && e.ValueKind is JsonValueKind.String or JsonValueKind.Null ? (string.IsNullOrWhiteSpace(e.GetString()) ? null : e.GetString()) : old.DefaultEngine, ProjectPanel = panel, Faer = faer, Koda = koda, Ai = ai }, old), c.RequestAborted);
             return Ok(new { saved = true });
         });
         add("POST", "/api/acts/master-seed", "acts", "Dry run of changing the master seed; returns a token and what to type.", false, s is null ? null : async (HttpContext c) =>
@@ -2291,10 +2293,10 @@ public static class Routes
             (string text, long version) = s.Texts.Revert(path);
             return await Task.FromResult(Ok(new { path, text, version, dirty = false }));
         });
-        add("GET", "/api/tabs/state", "documents", "The state of open files for the tab row (paths, comma separated): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.", false, s is null ? null : async (HttpContext c) =>
+        add("GET", "/api/tabs/state", "documents", "The state of open files for the tab row (repeated paths parameters): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.", false, s is null ? null : async (HttpContext c) =>
         {
             List<object> items = [];
-            foreach (string raw in c.Request.Query["paths"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(200))
+            foreach (string raw in c.Request.Query["paths"].Select(p => p ?? string.Empty).Where(p => p.Length > 0).Take(200))
             {
                 string path = WorkingPath(raw);
                 bool exists = File.Exists(ProjectPath.Resolve(s.Fs, s.Root, path));
@@ -2831,7 +2833,8 @@ public static class Routes
             return Ok(await AiService.CachedAsync(c.Request.Headers["X-Ample-Context"].ToString(), $"file|{location}|{path}|{offset}", () => Task.FromResult(AiContext.File_(s, path, AiService.ContextText(c.Request.Headers["X-Ample-Context"].ToString(), path, location), offset, location == "work" ? "task work folder (read-only)" : "project proposal"))));
         });
         add("GET", "/api/ai/status", "ai", "Where the AI assistant stands: what the server allows, what the project chose, whether Codex is installed and (with auth=true) whether it is signed in.", false, s is null ? null : async (HttpContext c) => Ok(await s.Ai.StatusAsync(c.Request.Query["auth"].ToString() == "true", c.RequestAborted)));
-        add("GET", "/api/ai/models", "ai", "The models Codex offers and the current account's usage limits.", false, s is null ? null : async (HttpContext c) => Ok(await s.Ai.ModelsAsync(c.RequestAborted)));
+        add("GET", "/api/ai/models", "ai", "The models Codex offers and the current account's usage limits.", false,
+            s is null ? null : async (HttpContext c) => Ok(await s.Ai.ModelsAsync(c.RequestAborted, c.Request.Query["koda"] == "1")));
         add("GET", "/api/ai/policy", "ai", "What this server allows projects to use of Codex.", false, s is null ? null : () => Ok(AiPolicy.Read().ToJson()));
         add("POST", "/api/ai/policy", "ai", "Changes what this server allows projects to use of Codex (capabilities only: they say what a project MAY choose).", true, s is null ? null : async (HttpContext c) =>
         {

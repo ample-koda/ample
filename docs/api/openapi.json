@@ -7279,7 +7279,7 @@
         "tags": [
           "project"
         ],
-        "summary": "Changes AMPLE Redux retention, the default engine, independent Faer capability routes and buildParallelism (how many blocks a build renders at once: 1 to the limit of the server, or null for the server\u0027s number; the master seed is a dangerous act of its own).",
+        "summary": "Changes AMPLE Redux retention, the default engine (an empty string or null clears it, leaving it out keeps it), independent Faer capability routes and buildParallelism (how many blocks a build renders at once: 1 to the limit of the server, or null for the server\u0027s number; the master seed is a dangerous act of its own).",
         "description": "Changes state: journaled in AMPLE Redux as a command.",
         "security": [
           {
@@ -8350,7 +8350,7 @@
         "tags": [
           "documents"
         ],
-        "summary": "The state of open files for the tab row (paths, comma separated): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.",
+        "summary": "The state of open files for the tab row (repeated paths parameters): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.",
         "description": "Read only.",
         "security": [
           {

@@ -85,7 +85,7 @@ export function runFirstRunWizard(state, projectName = '') {
     }
 
     async function advance() {
-      if (busy) return;
+      if (busy || !controls) return;
       busy = true; next.disabled = back.disabled = true; message.textContent = '';
       try {
         const current = page();
@@ -108,6 +108,15 @@ export function runFirstRunWizard(state, projectName = '') {
       else if (event.key === 'Enter' && !event.shiftKey && !(event.target instanceof HTMLTextAreaElement) && !(event.target instanceof HTMLButtonElement) && !(event.target instanceof HTMLSelectElement)) { event.preventDefault(); advance(); }
     });
 
-    settingsForWizard(holder).then((c) => { controls = c; paint(); }).catch((error) => { body.append(el('p', { className: 'seerr error', textContent: `${error.code ? `${error.code}: ` : ''}${error.message || error}` })); });
+    // loading, ready and error states: forward navigation stays disabled until the settings controls exist; on an error Retry or "Later" (the setup stays pending)
+    function load() {
+      controls = null; next.disabled = back.disabled = true; body.replaceChildren(el('p', { className: 'note', textContent: 'Loading the project settings...' }));
+      settingsForWizard(holder).then((c) => { controls = c; next.disabled = false; paint(); }).catch((error) => {
+        body.replaceChildren(el('p', { className: 'seerr error', textContent: `${error.code ? `${error.code}: ` : ''}${error.message || error}` }),
+          el('button', { id: 'fr-retry', type: 'button', className: 'primary', textContent: 'Retry', onclick: () => load() }),
+          el('button', { id: 'fr-later', type: 'button', textContent: 'Later (open the project as it is)', onclick: () => { host.remove(); behind.forEach((node) => { node.inert = false; }); document.body.classList.remove('fr-open'); resolve({ open: null, play: false }); } }));
+      });
+    }
+    load();
   });
 }
