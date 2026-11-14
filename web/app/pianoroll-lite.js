@@ -45,6 +45,7 @@ import { extendedParts } from '../lib/clip-parts.mjs';
 import { GRID_KEYS, LONG_PRESS_MS, ROLL_KEYS, isLongPress, longPressAction, pinchStart, pinchView } from '../lib/lite-touch.mjs';
 import { adjustRows, clampMove, clipboardText, cloneRows, copyItems, createThrottle, drawRow, duplicateRows, itemsFromText, mergedRows, moveRows, pasteRows, quantizeRows, removeRows, resizeRows, rowIndexAt, sliceRow, soundingPitches, soundingRows, velocityRows } from '../lib/lite-gestures.mjs';
 import { barBeats } from '../lib/meter.mjs';
+import { songSeconds } from '../lib/song-position.mjs';
 import { songBarNow } from './play-fx.js';
 import { clipTickAt } from '../lib/song-follow.mjs';
 
@@ -1104,10 +1105,15 @@ export function openPianoRollLite(blockId, options = {}) {
   async function editAsText() { const { gotoSource } = await import('./panels.js'); flushWheel(); await commit(model); saveViewNow(); panel.close(); gotoSource(node); }
   /** Plays the built song from the left edge of the view (the roll's own play button plays only these notes, without a build). */
   async function playSongFromView() {
-    const take = S.build?.takes?.master || Object.values(S.build?.takes || {}).at(-1) || null;
+    const takes = S.build?.takes || {};
+    const take = takes.master || Object.values(takes).at(-1) || null;
     if (!take) { toast('Build the song first to hear it here; the play button plays the notes without a build.'); return; }
+    if (!takes.master) toast('The song has no master take: the last built block is played.');   // the take that is played is named (issue 242)
     stopPlayback(false);
-    try { await playSong(take, Math.max(0, (state.scrollX / state.pxBeat) * 60 / bpm())); } catch (error) { toast(error.message); }
+    // the left edge of the view is a place in the clip: the song position is where the clip is placed plus that place (the first placement of the clip)
+    const part = options.pseudo ? null : (flat().nodes.find((n) => n.id === node.id) ?? node).parts?.[0];
+    const seconds = songSeconds({ placedAtBar: part?.at ?? 1, localBeats: state.scrollX / state.pxBeat, beatsPerBar: barBeats(), bpm: bpm() });
+    try { await playSong(take, seconds); } catch (error) { toast(error.message); }
   }
   async function humMelody() {
     if (locked) return;
