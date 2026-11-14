@@ -27,7 +27,10 @@ export function resolveScene(scene, state) {
     if (!INTENTS.includes(intent)) { problems.push({ lane, clip, reason: `unknown intent "${intent}"` }); continue; }
     if (intent === 'keep') { batch.push({ lane, action: 'keep' }); continue; }
     if (intent === 'stop') { batch.push({ lane, action: 'stop' }); continue; }
-    if (clip === undefined || clip === null || !state.available(clip, lane)) { problems.push({ lane, clip, reason: 'clip is not available' }); continue; }
+    if (clip === undefined || clip === null || !state.available(clip, lane)) {
+      problems.push({ lane, clip, reason: 'clip is not available' });
+      continue;
+    }
     batch.push({ lane, action: 'start', clip });
   }
   return problems.length ? { ok: false, problems } : { ok: true, batch };
@@ -49,7 +52,11 @@ export function createSceneQueue(deps) {
   let pending = null;
   const listeners = new Set();
   const view = () => pending && { scene: copyScene(pending.scene), at: pending.at };
-  const emit = () => { for (const fn of [...listeners]) { try { fn(view()); } catch { /* a broken listener must not break the queue */ } } };
+  const emit = () => {
+    for (const fn of [...listeners]) {
+      try { fn(view()); } catch { /* a broken listener must not break the queue */ }
+    }
+  };
   const time = () => deps.now();
   const settle = () => { if (pending?.committed && time() >= pending.at) { pending = null; emit(); } };
 
@@ -63,11 +70,16 @@ export function createSceneQueue(deps) {
      */
     queue(scene, state) {
       settle();
-      if (pending?.committed) return { ok: false, problems: [{ lane: null, clip: null, reason: 'a scene is already scheduled on the next downbeat' }] };
+      if (pending?.committed) {
+        const reason = 'a scene is already scheduled on the next downbeat';
+        return { ok: false, problems: [{ lane: null, clip: null, reason }] };
+      }
       const r = resolveScene(scene, state);
       if (!r.ok) return r;
       const at = deps.nextDownbeat();
-      if (!Number.isFinite(at) || !(at >= time())) return { ok: false, problems: [{ lane: null, clip: null, reason: `no valid downbeat (${at})` }] };
+      if (!Number.isFinite(at) || !(at >= time())) {
+        return { ok: false, problems: [{ lane: null, clip: null, reason: `no valid downbeat (${at})` }] };
+      }
       pending = { scene: copyScene(scene), at, batch: copyBatch(r.batch), committed: false };
       emit();
       return { ok: true, batch: copyBatch(r.batch), at };
@@ -102,10 +114,14 @@ export function createSceneQueue(deps) {
  * Returns { queue(scene), cancel, tick, settle, stopAll, pending, onChange }. stopAll() also drops the pending scene.
  */
 export function createEngineSceneQueue(engine, { available, leadSeconds } = {}) {
-  const q = createSceneQueue({ now: engine.now, nextDownbeat: engine.nextBar, launch: (at, batch) => engine.launchBatch(at, batch), leadSeconds });
+  const q = createSceneQueue({
+    now: engine.now, nextDownbeat: engine.nextBar, launch: (at, batch) => engine.launchBatch(at, batch), leadSeconds,
+  });
   const running = () => {
     const lanes = {};
-    for (const [name, clips] of Object.entries(engine.state())) lanes[name] = { playing: clips.find((c) => c.status === 'playing')?.id ?? null };
+    for (const [name, clips] of Object.entries(engine.state())) {
+      lanes[name] = { playing: clips.find((c) => c.status === 'playing')?.id ?? null };
+    }
     return { lanes, available };
   };
   return {

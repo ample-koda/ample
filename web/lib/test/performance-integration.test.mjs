@@ -8,7 +8,8 @@ import { createEngineSceneQueue } from '../../app/performance-scenes.js';
 const load = (p) => import(p).catch(() => null);
 const engineMod = await load('../../app/performance.js');
 const setMod = await load('../performance-set.mjs');
-const skip = engineMod && setMod && engineMod.createPerformance && setMod.isAvailable ? false : 'needs performance.js (266) and performance-set.mjs (272)';
+const present = engineMod && setMod && engineMod.createPerformance && setMod.isAvailable;
+const skip = present ? false : 'needs performance.js (266) and performance-set.mjs (272)';
 
 const src = (take) => ({ kind: 'source', take });
 const live = (t) => ({ ok: true, items: [src(t)] });
@@ -36,7 +37,10 @@ const h = (log, lane, clip) => log.find((x) => x.lane === lane && x.clip === cli
 test('scene: three lanes swap on one bar line, same timestamp, old clips stop at it', { skip }, () => {
   const r = rig();
   r.engine.launch('drums', 'A'); r.engine.launch('bass', 'A'); r.engine.launch('vocal', 'A'); r.at(100.5);
-  const scene = { id: 'chorus', lanes: [{ lane: 'drums', intent: 'start', clip: 'B' }, { lane: 'bass', intent: 'start', clip: 'B' }, { lane: 'vocal', intent: 'keep' }] };
+  const scene = {
+    id: 'chorus',
+    lanes: [{ lane: 'drums', intent: 'start', clip: 'B' }, { lane: 'bass', intent: 'start', clip: 'B' }, { lane: 'vocal', intent: 'keep' }],
+  };
   const res = r.scenes.queue(scene);
   assert.equal(res.ok, true); assert.equal(res.at, 102);
   r.at(101.85); assert.equal(r.scenes.tick(), false);

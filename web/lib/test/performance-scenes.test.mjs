@@ -42,7 +42,9 @@ test('cancel works just before the deadline, not after', () => {
 
 test('a second scene cannot replace one already handed to the transport; after the downbeat it can', () => {
   const { launched } = setup();
-  let next = 4; const q2 = createSceneQueue({ now: () => t2, nextDownbeat: () => next, launch: (at, b) => launched.push({ at, b }) }); let t2 = 0;
+  let next = 4;
+  const q2 = createSceneQueue({ now: () => t2, nextDownbeat: () => next, launch: (at, b) => launched.push({ at, b }) });
+  let t2 = 0;
   q2.queue(scene, state); t2 = 3.95; q2.tick();
   const r = q2.queue(scene, state);
   assert.equal(r.ok, false); assert.match(r.problems[0].reason, /already scheduled/);
