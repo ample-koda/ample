@@ -10,8 +10,10 @@ test('output-critical stages are not offered, heaviest first', () => {
 });
 
 test('routing, volume, pan, case variants, typeless and non-effect items are never offered', () => {
-  const all = [{ id: 'v', tpl: 'volume' }, { id: 'p', tpl: 'pan' }, { id: 'L', tpl: 'Limiter' }, { id: 'bus1', tpl: 'bus' }, { id: 's', tpl: 'send' },
-    { id: 'x' }, { id: 'src', tpl: 'reverb', kind: 'source' }, { id: 'ok', tpl: 'chorus', kind: 'effect' }, null];
+  const all = [
+    { id: 'v', tpl: 'volume' }, { id: 'p', tpl: 'pan' }, { id: 'L', tpl: 'Limiter' }, { id: 'bus1', tpl: 'bus' }, { id: 's', tpl: 'send' },
+    { id: 'x' }, { id: 'src', tpl: 'reverb', kind: 'source' }, { id: 'ok', tpl: 'chorus', kind: 'effect' }, null,
+  ];
   assert.deepEqual(optionalBypassList(all).map((i) => i.id), ['ok']);
   assert.deepEqual(optionalBypassList(null), []);
 });
@@ -92,9 +94,11 @@ test('verdict follows the measured peak when there is one, the estimate otherwis
   assert.equal(r.estimatedHeadroom, 0); assert.equal(r.verdict, 'tight');          // clamped, not negative
   const meas = createRehearsal({ items: heavy, measured: true });
   meas.load('steady', 0.3); meas.deadlines('steady', 100, 0);
-  r = meas.report(); assert.equal(r.verdict, 'ok'); assert.equal(r.estimatedHeadroom, 0);   // the measured figure rules, estimate stays labelled
+  // the measured figure rules, estimate stays labelled
+  r = meas.report(); assert.equal(r.verdict, 'ok'); assert.equal(r.estimatedHeadroom, 0);
   const hot = createRehearsal({ items: [], measured: true }); hot.load('steady', 0.75); assert.equal(hot.report().verdict, 'tight');
-  hot.load('steady', 1.2); const rh = hot.report(); assert.equal(rh.verdict, 'at-risk'); assert.equal(rh.measuredHeadroom, 0);   // over 100 percent clamps to 0
+  // over 100 percent clamps to 0
+  hot.load('steady', 1.2); const rh = hot.report(); assert.equal(rh.verdict, 'at-risk'); assert.equal(rh.measuredHeadroom, 0);
 });
 
 test('budget zero or negative falls back to the default instead of dividing by zero', () => {

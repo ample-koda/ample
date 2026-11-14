@@ -7,7 +7,10 @@ export const OUTPUT_CRITICAL = ['limiter', 'volume', 'pan', 'master', 'output', 
 const isCritical = (tpl) => OUTPUT_CRITICAL.includes(String(tpl).toLowerCase());
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
-/** Effects of the chain that may be bypassed under overload, heaviest first. items: [{ id, tpl, kind? }]. Items without a type, and non-effects (kind given and not 'effect'), are never offered. */
+/**
+ * Effects of the chain that may be bypassed under overload, heaviest first. items: [{ id, tpl, kind? }].
+ * Items without a type, and non-effects (kind given and not 'effect'), are never offered.
+ */
 export function optionalBypassList(items) {
   return (Array.isArray(items) ? items : [])
     .filter((i) => i && i.id != null && i.tpl && !isCritical(i.tpl) && (i.kind === undefined || i.kind === 'effect'))
@@ -17,7 +20,8 @@ export function optionalBypassList(items) {
 
 /**
  * Records one rehearsal. Phases: 'scene:<name>' for each armed scene switch and 'steady'.
- * measured=false when renderCapacity is unavailable (null): load readings are then ignored, so the report can only show the labelled estimate
+ * measured=false when renderCapacity is unavailable (null): load readings are then ignored,
+ * so the report can only show the labelled estimate
  * plus the scheduling deadlines that were actually counted.
  *   load(phase, value)            a render-capacity reading (0..1+); null, NaN and negative readings are ignored, not counted as 0
  *   deadlines(phase, total, missed) `total` scheduling deadlines were checked, `missed` of them were late
@@ -25,7 +29,10 @@ export function optionalBypassList(items) {
  */
 export function createRehearsal({ items = [], measured = false, budget } = {}) {
   const phases = new Map();
-  const phase = (name) => { if (!phases.has(name)) phases.set(name, { name, peak: 0, sum: 0, n: 0, missed: 0, checked: 0 }); return phases.get(name); };
+  const phase = (name) => {
+    if (!phases.has(name)) phases.set(name, { name, peak: 0, sum: 0, n: 0, missed: 0, checked: 0 });
+    return phases.get(name);
+  };
   const count = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 && v !== null ? Math.floor(Number(v)) : 0);
   return {
     load(name, value) {
@@ -53,7 +60,8 @@ export function createRehearsal({ items = [], measured = false, budget } = {}) {
       else verdict = sampled.length || checked ? 'ok' : 'untested';   // nothing was run: the estimate alone is not a pass
       return {
         measured, basis, estimatedHeadroom: clamp01(1 - estimated),
-        // Measured headroom only where the browser reports render capacity and at least one reading arrived; the estimate stays labelled as such.
+        // Measured headroom only where the browser reports render capacity and at least one reading arrived;
+        // the estimate stays labelled as such.
         measuredHeadroom: basis === 'measured' ? clamp01(1 - peak) : null,
         missedDeadlines: missed, checkedDeadlines: checked, phases: list, verdict,
         optionalBypass: optionalBypassList(items),
@@ -68,7 +76,10 @@ export function fallbackIndicator(chainItems, titleOf = (id) => id) {
   return ids.length ? `Fallback active: ${ids.join(', ')} bypassed` : '';
 }
 
-/** A prepared fallback: the user picks which optional effects may be bypassed. Output-critical and unknown ids are dropped, duplicates collapse. */
+/**
+ * A prepared fallback: the user picks which optional effects may be bypassed.
+ * Output-critical and unknown ids are dropped, duplicates collapse.
+ */
 export function chooseFallbacks(items, selectedIds) {
   const allowed = new Set(optionalBypassList(items).map((i) => i.id));
   return [...new Set(Array.isArray(selectedIds) ? selectedIds : [])].filter((id) => allowed.has(id));
