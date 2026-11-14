@@ -172,4 +172,125 @@ public sealed class BuildStatsTests
             Directory.Delete(root, true);
         }
     }
+
+    private const double Song = 100;
+    private static (string Type, long Bytes, double Seconds) Block(string type, double seconds) => (type, 1000, seconds);
+
+    private static T WithRoot<T>(Func<string, T> body)
+    {
+        string root = Directory.CreateTempSubdirectory("ample-stats-").FullName;
+        try
+        {
+            return body(root);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void Block_times_teach_a_pace_per_type_and_a_type_never_seen_falls_back_to_light_or_heavy()
+    {
+        WithRoot(root =>
+        {
+            BuildStats stats = BuildStats.Load(root);
+            double lightGuess = stats.Estimate(["delay"], Song).Seconds / Song, heavyGuess = stats.Estimate(["gm"], Song).Seconds / Song;
+            stats.Record([Block("reverb", 100), Block("reverb", 100), Block("eq", 10)], Song);   // reverb 1 s per s of song, eq 0.1 (both light)
+            BuildStats learned = BuildStats.Load(root);
+            double reverb = learned.Estimate(["reverb"], Song).Seconds / Song, eq = learned.Estimate(["eq"], Song).Seconds / Song;
+            Assert.Equal(1.0, reverb, 6);
+            Assert.Equal(0.1, eq, 6);
+            Assert.NotEqual(reverb, eq);
+            Assert.Equal("learned", learned.Estimate(["reverb"], Song).Basis);
+
+            // a second build moves the pace by the sliding average (Alpha 0.3), per type
+            learned.Record([Block("reverb", 200)], Song);
+            Assert.Equal(1.0 + (0.3 * (2.0 - 1.0)), learned.Estimate(["reverb"], Song).Seconds / Song, 6);
+            Assert.Equal(0.1, learned.Estimate(["eq"], Song).Seconds / Song, 6);   // eq did not render: unchanged
+
+            // never seen: light types follow the (learned) light pace, heavy ones the heavy pace; neither is the first guess any more for the kind that was in the build
+            double light = learned.Estimate(["delay"], Song).Seconds / Song, heavy = learned.Estimate(["gm"], Song).Seconds / Song;
+            Assert.NotEqual(lightGuess, light);
+            Assert.Equal(heavyGuess, heavy, 6);
+            Assert.Equal(learned.Estimate(["chorus"], Song).Seconds, learned.Estimate(["delay"], Song).Seconds, 9);
+            return 0;
+        });
+    }
+
+    [Fact]
+    public void Learned_paces_survive_a_reload_and_an_old_file_without_paces_still_loads()
+    {
+        WithRoot(root =>
+        {
+            BuildStats.Load(root).Record([Block("reverb", 50), Block("gm", 400)], Song);
+            string file = Path.Combine(root, ".ample", "analysis", "build-stats.json");
+            Assert.Contains("\"paces\"", File.ReadAllText(file), StringComparison.Ordinal);
+            BuildStats again = BuildStats.Load(root);
+            Assert.Equal(0.5, again.Estimate(["reverb"], Song).Seconds / Song, 6);
+            Assert.Equal(4.0, again.Estimate(["gm"], Song).Seconds / Song, 6);
+            Assert.Equal(1, again.Estimate(["reverb"], Song).Builds);
+
+            File.WriteAllText(file, "{\"builds\":3,\"lightPace\":0.2,\"heavyPace\":2.0,\"bytesPerSecond\":{\"reverb\":1000}}");
+            BuildStats old = BuildStats.Load(root);
+            BuildEstimate estimate = old.Estimate(["reverb", "gm"], Song);
+            Assert.Equal("learned", estimate.Basis);
+            Assert.Equal(3, estimate.Builds);
+            Assert.Equal(Song * (0.2 + 2.0), estimate.Seconds, 6);
+            Assert.Equal(1000 * Song + (Song * 44100 * 4), estimate.Bytes);
+
+            // a damaged paces entry is ignored instead of poisoning the estimate
+            File.WriteAllText(file, "{\"builds\":1,\"paces\":{\"reverb\":-1,\"eq\":0}}");
+            Assert.Equal(Song * 0.03, BuildStats.Load(root).Estimate(["reverb"], Song).Seconds, 6);
+            return 0;
+        });
+    }
+
+    [Fact]
+    public void The_schedule_uses_the_learned_pace_of_each_type()
+    {
+        WithRoot(root =>
+        {
+            BuildStats stats = BuildStats.Load(root);
+            stats.Record([Block("slow", 100), Block("fast", 10)], Song);   // slow 1.0, fast 0.1 per second of song
+            BuildStats learned = BuildStats.Load(root);
+            RenderStep[] chain = [Step("fast"), Step("slow", 0), Step("fast", 1)];             // a chain: the sum
+            RenderStep[] beside = [Step("slow"), Step("fast"), Step("fast")];                  // the slow one beside two fast ones
+            foreach (int workers in (int[])[1, 4])
+            {
+                Assert.Equal(1.2, learned.Wall(chain, workers), 6);
+            }
+
+            Assert.Equal(1.2, learned.Wall(beside, 1), 6);
+            Assert.Equal(1.0, learned.Wall(beside, 4), 6);                                      // the slow one decides
+            Assert.Equal(120, learned.Estimate(beside, Song, 1).Seconds, 4);
+            Assert.Equal(100, learned.Estimate(beside, Song, 4).Seconds, 4);
+            Assert.Equal(1.2 / 1.0, learned.Concurrency(beside, 4), 6);                         // all the work over the wall time
+            Assert.Equal(1.0, learned.Concurrency(chain, 4), 6);
+            return 0;
+        });
+    }
+
+    [Fact]
+    public void Without_block_times_the_old_record_path_learns_exactly_as_before()
+    {
+        WithRoot(root =>
+        {
+            BuildStats stats = BuildStats.Load(root);
+            stats.Record([("reverb", 1000L), ("reverb", 1000L)], Song, 6, 2);   // 6 s on average two at once: 12 s of work for two light blocks
+            BuildStats back = BuildStats.Load(root);
+            double expectedLight = 0.03 + (0.3 * ((12.0 / (2 * Song)) - 0.03));
+            Assert.Equal(expectedLight, back.Estimate(["reverb"], Song).Seconds / Song, 3);
+            Assert.Equal(expectedLight, back.Estimate(["delay"], Song).Seconds / Song, 3);   // no per type pace: light and heavy are the only paces
+            Assert.DoesNotContain("\"reverb\": 0", File.ReadAllText(Path.Combine(root, ".ample", "analysis", "build-stats.json")), StringComparison.Ordinal);
+
+            // nothing to learn from an empty build, a song without length or a block time that is not a number
+            BuildStats other = BuildStats.Load(root);
+            other.Record(new List<(string Type, long Bytes, double Seconds)>(), Song);
+            other.Record([Block("reverb", 5)], 0);
+            other.Record([Block("reverb", double.NaN)], Song);
+            Assert.Equal(1, BuildStats.Load(root).Estimate(["reverb"], Song).Builds);
+            return 0;
+        });
+    }
 }

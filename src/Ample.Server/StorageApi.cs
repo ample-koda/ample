@@ -98,7 +98,17 @@ internal static class StorageApi
             BuildStats stats = BuildStats.Load(s.Root);
             HashSet<string> done = [.. report.Blocks.Where(b => b.Status == "rendered").Select(b => b.Block)];
             IReadOnlyList<RenderStep> steps = BuildStats.StepsOf(parsed.Blocks.Select(b => (b.Name, b.Type, (IReadOnlyList<string>)[.. b.Froms.Select(f => f.Block)])), done);
-            stats.Record(rendered, Math.Max(1, s.Engine.SongSeconds(parsed)), elapsedSeconds, stats.Concurrency(steps, Workers(s)));   // how many blocks really ran at once decides how much work the elapsed time stands for
+            double songSeconds = Math.Max(1, s.Engine.SongSeconds(parsed));
+            List<Ample.Engine.Engine.BlockResult> renderedBlocks = [.. report.Blocks.Where(b => b.Status == "rendered" && b.TakeId is not null)];
+            if (renderedBlocks.Count > 0 && renderedBlocks.All(b => b.Seconds is not null))
+            {
+                // every block says how long it really worked: learn a pace per block type from that (waiting and the guessed concurrency play no part)
+                stats.Record([.. renderedBlocks.Select(b => (types.GetValueOrDefault(b.Block, "mixer"), s.Bank.SizeOfTake(b.TakeId!), b.Seconds!.Value))], songSeconds);
+            }
+            else
+            {
+                stats.Record(rendered, songSeconds, elapsedSeconds, stats.Concurrency(steps, Workers(s)));   // an older report has no times: how many blocks really ran at once decides how much work the elapsed time stands for
+            }
         }
         catch (Exception ex) when (ex is IOException or AmpleException)
         {
