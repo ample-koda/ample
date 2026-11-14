@@ -79,18 +79,28 @@ public sealed class AceStepTests : IDisposable
 
     private static readonly int[] Bars = [1, 2];
 
-    private static string JobParams(string job, string settings, string seed = "42", string lyrics = "secret words of the song", string voice = "anna", double? beatsPerBar = null, int[]? bars = null)
+    private static string JobParams(
+        string job, string settings, string seed = "42", string lyrics = "secret words of the song", string voice = "anna",
+        double? beatsPerBar = null, int[]? bars = null)
     {
         Directory.CreateDirectory(Path.Combine(job, "in"));
         File.WriteAllText(Path.Combine(job, "in", "lyrics.bin"), lyrics);
-        return JsonSerializer.Serialize(new { jobDir = job, block = new { type = "ai-voice", name = "vox", parameters = new { voice, steps = "6" } }, seed, sampleRate = 8000, samplesPerBar = 4000, firstBar = 1, barCount = 2, activeBars = bars ?? Bars, beatsPerBar, inputs = new { lyrics = "in/lyrics.bin" }, settings = JsonDocument.Parse(settings).RootElement });
+        return JsonSerializer.Serialize(new
+        {
+            jobDir = job,
+            block = new { type = "ai-voice", name = "vox", parameters = new { voice, steps = "6" } },
+            seed, sampleRate = 8000, samplesPerBar = 4000, firstBar = 1, barCount = 2, activeBars = bars ?? Bars, beatsPerBar,
+            inputs = new { lyrics = "in/lyrics.bin" },
+            settings = JsonDocument.Parse(settings).RootElement,
+        });
     }
 
     private async Task<PluginResult> Render(string settings, string seed = "42", double? beatsPerBar = null, int[]? bars = null)
     {
         string job = Path.Combine(folder, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(job);
-        return await host.RenderAsync(Paths.Find("acestep"), new PluginJob(job, JobParams(job, settings, seed, beatsPerBar: beatsPerBar, bars: bars), TimeSpan.FromSeconds(60)));
+        string jobParams = JobParams(job, settings, seed, beatsPerBar: beatsPerBar, bars: bars);
+        return await host.RenderAsync(Paths.Find("acestep"), new PluginJob(job, jobParams, TimeSpan.FromSeconds(60)));
     }
 
     [Fact]
@@ -251,7 +261,8 @@ public sealed class AceStepTests : IDisposable
     public async Task Unsupported_meters_are_refused_before_any_server_request(double beats)
     {
         using StubServer server = await StubServer.StartAsync("ok");
-        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(async () => await Render(Settings(server.Endpoint, null), beatsPerBar: beats));
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(
+            async () => await Render(Settings(server.Endpoint, null), beatsPerBar: beats));
         Assert.Contains("2/4, 3/4 and 4/4", ex.Message, StringComparison.Ordinal);
         Assert.Empty((await server.RequestsAsync()).EnumerateArray());
     }
@@ -260,7 +271,8 @@ public sealed class AceStepTests : IDisposable
     public async Task A_gap_between_active_bars_is_refused_but_duplicate_bars_are_not_a_gap()
     {
         using StubServer server = await StubServer.StartAsync("ok");
-        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(async () => await Render(Settings(server.Endpoint, null), bars: [1, 3]));
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(
+            async () => await Render(Settings(server.Endpoint, null), bars: [1, 3]));
         Assert.Contains("gaps between its active bars", ex.Message, StringComparison.Ordinal);
         Assert.Empty((await server.RequestsAsync()).EnumerateArray());
 
@@ -300,7 +312,8 @@ public sealed class AceStepTests : IDisposable
     public async Task Demucs_failures_are_told_apart_and_only_a_missing_module_gets_the_install_hint(string python, string expected)
     {
         using StubServer server = await StubServer.StartAsync("ok");
-        string settings = JsonSerializer.Serialize(new { endpoint = server.Endpoint, pollMs = 20, vocalIsolation = "demucs", demucsPython = python });
+        string settings = JsonSerializer.Serialize(
+            new { endpoint = server.Endpoint, pollMs = 20, vocalIsolation = "demucs", demucsPython = python });
         AmpleException ex = await Assert.ThrowsAsync<AmpleException>(async () => await Render(settings));
         Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("pip install", ex.Message, StringComparison.Ordinal);
@@ -346,9 +359,12 @@ public sealed class AceStepTests : IDisposable
         using JsonDocument provenance = JsonDocument.Parse(bank.GetTake(vox.TakeId!).MetaJson);
         Assert.Equal(1, provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("synthRequest").GetProperty("guidance_scale").GetInt32());
         // the provenance names the adapter by plugin.mjs and the file it starts processes with: a change in either shows
-        string adapter = provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("software").GetProperty("adapterSha256").GetString()!;
-        string Sha(string file) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(Paths.PluginFolder, "acestep", file))));
-        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(Sha("plugin.mjs") + Sha("run-process.mjs")))), adapter);
+        JsonElement software = provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("software");
+        string adapter = software.GetProperty("adapterSha256").GetString()!;
+        string Sha(string file) =>
+            Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(Paths.PluginFolder, "acestep", file))));
+        byte[] both = Encoding.ASCII.GetBytes(Sha("plugin.mjs") + Sha("run-process.mjs"));
+        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(both)), adapter);
         Assert.Contains("templateDefaults", plan.SettingsJson, StringComparison.Ordinal);
         Assert.Contains("pluginSettings", plan.SettingsJson, StringComparison.Ordinal);
         Assert.Equal("cached", (await engine.BuildAsync(doc, new BuildOptions(ExtraRenderers: renderers))).Blocks.Single(b => b.Block == "vox").Status);

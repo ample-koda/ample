@@ -1,5 +1,8 @@
-// A stand-in for ace-server, for tests and for trying the plugin without a GPU. It implements POST /lm, POST /synth, GET /props, GET /job and DELETE /job (recorded, see GET /cancelled; the real ace-server route is unconfirmed).
-// Usage: node stub-server.mjs [mode]; modes: ok, nobase, error500, malformed, neverdone, noaudio, jobfailed, nodelete (DELETE answers 404), stall:<lm|synth|extract> (that job stays running), hangresult:<lm|synth|extract> (the result of that job is never answered). Prints "PORT <n>" when it listens.
+// A stand-in for ace-server, for tests and for trying the plugin without a GPU. It implements POST /lm, POST /synth,
+// GET /props, GET /job and DELETE /job (recorded, see GET /cancelled; the real ace-server route is unconfirmed).
+// Usage: node stub-server.mjs [mode]; modes: ok, nobase, error500, malformed, neverdone, noaudio, jobfailed, nodelete
+// (DELETE answers 404), stall:<lm|synth|extract> (that job stays running), hangresult:<lm|synth|extract> (the result
+// of that job is never answered). Prints "PORT <n>" when it listens.
 import http from 'node:http';
 
 const mode = process.argv[2] || 'ok';
@@ -59,7 +62,8 @@ const server = http.createServer((req, res) => {
 
     job.count++;
     if (mode === 'jobfailed') { return send(200, JSON.stringify({ status: 'failed', error: 'synthetic ACE worker failure detail' })); }
-    return send(200, JSON.stringify(mode === 'neverdone' || mode === 'nodelete' || (baseMode === 'stall' && kindOf(job) === modeKind) || job.count < 3 ? { status: 'running', progress: 0.3 } : { status: 'done' }));
+    const hold = mode === 'neverdone' || mode === 'nodelete' || (baseMode === 'stall' && kindOf(job) === modeKind) || job.count < 3;
+    return send(200, JSON.stringify(hold ? { status: 'running', progress: 0.3 } : { status: 'done' }));
   }
   return send(404, '{}');
 });

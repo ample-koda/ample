@@ -1,4 +1,5 @@
-// node --test plugins/acestep/plugin.test.mjs: drives plugin.mjs over its protocol against stub-server.mjs; covers cancel (DELETE /job) without the host, which stops the plugin right after it sends cancel.
+// node --test plugins/acestep/plugin.test.mjs: drives plugin.mjs over its protocol against stub-server.mjs; covers
+// cancel (DELETE /job) without the host, which stops the plugin right after it sends cancel.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -29,7 +30,11 @@ async function renderAndCancel(endpoint, cancelAfterMs) {
     if (msg.id === 1 && (msg.result || msg.error)) { resolve(msg.error ? msg.error.message : 'ok'); }
   }));
   const send = o => plugin.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...o }) + '\n');
-  send({ id: 1, method: 'render', params: { jobDir, block: { type: 'ai-voice', name: 'v', parameters: {} }, seed: '1', sampleRate: 8000, samplesPerBar: 4000, firstBar: 1, barCount: 2, activeBars: [1, 2], inputs: { lyrics: 'in/lyrics.bin' }, settings: { endpoint, pollMs: 50 } } });
+  const renderParams = {
+    jobDir, block: { type: 'ai-voice', name: 'v', parameters: {} }, seed: '1', sampleRate: 8000, samplesPerBar: 4000,
+    firstBar: 1, barCount: 2, activeBars: [1, 2], inputs: { lyrics: 'in/lyrics.bin' }, settings: { endpoint, pollMs: 50 },
+  };
+  send({ id: 1, method: 'render', params: renderParams });
   setTimeout(() => send({ method: 'cancel', params: { id: 1 } }), cancelAfterMs);
   const error = await answer;
   plugin.kill();
@@ -53,7 +58,8 @@ test('when the server has no DELETE route the log says the job may still run', a
     // nodelete answers like neverdone otherwise only for DELETE; make the job stay running through a status that never finishes
     const { error, logs } = await renderAndCancel(s.endpoint, 100);
     assert.equal(error, 'cancelled');
-    assert.ok(logs.some(l => l.startsWith('warn: could not ask the ACE-Step server to stop job') && l.includes('may still run')), logs.join('\n'));
+    const asked = l => l.startsWith('warn: could not ask the ACE-Step server to stop job') && l.includes('may still run');
+    assert.ok(logs.some(asked), logs.join('\n'));
     assert.equal((await (await fetch(s.endpoint + '/cancelled')).json()).length, 0);
   } finally { s.child.kill(); }
 });

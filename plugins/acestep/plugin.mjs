@@ -36,10 +36,16 @@ function sha256Of(file) {
   return cache[key];
 }
 
-/** The sha256 of the adapter as it runs: plugin.mjs and the file it starts processes with (run-process.mjs), so the provenance names both. */
+/**
+ * The sha256 of the adapter as it runs: plugin.mjs and the file it starts processes with (run-process.mjs), so the
+ * provenance names both.
+ */
 function adapterSha256() {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  return crypto.createHash('sha256').update(sha256Of(path.join(here, 'plugin.mjs'))).update(sha256Of(path.join(here, 'run-process.mjs'))).digest('hex');
+  return crypto.createHash('sha256')
+    .update(sha256Of(path.join(here, 'plugin.mjs')))
+    .update(sha256Of(path.join(here, 'run-process.mjs')))
+    .digest('hex');
 }
 
 /** How the voice is isolated from the synthesis: ace (an ACE-Step Base or SFT model), demucs (Demucs in a Python of your own) or off. The old boolean vocalExtraction=false still means off. */
@@ -53,7 +59,10 @@ async function call(url, options, timeoutMs) {
   let response;
   try { response = await fetch(url, { ...options, headers, signal: AbortSignal.timeout(timeoutMs) }); }
   catch (e) {
-    if (e.name === 'TimeoutError' || e.name === 'AbortError') { throw Object.assign(new Error('the ACE-Step server did not answer within ' + Math.round(timeoutMs / 1000) + ' seconds'), { timedOut: true }); }
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      const message = 'the ACE-Step server did not answer within ' + Math.round(timeoutMs / 1000) + ' seconds';
+      throw Object.assign(new Error(message), { timedOut: true });
+    }
     throw new Error('the ACE-Step server could not be reached (' + (e.cause && e.cause.code ? e.cause.code : e.name) + ')');
   }
   if (!response.ok) {
@@ -93,24 +102,39 @@ const KIND_DEFAULTS = { turbo: { steps: 8, guidance: 1, shift: 3 }, sft: { steps
 
 const exeName = (name) => name + (process.platform === 'win32' ? '.exe' : '');
 
-/** Runs one of the acestep.cpp command line tools; cancel and the time limit stop it. timeoutText is the message for a timeout (it names the stage). */
+/**
+ * Runs one of the acestep.cpp command line tools; cancel and the time limit stop it. timeoutText is the message for a
+ * timeout (it names the stage).
+ */
 async function runCli(exe, args, cwd, ctx, timeoutMs, timeoutText) {
   try { await runProcess(exe, args, { cwd, ctx, timeoutMs }); }
   catch (e) {
     if (e.kind === 'timeout') { throw new Error(path.basename(exe) + ' ' + timeoutText); }
-    if (e.kind === 'start') { throw new Error('could not start ' + path.basename(exe) + ' (' + e.message + '); check the setting aceBinFolder'); }
+    if (e.kind === 'start') {
+      throw new Error('could not start ' + path.basename(exe) + ' (' + e.message + '); check the setting aceBinFolder');
+    }
     if (e.kind === 'exit') { throw new Error(path.basename(exe) + ' failed (' + e.message + ')'); }
     throw e;
   }
 }
 
-/** Runs Demucs (python -m demucs) as an async child. The install hint only appears when Python is missing or reports that the module is missing; a timeout says so. */
+/**
+ * Runs Demucs (python -m demucs) as an async child. The install hint only appears when Python is missing or reports
+ * that the module is missing; a timeout says so.
+ */
 async function runDemucs(python, args, cwd, ctx, timeoutMs, timeoutText) {
   try { await runProcess(python, args, { cwd, ctx, timeoutMs }); }
   catch (e) {
     if (e.kind === 'timeout') { throw new Error('Demucs ' + timeoutText); }
-    if (e.kind === 'start') { throw new Error('Demucs could not run (' + (e.code === 'ENOENT' ? 'the Python in the setting demucsPython was not found' : e.message) + ')'); }
-    if (e.kind === 'exit') { throw new Error('Demucs failed (' + e.message + ')' + (/No module named/i.test(e.stderr || '') ? '; demucs is not installed in that Python: pip install demucs soundfile' : '')); }
+    if (e.kind === 'start') {
+      const why = e.code === 'ENOENT' ? 'the Python in the setting demucsPython was not found' : e.message;
+      throw new Error('Demucs could not run (' + why + ')');
+    }
+    if (e.kind === 'exit') {
+      const missing = /No module named/i.test(e.stderr || '');
+      const hint = missing ? '; demucs is not installed in that Python: pip install demucs soundfile' : '';
+      throw new Error('Demucs failed (' + e.message + ')' + hint);
+    }
     throw e;
   }
 }
@@ -147,25 +171,36 @@ serve({
     const isVoice = params.block.type === 'ai-voice';
     if (isVoice && !lyrics.trim()) { throw new Error('AI voice needs linked timed lyrics; open the Lyrics editor and connect its words output'); }
     const wanted = params.barCount * params.samplesPerBar;
-    // Meter (#330): beatsPerBar counts quarter notes per bar (missing or invalid: 4). The plugin sends 2, 3 or 4 (2/4, 3/4, 4/4) and refuses everything else before any server or GPU work starts.
+    // Meter (#330): beatsPerBar counts quarter notes per bar (missing or invalid: 4). The plugin sends 2, 3 or 4 (2/4,
+    // 3/4, 4/4) and refuses everything else before any server or GPU work starts.
     // 6/8 arrives as beatsPerBar 3 (three quarter notes per bar) and is therefore sent as 3/4; 6/4 (6), 5/4 (5) and 7/8 (3.5) are refused.
     const beatsPerBar = Number.isFinite(Number(params.beatsPerBar)) && Number(params.beatsPerBar) > 0 ? Number(params.beatsPerBar) : 4;
-    if (![2, 3, 4].includes(beatsPerBar)) { throw new Error('ACE-Step can only follow 2/4, 3/4 and 4/4 (a bar of ' + beatsPerBar + ' quarter notes is not supported); use a project meter with 2, 3 or 4 quarter notes per bar'); }
+    if (![2, 3, 4].includes(beatsPerBar)) {
+      throw new Error('ACE-Step can only follow 2/4, 3/4 and 4/4 (a bar of ' + beatsPerBar + ' quarter notes is not supported); '
+        + 'use a project meter with 2, 3 or 4 quarter notes per bar');
+    }
     // Gaps (#331): the generated sound is one continuous piece, so a block with silent gaps between its bars cannot be honored.
-    // The active bars are deduplicated and sorted first (a duplicate such as 3, 3 is not a gap); a real hole is refused before any server request, not partway through the build.
+    // The active bars are deduplicated and sorted first (a duplicate such as 3, 3 is not a gap); a real hole is refused
+    // before any server request, not partway through the build.
     const rawBars = Array.isArray(params.activeBars) ? params.activeBars.map(Number).filter(Number.isFinite) : [];
     // The block may sit later in the song (at 5 for 4): its sound is made as long as its own bars and placed where the block starts.
     const activeBars = rawBars.length ? [...new Set(rawBars)].sort((a, b) => a - b) : null;
-    if (activeBars && activeBars.some((bar, i) => i > 0 && bar !== activeBars[i - 1] + 1)) { throw new Error('ACE-Step makes one continuous region; this block has gaps between its active bars (' + activeBars.join(', ') + '). Use one contiguous block or split it into several blocks'); }
+    if (activeBars && activeBars.some((bar, i) => i > 0 && bar !== activeBars[i - 1] + 1)) {
+      throw new Error('ACE-Step makes one continuous region; this block has gaps between its active bars (' + activeBars.join(', ') + '). '
+        + 'Use one contiguous block or split it into several blocks');
+    }
     const activeCount = activeBars ? activeBars.length : params.barCount;
     const offset = activeBars ? Math.max(0, (activeBars[0] - params.firstBar) * params.samplesPerBar) : 0;
     // sing: how many bars the voice sings (ai-voice). ACE fills the length it is given, so the synthesis is made that long and the rest of the block stays silent.
     const singBars = isVoice && Number(String(p.sing || '').replace(/[^0-9.]/g, '')) > 0 ? Math.min(Number(String(p.sing).replace(/[^0-9.]/g, '')), activeCount) : activeCount;
     const sung = Math.round(singBars * params.samplesPerBar);
-    // One deadline for the whole render (setup calls, plan, synthesis, extraction, Demucs): every call, wait and child process below is limited by what is left of it.
-    const timeoutS = Number.isFinite(Number(s.timeoutS)) && Number(s.timeoutS) > 0 ? Number(s.timeoutS) : 900, timeoutMs = timeoutS * 1000, started = Date.now();
+    // One deadline for the whole render (setup calls, plan, synthesis, extraction, Demucs): every call, wait and child
+    // process below is limited by what is left of it.
+    const timeoutS = Number.isFinite(Number(s.timeoutS)) && Number(s.timeoutS) > 0 ? Number(s.timeoutS) : 900;
+    const timeoutMs = timeoutS * 1000, started = Date.now();
     const timeLeft = () => timeoutMs - (Date.now() - started);
-    const timedOut = stage => Object.assign(new Error('the ACE-Step render did not finish within ' + timeoutS + ' seconds (stage: ' + stage + ')'), { deadline: true });
+    const timedOut = stage => Object.assign(
+      new Error('the ACE-Step render did not finish within ' + timeoutS + ' seconds (stage: ' + stage + ')'), { deadline: true });
     const remaining = stage => { const left = timeLeft(); if (left <= 0) { throw timedOut(stage); } return left; };
     const cliTimeoutText = stage => 'did not finish within the render timeout of ' + timeoutS + ' seconds (stage: ' + stage + ')';
     const within = (ms, stage) => Math.max(250, Math.min(ms, remaining(stage)));
@@ -179,7 +214,10 @@ serve({
         if (read === 'json') { try { return await response.json(); } catch (e) { throw isAbort(e) ? e : new Error(notJson); } }
         return response;
       } catch (e) {
-        if (e.timedOut || isAbort(e)) { throw timeLeft() <= 300 ? timedOut(stage) : new Error('the ACE-Step server did not answer within ' + Math.round(ms / 1000) + ' seconds (stage: ' + stage + ')'); }
+        if (e.timedOut || isAbort(e)) {
+          if (timeLeft() <= 300) throw timedOut(stage);
+          throw new Error('the ACE-Step server did not answer within ' + Math.round(ms / 1000) + ' seconds (stage: ' + stage + ')');
+        }
         throw e;
       }
     };
@@ -191,7 +229,10 @@ serve({
     }
     const cli = backend === 'cli';
     if (cli && !s.aceBinFolder) { throw new Error('the command line backend needs the setting aceBinFolder (the folder with ace-lm and ace-synth)'); }
-    const getProps = cli ? async () => cliProps(s.modelsFolder) : async () => stageFetch('setup', endpoint + '/props', {}, 30000, 'json', 'the ACE-Step server did not return its model capabilities');
+    const getProps = cli
+      ? async () => cliProps(s.modelsFolder)
+      : async () => stageFetch(
+        'setup', endpoint + '/props', {}, 30000, 'json', 'the ACE-Step server did not return its model capabilities');
     const kindName = s.synthModel && s.synthModel !== 'default' ? s.synthModel : '';
     const family = /(?:^|-)(sft|base|turbo)(?:-|$)/i.exec(s.synthModelFile || '')?.[1].toLowerCase() || kindName.replace('xl-', '') || 'turbo';
     const synthKind = KIND_DEFAULTS[family] || KIND_DEFAULTS.turbo;
@@ -238,16 +279,24 @@ serve({
     const waitFor = async (id, stage) => {
       const [from, to, step, tau] = SPANS[stage] || [0, 1, stage, 30], began = Date.now();
       ctx.progress(from, step, null);
-      // Best effort and bounded to 5 seconds even when the deadline has passed. 2xx only means the server was asked to stop; the DELETE /job route is not confirmed against ace-server.
+      // Best effort and bounded to 5 seconds even when the deadline has passed. 2xx only means the server was asked to
+      // stop; the DELETE /job route is not confirmed against ace-server.
       const stopJob = async () => {
-        try { await call(endpoint + '/job?id=' + encodeURIComponent(id), { method: 'DELETE' }, 5000); ctx.log('info', 'asked the ACE-Step server to stop job ' + id + ' (the server may or may not honor it)'); }
+        try {
+          await call(endpoint + '/job?id=' + encodeURIComponent(id), { method: 'DELETE' }, 5000);
+          ctx.log('info', 'asked the ACE-Step server to stop job ' + id + ' (the server may or may not honor it)');
+        }
         catch { ctx.log('warn', 'could not ask the ACE-Step server to stop job ' + id + '; it may still run on the server'); }
       };
       for (;;) {
         if (ctx.isCancelled()) { await stopJob(); throw new Error('cancelled'); }
         if (timeLeft() <= 0) { await stopJob(); throw timedOut(stage); }
         let status;
-        try { status = await stageFetch(stage, endpoint + '/job?id=' + encodeURIComponent(id), {}, 30000, 'json', 'the ACE-Step server sent an answer that is not JSON'); }
+        try {
+          status = await stageFetch(
+            stage, endpoint + '/job?id=' + encodeURIComponent(id), {}, 30000, 'json',
+            'the ACE-Step server sent an answer that is not JSON');
+        }
         catch (e) { if (e.deadline) { await stopJob(); } throw e; }
         if (status.status === 'done') { ctx.progress(to, step, 1); return; }
         if (status.status === 'failed' || status.status === 'cancelled') { throw new Error('the ACE-Step server reported that the ' + stage + ' job ' + status.status + ': ' + JSON.stringify(status)); }
@@ -257,7 +306,9 @@ serve({
       }
     };
     const submit = async (stage, path, payload) => {
-      const answer = await stageFetch(stage, endpoint + path, { method: 'POST', headers: json, body: JSON.stringify(payload) }, 30000, 'json', 'the ACE-Step server sent an answer that is not JSON');
+      const answer = await stageFetch(
+        stage, endpoint + path, { method: 'POST', headers: json, body: JSON.stringify(payload) }, 30000, 'json',
+        'the ACE-Step server sent an answer that is not JSON');
       if (!answer.id) { throw new Error('the ACE-Step server did not return a job id'); }
       return answer.id;
     };
@@ -266,7 +317,9 @@ serve({
       const form = new FormData();
       form.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }), 'request.json');
       for (const [part, audio] of Object.entries(parts)) { form.append(part, new Blob([audio], { type: 'audio/wav' }), part + '.wav'); }
-      const answer = await stageFetch(stage, endpoint + '/synth', { method: 'POST', body: form }, 30000, 'json', 'the ACE-Step server sent an answer that is not JSON');
+      const answer = await stageFetch(
+        stage, endpoint + '/synth', { method: 'POST', body: form }, 30000, 'json',
+        'the ACE-Step server sent an answer that is not JSON');
       if (!answer.id) { throw new Error('the ACE-Step server did not return a job id'); }
       return answer.id;
     };
@@ -281,7 +334,8 @@ serve({
       if (!lm) { throw new Error('no ACE-Step language model (acestep-5Hz-lm-*.gguf) in modelsFolder'); }
       fs.writeFileSync(path.join(cliDir, 'req.json'), JSON.stringify({ ...b, lm_model: lm }));
       const st = stage('plan'); st.begin();
-      await runCli(cliTool('ace-lm'), ['--models', s.modelsFolder, '--request', 'req.json'], cliDir, ctx, remaining('plan'), cliTimeoutText('plan'));
+      await runCli(
+        cliTool('ace-lm'), ['--models', s.modelsFolder, '--request', 'req.json'], cliDir, ctx, remaining('plan'), cliTimeoutText('plan'));
       st.end();
       const file = fs.readdirSync(cliDir).filter(n => /^req.+\.json$/.test(n)).sort()[0];
       if (!file) { throw new Error('ace-lm wrote no plan'); }
@@ -291,34 +345,45 @@ serve({
       const id = await submit('plan', '/lm', b);
       ctx.log('info', 'plan requested');
       await waitFor(id, 'plan');
-      const plans = await stageFetch('plan', endpoint + '/job?id=' + encodeURIComponent(id) + '&result=1', {}, 60000, 'json', 'the ACE-Step server sent a plan that is not JSON');
+      const plans = await stageFetch(
+        'plan', endpoint + '/job?id=' + encodeURIComponent(id) + '&result=1', {}, 60000, 'json',
+        'the ACE-Step server sent a plan that is not JSON');
       return Array.isArray(plans) ? plans[0] : plans;
     };
     const synthOf = cli ? async (r, ref) => {
       fs.writeFileSync(path.join(cliDir, 'synth.json'), JSON.stringify(r));
       if (ref) { fs.writeFileSync(path.join(cliDir, 'ref.wav'), ref); }
       const st = stage('synthesis'); st.begin();
-      await runCli(cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'synth.json', ...(ref ? ['--ref-audio', 'ref.wav'] : []), ...(ref && r.task_type === 'cover' ? ['--src-audio', 'ref.wav'] : [])], cliDir, ctx, remaining('synthesis'), cliTimeoutText('synthesis'));
+      const synthArgs = ['--models', s.modelsFolder, '--request', 'synth.json'];
+      if (ref) synthArgs.push('--ref-audio', 'ref.wav');
+      if (ref && r.task_type === 'cover') synthArgs.push('--src-audio', 'ref.wav');
+      await runCli(cliTool('ace-synth'), synthArgs, cliDir, ctx, remaining('synthesis'), cliTimeoutText('synthesis'));
       st.end();
       return fs.readFileSync(path.join(cliDir, 'synth.wav'));
     } : async (r, ref) => {
-      const id = ref ? await submitWithAudio('synthesis', r, { ref_audio: ref, ...(r.task_type === 'cover' ? { audio: ref } : {}) }) : await submit('synthesis', '/synth', r);
+      const id = ref
+        ? await submitWithAudio('synthesis', r, { ref_audio: ref, ...(r.task_type === 'cover' ? { audio: ref } : {}) })
+        : await submit('synthesis', '/synth', r);
       ctx.log('info', ref ? 'audio requested (voice of the reference)' : 'audio requested');
       await waitFor(id, 'synthesis');
-      return firstAudioPart(await stageFetch('synthesis', endpoint + '/job?id=' + encodeURIComponent(id) + '&result=1', {}, 300000, 'buffer'));
+      const synthResult = endpoint + '/job?id=' + encodeURIComponent(id) + '&result=1';
+      return firstAudioPart(await stageFetch('synthesis', synthResult, {}, 300000, 'buffer'));
     };
     const extractOf = cli ? async (r, source) => {
       fs.writeFileSync(path.join(cliDir, 'source.wav'), source);
       fs.writeFileSync(path.join(cliDir, 'extract.json'), JSON.stringify(r));
       const st = stage('vocal extraction'); st.begin();
-      await runCli(cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'extract.json', '--src-audio', 'source.wav'], cliDir, ctx, remaining('vocal extraction'), cliTimeoutText('vocal extraction'));
+      await runCli(
+        cliTool('ace-synth'), ['--models', s.modelsFolder, '--request', 'extract.json', '--src-audio', 'source.wav'], cliDir, ctx,
+        remaining('vocal extraction'), cliTimeoutText('vocal extraction'));
       st.end();
       return fs.readFileSync(path.join(cliDir, 'extract.wav'));
     } : async (r, source) => {
       const id = await submitWithAudio('vocal extraction', r, { audio: source });
       ctx.log('info', 'vocal isolation requested');
       await waitFor(id, 'vocal extraction');
-      return firstAudioPart(await stageFetch('vocal extraction', endpoint + '/job?id=' + encodeURIComponent(id) + '&result=1', {}, 300000, 'buffer'));
+      const extractResult = endpoint + '/job?id=' + encodeURIComponent(id) + '&result=1';
+      return firstAudioPart(await stageFetch('vocal extraction', extractResult, {}, 300000, 'buffer'));
     };
     const plan = await planOf(body);
     if (!plan) { throw new Error('ACE-Step returned no plan'); }
@@ -342,7 +407,9 @@ serve({
       fs.writeFileSync(path.join(dir, 'in.wav'), audio);
       ctx.log('info', 'vocal isolation with demucs');
       const demucsMs = Math.min(1800000, remaining('demucs'));
-      await runDemucs(python, ['-m', 'demucs', '--two-stems=vocals', '-n', model, '-d', 'cpu', '-o', path.join(dir, 'out'), path.join(dir, 'in.wav')], dir, ctx, demucsMs, cliTimeoutText('demucs'));
+      await runDemucs(
+        python, ['-m', 'demucs', '--two-stems=vocals', '-n', model, '-d', 'cpu', '-o', path.join(dir, 'out'), path.join(dir, 'in.wav')],
+        dir, ctx, demucsMs, cliTimeoutText('demucs'));
       audio = fs.readFileSync(path.join(dir, 'out', model, 'in', 'vocals.wav'));
       isolation = 'demucs';
       const checkpoints = path.join(os.homedir(), '.cache', 'torch', 'hub', 'checkpoints');
@@ -388,7 +455,20 @@ serve({
     fs.writeFileSync(path.join(params.jobDir, 'out', output), wav(samples, params.sampleRate));
     const modelHashes = Object.fromEntries([synthModel, isolation === 'extract' ? isolationModel : '', plan.lm_model, plan.vae_model, plan.text_encoder_model].filter(name => typeof name === 'string' && name && s.modelsFolder && fs.existsSync(path.join(s.modelsFolder, name))).map(name => [name, sha256Of(path.join(s.modelsFolder, name))]));
     const engine = s.aceBinFolder && path.join(s.aceBinFolder, exeName(cli ? 'ace-synth' : 'ace-server'));
-    const recipe = { schema: 1, block: params.block, seed: params.seed, sampleRate: params.sampleRate, samplesPerBar: params.samplesPerBar, firstBar: params.firstBar, barCount: params.barCount, activeBars: params.activeBars, planRequest: body, plan, synthRequest, extractionRequest, modelHashes, software: { adapterSha256: adapterSha256(), engineSha256: engine && fs.existsSync(engine) ? sha256Of(engine) : null, node: process.version, platform: process.platform, arch: process.arch }, warnings: [!modelHashes[synthModel] ? 'Synthesis model hash unavailable: exact model identity is unverified.' : '', !engine || !fs.existsSync(engine) ? 'ACE executable hash unavailable: engine identity is unverified.' : ''].filter(Boolean) };
+    const software = {
+      adapterSha256: adapterSha256(),
+      engineSha256: engine && fs.existsSync(engine) ? sha256Of(engine) : null,
+      node: process.version, platform: process.platform, arch: process.arch,
+    };
+    const warnings = [
+      !modelHashes[synthModel] ? 'Synthesis model hash unavailable: exact model identity is unverified.' : '',
+      !engine || !fs.existsSync(engine) ? 'ACE executable hash unavailable: engine identity is unverified.' : '',
+    ].filter(Boolean);
+    const recipe = {
+      schema: 1, block: params.block, seed: params.seed, sampleRate: params.sampleRate, samplesPerBar: params.samplesPerBar,
+      firstBar: params.firstBar, barCount: params.barCount, activeBars: params.activeBars,
+      planRequest: body, plan, synthRequest, extractionRequest, modelHashes, software, warnings,
+    };
     return { outputs: [{ role: isVoice ? 'vocal' : 'audio', path: `out/${output}` }], meta: { melodyPlan: melody ? 'requested' : 'none', mode: isVoice ? 'vocal-only' : 'music', vocalIsolation: isolation, vocalIsolationModel: isolation === 'extract' ? isolationModel : isolation === 'demucs' ? (s.demucsModel || 'htdemucs') : 'none', backend, synthModel, guidance, recipe, vocalIsolationSha256: isolationHash || 'unknown', voiceStretch: Math.round(stretched * 1000) / 1000, seconds: Math.round((Date.now() - started) / 100) / 10 } };
   },
 });
