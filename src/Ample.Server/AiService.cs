@@ -4524,6 +4524,13 @@ Answer in English, whatever language the question is in, unless the user asks fo
             throw new AmpleException("AMP5458", "This proposal cannot take more messages (it was accepted, rejected or the Codex session has ended). Ask again.");
         }
 
+        // a message that cannot be taken is refused before anything of it is written: no line in the conversation, no attachment (issue 225)
+        bool keptForNextTurn = task.Status is "running" or "waiting-approval" or "validating" && !task.TurnActive && task.PostTurn;
+        if (!keptForNextTurn && task.Status is not ("running" or "waiting-approval" or "ready"))
+        {
+            throw new AmpleException("AMP5458", "The proposal is not ready for a new message yet.");
+        }
+
         if (!continuation && QuantityRequest.IsRequest(clean)) task.ContinuationClipLimit = null;
         if (!alreadyLogged) task.Add("user", clean);
         sessionStore.SaveTask(task);
@@ -4847,6 +4854,13 @@ Answer in English, whatever language the question is in, unless the user asks fo
     public AiTask InterruptTask(string id)
     {
         AiTask task = GetTask(id);
+        // a request that waits in the queue or is being prepared has no turn to interrupt: Stop ends it before it starts (issue 231)
+        if (task.Status is "queued" or "preparing")
+        {
+            CancelTask(id);
+            return task;
+        }
+
         if (task.Status is not ("running" or "waiting-approval") || task.Rpc is null || !task.TurnActive || task.ThreadId.Length == 0 || task.TurnId.Length == 0)
         {
             return task;
@@ -4891,6 +4905,12 @@ Answer in English, whatever language the question is in, unless the user asks fo
         else if (task.Rpc is not null)
         {
             EndSession(task);
+        }
+
+        // the check of the proposal that is still building ends with the conversation: nothing goes on in the background (issue 207)
+        if (task.BuildStatus is "running" or "pending")
+        {
+            task.Cancel.Cancel();
         }
 
         task.Add("info", "Archived by the person.");

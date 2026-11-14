@@ -1238,7 +1238,13 @@ public static class Routes
                 (StereoBuffer channels, _) = StereoWav.Decode(originalBytes);
                 rangeBytes = StereoWav.Encode(new StereoBuffer(channels.Left[firstSample..lastSample], channels.Right[firstSample..lastSample]), sampleRate);
             }
-            string cacheKey = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(block.Type + "\n" + blockName + "\n" + parameters.GetRawText() + "\n" + takeId + "\n" + fromMs + "\n" + toMs + "\n" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(rangeBytes)))));
+            // the render uses the tempo and the meter of the song, so a preview made at another tempo or meter is another preview (issue 169)
+            string tempoText = (document.Project?.Tempo ?? 100).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string meterText = (document.Project?.BeatsPerBar ?? 4.0).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string timing = tempoText + "/" + meterText;
+            string inputHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(rangeBytes));
+            string keyText = string.Join('\n', block.Type, blockName, parameters.GetRawText(), takeId, fromMs, toMs, timing, inputHash);
+            string cacheKey = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(keyText)));
             if (!EffectPreviewCache.TryGetValue(cacheKey, out byte[]? preview))
             {
                 await EffectPreviewGate.WaitAsync(c.RequestAborted).ConfigureAwait(false);
