@@ -16,7 +16,7 @@ import { parentFolder } from '../lib/filepicker-model.mjs';
 import { parseVoiceMap, voiceSamplePath } from '../lib/stepseq-model.js';
 
 const MAX_SEED = 18446744073709551615n;
-import { isNumeric, joinChannels, rangeOf, readNumber, splitChannels, stripUnit, withUnit } from '../lib/numfield-model.js';
+import { channelCount, isNumeric, joinChannels, rangeOf, readNumber, splitChannels, stripUnit, wholeDb, withUnit } from '../lib/numfield-model.js';
 
 let listId = 0;
 
@@ -168,14 +168,22 @@ export function fieldFor(k, meta, value, o) {
     }
     case 'voicemap': return voiceMapField(value, o, commit);
     case 'channels': {
-      const words = splitChannels(value, meta.count || 4, meta.options ? meta.options[Math.floor(meta.options.length / 2)] : '0');
+      const fallback = meta.options ? meta.options[Math.floor(meta.options.length / 2)] : '0';
+      const words = splitChannels(value, channelCount(value, meta.count), fallback);
       const row = el('div', { className: 'channels' });
       words.forEach((w, i) => {
         const write = (word) => commit(joinChannels(words.map((x, j) => (j === i ? word : x))));
         const label = el('span', { className: 'chn', textContent: String(i + 1), title: `input ${i + 1}` });
         const control = meta.options
           ? select(meta.options, w, o.disabled, `input ${i + 1}`, write)
-          : numberField({ value: stripUnit(w, meta.unit), range: rangeOf(k, meta), disabled: o.disabled, title: `input ${i + 1}, ${meta.unit || ''}`, onCommit: (t) => write(t) });
+          : numberField({
+            value: stripUnit(w, meta.unit),
+            range: rangeOf(k, meta),
+            disabled: o.disabled,
+            title: `input ${i + 1}, ${meta.unit || ''}`,
+            // the renderer reads whole dB only: a typed fraction is saved as the whole number it plays as
+            onCommit: (t) => write(meta.unit === 'dB' ? wholeDb(t) : t),
+          });
         row.append(el('div', { className: 'chan' }, [label, control]));
       });
       return row;
