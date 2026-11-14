@@ -154,6 +154,11 @@
   .mls-toolbar,.mls-strip{touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:thin}
   .mls-toolbar{padding:4px 8px;gap:6px}
   .mls-tools .mls-tool{min-width:44px}
+  .mls-toolbar .mls-pin{position:sticky;z-index:2;background:var(--panel)}
+  .mls-toolbar .mls-pin-1{left:0}
+  .mls-toolbar .mls-pin-2{left:46px}
+  .mls-toolbar .mls-pin-3{left:92px}
+  .mls-toolbar .mls-pin-4{left:138px}
   .mls-strip{gap:6px;padding:3px 8px}
   .mls-chip{padding:1px 12px;font-size:12px}
 }
