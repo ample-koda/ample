@@ -444,8 +444,7 @@ namespace Ample.Setup
                         };
                         server.BeginErrorReadLine();
                         // a server that fails to start (no project, port taken) exits within moments:
-                        // a bounded wait reports that instead of
-                        // a false success;
+                        // a bounded wait reports that instead of a false success;
                         // a slow machine does not give a false failure (only an exit counts), at worst a late failure goes unseen
                         if (server.WaitForExit(6000))
                         {
