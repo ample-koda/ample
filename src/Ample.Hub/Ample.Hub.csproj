@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
+    <RollForward>Major</RollForward>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Ample.Hub</AssemblyName>
     <ApplicationIcon>../../install/msi/ample.ico</ApplicationIcon>
