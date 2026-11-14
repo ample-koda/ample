@@ -57,9 +57,26 @@ const norm = (id) => (id == null || id === '' || id === 'default' ? 'default' : 
  */
 export function routingPlan(devices) {
   const d = devices || {};
-  if (!d.canSplit) return { mode: 'unavailable', cueToRoom: false, message: 'Independent cue output is not available on this device: cue is off, so nothing private can reach the room.' };
-  if (!d.cueDeviceId) return { mode: 'no-cue-device', cueToRoom: false, message: 'Pick a headphone output for cue. Until then cue stays silent.' };
-  if (norm(d.cueDeviceId) === norm(d.roomDeviceId)) return { mode: 'same-device', cueToRoom: false, message: 'Cue and room use the same output; cue is held silent so it cannot reach the audience.' };
-  if (d.error) return { mode: 'failed', cueToRoom: false, message: 'The headphone output could not be opened (' + d.error + '); cue stays silent.' };
+  if (!d.canSplit) {
+    return {
+      mode: 'unavailable', cueToRoom: false,
+      message: 'Independent cue output is not available on this device: cue is off, so nothing private can reach the room.',
+    };
+  }
+  if (!d.cueDeviceId) {
+    return { mode: 'no-cue-device', cueToRoom: false, message: 'Pick a headphone output for cue. Until then cue stays silent.' };
+  }
+  if (norm(d.cueDeviceId) === norm(d.roomDeviceId)) {
+    return {
+      mode: 'same-device', cueToRoom: false,
+      message: 'Cue and room use the same output; cue is held silent so it cannot reach the audience.',
+    };
+  }
+  if (d.error) {
+    return {
+      mode: 'failed', cueToRoom: false,
+      message: 'The headphone output could not be opened (' + d.error + '); cue stays silent.',
+    };
+  }
   return { mode: 'split', cueToRoom: false, message: 'Cue plays on the headphone output only.' };
 }

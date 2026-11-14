@@ -20,7 +20,11 @@ test('phase and bar start', () => {
 });
 
 test('cue never routes to the room', () => {
-  for (const d of [null, { canSplit: false }, { canSplit: true }, { canSplit: true, cueDeviceId: 'x', roomDeviceId: 'x' }, { canSplit: true, cueDeviceId: 'h', roomDeviceId: 'r' }])
+  const cases = [
+    null, { canSplit: false }, { canSplit: true }, { canSplit: true, cueDeviceId: 'x', roomDeviceId: 'x' },
+    { canSplit: true, cueDeviceId: 'h', roomDeviceId: 'r' },
+  ];
+  for (const d of cases)
     assert.equal(routingPlan(d).cueToRoom, false);
   assert.equal(routingPlan({ canSplit: false }).mode, 'unavailable');
   assert.equal(routingPlan({ canSplit: true, cueDeviceId: 'h', roomDeviceId: 'r' }).mode, 'split');

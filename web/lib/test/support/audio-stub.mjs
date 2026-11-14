@@ -19,13 +19,18 @@ export class StubCtx {
   constructor(opts = {}) {
     this.currentTime = 0; this.state = 'running'; this.nodes = []; this.destination = new StubNode(this, 'destination');
     this.closed = 0; this.resumed = 0; this.sinkId = null; this.opts = opts;
-    if (opts.noSinkId) this.setSinkId = undefined; else this.setSinkId = async (id) => { if (opts.sinkRejects) throw new Error(opts.sinkRejects); this.sinkId = id; };
+    if (opts.noSinkId) this.setSinkId = undefined;
+    else this.setSinkId = async (id) => { if (opts.sinkRejects) throw new Error(opts.sinkRejects); this.sinkId = id; };
     if (opts.noStream) this.createMediaStreamDestination = undefined;
   }
   mk(kind, C = StubNode) { const n = new C(this, kind); this.nodes.push(n); return n; }
   createGain() { return this.mk('gain'); }
   createBufferSource() { return this.mk('source', StubSource); }
-  createMediaStreamDestination() { const n = this.mk('streamdest'); n.stream = { tracks: [new StubTrack(), new StubTrack()], getTracks() { return this.tracks; } }; return n; }
+  createMediaStreamDestination() {
+    const n = this.mk('streamdest');
+    n.stream = { tracks: [new StubTrack(), new StubTrack()], getTracks() { return this.tracks; } };
+    return n;
+  }
   createMediaStreamSource(stream) { const n = this.mk('streamsource'); n.stream = stream; return n; }
   async resume() { this.resumed++; this.state = 'running'; }
   async close() { this.closed++; this.state = 'closed'; }

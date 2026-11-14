@@ -11,7 +11,11 @@ test('cue tap: no connection path from the cue send to the room destination, and
   const { room } = mk();
   const { dest, gains } = find(room);
   const [out, busA, xfA, sendA, busB, xfB, sendB] = gains;
-  for (const s of [sendA, sendB]) { assert.ok(reaches(s, dest)); assert.equal(reaches(s, room.destination), false); assert.equal(reaches(s, out), false); }
+  for (const s of [sendA, sendB]) {
+    assert.ok(reaches(s, dest));
+    assert.equal(reaches(s, room.destination), false);
+    assert.equal(reaches(s, out), false);
+  }
   assert.equal(reaches(dest, room.destination), false);
   // pre-fader: the tap hangs off the bus, not behind the crossfader gain
   assert.ok(busA.out.has(sendA) && busA.out.has(xfA) && !xfA.out.has(sendA));
