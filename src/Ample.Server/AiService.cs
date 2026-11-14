@@ -5495,7 +5495,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
             return open.Text;
         }
 
-        return await File.ReadAllTextAsync(full).ConfigureAwait(false);
+        // the other editors (component files, lyrics, sequences, plain text) keep their unsaved text on the server: the same rule as the context a task starts from (issue 199)
+        return s.Texts.Read(path) ?? await File.ReadAllTextAsync(full).ConfigureAwait(false);
     }
 
     // ---- a resumed session: what the project did in the meantime ----

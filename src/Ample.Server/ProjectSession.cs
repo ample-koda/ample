@@ -380,7 +380,12 @@ public sealed class ProjectSession : IAsyncDisposable
     internal IReadOnlyList<string> DirtyDocs() => [.. docs.Where(x => x.Value.Text != x.Value.Saved).Select(x => x.Key).Concat(moduleDocs.Where(x => x.Value.Document.Text != x.Value.Document.Saved).Select(x => x.Key)).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>Drops the open working copy of a file that was changed on disk by a refactor, so the next open reads the new text.</summary>
-    internal void ForgetDoc(string relative) { docs.TryRemove(relative, out _); moduleDocs.TryRemove(relative, out _); }
+    internal void ForgetDoc(string relative)
+    {
+        docs.TryRemove(relative, out _);
+        moduleDocs.TryRemove(relative, out _);
+        texts?.Forget(relative);   // the working copy of a component, lyric or sequence file is the old text now (issue 199)
+    }
 
     internal async Task<IReadOnlyList<IBlockRenderer>> RenderersAsync(CancellationToken cancellationToken)
     {

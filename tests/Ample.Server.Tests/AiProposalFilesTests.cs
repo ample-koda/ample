@@ -171,4 +171,58 @@ public sealed class AiProposalFilesTests
             Cleanup(folder);
         }
     }
+
+    [Fact]
+    public async Task The_unsaved_text_of_a_component_file_is_what_the_proposal_is_compared_with()
+    {
+        (ProjectSession session, string folder) = await OpenAsync();
+        try
+        {
+            await using (session)
+            {
+                Directory.CreateDirectory(Path.Combine(folder, "components"));
+                await File.WriteAllTextAsync(Path.Combine(folder, "components", "fx.amplec"), "saved text");
+                session.Texts.Set("components/fx.amplec", "unsaved text");
+                AiTask fromWorkingCopy = TaskFor("song.amplet");   // captured from the working copy: nothing changed since
+                fromWorkingCopy.Baseline["components/fx.amplec"] = "unsaved text";
+                fromWorkingCopy.Changes.Add(new AiChange { Path = "components/fx.amplec", Before = "unsaved text", After = "proposed text" });
+                AiTask fromDisk = TaskFor("song.amplet");   // captured from the disk: the person changed it in the editor since
+                fromDisk.Baseline["components/fx.amplec"] = "saved text";
+                fromDisk.Changes.Add(new AiChange { Path = "components/fx.amplec", Before = "saved text", After = "proposed text" });
+
+                await session.Ai.CheckStaleAsync(fromWorkingCopy);
+                await session.Ai.CheckStaleAsync(fromDisk);
+
+                Assert.False(fromWorkingCopy.Stale);
+                Assert.True(fromDisk.Stale);
+            }
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
+
+    [Fact]
+    public async Task Forgetting_a_file_after_a_proposal_wrote_it_drops_its_old_working_copy()
+    {
+        (ProjectSession session, string folder) = await OpenAsync();
+        try
+        {
+            await using (session)
+            {
+                Directory.CreateDirectory(Path.Combine(folder, "components"));
+                await File.WriteAllTextAsync(Path.Combine(folder, "components", "fx.amplec"), "saved text");
+                session.Texts.Set("components/fx.amplec", "unsaved text");
+
+                session.ForgetDoc("components/fx.amplec");
+
+                Assert.Null(session.Texts.Read("components/fx.amplec"));
+            }
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
 }
