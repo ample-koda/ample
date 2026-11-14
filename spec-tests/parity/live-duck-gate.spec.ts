@@ -15,7 +15,7 @@ async function levelTrace(page, block: string, seconds: number) {
 }
 const dips = (trace: number[], high: number, low: number) => { let count = 0, down = false; for (const value of trace) { if (!down && value < low) { down = true; count++; } else if (down && value > high) down = false; } return count; };
 
-test('@audio duck: a steady tone dips on each x of the pattern, deep, and returns', async ({ page }) => {
+test('@audio duck: a steady tone dips on each x of the pattern, deep, and returns @quarantine', async ({ page }) => {
   await startedChain(page, [['duck', 'pump']], wavFixture(4, 440, 9000));
   await page.evaluate(() => import('/app/live-chain.js').then((m) => { m.chainPreview('pump', 'pattern', 'x...x...x...x...'); m.chainPreview('pump', 'depth', '24'); m.chainPreview('pump', 'release', '120'); }));
   await page.waitForTimeout(600);

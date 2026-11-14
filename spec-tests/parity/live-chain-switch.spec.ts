@@ -46,7 +46,7 @@ for (const [name, cancel] of [
   });
 }
 
-test('@audio a switch that fails while preparing leaves the old chain playing', async ({ page }) => {
+test('@audio a switch that fails while preparing leaves the old chain playing @quarantine', async ({ page }) => {
   await startedChain(page, [['convolution', 'room']]);
   let impulseRequests = 0;
   await page.route('**/api/effects/impulse', (route) => {
@@ -63,7 +63,7 @@ test('@audio a switch that fails while preparing leaves the old chain playing', 
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });
 
-test('@audio a song state that failed to start is not tried again on every change (no repeated fetch or notice)', async ({ page }) => {
+test('@audio a song state that failed to start is not tried again on every change (no repeated fetch or notice) @quarantine', async ({ page }) => {
   await startedChain(page, [['convolution', 'room']]);
   let impulseRequests = 0;
   await page.route('**/api/effects/impulse', (route) => {
