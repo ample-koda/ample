@@ -1,6 +1,7 @@
 // Mute and solo of the Playlist: a PREVIEW only. They never touch the song text, a plan, a take or a build. The takes of the lines that are heard are mixed in the
 // browser (Web Audio) for a range of bars, which is approximate: the bus and master processing of the real build is not applied. Plan: PV07. @ample:playlist-preview
 import { getContext } from '../lib/audio-engine.mjs';
+import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { S } from './store.js';
 import { toast } from './ui.js';
 import { takeCache } from '../lib/take-cache.mjs';
@@ -26,10 +27,11 @@ export const takeBlockOf = (line) => line.chain.at(-1) || line.sources.find((s) 
 
 // `generation` names the newest audition: Stop, Clear, a newer Hear it and a take played elsewhere raise it, and an audition whose takes are still loading checks it after
 // every wait, so a superseded one never starts a source (#103). `pending` is the audition that is preparing: the transport shows it as loading, so Stop can cancel it.
-let context = null, playing = null, pending = null, generation = 0;
+let context = null, playing = null, pending = null;
+const guard = createAuditionGuard(() => S.path);
 
 export function stopMix() {
-  generation++;
+  guard.invalidate();
   const had = playing !== null || pending !== null;
   try { playing?.stop(); } catch { /* already stopped */ }
   playing = null; pending = null;
@@ -38,11 +40,13 @@ export function stopMix() {
 
 // Hear it takes part in the transport: it shows as loading and then playing (the Mixer meter follows the shared output), and the main Stop ends or cancels it.
 setExternalPlayer({ playing: () => playing !== null, loading: () => pending, take: () => 'playlist', stop: () => stopMix() });
-document.addEventListener('ample:open', () => stopMix());   // leaving the song ends it too, as it does the live chain
+// a song really opened (not a mere request: a declined confirm keeps the audition) ends it; the check before the source starts covers a song changed in another way
+document.addEventListener('ample:song-opened', () => stopMix());
 
-// decoded takes live in the shared byte-budgeted cache (evicts the least recently used), not in a second unbounded map
-const bufferOf = (dataId) => takeCache.getDecoded(`playlist:${dataId}`, async () => {
+// decoded takes live in the shared byte-budgeted cache (evicts the least recently used), under the key the live chain uses for the same take (data ids are content hashes, so no project id is needed), so one take is decoded once
+const bufferOf = (takeId) => takeCache.getDecoded(`chain:${takeId}`, async () => {
   context ||= getContext();
+  const dataId = await audioDataId(takeId);
   const response = await fetch(`/api/data/${dataId}`);
   if (!response.ok) throw new Error('A take could not be loaded.');
   return context.decodeAudioData(await response.arrayBuffer());
@@ -55,8 +59,7 @@ const bufferOf = (dataId) => takeCache.getDecoded(`playlist:${dataId}`, async ()
 export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
   stopMix();
   stopPlayer();
-  const token = ++generation, song = S.path;
-  const current = () => token === generation && song === S.path;   // a song opened another way while the takes loaded also ends it
+  const current = guard.begin();   // false once stopped, replaced, or the song changed while the takes loaded
   const chosen = heard(lines);
   if (!chosen.length) { toast('Every line is muted: nothing to hear.'); return false; }
   const missing = chosen.filter((l) => !S.build.takes?.[takeBlockOf(l)]);
@@ -65,8 +68,11 @@ export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
   const seconds = Math.min(count * secondsPerBar, maxSeconds);
   pending = 'playlist';
   notifyPlayer();
+  let resumed = null;
+  try { context ||= getContext(); if (context.state !== 'running') resumed = context.resume().catch(() => {}); } catch { /* no audio: the decode below reports it */ }   // started inside the click, awaited below
   try {
-    const decoded = await Promise.all(chosen.map(async (l) => bufferOf(await audioDataId(S.build.takes[takeBlockOf(l)]))));
+    const decoded = await Promise.all(chosen.map((l) => bufferOf(S.build.takes[takeBlockOf(l)])));
+    await resumed;   // a suspended shared context would play nothing while Stop is enabled
     if (!current()) return false;   // stopped, cleared or replaced while the takes loaded
     context ||= getContext();
     const rate = decoded[0].sampleRate, length = Math.max(1, Math.floor(seconds * rate)), start = Math.floor(from * secondsPerBar * rate);
@@ -91,6 +97,6 @@ export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
     toast(e.message || String(e));
     return false;
   } finally {
-    if (token === generation && pending !== null) { pending = null; notifyPlayer(); }   // it failed or its song was left: no longer preparing
+    if (current.latest() && pending !== null) { pending = null; notifyPlayer(); }   // it failed or its song was left: no longer preparing
   }
 }

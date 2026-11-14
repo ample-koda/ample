@@ -1,5 +1,6 @@
 // Hybrid preview: evaluate mix-family blocks locally and ask the server only for upstream blocks without a local renderer.
 import { api, getToken } from './api.js';
+import { soloInPlan } from '../lib/live-chain-model.mjs';
 import { flat, S, build, notify, stopBuild, logProject } from './store.js';
 import { evaluate as evaluateNotePipeline, isExpression as isNotePipeline } from '../lib/note-pipeline.mjs';
 import { playTransient } from './player.js';
@@ -317,9 +318,9 @@ export async function buildAndPlayClientPreview() {
   const target = [...graph.nodes].reverse().find((node) => node.tpl === 'master' && !isDisabled(node)) || [...graph.nodes].reverse().find((node) => ['mixer', 'bus', 'send'].includes(node.tpl) && !isDisabled(node));
   if (!target) { toast('This song has no enabled master or mix block to preview.'); return; }
   controller = new AbortController(); running = true;
+  const needed = new Set([target.id]);   // the blocks this preview needs: everything that leads into the target
   {
-    // the blocks this preview needs: everything that leads into the target
-    const needed = new Set([target.id]), queue = [target.id];
+    const queue = [target.id];
     while (queue.length) { const id = queue.pop(); for (const link of graph.links) if (link.to === id && !link.disabled && !needed.has(link.from) && nodes.get(link.from) && !isDisabled(nodes.get(link.from))) { needed.add(link.from); queue.push(link.from); } }
     progress = { total: needed.size, done: new Set(), active: [], phase: '' };
   }
@@ -328,7 +329,7 @@ export async function buildAndPlayClientPreview() {
   notify();
   let context;
   const active = new Set();
-  const soloBus = graph.nodes.some((node) => node.tpl === 'bus' && !isDisabled(node) && node.params?.solo === 'on');
+  const soloBus = soloInPlan(graph.nodes.filter((node) => !isDisabled(node)), needed);   // a solo bus that does not lead into the target cannot silence it
   try {
     context = new AudioContext();
     const plan = await planTakes(controller.signal);
