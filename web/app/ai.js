@@ -13,6 +13,7 @@ import { registerPlaybackAudio } from './playback-volume.js';
 import { endsTracking, pillAction } from '../lib/task-pill.mjs';
 import { buildHeadline, regenerateOptions, rejectLabel, rejectQuestion, rejectedText } from '../lib/ai-review-text.mjs';
 import { staleSelections } from '../lib/review-selection.mjs';
+import { seekByKey } from '../lib/seek-keys.mjs';
 
 /** The "Ai Assistant" lockup (icon tile + text), same neon-tube recipe as the AMPLE wordmark; used in the Assistant panel header. */
 const AI_ASSISTANT_LOGO_SVG = `<svg width="123" height="37" viewBox="0 0 240 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true" focusable="false">
@@ -464,6 +465,16 @@ export function waveformPlayer(url, label) {
   const sync = () => { play.textContent = here() && !preview.audio.paused ? '❚❚' : '▶'; time.textContent = peaks ? (here() ? `${preview.audio.currentTime.toFixed(1)} / ` : '') + peaks.seconds.toFixed(1) + ' s' : ''; draw(); };
   play.onclick = async () => { try { if (here() && !preview.audio.paused) preview.audio.pause(); else await playPreview(url, label); } catch (error) { toast(error.message || String(error)); } };
   canvas.onclick = async (ev) => { const r = canvas.getBoundingClientRect(), f = (ev.clientX - r.left) / r.width; try { if (!here()) await playPreview(url, label); if (preview.audio.duration) preview.audio.currentTime = f * preview.audio.duration; } catch (error) { toast(error.message || String(error)); } };
+  // the keyboard seeks as the pointer does (issue 221)
+  canvas.tabIndex = 0;
+  canvas.setAttribute('role', 'slider');
+  canvas.setAttribute('aria-label', `Position in ${label}: Left and Right move 2 seconds`);
+  canvas.onkeydown = async (ev) => {
+    const to = seekByKey(here() ? preview.audio.currentTime : 0, here() && preview.audio.duration ? preview.audio.duration : peaks?.seconds ?? 0, ev.key, ev.shiftKey);
+    if (to === null) return;
+    ev.preventDefault();
+    try { if (!here()) await playPreview(url, label); if (preview.audio.duration) preview.audio.currentTime = to; } catch (error) { toast(error.message || String(error)); }
+  };
   const root = el('div', { className: 'ai-waveplayer' }, [play, stopBtn, canvas, time]);
   preview.listeners.add(sync);
   const watch = new MutationObserver(() => { if (!root.isConnected) { preview.listeners.delete(sync); watch.disconnect(); } });

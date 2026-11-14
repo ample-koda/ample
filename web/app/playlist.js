@@ -23,6 +23,7 @@ import { barBeats } from '../lib/meter.mjs';
 import * as act from './playlist-actions.js';
 import * as gs from './playlist-states.js';
 import { clearPreview, playMix, preview, previewActive, stopMix, toggle as togglePreview } from './playlist-preview.js';
+import { drawnRange, isDrag } from '../lib/playlist-draw.mjs';
 
 const KEY = 'ample.playlist.on';
 export const playlistEnabled = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
@@ -706,13 +707,22 @@ function trackDraw(track, line) {
     ghost.style.left = px(first - 1); ghost.style.width = px(1);
     track.append(ghost);
     track.setPointerCapture(e.pointerId);
-    let last = first;
-    track.onpointermove = (ev) => { last = Math.max(first, snapBar(barAt(ev.clientX - rect.left, view.bw), view.snap)); ghost.style.width = px(last - first + 1); };
+    let last = first, moved = false;
+    const x0 = e.clientX;
+    // a drag in either direction, also within one bar, draws a clip of at least one bar; a click without movement draws none (issue 107)
+    track.onpointermove = (ev) => {
+      if (isDrag(x0, ev.clientX)) moved = true;
+      last = snapBar(barAt(ev.clientX - rect.left, view.bw), view.snap);
+      const drawn = drawnRange(first, last);
+      ghost.style.left = px(drawn.start - 1);
+      ghost.style.width = px(drawn.length);
+    };
     track.onpointerup = async () => {
       track.onpointermove = track.onpointerup = null;
       ghost.remove();
-      const length = last - first + 1;
-      if (length >= 1 && last > first) await act.newClip(line, first, length, songBars);
+      if (!moved) return;
+      const drawn = drawnRange(first, last);
+      await act.newClip(line, drawn.start, drawn.length, songBars);
     };
   };
 }
@@ -860,7 +870,7 @@ function clipMenu(e, clip, line) {
   ];
   if (editable() && line) {
     items.push(
-      { label: 'Split at the playhead or chosen bars', fn: () => splitHere(clip) },
+      { label: 'Split at the playhead or chosen bars', title: 'The second part starts its source again from its beginning', fn: () => splitHere(clip) },
       { label: 'Repeat: add another part after this one', fn: () => act.repeatClip(clip, songBars) },
       { label: 'Copy as a new block', fn: () => act.copyClipAsBlock(clip, line) },
       { label: 'Copy the clip (Ctrl+C)', fn: () => copyClip(clip, clip.length || songBars - clip.at + 1) },
