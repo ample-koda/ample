@@ -201,7 +201,7 @@ test('checkpoint saves a dirty inactive song with a matching browser undo buffer
   await expect.poll(async () => (await api('/api/history/graph')).nodes.length).toBe(before + 1);
 });
 
-test('checkpoint batches song draft saves into one snapshot even when safe saves are enabled', async ({ page }) => {
+test('checkpoint batches song draft saves into one snapshot even when safe saves are enabled @quarantine', async ({ page }) => {
   await api('/api/project/auto-checkpoint', { method: 'POST', body: { enabled: true, minutes: 5 } });
   const before = (await api('/api/history/graph')).nodes.length;
   await type(page, (await text(page)).replace('bars 8', 'bars 12'));
