@@ -25,7 +25,9 @@ function paint(state) {
     return el('span', { className: `lcchip${item.bypassed ? ' bypassed' : ''}`, 'data-block': item.id }, [el('strong', { textContent: titleOf(item.id), title: `${item.tpl} ${item.id}` }), toggle, ...(spectrum ? [spectrum] : []), ...(loud ? [loud] : []), meter]);
   });
   const comparing = Boolean(state.comparingBuilt || state.comparePending);
-  const compareText = state.comparePending ? 'Loading the build (click to cancel)' : state.comparingBuilt ? 'Hearing the build' : 'A/B vs build';
+  let compareText = 'A/B vs build';
+  if (state.comparePending) compareText = 'Loading the build (click to cancel)';
+  else if (state.comparingBuilt) compareText = 'Hearing the build';
   const compare = el('button', {
     type: 'button',
     className: 'lccompare' + (comparing ? ' on' : ''),

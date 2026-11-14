@@ -17,7 +17,7 @@ test('live-chain.js asks the guard before restarting, records the failure, and c
   assert.ok(src.includes('failedStart = { target, signature: mine.signature }'));
   assert.ok(src.includes('failedStart = null; pendingTarget = null;'));
 });
-test('the start builds the graph before the swap: a failing build leaves the old chain alone; Stop and a project switch bump the generation', () => {
+test('the graph is built before the swap (a failing build leaves the old chain alone); Stop and a project switch bump the generation', () => {
   const src = fs.readFileSync(new URL('../../app/live-chain.js', import.meta.url), 'utf8');
   const start = src.slice(src.indexOf('async function startSession('), src.indexOf('const effective ='));
   assert.ok(start.indexOf('build(mine)') > -1 && start.indexOf('build(mine)') < start.indexOf('stopChain({ quiet: true })'));

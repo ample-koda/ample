@@ -242,7 +242,8 @@ async function startSession(target) {
     // the graph is made while the old chain still plays (it starts 80 ms ahead): if making it throws, nothing was taken away
     try { build(mine); } catch (error) { dispose(mine); throw error; }
     // the swap: no await from here, so nothing can slip in between the old chain stopping and the new one playing
-    // stopPlayer() below stops the chain's own player too, and that bumps the generation: a failure after this point still has to be reported
+    // stopPlayer() below stops the chain's own player too, and that bumps the generation:
+    // a failure after this point still has to be reported
     swapping = true;
     stopPlayer();
     stopChain({ quiet: true });
