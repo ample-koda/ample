@@ -116,6 +116,20 @@ public class HubSettingsMergeTests
     }
 
     [Fact]
+    public void A_missing_start_at_sign_in_follows_the_installer_and_a_value_that_is_there_is_never_replaced()
+    {
+        // the installer chose no start at sign-in (no Run entry): a hub.json made now says so
+        Assert.False(JsonDocument.Parse(HubSettingsMerge.Merge(null, true, Parse, Serialize, startAtLoginDefault: false)).RootElement.GetProperty("startAtLogin").GetBoolean());
+        Assert.False(JsonDocument.Parse(HubSettingsMerge.Merge("{\"mainPort\": 1}", true, Parse, Serialize, startAtLoginDefault: false)).RootElement.GetProperty("startAtLogin").GetBoolean());
+        Assert.True(JsonDocument.Parse(HubSettingsMerge.Merge("{\"mainPort\": 1}", true, Parse, Serialize, startAtLoginDefault: true)).RootElement.GetProperty("startAtLogin").GetBoolean());
+        Assert.True(Merged(null, login: false).GetProperty("startAtLogin").GetBoolean());   // without a choice the answer is yes, as it was
+
+        // the person's own choice in hub.json wins over the installer's, both ways
+        Assert.True(JsonDocument.Parse(HubSettingsMerge.Merge("{\"startAtLogin\": true}", true, Parse, Serialize, startAtLoginDefault: false)).RootElement.GetProperty("startAtLogin").GetBoolean());
+        Assert.False(JsonDocument.Parse(HubSettingsMerge.Merge("{\"startAtLogin\": false}", true, Parse, Serialize, startAtLoginDefault: true)).RootElement.GetProperty("startAtLogin").GetBoolean());
+    }
+
+    [Fact]
     public void A_file_that_is_not_a_json_object_is_refused_and_left_alone()
     {
         InvalidOperationException broken = Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("{ not json", true, Parse, Serialize));

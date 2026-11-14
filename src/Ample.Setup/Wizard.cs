@@ -502,6 +502,18 @@ namespace Ample.Setup
             catch (Exception) { return false; }
         }
 
+        // The tray hub keeps its start at sign-in in this value (src/Ample.Hub/Program.cs RunKey and RunName: keep the two in step). A hub.json that does not exist yet starts from
+        // what the installer chose, which is whether the entry is there; when the registry cannot be read the answer is yes, as it was.
+        private static bool StartAtLoginDefault()
+        {
+            try
+            {
+                using (Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", false))
+                    return key != null && key.GetValue("AMPLE Hub") != null;
+            }
+            catch (Exception) { return true; }
+        }
+
         private void WriteLogin(bool on)
         {
             Directory.CreateDirectory(home);
@@ -513,7 +525,7 @@ namespace Ample.Setup
                 {
                     string json = HubSettingsMerge.Merge(File.Exists(HubJson) ? File.ReadAllText(HubJson) : null, on,
                         text => new JavaScriptSerializer().DeserializeObject(text) as Dictionary<string, object>,
-                        settings => new JavaScriptSerializer().Serialize(settings));
+                        settings => new JavaScriptSerializer().Serialize(settings), StartAtLoginDefault());
                     string temporary = HubJson + "." + Guid.NewGuid().ToString("N") + ".tmp";
                     try
                     {

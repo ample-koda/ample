@@ -14,7 +14,8 @@ namespace Ample.Setup
         /// <param name="login">The new value of <c>mainLogin</c>.</param>
         /// <param name="parse">Reads JSON text into an object (null when it is not an object); it may throw on invalid JSON.</param>
         /// <param name="serialize">Writes the settings as JSON text.</param>
-        internal static string Merge(string existingText, bool login, Func<string, Dictionary<string, object>> parse, Func<Dictionary<string, object>, string> serialize)
+        /// <param name="startAtLoginDefault">The value of <c>startAtLogin</c> when the file does not have one yet: the installer's choice, which is whether the Run entry of the hub is there.</param>
+        internal static string Merge(string existingText, bool login, Func<string, Dictionary<string, object>> parse, Func<Dictionary<string, object>, string> serialize, bool startAtLoginDefault = true)
         {
             Dictionary<string, object> settings = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             if (existingText != null && existingText.Trim().Length > 0)
@@ -28,7 +29,7 @@ namespace Ample.Setup
 
             if (!settings.ContainsKey("mainPort")) settings["mainPort"] = 0;
             if (!settings.ContainsKey("acceptOthers")) settings["acceptOthers"] = true;
-            if (!settings.ContainsKey("startAtLogin")) settings["startAtLogin"] = true;
+            if (!settings.ContainsKey("startAtLogin")) settings["startAtLogin"] = startAtLoginDefault;
             settings["mainLogin"] = login;
             return serialize(settings) + "\n";
         }
