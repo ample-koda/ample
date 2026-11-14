@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLaunchScheduler } from './performance-oneshots.js';
+import { createLaunchScheduler } from '../../app/performance-oneshots.js';
 
 // Voices are scheduled at launch with the future grid time; stop(at) / cancel() are recorded.
 const make = () => {
