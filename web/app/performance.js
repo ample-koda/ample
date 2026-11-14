@@ -19,7 +19,9 @@ export function setPerformanceEnabled(storage, on) {
 
 /** Next grid time at or after `now` for a clock that started at `origin`. A time before the origin gives the origin. */
 export function nextBoundary(now, origin, beatSec, beatsPerBar, quantize) {
-  if (![now, origin, beatSec, beatsPerBar].every(Number.isFinite) || beatSec <= 0 || beatsPerBar < 1) throw new RangeError('nextBoundary needs finite times, a positive beat length and at least one beat per bar');
+  if (![now, origin, beatSec, beatsPerBar].every(Number.isFinite) || beatSec <= 0 || beatsPerBar < 1) {
+    throw new RangeError('nextBoundary needs finite times, a positive beat length and at least one beat per bar');
+  }
   const step = quantize === QUANTIZE.bar ? beatSec * beatsPerBar : beatSec;
   const n = Math.ceil((now - origin) / step - 1e-9);
   return origin + Math.max(0, n) * step;
@@ -32,7 +34,10 @@ const checkTempo = (bpm, beatsPerBar, quantize) => {
 };
 
 /**
- * @param {{now:()=>number, play:(clip:object, when:number, lane:string)=>object, bpm?:number, beatsPerBar?:number, quantize?:string, startLead?:number}} o
+ * @param {{
+ *   now: () => number, play: (clip: object, when: number, lane: string) => object,
+ *   bpm?: number, beatsPerBar?: number, quantize?: string, startLead?: number,
+ * }} o
  * play() starts a prepared clip at an AudioContext timestamp `when` (a time not after now means "at once") and
  * returns a handle: stop(when?) (no argument: at once), cancel() (before it started), and, for a clip that
  * can be replaced, cancelStop() (takes back a stop(when) that has not happened yet).
@@ -64,19 +69,25 @@ export function createPerformance({ now, play, bpm = 120, beatsPerBar = 4, quant
     const t = clock();
     for (const l of lanes.values()) {
       if (l.playing && l.playing.stopAt !== null && l.playing.stopAt <= t) l.playing = null;
-      if (l.queued && l.queued.when <= t) { l.playing = { clipId: l.queued.clipId, handle: l.queued.handle, stopAt: null }; l.queued = null; }
+      if (l.queued && l.queued.when <= t) {
+        l.playing = { clipId: l.queued.clipId, handle: l.queued.handle, stopAt: null };
+        l.queued = null;
+      }
     }
   };
   /** Queues `clip` on a lane at `when`; the clip that plays now stops at the same `when`. */
   const schedule = (l, laneName, clip, when) => {
     const replaces = l.playing && l.playing.stopAt === null;
-    if (replaces && typeof l.playing.handle.cancelStop !== 'function') throw new TypeError('play() handles must have cancelStop() so that cancelling a queued replacement keeps the old clip playing');
+    if (replaces && typeof l.playing.handle.cancelStop !== 'function') {
+      throw new TypeError('play() handles must have cancelStop() so that cancelling a queued replacement keeps the old clip playing');
+    }
     const handle = play(clip, when, laneName);
     if (replaces) { l.playing.handle.stop(when); l.playing.stopAt = when; } // the same boundary: no gap, no overlap
     l.queued = { clipId: clip.id, when, handle, replaced: !!replaces };
   };
   /** The clip of a lane plays on, apart from a stop that only a queued replacement scheduled. */
-  const holds = (l, clipId) => l.playing?.clipId === clipId && (l.playing.stopAt === null || (l.queued?.replaced && l.playing.stopAt === l.queued.when));
+  const holds = (l, clipId) => l.playing?.clipId === clipId
+    && (l.playing.stopAt === null || (l.queued?.replaced && l.playing.stopAt === l.queued.when));
   /** Drops the queued launch of a lane; the clip it was going to replace keeps playing. */
   const unqueue = (l) => {
     abort(l.queued.handle);
@@ -159,7 +170,11 @@ export function createPerformance({ now, play, bpm = 120, beatsPerBar = 4, quant
     setTempo(newBpm) {
       tick();
       checkTempo(newBpm, beatsPerBar, quantize);
-      for (const l of lanes.values()) if (l.queued || (l.playing && l.playing.stopAt !== null)) throw new Error('cannot change the tempo while a launch or stop is scheduled');
+      for (const l of lanes.values()) {
+        if (l.queued || (l.playing && l.playing.stopAt !== null)) {
+          throw new Error('cannot change the tempo while a launch or stop is scheduled');
+        }
+      }
       if (origin !== null) {
         const t = clock();
         const beats = Math.max(0, (t - origin) / beatSec);

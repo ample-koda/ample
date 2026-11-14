@@ -7,7 +7,10 @@ function rig(extra = {}) {
   const play = (clip, when, lane) => {
     const h = { clip: clip.id, lane, when, stopped: null, cancelled: false,
       stopCalls: [], stopCancelled: false,
-      stop(w) { this.stopped = w ?? t; this.stopCalls.push(w); }, cancel() { this.cancelled = true; }, cancelStop() { this.stopped = null; this.stopCancelled = true; } };
+      stop(w) { this.stopped = w ?? t; this.stopCalls.push(w); },
+      cancel() { this.cancelled = true; },
+      cancelStop() { this.stopped = null; this.stopCancelled = true; },
+    };
     log.push(h); return h;
   };
   const p = createPerformance({ now: () => t, play, bpm: 120, beatsPerBar: 4, startLead: 0, ...extra });
