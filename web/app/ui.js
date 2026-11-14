@@ -92,12 +92,47 @@ function menuIcon(label) {
 }
 
 let menuOpenedAt = 0;
+let menuOpener = null;   // the element that had the focus when the menu opened: it gets the focus back
+let keyboardLast = false;   // the last thing the person did was a key: a menu that opens now is a keyboard menu
+addEventListener('keydown', () => { keyboardLast = true; }, true);
+addEventListener('pointerdown', () => { keyboardLast = false; }, true);
+
+const menuItemsOf = (list) => [...list.children].filter((c) => c.getAttribute?.('role') === 'menuitem');
+
+/** The keys of an open context menu: Up and Down, Home and End, Right to open a list and Left to leave it, Enter or Space to choose, Escape to close. */
+function menuKey(event) {
+  const menu = event.currentTarget;
+  const item = document.activeElement?.closest?.('[role="menuitem"]');
+  const list = item?.parentElement ?? menu;
+  const items = menuItemsOf(list);
+  const at = items.indexOf(item);
+  const go = (index) => items[(index + items.length) % items.length]?.focus();
+  const leaveList = () => { const parent = list.parentElement; parent.classList.remove('open'); parent.focus(); };
+  const openList = () => { item.click(); menuItemsOf(item.querySelector('.flyout') ?? item)[0]?.focus(); };
+  const isSub = item?.classList.contains('sub');
+  if (event.key === 'ArrowDown') go(at + 1);
+  else if (event.key === 'ArrowUp') go(at < 0 ? -1 : at - 1);
+  else if (event.key === 'Home') go(0);
+  else if (event.key === 'End') go(-1);
+  else if (event.key === 'ArrowRight' && isSub) openList();
+  else if (event.key === 'ArrowLeft' && list !== menu) leaveList();
+  else if ((event.key === 'Enter' || event.key === ' ') && item) { if (isSub) openList(); else item.click(); }
+  else if (event.key === 'Escape') { if (list !== menu) leaveList(); else closeMenu(); }
+  else if (event.key === 'Tab') { closeMenu(); return; }
+  else return;
+  event.preventDefault();
+  event.stopPropagation();
+}
 
 /** Closes the context menu (and says so: something may have been put aside while it was open, like the keyboard). */
 export function closeMenu() {
   const menu = $('#menu');
   if (!menu || menu.style.display === 'none' || menu.style.display === '') return;
+  const opener = menuOpener;
+  menuOpener = null;
+  const focusWasInside = menu.contains(document.activeElement);
   menu.style.display = 'none';
+  if (focusWasInside && opener?.isConnected && opener !== document.body) opener.focus?.({ preventScroll: true });
   document.dispatchEvent(new CustomEvent('ample:menu-closed'));
 }
 
@@ -135,6 +170,7 @@ export function showMenu(x, y, items) {
     if (it.head) { into.append(el('div', { textContent: it.head, className: 'hd' })); return; }
     if (it.children) {
       const d = el('div', { className: 'sub menu-item-with-icon' }, [it.icon || menuIcon(it.label), document.createTextNode(`${it.label} ›`)]);
+      d.setAttribute('role', 'menuitem'); d.setAttribute('aria-haspopup', 'menu'); d.tabIndex = -1;
       d.onmousedown = (e) => e.preventDefault();
       const fly = el('div', { className: 'flyout' });
       render(it.children, fly);
@@ -152,6 +188,7 @@ export function showMenu(x, y, items) {
     }
     const d = el('div', { className: `${it.danger ? 'danger ' : ''}menu-item-with-icon`, title: it.title || '' });
     d.append(it.icon || menuIcon(it.label), document.createTextNode(it.label));
+    d.setAttribute('role', 'menuitem'); d.tabIndex = -1;
     d.onmousedown = (e) => e.preventDefault();
     d.onclick = (e) => { e.stopPropagation(); it.leave?.(); closeMenu(); it.fn(); };
     if (it.hover) { d.onmouseenter = () => it.hover(); d.onmouseleave = () => it.leave?.(); }   // a menu item can do something while the pointer is on it (hear a sound)
@@ -165,6 +202,11 @@ export function showMenu(x, y, items) {
   const home = modal || document.body;
   if (menu.parentElement !== home) home.append(menu);
   place();
+  menu.setAttribute('role', 'menu');
+  menu.onkeydown = menuKey;
+  // opened from the keyboard (Shift+F10, the menu key): the focus goes into the menu, and back to where it was when the menu closes
+  menuOpener = document.activeElement;
+  if (keyboardLast) menuItemsOf(menu)[0]?.focus();
 }
 
 /** Puts the menu back in the page: call before a dialog that held it is removed. */
@@ -194,6 +236,8 @@ export function ask(...args) {
 function askNow(title, body, buttons, extraNodes = []) {
   return new Promise((res) => {
     const d = $('#dlg');
+    d.setAttribute('aria-labelledby', 'dlg-t');   // the dialog is announced by the action in its heading
+    d.setAttribute('aria-describedby', 'dlg-b');
     d.classList.add('ask-dialog');
     d.classList.toggle('ask-wide', buttons.length > 2);   // three choices sit in one row
     $('#dlg-t').textContent = title;

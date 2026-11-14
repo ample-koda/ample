@@ -23,6 +23,13 @@ let editPreviewTimer = 0, editRenderSeq = 0, focusAfter = null;
 const model = () => histModel(S.history);
 const peeking = () => !!S.peek;
 
+/** A real button in the banner: it can be reached with Tab and pressed with Enter or Space; the click does not reach the banner as well. */
+function bannerButton(label, action) {
+  const button = el('button', { type: 'button', className: 'banner-exit', textContent: label });
+  button.onclick = (event) => { event.stopPropagation(); action(); };
+  return button;
+}
+
 /* ---------- header ---------- */
 export function renderHistoryHeader() {
   import('./ai.js').then((m) => m.syncPeekBar()).catch(() => {});
@@ -38,11 +45,13 @@ export function renderHistoryHeader() {
   if (peeking()) {
     if (S.peek.ai) {
       const task = S.peek.ai;
-      ban.textContent = 'Read-only preview of the AI proposal, in the real views. Right-click a block: Build and listen. Nothing is saved or changed. (click to go back to the proposal)';
-      ban.onclick = () => leavePeek().then(() => import('./ai.js').then((m) => m.openAiTask(task)));
+      const back = () => leavePeek().then(() => import('./ai.js').then((m) => m.openAiTask(task)));
+      ban.replaceChildren('Read-only preview of the AI proposal, in the real views. Right-click a block: Build and listen. Nothing is saved or changed. ', bannerButton('Back to the proposal', back));
+      ban.onclick = back;   // the whole banner still works for the pointer
     } else {
-      ban.textContent = `Read-only: you are looking at ${shortId(S.peek.ref)}. Nothing can change here; nothing is built. (click to leave)`;
-      ban.onclick = () => leavePeek().then(() => toast('Back where you were.'));
+      const leave = () => leavePeek().then(() => toast('Back where you were.'));
+      ban.replaceChildren(`Read-only: you are looking at ${shortId(S.peek.ref)}. Nothing can change here; nothing is built. `, bannerButton('Exit preview', leave));
+      ban.onclick = leave;
     }
   }
   ['btn-save', 'btn-cp', 'btn-promote', 'btn-fork', 'btn-build'].forEach((id) => { if (peeking() && !(S.peek.ai && id === 'btn-build')) $(`#${id}`).disabled = true; });

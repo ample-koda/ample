@@ -824,7 +824,7 @@ function clipKeys(e, clip, line, length) {
   else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); copyClip(clip, length); }
   else if ((e.key === 'x' || e.key === 'X') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); copyClip(clip, length); act.deleteClip(clip, line, songBars); }
   else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteHere(clip.at + length); }
-  else if (e.key === 's' || e.key === 'S') { e.preventDefault(); splitHere(clip); }
+  else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); splitHere(clip); }   // Ctrl+S saves, it does not split
   else if ((e.key === 'Home' || e.key === 'End') && sectionAt(sectionsOf(), clip.at) >= 0) {
     e.preventDefault();
     const s = sectionsOf()[sectionAt(sectionsOf(), clip.at)];
