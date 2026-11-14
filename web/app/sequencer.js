@@ -13,6 +13,7 @@ import { activeChannels } from '../lib/seq-activity.mjs';
 import { gmProgramName, parseGmProgram } from '../lib/gm-programs.mjs';
 import { afterRestore, afterSavedWrite, afterStagedWrite, mayWrite, needsRestore, playPlan } from '../lib/seq-writes.mjs';
 import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } from './store.js';
+import { takeFromReport } from '../lib/build-report-take.mjs';
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
 import { lostAnything, lossText, restoreLost, sequenceLoss } from '../lib/seq-loss.mjs';
 import { V, registerView, setView } from './views.js';
@@ -417,11 +418,11 @@ async function ensureTake() {
   Q.busy = true;
   try {
     if (plan === 'write-and-build') await writeFile(true);
-    await build(Q.blockId);
-    const take = S.build.takes?.[Q.blockId];
-    if (!take) throw new Error('The block could not be built. See the build log.');
-    Q.builtTake = take; Q.stale = false;
-    return take;
+    // the take of THIS build: the store still holds the take of an earlier build, which a failed or cancelled build must not hand back
+    const made = takeFromReport(await build(Q.blockId), Q.blockId);
+    if (!made.ok) { Q.stale = true; throw new Error(made.message); }
+    Q.builtTake = made.take; Q.stale = false;
+    return made.take;
   } finally { Q.busy = false; }
 }
 
@@ -465,12 +466,13 @@ function scheduleLive() {
   liveTimer = setTimeout(() => liveSwap().catch((e) => { setStatus('the new version could not be built'); toast(e.message || String(e)); }), 700);
 }
 
+let liveReport = null;   // the report of the live build that just ran: the take comes from it, not from an earlier build
 const liveSwap = createLiveSwap({
   state: Q,
   isPlaying: () => loopState().playing,
   write: () => writeFile(true),
-  build: () => build(Q.blockId),
-  takeOf: () => S.build.takes?.[Q.blockId],
+  build: async () => { liveReport = await build(Q.blockId); },
+  takeOf: () => takeFromReport(liveReport, Q.blockId).take,
   swap: (take) => swapTake(take),
   setStatus: (text) => setStatus(text),
 });
@@ -1038,9 +1040,9 @@ function paintLanes(host) {
 
 async function renderLane(n) {
   if (dirty() && !isLocked()) await writeFile(true);
-  await build(Q.blockId);
-  const take = S.build.takes?.[Q.blockId];
-  if (!take) { toast('The block could not be built.'); return; }
+  const laneTake = takeFromReport(await build(Q.blockId), Q.blockId);
+  if (!laneTake.ok) { toast(laneTake.message); return; }
+  const take = laneTake.take;
   const name = el('input', { value: `${Q.blockId}-lane${n}`, 'aria-label': 'File name without extension' });
   const folder = el('input', { value: 'renders', 'aria-label': 'Project folder' });
   const format = el('select', { 'aria-label': 'Format' }, [el('option', { value: 'wav', textContent: 'WAV' }), el('option', { value: 'mp3', textContent: 'MP3' })]);
