@@ -96,12 +96,18 @@ function rewindPanel(context) {
     heard();
     say();
   };
-  const say = () => { readout.textContent = events.length ? `${events.length} rewind${events.length === 1 ? '' : 's'}: ${text()}` : 'No rewinds yet: double-click on the wave where the music should stop (or right-click).'; };
+  const approximate = () => (String(context.params.sound ?? '').replace(/^"|"$/g, '').trim() === 'fx' ? ' (Heard here as the spin: the sample sound is played by the build.)' : '');
+  const say = () => {
+    const none = 'No rewinds yet: double-click on the wave where the music should stop (or right-click).';
+    readout.textContent = (events.length ? `${events.length} rewind${events.length === 1 ? '' : 's'}: ${text()}` : none) + approximate();
+  };
 
   // the wave that is heard: the input pulled through the same arithmetic as the engine
   const heard = () => {
     if (!channel) return;
-    const params = { ...context.params, events: text(), sound: 'spin', smear: context.params.smear, brake: context.params.brake };
+    // the saved sound is heard where the browser can make it (silence, or the spin); a sample sound is played as the spin, and the line below says so
+    const saved = String(context.params.sound ?? '').replace(/^"|"$/g, '').trim();
+    const params = { ...context.params, events: text(), sound: saved === 'silence' ? 'silence' : 'spin', smear: context.params.smear, brake: context.params.brake };
     const through = (data) => rewindAudio({ sampleRate: rate, channels: [data] }, params, Math.round(rate * (barBeats() * 60) / tempo), null).audio.channels[0];
     let shown = channel;
     try { heardChannels = allChannels.map(through); shown = heardChannels[0]; } catch { shown = channel; heardChannels = allChannels; }

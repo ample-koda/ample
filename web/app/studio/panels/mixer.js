@@ -1,15 +1,16 @@
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
 import { registerStudioPanel } from './registry.js';
+import { laneWords, stripCount } from '../../../lib/mixer-strips.mjs';
 
-const parts = (value, fallback) => String(value || fallback).trim().split(/\s+/);
 function mixerPanel(context) {
   const isBus = context.type === 'bus';   // a bus and a mixer share the faders; the panel says which one it is
-  const gains = parts(context.params.gains, '0 0 0 0'), pans = parts(context.params.pan, 'c c c c');
+  const count = stripCount(context.params);   // the inputs the block has, not always four
+  const gains = laneWords(context.params.gains, count, '0'), pans = laneWords(context.params.pan, count, 'c');
   const root = el('section', { className: `studio-effect-panel studio-mixer-panel ${isBus ? 'studio-bus-panel' : 'studio-mixer-only'}`, 'aria-label': isBus ? 'Bus channels' : 'Mixer channels' });
-  root.append(el('p', { className: 'studio-mixer-kind', textContent: isBus ? 'Bus: adds up the sounds that are connected to it' : 'Mixer: four channels, one level and one pan each' }));
+  root.append(el('p', { className: 'studio-mixer-kind', textContent: isBus ? 'Bus: adds up the sounds that are connected to it' : `Mixer: ${count} channels, one level and one pan each` }));
   const strips = el('div', { className: 'studio-mixer-strips' });
-  for (let index = 0; index < 4; index++) {
+  for (let index = 0; index < count; index++) {
     const range = el('input', { type: 'range', min: '-60', max: '48', step: '1', value: String(Number(gains[index]) || 0), disabled: context.readOnly, 'aria-label': `Input ${index + 1} gain`, title: 'Input gain in decibels' });
     const readout = el('output', { textContent: `${range.value} dB` });
     range.oninput = () => { readout.value = `${range.value} dB`; readout.textContent = readout.value; };

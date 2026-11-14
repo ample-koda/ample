@@ -104,3 +104,9 @@ test('the same release covers more steps in a shorter bar', () => {
   assert.equal(releaseInSteps(-5, 120, 4), 0);
   assert.equal(releaseInSteps(160, 120, 4, 8), 0.64, 'with 8 steps in the bar');
 });
+
+test('a knob that starts at a sixteenth can say 0.0625 (issue 163)', () => {
+  assert.deepEqual(knobPrecision('', 0.0625), { step: undefined, commit: 4, display: 4 });
+  assert.equal(Number((0.25).toFixed(knobPrecision('', 0.0625).commit)), 0.25);
+  assert.equal(knobPrecision('ms', 0.1).commit, 2);
+});

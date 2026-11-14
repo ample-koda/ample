@@ -151,11 +151,19 @@ function delayLlamaPanel(context) {
   };
   undo.onclick = () => padApi.undo();
   // the count-in of a recording: three beats at the tempo of the song, shown on the pad
+  // it resolves true when the count is done, false when the window was closed or the count was cancelled: only a finished count starts the recording
+  let counting = null;
   const countIn = () => new Promise((resolve) => {
     const beat = 60000 / (Number(S.doc?.project?.tempo) || 120), shown = el('div', { className: 'llama-count' });
     pad.append(shown);
-    let n = 3;
-    const tick = () => { if (n === 0) { shown.remove(); resolve(); return; } shown.textContent = String(n); n--; setTimeout(tick, beat); };
+    let n = 3, timer = 0;
+    const end = (done) => { clearTimeout(timer); shown.remove(); counting = null; resolve(done); };
+    counting = { cancel: () => end(false) };
+    const tick = () => {
+      if (!shown.isConnected) { end(false); return; }   // the window was closed
+      if (n === 0) { end(true); return; }
+      shown.textContent = String(n); n--; timer = setTimeout(tick, beat);
+    };
     tick();
   });
 
@@ -320,7 +328,15 @@ function delayLlamaPanel(context) {
       }, 30);
     } catch (error) { sing.textContent = idleLabel(); status.textContent = error.message || String(error); }
   };
-  sing.onclick = () => { if (live.source) { stopLive(); return; } if (mode === 'rec' && !context.readOnly) { sing.textContent = 'Get ready…'; countIn().then(() => startRecording(true, strip.from)); } else startRecording(false, strip.from); };
+  sing.onclick = () => {
+    if (live.source) { stopLive(); return; }
+    if (counting) { counting.cancel(); return; }   // pressed again during the count: nothing is recorded
+    if (mode === 'rec' && !context.readOnly) {
+      const label = sing.textContent;
+      sing.textContent = 'Get ready…';
+      countIn().then((done) => { if (done) startRecording(true, strip.from); else if (sing.isConnected) sing.textContent = label; });
+    } else startRecording(false, strip.from);
+  };
   paintSing();
   if (recorded.has(context.block)) { undo.hidden = false; status.textContent = 'Recorded ' + recorded.get(context.block).seconds + ' s: vowel and mouth are now curves in this block.'; }
 

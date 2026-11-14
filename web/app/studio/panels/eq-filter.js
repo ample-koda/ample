@@ -71,8 +71,10 @@ function responseGraph(kind, params, context) {
         if (!active) return;
         const box = graph.getBoundingClientRect();
         const px = clamp((event.clientX - box.left) / box.width * 760, 38, 738);
-        if (item.name === 'low') nextHz = denormalize((px - 38) / 700, 40, 2000, 'log');
-        else if (item.name === 'high') nextHz = denormalize((px - 38) / 700, 1000, 12000, 'log');
+        // the plot has one frequency axis for every handle: the frequency under the pointer is read on it, then kept to the range of the corner
+        const under = denormalize((px - 38) / 700, 20, 20000, 'log');
+        if (item.name === 'low') nextHz = clamp(under, 40, 2000);
+        else if (item.name === 'high') nextHz = clamp(under, 1000, 12000);
         nextGain = clamp(item.gain - (event.clientY - startY) / Math.max(1, box.height) * 48, -12, 12);
         liveParams[item.name] = nextGain;
         context.preview?.(item.name, nextGain);
