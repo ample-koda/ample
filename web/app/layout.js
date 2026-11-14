@@ -29,9 +29,9 @@ export function initLayout() {
     $('#tg-bottom').classList.toggle('on', !saved.min);
     $('#b-min').textContent = saved.min ? '▴' : '▾';
     $('#lip-left').textContent = saved.noL ? '▸' : '◂';
-    $('#lip-left').setAttribute('aria-expanded', String(!saved.noL));
+    $('#lip-left').setAttribute('aria-expanded', String(drawers ? work.classList.contains('dr-L') : !saved.noL));
     $('#lip-right').textContent = saved.noR ? '◂' : '▸';
-    $('#lip-right').setAttribute('aria-expanded', String(!saved.noR));
+    $('#lip-right').setAttribute('aria-expanded', String(drawers ? work.classList.contains('dr-R') : !saved.noR));
   };
   const resized = () => window.dispatchEvent(new Event('resize'));
   // the panel may take what is under the header, banner and tab bar, but the canvas keeps 200 px: --bmax follows the real top of the work area
@@ -50,6 +50,8 @@ export function initLayout() {
     const l = work.classList.contains('dr-L'), r = work.classList.contains('dr-R');
     $('#tg-left').classList.toggle('on', l);
     $('#tg-right').classList.toggle('on', r);
+    $('#lip-left').setAttribute('aria-expanded', String(l));
+    $('#lip-right').setAttribute('aria-expanded', String(r));
     back.hidden = !(l || r);
   };
   back.hidden = true;
@@ -59,8 +61,9 @@ export function initLayout() {
   const side = (key, name) => () => (narrow.matches ? drawer(name) : flip(key));
   $('#tg-left').onclick = side('noL', 'dr-L');
   $('#tg-right').onclick = side('noR', 'dr-R');
-  $('#lip-left').onclick = () => flip('noL');
-  $('#lip-right').onclick = () => flip('noR');
+  // the edge controls do what the buttons of the menu do: on a narrow screen they open and close the drawer
+  $('#lip-left').onclick = side('noL', 'dr-L');
+  $('#lip-right').onclick = side('noR', 'dr-R');
   $('#lip-top').onclick = () => flip('noH');
   // the tab sits right under the top bar: follow its height (it changes with the window width)
   const header = document.querySelector('header');

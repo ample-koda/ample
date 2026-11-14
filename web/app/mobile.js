@@ -16,6 +16,7 @@ function menuItem(label, run, extra = {}) {
   b.textContent = label;
   if (extra.state) b.setAttribute('data-' + extra.state + '-state', '');
   if (extra.wide) b.classList.add('wide');
+  if (run.source) b.dataset.source = run.source;   // a menu item that presses a button of the bar follows that button
   b.onclick = () => run();
   return b;
 }
@@ -48,7 +49,7 @@ function popupMenu(button, menu) {
   return close;
 }
 
-const proxy = (id) => () => $(id)?.click();
+const proxy = (id) => { const press = () => $(id)?.click(); press.source = id; return press; };
 
 /** The volume popup lives in the (hidden) header group; on a phone the menu shows that popup as a floating card under the header. */
 function openVolume() {
@@ -110,6 +111,14 @@ function initMoreMenu() {
   const loop = menu.querySelector('[role="menuitemcheckbox"]');
   const syncLoop = () => loop.setAttribute('aria-checked', $('#btn-loop')?.getAttribute('aria-checked') || 'false');
   button.addEventListener('click', syncLoop);
+  // an item whose button cannot be pressed now is off and says why, instead of closing the menu and doing nothing
+  const syncAvailable = () => menu.querySelectorAll('[data-source]').forEach((item) => {
+    const target = $(item.dataset.source);
+    const off = !target || target.disabled || target.getAttribute('aria-disabled') === 'true';
+    item.disabled = off;
+    item.title = off ? 'Not available right now' : '';
+  });
+  button.addEventListener('click', syncAvailable);
   popupMenu(button, menu);
 }
 
@@ -159,6 +168,12 @@ function initBottomNav() {
   const sync = () => {
     const hidden = ['var', 'assistant', 'log'].some((t) => $(`#btabs button[data-t="${t}"]`)?.classList.contains('on')) && !bottom.classList.contains('min');
     $('#b-more').classList.toggle('on', hidden);
+    // More says which panel it holds open, and the menu marks it
+    const open = hidden ? [['var', 'Variants'], ['assistant', 'Assistant'], ['log', 'Log']].find(([t]) => $(`#btabs button[data-t="${t}"]`)?.classList.contains('on')) : null;
+    const lab = $('#b-more .lab');
+    if (lab) lab.textContent = open ? open[1] : 'More';
+    $('#b-more').setAttribute('aria-label', open ? `More panels: ${open[1]} is open` : 'More panels');
+    list.querySelectorAll('button').forEach((item) => { if (open && item.textContent === open[1]) item.setAttribute('aria-current', 'true'); else item.removeAttribute('aria-current'); });
   };
   new MutationObserver(sync).observe(tabs, { subtree: true, attributes: true, attributeFilter: ['class'] });
   new MutationObserver(sync).observe(bottom, { attributes: true, attributeFilter: ['class'] });
@@ -178,9 +193,12 @@ function initPlayStop() {
     const mode = stop.dataset.mode;
     const active = phone.matches && !stop.disabled && !!mode && mode !== 'none';
     play.classList.toggle('as-stop', active);
-    if (active) { play.dataset.stopMode = mode; play.setAttribute('aria-label', mode === 'build' ? 'Cancel build' : 'Stop'); } else delete play.dataset.stopMode;
+    if (active) { play.dataset.stopMode = mode; play.setAttribute('aria-label', mode === 'build' ? 'Cancel build' : 'Stop'); enable(); } else delete play.dataset.stopMode;
   };
   new MutationObserver(sync).observe(stop, { attributes: true, attributeFilter: ['disabled', 'data-mode', 'class'] });
+  // while it is Cancel or Stop the button can be pressed, whatever the transport said when it drew it
+  const enable = () => { if (play.classList.contains('as-stop') && play.disabled) play.disabled = false; };
+  new MutationObserver(enable).observe(play, { attributes: true, attributeFilter: ['disabled'] });
   phone.addEventListener?.('change', sync);
   play.addEventListener('click', (e) => {
     if (!play.classList.contains('as-stop')) return;
