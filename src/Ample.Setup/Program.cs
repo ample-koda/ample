@@ -40,7 +40,7 @@ namespace Ample.Setup
                 foreach (string dir in System.IO.Directory.GetDirectories(shared))
                 {
                     Version v;
-                    if (Version.TryParse(System.IO.Path.GetFileName(dir).Split('-')[0], out v) && v.Major >= 9) return true;
+                    if (Version.TryParse(System.IO.Path.GetFileName(dir).Split('-')[0], out v) && v.Major == 9) return true;   // the hub binds to major 9 only (net9.0-windows, no roll-forward)
                 }
             }
             catch (Exception) { /* unknown counts as missing */ }

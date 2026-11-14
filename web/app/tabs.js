@@ -224,6 +224,8 @@ async function closeTabNow(path, tab) {
       try {
         if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
         else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
+        // Discard clears the copy of this browser as well, or the next open would bring the discarded text back (issue 83)
+        if (choice !== 'save') { try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable */ } }
       } catch (error) { toast(error.message || String(error)); return; }
     }
   }

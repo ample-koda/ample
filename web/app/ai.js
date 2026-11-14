@@ -6,7 +6,7 @@
 import { api } from './api.js';
 import { humAttachment, offerAttachment, previewAttachment } from './hum.js';
 import { fileAttachment } from './attach.js';
-import { S, applyAiBuild, applyText, enterAiPeek, notify, reloadDoc, subscribe } from './store.js';
+import { S, applyAiBuild, applyText, enterAiPeek, flushEditor, notify, reloadDoc, subscribe } from './store.js';
 import { onPlayer, playerState, stop } from './player.js';
 import { ask, el, toast } from './ui.js';
 import { registerPlaybackAudio } from './playback-volume.js';
@@ -284,6 +284,7 @@ export function openAiPrompt(options) {
     if (!path) { say(new Error('Open a song before starting an assistant request.')); return; }
     go.disabled = true;
     try {
+      await flushEditor();   // what the editor shows right now goes with "my unsaved changes" (issue 219)
       const sel = options.selection?.();
       const task = await api.post('/api/ai/tasks', { sessionId: options.sessionId, kind: options.kind, context: contextSelect.value, scope: scope.value, prompt: prompt.value.trim(), path, song: options.song || S.path || path, fromLine: scope.value === 'selection' ? sel?.from : undefined, toLine: scope.value === 'selection' ? sel?.to : undefined, block: options.block, blocks: options.blocks, model: model.value || undefined, effort: effort.value || undefined, strict: strict.checked, hums: hum.ids(), offered: offer.ids(), attachments: files.ids(), continueFrom });
       box.close();
@@ -517,16 +518,21 @@ export function syncPeekBar() {
       barHum.take(); barOffer.take(); barFiles.take();   // they were delivered: only now they leave the tray
       barInput.value = '';
       barStatus.textContent = 'The assistant is changing the proposal...';
+      const gone = () => !barInput.isConnected;   // the bar was taken away (Back to the proposal): nothing it waited for may open or play now (issue 202)
       for (let i = 0; i < 1200; i++) {
         await new Promise((r) => setTimeout(r, 1000));
+        if (gone()) return;
         const t = await api.get(`/api/ai/tasks/${taskId}`);
+        if (gone()) return;
         if (t.status === 'failed' || t.status === 'cancelled') { barStatus.textContent = t.status === 'cancelled' ? 'This conversation was archived.' : 'The assistant stopped: ' + (t.error || t.status); return; }
         if (t.status === 'ready') break;
       }
       barStatus.textContent = 'Updated. Building and playing it...';
       const refreshed = await api.get(`/api/ai/tasks/${taskId}`);
+      if (gone()) return;
       const song = refreshed.outputSong || refreshed.build?.song || refreshed.song || S.path;
       await enterAiPeek(taskId, song);
+      if (gone()) return;
       await buildAndListen(taskId, undefined, true);
       barStatus.textContent = 'Playing the new proposal. Say what to change next, or go back to accept.';
       await fill();
