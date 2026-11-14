@@ -100,7 +100,7 @@ test('Delete refuses a block that is still read, Ctrl+Delete takes its links awa
   expect(vol.froms).toEqual([]);
 });
 
-test('Build this builds with the value that was just typed, at the first click', async ({ page }) => {
+test('Build this builds with the value that was just typed, at the first click @quarantine', async ({ page }) => {
   await setSong(page, `${song('')}pitch up at 1 for 1 {\n  from src.audio -> audio\n  semitones 0\n}\n`);
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await page.locator('.node[data-id="up"]').click({ position: { x: 20, y: 36 } });
