@@ -6,6 +6,8 @@ import { $, activatable, ask, el, showMenu, toast } from './ui.js';
 import { S, editHistory, enterEditPeek, enterPeek, goLine, leavePeek, loadHistory, notify, reloadDoc, restoreEditPeek, save, saveForCheckpoint, CheckpointDraftConflict, resolveCheckpointDraft } from './store.js';
 import { dangerousAct } from './dangerous.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
+import { listRecoveryDrafts, removeRecoveryDraft } from '../lib/recovery-drafts.mjs';
+import { stillUnsaved, unsavedMessage, unsavedWork } from '../lib/unsaved-work.mjs';
 import { compareRefs, fmtTime, histModel, lineChain, lineChildren, lineParent, shortId, visibleNodes } from './history-model.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -48,11 +50,56 @@ export function renderHistoryHeader() {
 /* ---------- actions ---------- */
 async function afterChange() { await Promise.all([loadHistory(), reloadDoc()]); }
 
+/**
+ * Everything that is not saved: every open tab (not only the song that has focus), the module that is open,
+ * and the text recovery buffers of this browser.
+ */
+async function pendingWork() {
+  const dirtyTabs = await (await import('./tabs.js')).dirtyTabPaths();
+  if (S.moduleStack.length && S.moduleDoc?.dirty && S.modulePath && !dirtyTabs.includes(S.modulePath)) dirtyTabs.push(S.modulePath);
+  let drafts = [];
+  try { drafts = listRecoveryDrafts(localStorage, S.project?.id || ''); } catch { /* storage may be blocked */ }
+  return unsavedWork({ dirtyTabs, drafts });
+}
+
+/**
+ * Saves what is pending. True only when nothing is left unsaved afterwards;
+ * otherwise it says what failed and the caller must not go on.
+ */
+async function saveEverything() {
+  const failed = [];
+  try {
+    await (await import('./source.js')).saveRecoveryDraftsForCheckpoint();
+    await saveForCheckpoint();
+    for (const item of await pendingWork()) {
+      // a tab that is changed on the server only (no browser copy): saved one by one, a failure is kept
+      const route = /\.amplet$/i.test(item.path) ? '/api/doc/save' : '/api/wc/save';
+      try { await api.post(route, { path: item.path, suppressCheckpoint: true }); } catch { failed.push(item.path); }
+    }
+    const left = stillUnsaved(await pendingWork(), failed);
+    if (left.length) { toast(unsavedMessage(left, 'Nothing was switched.')); return false; }
+    return true;
+  } catch (e) {
+    toast(e instanceof CheckpointDraftConflict ? e.message : `The save failed, so nothing was switched: ${e.message || e}`);
+    return false;
+  }
+}
+
 async function unsavedChoice() {
-  if (!S.doc || !S.doc.dirty || S.peek) return true;
-  const a = await ask('Unsaved changes', 'The song has changes that are not saved. Going to another branch leaves them behind.', [{ label: 'Cancel', value: 'cancel' }, { label: 'Discard them', value: 'discard' }, { label: 'Save first', value: 'save', primary: true }]);
+  if (S.peek) return true;
+  const items = await pendingWork();
+  if (!items.length) return true;
+  const choices = [
+    { label: 'Cancel', value: 'cancel' },
+    { label: 'Discard them', value: 'discard' },
+    { label: 'Save first', value: 'save', primary: true },
+  ];
+  const a = await ask('Unsaved changes', unsavedMessage(items), choices);
   if (!a || a === 'cancel') return false;
-  if (a === 'save') await save();
+  if (a === 'save') return saveEverything();
+  for (const item of items) {
+    try { removeRecoveryDraft(localStorage, S.project?.id || '', item.path); } catch { /* storage may be blocked */ }
+  }
   return true;
 }
 
