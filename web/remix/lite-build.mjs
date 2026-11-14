@@ -1,6 +1,6 @@
 // What Remix sends to the server for a build, and what it gets back. Pure functions (no page, no network), so they are tested in Node.
 
-import { DEFAULT_LIMITS, isText } from './lite-paths.mjs';
+import { DEFAULT_LIMITS, isSong, isText } from './lite-paths.mjs';
 
 /**
  * The files a build needs: every text file (sources and components are small) and the audio, SoundFont and MIDI files that the texts mention, by their path or by a folder that
@@ -67,7 +67,7 @@ export function checkBuild(entry, files, limits = DEFAULT_LIMITS) {
 
 /** The song to build: the one that is open, else the one that was built last, else the first song of the project. */
 export function pickEntry(paths, active, lastBuilt) {
-  const songs = paths.filter((p) => p.endsWith('.amplet')).sort();
+  const songs = paths.filter((p) => isSong(p)).sort();   // Song.AMPLET counts as a song, like the server says
   if (active && songs.includes(active)) return active;
   if (lastBuilt && songs.includes(lastBuilt)) return lastBuilt;
   return songs[0] ?? null;
