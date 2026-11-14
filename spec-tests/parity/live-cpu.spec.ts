@@ -38,3 +38,10 @@ test('@audio with safe mode off the badge goes red but nothing is bypassed, and 
   expect(state.cpu.level).toBe('bypass');
   await page.evaluate(() => import('/app/live-chain.js').then((m) => { m.setSafeMode('auto'); m.stopChain(); }));
 });
+
+test('@audio Auto Safe does not bypass a block that cannot stop computing (an EQ saves no CPU when bypassed)', async ({ page }) => {
+  await startedChain(page, [['eq', 'tone']]);
+  await overload(page);
+  const state = await page.evaluate(() => import('/app/live-chain.js').then((m) => m.chainState()));
+  expect(state.items.every((item) => !item.bypassed)).toBe(true);
+});

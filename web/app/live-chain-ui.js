@@ -24,7 +24,19 @@ function paint(state) {
     if (loud) meters.get(item.id).loud = loud;
     return el('span', { className: `lcchip${item.bypassed ? ' bypassed' : ''}`, 'data-block': item.id }, [el('strong', { textContent: titleOf(item.id), title: `${item.tpl} ${item.id}` }), toggle, ...(spectrum ? [spectrum] : []), ...(loud ? [loud] : []), meter]);
   });
-  const compare = el('button', { type: 'button', className: 'lccompare' + (state.comparingBuilt ? ' on' : ''), textContent: state.comparingBuilt ? 'Hearing the build' : 'A/B vs build', 'aria-pressed': String(Boolean(state.comparingBuilt)), 'aria-label': 'Compare the live chain with the built sound of the last block', title: 'Switch between the live chain and the built take of the last block, at the same place of the loop', onclick: () => setCompareBuilt(!state.comparingBuilt) });
+  const comparing = Boolean(state.comparingBuilt || state.comparePending);
+  let compareText = 'A/B vs build';
+  if (state.comparePending) compareText = 'Loading the build (click to cancel)';
+  else if (state.comparingBuilt) compareText = 'Hearing the build';
+  const compare = el('button', {
+    type: 'button',
+    className: 'lccompare' + (comparing ? ' on' : ''),
+    textContent: compareText,
+    'aria-pressed': String(comparing),
+    'aria-label': 'Compare the live chain with the built sound of the last block',
+    title: 'Switch between the live chain and the built take of the last block, at the same place of the loop',
+    onclick: () => setCompareBuilt(!(state.comparingBuilt || state.comparePending)),
+  });
   const stop = el('button', { type: 'button', className: 'lcstop', textContent: '■ Stop', 'aria-label': 'Stop the live chain', onclick: () => stopChain() });
   const sources = state.items.filter((item) => item.kind === 'source').map((item) => titleOf(item.id)).join(', ');
   const latency = el('span', { className: 'lclatency', textContent: state.latencyReport.label, title: state.latencyReport.tooltip, 'aria-label': state.latencyReport.tooltip, tabindex: '0' });

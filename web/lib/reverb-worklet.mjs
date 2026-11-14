@@ -8,10 +8,20 @@ class ReverbProcessor extends AudioWorkletProcessor {
     this.left = new ReverbStream(sampleRate, 0);
     this.right = new ReverbStream(sampleRate, 1);
     if (options?.processorOptions) { this.left.configure(options.processorOptions); this.right.configure(options.processorOptions); }   // the knobs at the moment it is made
-    this.port.onmessage = ({ data }) => { this.left.configure(data); this.right.configure(data); };
+    this.suspended = false;   // a sleeping room is an empty room (reset on suspend): nothing old rings out on waking
+    this.port.onmessage = ({ data }) => {
+      if ('suspended' in data) {
+        this.suspended = Boolean(data.suspended);
+        if (this.suspended) { this.left.reset(); this.right.reset(); }
+        return;
+      }
+      this.left.configure(data);
+      this.right.configure(data);
+    };
   }
 
   process(inputs, outputs) {
+    if (this.suspended) return true;   // bypassed for CPU relief: silence out, no per-sample work
     const input = inputs[0] || [], out = outputs[0], left = input[0], right = input[1] || input[0];
     for (let i = 0; i < out[0].length; i++) {
       out[0][i] = this.left.process(left ? left[i] : 0);
