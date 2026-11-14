@@ -1135,7 +1135,10 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
     /// <summary>Where Codex stands: what the server allows, what the project chose, whether Codex can run and, when asked, whether it is signed in.</summary>
     private static readonly Dictionary<string, (JsonArray Models, DateTimeOffset At)> modelsCache = [];
 
-    private static void ClearModels() { lock (modelsCache) { modelsCache.Clear(); } }
+    private static long modelsGeneration;
+
+    /// <summary>Forgets every catalog; a fetch that started before the clear (a sign-in finished meanwhile) does not store its result.</summary>
+    private static void ClearModels() { lock (modelsCache) { modelsCache.Clear(); modelsGeneration++; } }
 
     /// <summary>The models Codex offers and the current account's usage limits.</summary>
     public async Task<JsonObject> ModelsAsync(CancellationToken ct, bool koda = false)
@@ -1146,7 +1149,8 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         string cacheKey = policy.CodexPath + "|" + (home ?? "server-account");
         JsonObject usage = new();
         JsonArray? cached = null;
-        lock (modelsCache) { if (modelsCache.TryGetValue(cacheKey, out (JsonArray Models, DateTimeOffset At) e) && DateTimeOffset.UtcNow - e.At <= TimeSpan.FromMinutes(10)) { cached = e.Models; } }
+        long generation;
+        lock (modelsCache) { generation = modelsGeneration; if (modelsCache.TryGetValue(cacheKey, out (JsonArray Models, DateTimeOffset At) e) && DateTimeOffset.UtcNow - e.At <= TimeSpan.FromMinutes(10)) { cached = e.Models; } }
         if (cached is null)
         {
             try
@@ -1163,7 +1167,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
                     ["defaultEffort"] = m["defaultReasoningEffort"]?.GetValue<string>(),
                     ["isDefault"] = m["isDefault"]?.GetValue<bool>() ?? false,
                 })];
-                lock (modelsCache) { modelsCache[cacheKey] = (cached, DateTimeOffset.UtcNow); }
+                lock (modelsCache) { if (generation == modelsGeneration) { modelsCache[cacheKey] = (cached, DateTimeOffset.UtcNow); } }
             }
             catch (Exception ex) when (ex is AmpleException or TimeoutException or System.ComponentModel.Win32Exception or IOException)
             {
@@ -1493,8 +1497,12 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
         catch (Exception ex)
         {
-            login.State = "failed";
-            login.Error = "Codex sign-in could not be started: " + ex.Message;
+            if (login.State == "waiting")
+            {
+                login.State = "failed";
+                login.Error = "Codex sign-in could not be started: " + ex.Message;
+            }
+
             await rpc.DisposeAsync().ConfigureAwait(false);
             return KodaJson();
         }
@@ -1575,8 +1583,12 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
         catch (Exception ex)
         {
-            login.State = "failed";
-            login.Error = "Codex sign-in could not be started: " + ex.Message;
+            if (login.State == "waiting")
+            {
+                login.State = "failed";
+                login.Error = "Codex sign-in could not be started: " + ex.Message;
+            }
+
             await rpc.DisposeAsync().ConfigureAwait(false);
             return DeviceJson()!;
         }
