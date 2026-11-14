@@ -91,11 +91,38 @@ internal sealed class CodexRpc : IAsyncDisposable
         long id = Interlocked.Increment(ref nextId);
         TaskCompletionSource<JsonNode?> source = new(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = source;
-        await WriteAsync(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject() }).ConfigureAwait(false);
         using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(timeout);
         try
         {
+            JsonObject message = new()
+            {
+                ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject(),
+            };
+            // A write to a pipe that the child does not read can block the calling thread without honouring a token,
+            // so it runs on its own task and the deadline is awaited next to it.
+            Task write = Task.Run(() => WriteAsync(message, limit.Token), CancellationToken.None);
+            try
+            {
+                await write.WaitAsync(limit.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The deadline (or the caller) gave up while the line was queued or half written:
+                // such a line cannot be retried safely, so the connection is closed.
+                // Closing also ends a write that is still blocked; its outcome is observed
+                // so that it never surfaces as an unobserved task exception.
+                StopNow();
+                _ = write.ContinueWith(
+                    static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+                if (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                throw new TimeoutException($"Codex did not accept {method} in time.");
+            }
+
             using (limit.Token.Register(() => source.TrySetException(new TimeoutException($"Codex did not answer {method} in time.{(Stderr.Length > 0 ? " " + Stderr[..Math.Min(300, Stderr.Length)] : string.Empty)}"))))
             {
                 return await source.Task.ConfigureAwait(false);
@@ -117,15 +144,15 @@ internal sealed class CodexRpc : IAsyncDisposable
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.NotSupportedException) { /* already stopped */ }
     }
 
-    private async Task WriteAsync(JsonObject message)
+    private async Task WriteAsync(JsonObject message, CancellationToken cancellationToken = default)
     {
         string line = message.ToJsonString();
         Raw?.Invoke(">> " + (line.Length > 4000 ? line[..4000] + "…" : line));
-        await writer.WaitAsync().ConfigureAwait(false);
+        await writer.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await process.StandardInput.WriteLineAsync(line).ConfigureAwait(false);
-            await process.StandardInput.FlushAsync().ConfigureAwait(false);
+            await process.StandardInput.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+            await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
