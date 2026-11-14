@@ -351,6 +351,9 @@ internal sealed class AiTask
 
     public List<string> AcceptedPaths { get; } = [];
 
+    /// <summary>The changes that Accept selected applied, as they were proposed: Undo of a partial accept puts them back in the proposal (issue 216).</summary>
+    public List<AiChange> AcceptedChanges { get; } = [];
+
     /// <summary>The hummed melodies the user handed to this task (ids of the recordings kept by the server).</summary>
     public List<string> Hums { get; } = [];
 
@@ -2052,10 +2055,19 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
                     task.ContinuationClipLimit = saved.ContinuationClipLimit;
                     task.AcceptedPaths.AddRange(saved.AcceptedPaths ?? []);
+                    task.AcceptedChanges.AddRange(saved.AcceptedChanges ?? []);
                     foreach ((string path, string? before) in saved.Undo ?? []) task.Undo[path] = before;
                     foreach ((string path, string? hash) in saved.Written ?? []) task.Written[path] = hash;
                     task.IncludedPaths.AddRange(saved.IncludedPaths ?? []);
                     task.SongBefore = saved.SongBefore;
+                    if (saved.QueuedMessages is { Length: > 0 })
+                    {
+                        lock (task.QueuedMessages)
+                        {
+                            task.QueuedMessages.AddRange(saved.QueuedMessages);
+                        }
+                    }
+
                     task.LogAdded = AppendTaskLog;
                     foreach (AiLog line in sessionStore.SavedLog(session.Id, saved.Id)) task.AddRestored(line);
                     if (interrupted && saved.Status != "interrupted") task.Add("warn", "The server restarted while Codex was working. The temporary proposal was kept; resume this task to continue.");
@@ -4545,6 +4557,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 task.QueuedMessages.Add(clean);
             }
 
+            sessionStore.SaveTask(task);   // a restart before delivery keeps the message (issue 224)
             task.Add("info", "Codex is not working on a turn right now (AMPLE is checking and building the result). Your message is kept and goes to Codex as soon as that is done.");
             return task;
         }
@@ -5973,6 +5986,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             throw;
         }
         RecordWritten(task);
+        task.AcceptedChanges.AddRange(original.Where(change => selected.Contains(change.Path, StringComparer.Ordinal)));
         task.Changes.RemoveAll(change => selected.Contains(change.Path, StringComparer.Ordinal));
         task.Add("info", "Accepted selected files: " + string.Join(", ", selected) + ". The remaining proposal stays in review; accepting does not start another turn.");
         sessionStore.SaveTask(task);
@@ -6019,14 +6033,17 @@ Answer in English, whatever language the question is in, unless the user asks fo
     public async Task<JsonObject> UndoAsync(string id, CancellationToken ct)
     {
         AiTask task = GetTask(id);
-        if (!task.Applied)
+        // a proposal of which some files were accepted can be undone too: those files are put back and come back into the proposal (issue 216)
+        bool partial = !task.Applied && task.AcceptedChanges.Count > 0 && (task.Undo.Count > 0 || task.IncludedPaths.Count > 0 || task.SongBefore is not null);
+        if (!task.Applied && !partial)
         {
             throw new AmpleException("AMP5458", "This proposal was not applied.");
         }
 
         // nothing is touched when the recovery data is gone or when a file was changed after Accept
-        int others = task.Changes.Count(change => change.Path != task.Request.Song);
-        if (AcceptRecovery.RecoveryMissing(task.Applied, task.Undo.Count, task.IncludedPaths.Count, others))
+        IEnumerable<AiChange> basis = partial ? task.AcceptedChanges : task.Changes;
+        int others = basis.Count(change => change.Path != task.Request.Song);
+        if (AcceptRecovery.RecoveryMissing(true, task.Undo.Count, task.IncludedPaths.Count, others))
         {
             throw new AmpleException(
                 "AMP5459",
@@ -6047,9 +6064,22 @@ Answer in English, whatever language the question is in, unless the user asks fo
         await UndoMovesAsync(task, ct).ConfigureAwait(false);
         await RollbackWrittenAsync(task, ct).ConfigureAwait(false);
         task.Written.Clear();
+        if (partial)
+        {
+            // the accepted files are part of the proposal again, with the baseline they had before they were accepted
+            foreach (AiChange back in task.AcceptedChanges)
+            {
+                task.Baseline[back.Path] = back.Before;
+                task.Changes.Add(back);
+            }
+
+            task.AcceptedChanges.Clear();
+            task.AcceptedPaths.Clear();
+        }
+
         task.Applied = false;
         task.Status = "ready";
-        task.Add("info", "The accepted change was undone.");
+        task.Add("info", partial ? "The files that were accepted were put back; they are part of the proposal again." : "The accepted change was undone.");
         sessionStore.SaveTask(task);
         sessionStore.UpdateTask(task);
         return new JsonObject { ["song"] = task.Request.Song, ["songText"] = task.SongBefore };
