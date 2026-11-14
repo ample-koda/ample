@@ -26,7 +26,8 @@ import { dragHasFiles, draggedFile } from './dragfile.js';
 import { uploadProjectFiles } from './filepicker.js';
 import { unlockAudio, startLoopPlayer, stopLoopPlayer, setLoopRange, seekLoopPlayer, swapTake, state as loopState } from './loopplayer.js';
 import { createLiveSwap } from '../lib/live-swap.mjs';
-import { barAt, barOfClick, barSeconds, rangeFromDrag, rangeSeconds } from '../lib/loop-model.mjs';
+import { barAt, barOfClick, barSeconds, rangeSeconds, rangeWhileDragging } from '../lib/loop-model.mjs';
+import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import {
   TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
@@ -101,6 +102,7 @@ export function stageSequence(text, keepMine = false) {
 
 /** Closes the editor without applying what was changed in it (Koda's bigger change goes to the song). */
 export function leaveSequencerDiscarding() {
+  stopNow();
   Q.seq = null; Q.snapshot = '';
   setView('blocks');
 }
@@ -113,7 +115,7 @@ export function initSequencer() {
     const target = event.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || target.tagName === 'BUTTON')) return;
     event.preventDefault(); event.stopPropagation();
-    if (loopState().playing) stopNow(); else playNow().catch((error) => { setStatus(''); toast(error.message || String(error)); });
+    if (loopState().playing || Q.preparing) stopNow(); else playNow().catch((error) => { setStatus(''); toast(error.message || String(error)); });
   }, true);
   addEventListener('keydown', (event) => {
     if (V.mode !== 'seq' || !Q.seq || event.altKey) return;
@@ -185,13 +187,30 @@ async function writeFile(staged = false) {
 function undoEdit() {
   if (!Q.undo.length) return;
   Q.redo.push(Q.seq); Q.seq = Q.undo.pop(); Q.clip = -1;
-  render(); refreshSaveControls();
+  heardAfterHistory();
 }
 
 function redoEdit() {
   if (!Q.redo.length) return;
   Q.undo.push(Q.seq); Q.seq = Q.redo.pop(); Q.clip = -1;
-  render(); refreshSaveControls();
+  heardAfterHistory();
+}
+
+/** Undo and redo change the sequence like an edit does: the take is stale and, while it plays, the change is heard at the next return. */
+function heardAfterHistory() {
+  Q.stale = true;
+  render();
+  refreshSaveControls();
+  scheduleLive();
+}
+
+/** An edit that is made in another window (the Jam) while the sequencer stays as it is: staged like a normal edit, drawn when that window closes. */
+function stageQuietly(next) {
+  Q.undo.push(Q.seq); Q.redo = [];
+  Q.seq = next;
+  Q.stale = true;
+  refreshSaveControls();
+  scheduleLive();
 }
 
 /** Removes the clip that is chosen in the playlist (the one with the outline). */
@@ -272,7 +291,7 @@ async function leave(applyIt) {
     if (dirty() && isLocked()) { toast('This block is locked: the changes are not written.'); return; }
     if (dirty()) await writeFile();
   } else if (changed() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', undoChoices))) return;
-  stopLoopPlayer();
+  stopNow();
   if (!applyIt) await restoreWritten();
   unfoldBottom();
   setView('blocks');
@@ -364,7 +383,7 @@ function render() {
         el('button', { id: 'sq-mode-song', textContent: 'SONG', className: Q.playMode === 'song' ? 'on' : '', 'aria-pressed': String(Q.playMode === 'song'), title: 'Song: the playlist plays, the whole song or the bars chosen on the ruler', onclick: () => setPlayMode('song') }),
       ]),
       el('button', { id: 'sq-play', className: 'primary', textContent: '▶ Play', title: Q.stale || !Q.builtTake ? 'Build what changed, then play (Space). It starts at the first of the chosen bars, or at the bar you clicked on the ruler, or at bar 1.' : 'Play (Space). It starts at the first of the chosen bars, or at the bar you clicked on the ruler, or at bar 1.', onclick: () => playNow().catch((e) => { setStatus(''); toast(e.message || String(e)); }) }),
-      el('button', { id: 'sq-stop', textContent: '■ Stop', title: 'Stop playing', disabled: !loopState().playing, onclick: () => stopNow() }),
+      el('button', { id: 'sq-stop', textContent: '■ Stop', title: 'Stop playing', disabled: !(loopState().playing || Q.preparing), onclick: () => stopNow() }),
       el('button', { id: 'sq-repeat', className: Q.repeat ? 'on' : '', textContent: '⟳ Loop', 'aria-pressed': String(Q.repeat), title: 'On: when it reaches the end it starts again (the chosen bars, or the whole song when none are chosen). Off: it plays once and stops.', onclick: () => { Q.repeat = !Q.repeat; setLoopRange(loopSeconds(), Q.repeat).catch(() => {}); render(); } }),
       el('button', { id: 'sq-live', className: Q.live ? 'on' : '', textContent: '● Live', 'aria-pressed': String(Q.live), title: 'On: a change you make while it plays is built in the background and you hear it the next time the loop comes round. Off: changes are heard the next time you press Play.', onclick: () => { Q.live = !Q.live; if (!Q.live) { clearTimeout(liveTimer); Q.liveAgain = false; } render(); } }),
       el('span', { id: 'sq-pos', className: 'sqpos', textContent: `bar ${Q.cursor}` }),
@@ -427,19 +446,36 @@ async function ensureTake() {
 }
 
 /** Plays from the start of the repeat range, else from the cursor (the bar last clicked on the ruler). */
+const playGuard = createAuditionGuard(() => Q.path + '|' + (Q.blockId || ''));
+
+/** Shows that Play is preparing (a build may be needed): Stop is then a Cancel. */
+function setPreparing(on) {
+  Q.preparing = on;
+  const stop = $('#sq-stop');
+  if (stop) { stop.disabled = !(on || loopState().playing); stop.title = on ? 'Cancel: nothing will play' : 'Stop playing'; }
+}
+
 async function playNow() {
   unlockAudio();
   if (Q.error) { toast('Fix the file first: ' + Q.error); return; }
   if (Q.playMode === 'pattern' && !effectiveRange()) { toast(`Put the pattern "${Q.pattern ?? ''}" in the playlist first: PAT plays it from its first place there (SONG plays the whole song).`); return; }
-  setStatus(Q.stale || !Q.builtTake ? 'building...' : '');
-  const take = await ensureTake();
-  const range = effectiveRange();
-  const from = range ? (range.at - 1) * barSeconds(tempo()) : (Q.cursor - 1) * barSeconds(tempo());
-  await startLoopPlayer(take, { from, loop: loopSeconds(), looping: Q.repeat });
-  setStatus('');
+  const current = playGuard.begin();   // Stop, leaving, or a newer Play makes this one stale after each wait
+  setPreparing(true);
+  try {
+    setStatus(Q.stale || !Q.builtTake ? 'building...' : '');
+    const take = await ensureTake();
+    if (!current()) return;
+    const range = effectiveRange();
+    const from = range ? (range.at - 1) * barSeconds(tempo()) : (Q.cursor - 1) * barSeconds(tempo());
+    await startLoopPlayer(take, { from, loop: loopSeconds(), looping: Q.repeat });
+    if (!current()) { stopLoopPlayer(); return; }
+    setStatus('');
+  } finally {
+    if (current.latest()) setPreparing(false);
+  }
 }
 
-async function stopNow() { stopLoopPlayer(); setStatus(''); }
+async function stopNow() { playGuard.invalidate(); setPreparing(false); stopLoopPlayer(); setStatus(''); }
 
 /** Chooses (or clears) the stretch that repeats; while it plays the change is heard at once. */
 async function chooseRange(range, { play = false } = {}) {
@@ -528,7 +564,7 @@ function paintPlayhead() {
   const pos = $('#sq-pos');
   if (pos) pos.textContent = st.playing ? `bar ${barAt(st.position, tempo()).toFixed(1)}` : `bar ${Q.cursor}`;
   const stop = $('#sq-stop');
-  if (stop) stop.disabled = !st.playing;
+  if (stop) stop.disabled = !(st.playing || Q.preparing);
   if (st.playing && st.pending) { const status = $('#sq-status'); if (status && !status.textContent) status.textContent = 'the change plays when the loop comes round'; }
   if (!st.pending && Q.status === 'the change plays when the loop comes round' && st.playing) setStatus('');
 }
@@ -793,15 +829,23 @@ function paintPatterns(host, locked) {
           const field = el('textarea', { rows: 6, value: text.trim().replace(/^=\s*/, ''), 'aria-label': 'Formula', spellcheck: false });
           if (!(await ask('Formula of ' + c.name, 'Notes written as a pipeline, for example: 1:0:0.5:60:100 1:2:0.5:62:90 |> bars(1..=1) |> repeat(4) |> set(pitch="38 43 45 38"). Leave it empty to remove the row.', [{ label: 'Save', value: true, primary: true }, { label: 'Cancel', value: false }], [field]))) return;
           const next = field.value.trim();
-          Q.undo.push(Q.seq); Q.redo = []; Q.seq = setRow(Q.seq, current.name, c.name, next ? '= ' + next : ''); refreshSaveControls(); render();
+          commit(setRow(Q.seq, current.name, c.name, next ? '= ' + next : ''));
         } });
         row.append(el('span', { className: 'note', textContent: 'ƒ formula' }), edit);
         box.append(row);
         return;
       }
       const ghostRowsOf = (self) => withNotes().filter((o) => o !== self).map((o) => ({ id: 'sq-' + o.name, title: o.name, color: /^#[0-9a-f]{6}$/i.test(o.color) ? o.color : colorOf(Q.seq.channels.indexOf(o)), text: rowsOf(Q.seq, current)[o.name] ?? '', open: () => jamOpeners.get(o.name)?.() }));
+      // the Jam belongs to the sequencer it was opened in: its window is named after that block, and it writes only while that sequencer is open
+      const owner = { block: Q.blockId || '', path: Q.path };
+      const jamId = 'sq-' + (owner.block || owner.path || 'sequence') + '·' + c.name + '·' + current.name;
+      const ownerOpen = () => Boolean(Q.seq) && (Q.blockId || '') === owner.block && Q.path === owner.path;
       const openJam = () => {
-        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite('sq-' + c.name + '·' + current.name, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), voiceColor: /^#[0-9a-f]{6}$/i.test(c.settings.color ?? '') ? c.settings.color : colorOf(Q.seq.channels.indexOf(c)), pseudo: { id: 'sq-' + c.name + '·' + current.name, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => { Q.undo.push(Q.seq); Q.redo = []; Q.seq = setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()); refreshSaveControls(); return true; }, onClose: render, instrument: c.type === 'gm' ? { file: c.settings.file || '', bank: c.settings.bank ?? 0, program: c.settings.program ?? 0 } : null }));
+        import('./pianoroll-lite.js').then((m) => m.openPianoRollLite(jamId, { sequencerBlock: Q.blockId || '', ghostRows: ghostRowsOf(c), voiceColor: /^#[0-9a-f]{6}$/i.test(c.settings.color ?? '') ? c.settings.color : colorOf(Q.seq.channels.indexOf(c)), pseudo: { id: jamId, title: `${c.name} · ${current.name}`, params: {}, flags: [], tpl: 'midi-clip', parts: [] }, text: text ? `"${text}"` : '', ppq: Number(c.settings.ppq) > 0 ? Number(c.settings.ppq) : 1_000_000, write: async (value) => {
+          if (!ownerOpen()) { toast('This Jam belongs to another sequencer: nothing was written.'); return false; }
+          stageQuietly(setRow(Q.seq, current.name, c.name, value.replace(/^"|"$/g, '').trim()));
+          return true;
+        }, onClose: render, instrument: c.type === 'gm' ? { file: c.settings.file || '', bank: c.settings.bank ?? 0, program: c.settings.program ?? 0 } : null }));
       };
       jamOpeners.set(c.name, openJam);
       const jam = withJamIcon(el('button', { className: 'sqlite', disabled: locked, 'aria-label': 'AMPLE Jam', title: 'Jam on the notes of this channel in this pattern: draw, paint, slice and hear them as you go', onclick: openJam }));
@@ -882,10 +926,21 @@ function paintPlaylist(host, locked) {
     event.preventDefault();
     const rect = ruler.getBoundingClientRect(), x0 = event.clientX - rect.left;
     ruler.setPointerCapture(event.pointerId);
+    const prior = Q.range;
     let dragged = null;
-    ruler.onpointermove = (move) => { dragged = rangeFromDrag(x0, move.clientX - rect.left, px) ?? dragged; if (dragged) { Q.range = dragged; paintRangeBand(scroll); } };
+    ruler.onpointermove = (move) => {
+      const now = rangeWhileDragging(x0, move.clientX - rect.left, px, prior);
+      dragged = now.dragging ? now.range : null;
+      Q.range = now.range;
+      paintRangeBand(scroll);
+    };
+    ruler.onpointercancel = () => {
+      ruler.onpointermove = null; ruler.onpointerup = null; ruler.onpointercancel = null;
+      Q.range = prior;
+      paintRangeBand(scroll);
+    };
     ruler.onpointerup = (up) => {
-      ruler.onpointermove = null; ruler.onpointerup = null;
+      ruler.onpointermove = null; ruler.onpointerup = null; ruler.onpointercancel = null;
       if (dragged) { chooseRange(dragged).catch(() => {}); return; }
       Q.cursor = barOfClick(x0, px);
       if (loopState().playing) seekLoopPlayer((Q.cursor - 1) * barSeconds(tempo()));

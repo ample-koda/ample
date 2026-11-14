@@ -3,6 +3,7 @@
 
 import { el } from '../../ui.js';
 import { registerStudioPanel } from './registry.js';
+import { fitRegion } from '../../../lib/denoise-region.mjs';
 
 const WIDTH = 640, HEIGHT = 110;
 
@@ -87,7 +88,10 @@ function denoisePanel(context) {
     canvas.onpointerup = () => {
       if (anchor === null) return;
       anchor = null;
-      const learnFrom = Math.round(from * 10) / 10, learn = Math.round(length * 10) / 10;
+      const fit = fitRegion(from, length, duration);   // a short selection near the end is moved earlier, it never describes audio that is not there
+      from = fit.from; length = fit.length;
+      if (fit.moved) { say(); draw(); }
+      const learnFrom = fit.from, learn = fit.length;
       context.params.learn_from = String(learnFrom);
       context.params.learn = String(learn);
       commit([{ name: 'noise', value: 'start' }, { name: 'learn_from', value: String(learnFrom) }, { name: 'learn', value: String(learn) }]);

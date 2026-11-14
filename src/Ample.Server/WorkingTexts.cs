@@ -34,6 +34,18 @@ internal sealed class WorkingTexts
     /// <summary>The unsaved text of a file, or null when it has none (the file on disk is the truth then).</summary>
     internal string? Read(string path) => entries.TryGetValue(Key(path), out Entry? entry) && entry.Dirty ? entry.Text : null;
 
+    /// <summary>
+    /// Drops the working copies that have no unsaved changes, so the next read takes the file as it is on disk (after the working files
+    /// changed to another line). A copy with unsaved changes is left alone: it is the person's draft.
+    /// </summary>
+    internal void ForgetClean()
+    {
+        foreach (KeyValuePair<string, Entry> pair in entries.Where(e => !e.Value.Dirty).ToList())
+        {
+            entries.TryRemove(pair.Key, out _);
+        }
+    }
+
     /// <summary>The paths of the files with unsaved changes.</summary>
     internal IReadOnlyList<string> Dirty() => [.. entries.Where(e => e.Value.Dirty).Select(e => e.Key).Order(StringComparer.OrdinalIgnoreCase)];
 

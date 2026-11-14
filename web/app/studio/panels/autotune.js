@@ -9,6 +9,7 @@
 import { getContext } from '../../../lib/audio-engine.mjs';
 import { el, showMenu } from '../../ui.js';
 import { S } from '../../store.js';
+import { barMilliseconds } from '../../../lib/meter.mjs';
 import { registerStudioPanel } from './registry.js';
 import { onPlayer, stop as stopSong } from '../../player.js';
 import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, mergeRuns, noteName, noteRuns, parseFixes } from '../../../lib/clientside-autotune.mjs';
@@ -149,7 +150,11 @@ function autotunePanel(context) {
   requestAnimationFrame(() => { const body = root.closest('.studio-dialog-body'); if (body) watcher.observe(body); });
 
   // the fixes in seconds (read at a "rate" of 1000: every sample is a millisecond)
-  const read = () => { try { return parseFixes(clean(context.params.fixes), 1000, Math.round(240000 / tempo)).map((f) => ({ ...f, from: f.from / 1000, to: f.to / 1000 })); } catch { return []; } };
+  const read = () => {
+    try {
+      return parseFixes(clean(context.params.fixes), 1000, barMilliseconds(tempo)).map((f) => ({ ...f, from: f.from / 1000, to: f.to / 1000 }));
+    } catch { return []; }
+  };
   const text = () => formatFixes(fixes);
   const commit = () => {
     context.params.fixes = text();

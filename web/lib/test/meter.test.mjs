@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { barBeats, setBarBeats, setBarBeatsFromText, stepsPerBar } from '../meter.mjs';
+import { barBeats, barMilliseconds, setBarBeats, setBarBeatsFromText, stepsPerBar } from '../meter.mjs';
 import { secondsPerBar } from '../block-activity.mjs';
 import { parseEntry } from '../notes-model.mjs';
 import { metronomeClicks, gridLevels, SNAPS, autoSnapBeats } from '../lite-roll-model.mjs';
@@ -56,4 +56,21 @@ test('the browser click block has the clicks of the meter: three per bar in 3/4,
   assert.ok(Math.abs(peak(333) - 9000) < 2 && Math.abs(peak(666) - 9000) < 2, 'beats 2 and 3 are normal');
   assert.ok(Math.abs(peak(spb) - 16000) < 2, 'accent on the first beat of bar 2');
   assert.ok(Math.abs(peak(spb + 333) - 9000) < 2, 'beat 2 of bar 2');
+});
+
+test('a bar lasts as many milliseconds as its beats at the tempo, in any meter (issues 183 and 190)', () => {
+  assert.equal(barMilliseconds(120, 4), 2000);
+  assert.equal(barMilliseconds(120, 3), 1500);
+  assert.equal(barMilliseconds(96, 3), 1875);
+  assert.equal(barMilliseconds(120, 3.5), 1750);
+  setBarBeats(3);
+  assert.equal(barMilliseconds(120), 1500, 'the meter of the open song');
+  setBarBeats(4);
+  assert.equal(barMilliseconds(120), 2000);
+});
+
+test('a missing or bad tempo counts as 120', () => {
+  assert.equal(barMilliseconds(undefined, 4), 2000);
+  assert.equal(barMilliseconds(0.5, 4), 240000, 'a tempo below 1 is taken as 1');
+  assert.equal(barMilliseconds('x', 3), 1500);
 });

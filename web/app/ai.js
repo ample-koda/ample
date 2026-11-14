@@ -11,6 +11,7 @@ import { onPlayer, playerState, stop } from './player.js';
 import { ask, el, toast } from './ui.js';
 import { registerPlaybackAudio } from './playback-volume.js';
 import { endsTracking, pillAction } from '../lib/task-pill.mjs';
+import { buildHeadline, rejectLabel, rejectQuestion, rejectedText } from '../lib/ai-review-text.mjs';
 
 /** The "Ai Assistant" lockup (icon tile + text), same neon-tube recipe as the AMPLE wordmark; used in the Assistant panel header. */
 const AI_ASSISTANT_LOGO_SVG = `<svg width="123" height="37" viewBox="0 0 240 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true" focusable="false">
@@ -970,7 +971,11 @@ export function openAiTask(id, options = {}) {
       foot.append(t.resumable ? el('button', { type: 'button', className: 'primary', textContent: 'Resume conversation', onclick: async () => { try { await post('/resume'); tab = 'activity'; shown = ''; poll(); } catch (error) { say(error); poll(); } } }) : el('span', { className: 'note', textContent: 'This assistant thread cannot be resumed. Its saved proposal remains available for review.' }), el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() }));
       return;
     }
-    if (t.status === 'rejected') { put(el('p', { className: 'tx-hint', textContent: 'Rejected. Nothing in the project changed.' })); foot.append(el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() })); return; }
+    if (t.status === 'rejected') {
+      put(el('p', { className: 'tx-hint', textContent: rejectedText(t.acceptedPaths) }));
+      foot.append(el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() }));
+      return;
+    }
     // a proposal
     const targetSong = t.outputSong || t.build.song || t.song || t.path;
     const proposalInfo = [];
@@ -1232,7 +1237,9 @@ export function openAiTask(id, options = {}) {
   function checksView(t) {
     const b = t.build;
     const testButton = el('button', { id: 'ai-build-test', type: 'button', className: 'primary', textContent: b.only ? 'Build the whole proposal and listen' : 'Build and test again', disabled: ['pending', 'running'].includes(b.status), onclick: () => { buildAndListen(id); setTimeout(() => { shown = ''; poll(); }, 600); } });
-    const parts = [el('div', { className: b.status === 'ok' ? 'tx-done' : b.status === 'failed' ? 'tx-error' : 'tx-warn', id: 'ai-build' }, [el('b', { textContent: b.status === 'skipped' && b.skipRequested ? 'Build not run (as requested)' : ({ ok: 'Build successful', failed: 'Build failed', running: 'Checking the build...', pending: 'Waiting to check the build...', none: 'Nothing to build', skipped: 'Not built (the check could not be set up)' }[b.status] || b.status) }), el('p', { textContent: b.message || '' }), b.failures.length ? el('ul', {}, b.failures.map((f) => el('li', { textContent: f }))) : el('span')])];
+    const tone = b.status === 'ok' ? 'tx-done' : b.status === 'failed' ? 'tx-error' : 'tx-warn';
+    const failures = b.failures.length ? el('ul', {}, b.failures.map((f) => el('li', { textContent: f }))) : el('span');
+    const parts = [el('div', { className: tone, id: 'ai-build' }, [el('b', { textContent: buildHeadline(b) }), el('p', { textContent: b.message || '' }), failures])];
     parts.push(el('div', { className: 'tx-buttons' }, [testButton]));
     if (t.diagnostics.length) parts.push(section('Diagnostics', el('ul', { id: 'ai-diagnostics' }, t.diagnostics.map((d) => el('li', { textContent: d })))));
     if (b.audio) parts.push(section('Listen to the proposal', waveformPlayer(proposalAudioUrl(id, b.version), 'the proposal'), el('p', { className: 'tx-hint', textContent: 'The proposal was built in a staged copy; your project is not touched.' })));
@@ -1290,7 +1297,16 @@ export function openAiTask(id, options = {}) {
       el('button', { id: 'ai-accept-selected', type: 'button', textContent: 'Accept selected', disabled: reviewBusy || !selectedChanges.size || invalid || checking || t.stale, title: 'Apply the checked files without starting another assistant turn', onclick: () => reviewAction('/accept-selected', { paths: [...selectedChanges], include: [...include], moves: [...moveTicks] }) }),
       el('button', { id: 'ai-accept-selected-continue', type: 'button', textContent: 'Accept selected, then continue', disabled: reviewBusy || !selectedChanges.size || invalid || checking || t.stale || !t.canMessage, title: 'Apply checked files and finish only work not already delivered, keeping the original limits', onclick: () => reviewAction('/accept-selected-continue', { paths: [...selectedChanges], message: msgInput.value.trim(), include: [...include], moves: [...moveTicks] }) }),
       el('button', { id: 'ai-blockview', type: 'button', textContent: 'Preview in blocks', title: 'Shows the proposed song in the real views, read-only, where you can build and listen to single blocks', onclick: async () => { const song = t.outputSong || t.build?.song || t.song || options.song || S.path; box.close(); if (await enterAiPeek(id, song).catch(say)) { document.getElementById('vs-blocks')?.click(); setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Fit')?.click(), 250); } } }),
-      el('button', { id: 'ai-reject', type: 'button', textContent: 'Reject', onclick: async () => { if (!(await ask('Reject proposal', 'Reject this proposal? Nothing in the project changes, but the proposal is closed.', [{ label: 'Reject', value: true, primary: true }, { label: 'Keep', value: false }]))) return; post('/reject').then(() => box.close()).catch(say); } }),
+      el('button', {
+        id: 'ai-reject',
+        type: 'button',
+        textContent: rejectLabel(t.acceptedPaths),
+        onclick: async () => {
+          const buttons = [{ label: rejectLabel(t.acceptedPaths), value: true, primary: true }, { label: 'Keep', value: false }];
+          if (!(await ask('Reject proposal', rejectQuestion(t.acceptedPaths), buttons))) return;
+          post('/reject').then(() => box.close()).catch(say);
+        },
+      }),
       checking ? buildSteps(t.build) : el('span', { className: 'note', textContent: invalid ? 'Does not build: Accept anyway applies it as a starting point.' : t.build.skipRequested ? 'No build or render was run. Source errors and warnings were checked; accepting is still available.' : 'Accepting is one change: it can be undone.' }));
   }
 

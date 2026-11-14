@@ -79,4 +79,55 @@ public sealed class AcceptRollbackTests
             catch (IOException) { }
         }
     }
+
+    [Fact]
+    public async Task A_failed_second_accept_puts_back_only_its_own_writes_and_keeps_the_first()
+    {
+        string? ampleRoot = AppContext.BaseDirectory;
+        while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "global.json"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
+        string root = ampleRoot ?? throw new InvalidOperationException("AMPLE root not found.");
+        string folder = Path.Combine(Path.GetTempPath(), "ample-ai-rollback-" + Guid.NewGuid().ToString("N"));
+        string library = folder + "-library";
+        try
+        {
+            using (OpenProject project = await ProjectStore.CreateAsync(
+                new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), folder, "rollback", null, CancellationToken.None))
+            {
+                _ = project;
+            }
+
+            await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), "project rollback\n");
+            await File.WriteAllTextAsync(Path.Combine(folder, "first.txt"), "accepted first");
+            await File.WriteAllTextAsync(Path.Combine(folder, "second.txt"), "accepted second");
+            await File.WriteAllTextAsync(Path.Combine(folder, "created.txt"), "made by the second accept");
+            Directory.CreateDirectory(Path.Combine(folder, "samples"));
+            await File.WriteAllTextAsync(Path.Combine(folder, "samples", "first.wav"), "bytes");
+            await File.WriteAllTextAsync(Path.Combine(folder, "samples", "second.wav"), "bytes");
+            await using ProjectSession session = await ProjectSession.OpenAsync(
+                new ServerOptions(folder, root, LibraryHome: library), new EventBus(), CancellationToken.None);
+
+            AiTask task = new();
+            task.Undo["first.txt"] = "before the first";
+            task.IncludedPaths.Add("samples/first.wav");
+            task.Undo["second.txt"] = "before the second";
+            task.Undo["created.txt"] = null;
+            task.IncludedPaths.Add("samples/second.wav");
+
+            await session.Ai.RollbackWrittenAsync(
+                task, CancellationToken.None, new HashSet<string>(["first.txt"], StringComparer.Ordinal), 1);
+
+            Assert.Equal("accepted first", await File.ReadAllTextAsync(Path.Combine(folder, "first.txt")));
+            Assert.True(File.Exists(Path.Combine(folder, "samples", "first.wav")));
+            Assert.Equal("before the second", await File.ReadAllTextAsync(Path.Combine(folder, "second.txt")));
+            Assert.False(File.Exists(Path.Combine(folder, "created.txt")));
+            Assert.False(File.Exists(Path.Combine(folder, "samples", "second.wav")));
+            Assert.Equal(["first.txt"], task.Undo.Keys);
+            Assert.Equal(["samples/first.wav"], task.IncludedPaths);
+        }
+        finally
+        {
+            try { Directory.Delete(folder, true); Directory.Delete(library, true); }
+            catch (IOException) { }
+        }
+    }
 }

@@ -485,7 +485,12 @@ export async function saveAll() {
   if (!targets.length) { toast('The active file has no unsaved changes.'); return; }
   let detail = { saved: 0, skipped: 0, failed: 0 };
   try {
-    if (checkbox.checked) { try { await api.post('/api/history/checkpoint', { label: 'Before Save all' }); } catch (error) { toast(`No checkpoint was made: ${error.message || error}`); } }
+    if (checkbox.checked) {
+      try {
+        const made = await api.post('/api/history/checkpoint', { message: 'Before Save all' });
+        if (made?.created === false) toast('No new checkpoint was needed: the latest one already holds the saved files.');
+      } catch (error) { toast(`No checkpoint was made: ${error.message || error}`); }
+    }
     const outcome = { saved: 0, skipped: 0, failed: 0 };
     for (const path of targets) {
       if (isUntitled(path)) { if (await placeUntitled(path)) outcome.saved++; else outcome.skipped++; continue; }

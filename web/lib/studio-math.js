@@ -145,3 +145,21 @@ export function peqResponse(frequency, params) {
   return db;
 }
 
+/**
+ * How a knob moves and is written, from its unit and its smallest value: decibels in tenths, whole numbers otherwise, and
+ * hundredths where the smallest value is between 0 and 1 (a knob from 0.1 ms must be able to say 0.5 ms). `step` is undefined for a continuous knob.
+ */
+export function knobPrecision(unit, min) {
+  if (unit === 'dB') return { step: undefined, commit: 1, display: 0 };
+  if (Number(min) > 0 && Number(min) < 1) return { step: undefined, commit: 2, display: 2 };
+  return { step: 1, commit: 0, display: 0 };
+}
+
+/**
+ * How many steps of a pattern a release of `releaseMs` covers: the pattern spreads over one bar, so a step lasts a bar divided by the
+ * number of steps, whatever the tempo and the meter are.
+ */
+export function releaseInSteps(releaseMs, tempo, beatsPerBar, steps = 16) {
+  const stepMs = (beatsPerBar * 60000) / Math.max(1, Number(tempo) || 120) / Math.max(1, steps);
+  return Math.max(0, Number(releaseMs) || 0) / stepMs;
+}

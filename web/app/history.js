@@ -8,7 +8,8 @@ import { dangerousAct } from './dangerous.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { listRecoveryDrafts, removeRecoveryDraft } from '../lib/recovery-drafts.mjs';
 import { stillUnsaved, unsavedMessage, unsavedWork } from '../lib/unsaved-work.mjs';
-import { compareRefs, fmtTime, histModel, lineChain, lineChildren, lineParent, shortId, visibleNodes } from './history-model.js';
+import { compareRefs, fmtTime, histModel, lineChain, lineChildren, lineParent, qualifyRef, shortId, visibleNodes } from './history-model.js';
+import { goTargets } from '../lib/history-go.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
 const mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
@@ -133,12 +134,17 @@ export async function checkpoint() {
 
 export async function goToNode(id) {
   const m = model();
-  const line = m.lines.find((l) => l.head === id);
-  if (!line) {
-    if (await forkFrom(id, true)) toast('A new branch was made here and you are on it.');
+  // stay on the current branch when it is here; otherwise a branch that is not archived; several of them: the person says which
+  const target = goTargets(m.lines, id, m.h.current);
+  if (target.kind === 'current') { toast(`You are on ${target.name} already, at this revision.`); return; }
+  if (target.kind === 'one') { await goToLine(target.name); return; }
+  if (target.kind === 'many') {
+    const pick = el('select', { 'aria-label': 'Branch' }, target.names.map((name) => el('option', { value: name, textContent: name })));
+    const buttons = [{ label: 'Cancel', value: false }, { label: 'Go to this branch', value: true, primary: true }];
+    if (await ask('Go here', 'Several branches end at this revision. Which one do you want to go to?', buttons, [pick])) await goToLine(pick.value);
     return;
   }
-  await goToLine(line.name);
+  if (await forkFrom(id, true)) toast('A new branch was made here and you are on it.');
 }
 
 export async function goToLine(name) {
@@ -198,7 +204,8 @@ export async function compareDialog(refA, refB) {
   const refs = compareRefs(m, refA, refB);
   const opt = (sel) => (v) => el('option', { value: v[0], textContent: v[1], selected: v[0] === sel });
   const a = el('select', { id: 'compare-a' }), b = el('select', { id: 'compare-b' });
-  refs.forEach((v) => { a.append(opt(refA || 'studio')(v)); b.append(opt(refB || m.h.current)(v)); });
+  const selectedA = qualifyRef(m, refA || 'studio'), selectedB = qualifyRef(m, refB || m.h.current);
+  refs.forEach((v) => { a.append(opt(selectedA)(v)); b.append(opt(selectedB)(v)); });
   const out = el('div', { className: 'compare-results' });
   let latest = 0;
   const run = async () => {

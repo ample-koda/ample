@@ -288,7 +288,11 @@ public sealed class ProjectSession : IAsyncDisposable
     /// <summary>Parses a song for building: module instances are expanded into their blocks.</summary>
     internal AmpleDocument ParseExpanded(DocSession session) => new Ample.Engine.Modules.ModuleService(Root, () => Library, Manifest.Id.ToString("D")).ParseExpanded(session.Text, Spec);
 
-    internal void ForgetDocs() => docs.Clear();
+    internal void ForgetDocs()
+    {
+        docs.Clear();
+        texts?.ForgetClean();   // a working copy that was never changed is read from the files again: after a switch they are the other line's
+    }
 
     /// <summary>What comparing an open song with its file on disk found: same, reloaded (the working copy had no changes, so it took the file), merged (both changed, in different places: the working copy now has both), conflict (both changed the same place: the person chooses), gone (the file is deleted).</summary>
     internal sealed record DiskSync(string State, string? DiskText);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lineDiff, diffStats, diffHunks } from '../../app/diff.js';
-import { compareRefs, histModel, lineChain, lineChildren, lineParent, shortId, visibleNodes } from '../../app/history-model.js';
+import { compareRefs, histModel, lineChain, lineChildren, lineParent, qualifyRef, shortId, visibleNodes } from '../../app/history-model.js';
 
 const at = '2026-10-03T10:00:00+00:00';
 const graph = (extra = {}) => ({
@@ -90,4 +90,22 @@ test('compare retains an older selected revision outside the recent twenty', () 
   assert.equal(refs.filter(([id]) => id === 'n2').length, 1);
   assert.ok(refs.find(([id]) => id === 'n2')[1].includes('revision 2'));
   assert.equal(refs.filter(([id]) => id === 'n25').length, 1);
+});
+
+test('a line and a tag with the same name are two different choices in Compare (issue 147)', () => {
+  const m = histModel(graph({ tags: [{ name: 'try', nodeId: 'n1', reason: '' }] }));
+  const refs = compareRefs(m, 'line:try', 'tag:try');
+  assert.equal(refs.filter(([id]) => id === 'line:try').length, 1);
+  assert.equal(refs.filter(([id]) => id === 'tag:try').length, 1);
+  assert.equal(refs.find(([id]) => id === 'tag:try')[1], 'tag try');
+  assert.equal(refs.find(([id]) => id === 'line:try')[1], 'line try');
+});
+
+test('a plain name is made into line: or tag:, and a revision id stays as it is', () => {
+  const m = histModel(graph({ tags: [{ name: 'v1', nodeId: 'n1', reason: '' }] }));
+  assert.equal(qualifyRef(m, 'studio'), 'line:studio');
+  assert.equal(qualifyRef(m, 'v1'), 'tag:v1');
+  assert.equal(qualifyRef(m, 'n2'), 'n2');
+  assert.equal(qualifyRef(m, 'tag:studio'), 'tag:studio');
+  assert.equal(qualifyRef(m, undefined), undefined);
 });

@@ -50,3 +50,22 @@ export function rangeFromDrag(startX, endX, pxPerBar, minPixels = 6) {
 
 /** The bar a click on the ruler points at, with a fraction of a bar kept to a quarter. */
 export const barOfClick = (x, pxPerBar) => 1 + Math.round((Math.max(0, x) / pxPerBar) * 4) / 4;
+
+/**
+ * Where a take that does not repeat stops: at the end of the chosen stretch (seconds), else null (the take plays to its own end).
+ * With repeating on, the stretch repeats and nothing stops it.
+ */
+export function stopAtOf(loop, looping, duration) {
+  if (looping || !loop || !(loop.end > loop.start)) return null;
+  const end = Math.min(loop.end, duration || Infinity);
+  return end - loop.start > 0.05 ? end : null;
+}
+
+/**
+ * The range while a drag over the ruler goes on: the dragged bars, or, when the pointer is back where it began (no range), the range
+ * that was chosen before the drag, so a drag that returns to its start changes nothing.
+ */
+export function rangeWhileDragging(startX, endX, pxPerBar, prior = null, minPixels = 6) {
+  const dragged = rangeFromDrag(startX, endX, pxPerBar, minPixels);
+  return dragged ? { range: dragged, dragging: true } : { range: prior, dragging: false };
+}

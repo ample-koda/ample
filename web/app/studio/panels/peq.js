@@ -78,6 +78,7 @@ function graphOf(context, live) {
     handle.onkeydown = (event) => {
       const step = event.shiftKey ? 3 : 0.5;
       const b = bandOf(live, index);
+      if (isCut(b.type) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) return;   // a low cut or high cut moves sideways only
       if (event.key === 'ArrowUp') live[`band${index}_gain`] = clamp(b.gain + step, -24, 24);
       else if (event.key === 'ArrowDown') live[`band${index}_gain`] = clamp(b.gain - step, -24, 24);
       else if (event.key === 'ArrowRight') live[`band${index}_hz`] = clamp(b.hz * (event.shiftKey ? 1.26 : 1.06), 20, 20000);
@@ -126,11 +127,16 @@ function peqPanel(context) {
       enableToggle(context, graph, index, b.enabled),
       selector({ label: `Band ${index} type`, value: b.type, disabled: context.readOnly, choices: TYPES, onCommit: (value) => { graph.updateParameter(`band${index}_type`, value); context.commit(`band${index}_type`, value); } }),
       knob({ label: 'Frequency', value: b.hz, min: 20, max: 20000, unit: 'Hz', scale: 'log', disabled: context.readOnly, onPreview: (v) => change(`band${index}_hz`, v), onCommit: (v) => context.commit(`band${index}_hz`, text(v, 'Hz')) }),
-      knob({ label: 'Gain', value: b.gain, min: -24, max: 24, unit: 'dB', scale: 'linear', disabled: context.readOnly, onPreview: (v) => change(`band${index}_gain`, v), onCommit: (v) => context.commit(`band${index}_gain`, text(v, 'dB')) }),
+      knob({
+        label: 'Gain', value: b.gain, min: -24, max: 24, unit: 'dB', scale: 'linear', disabled: context.readOnly || isCut(b.type),   // a cut has no gain
+        onPreview: (v) => change(`band${index}_gain`, v), onCommit: (v) => context.commit(`band${index}_gain`, text(v, 'dB')),
+      }),
       knob({ label: 'Q', value: b.q, min: 0.1, max: 18, unit: '', scale: 'log', disabled: context.readOnly, onPreview: (v) => change(`band${index}_q`, v), onCommit: (v) => context.commit(`band${index}_q`, text(v, '')) }),
     ]));
   }
-  root.append(grid, el('p', { className: 'note', textContent: 'Drag a point to move a band; the curve is a model of the six bands together. With every gain at 0 dB the sound passes unchanged.' }));
+  const note = 'Drag a point to move a band; the curve is a model of the six bands together. '
+    + 'With every gain at 0 dB and no cut on, the sound passes unchanged; a low cut or high cut has no gain and always changes it.';
+  root.append(grid, el('p', { className: 'note', textContent: note }));
   return root;
 }
 

@@ -90,3 +90,22 @@ test('a zip made in the browser has the files in it, with the right checksums an
   assert.ok(text.includes('song.amplet') && text.includes('samples/k.wav') && text.includes('hello'));
   assert.equal(makeZip([]).length, 22);                                 // an empty zip is the end record only
 });
+
+test('a song is found whatever the case of its extension (issue 67)', () => {
+  assert.equal(pickEntry(['Song.AMPLET'], 'Song.AMPLET', null), 'Song.AMPLET');
+  assert.equal(pickEntry(['Song.AMPLET'], null, null), 'Song.AMPLET');
+  assert.equal(pickEntry(['a.amplet', 'Song.Amplet'], 'Song.Amplet', null), 'Song.Amplet');
+  assert.equal(pickEntry(['a.amplet', 'B.AMPLET'], 'notes.txt', 'B.AMPLET'), 'B.AMPLET');
+});
+
+test('a note or another file that is open keeps the song that was built last (issue 68)', () => {
+  const paths = ['A.amplet', 'B.amplet', 'notes.txt'];
+  assert.equal(pickEntry(paths, 'notes.txt', 'B.amplet'), 'B.amplet');
+  assert.equal(pickEntry(paths, null, 'B.amplet'), 'B.amplet');
+  assert.equal(pickEntry(paths, 'notes.txt', null), 'A.amplet');
+  assert.equal(pickEntry(paths, 'A.amplet', 'B.amplet'), 'A.amplet');
+});
+
+test('a song that was built last but is gone is not picked', () => {
+  assert.equal(pickEntry(['A.amplet', 'notes.txt'], 'notes.txt', 'B.amplet'), 'A.amplet');
+});

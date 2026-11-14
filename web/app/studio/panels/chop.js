@@ -2,6 +2,7 @@
 // while it plays) and a knob for every setting. @ample:chop
 import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
+import { barBeats } from '../../../lib/meter.mjs';
 import { S, build, flat } from '../../store.js';
 import { onPlayer, stop as stopSong } from '../../player.js';
 import { chopAudio, chopSettings, parsePattern, sliceStarts } from '../../../lib/clientside-chop.mjs';
@@ -38,7 +39,9 @@ function chopPanel(context) {
     if (mono) { try { list = parsePattern(values.pattern, Math.max(1, starts.length)); } catch (error) { problem ||= error.message; } }
     steps.replaceChildren(...list.map((step) => el('span', { className: 'chop-step' + (step.slice < 0 ? ' rest' : ''), style: step.slice < 0 ? '' : `background:${COLORS[step.slice % COLORS.length]}`, textContent: step.slice < 0 ? '–' : String(step.slice + 1) + (step.times > 1 ? '×' + step.times : '') })));
     const settings = chopSettings(paramsNow()), beats = list.length * settings.step * settings.repeat;
-    info.textContent = problem || (mono ? `${starts.length} slice${starts.length === 1 ? '' : 's'} · ${list.length} steps · ${Math.round(beats * 100) / 100} beats (${Math.round(beats / 4 * 100) / 100} bars)` : 'Build the recording to see its slices.');
+    const barsText = `${Math.round(beats / barBeats() * 100) / 100} bars`;   // the bars of the open song, not four beats each
+    const sliceText = `${starts.length} slice${starts.length === 1 ? '' : 's'}`;
+    info.textContent = problem || (mono ? `${sliceText} · ${list.length} steps · ${Math.round(beats * 100) / 100} beats (${barsText})` : 'Build the recording to see its slices.');
     info.classList.toggle('bad', Boolean(problem));
     canvas.dataset.slices = starts.join(','); canvas.dataset.frames = String(mono?.length ?? 0); canvas.dataset.rate = String(audio?.sampleRate ?? 0);
     draw();

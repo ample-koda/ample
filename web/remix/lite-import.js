@@ -107,6 +107,8 @@ export function createImporter(deps) {
         addedEntries.push(deps.isText(path) ? { path, text: typeof data === 'string' ? data : await data.text() } : { path });
       }
 
+      // a Cancel pressed while the last file was being read or saved: the writes are in addedPaths, so the rollback below removes them
+      if (bar.cancelled) throw Object.assign(new Error('Cancelled.'), { cancelled: true });
       bar.step(items.length, items.length, 'Done.');
       return { added: addedEntries, skipped };
     } catch (error) {
