@@ -15,6 +15,7 @@ import { parseView, withoutViewText, writeView } from '../lib/view-lines.mjs';
 import { sizes } from './geometry.js';
 import { setBarBeats } from '../lib/meter.mjs';
 import { consumeRecoveryAcceptance, decide, listWorkRecords, parseRecord, removeWorkRecord, workRecord } from '../lib/work-state.mjs';
+import { peekSongs } from '../lib/peek-songs.mjs';
 
 export const S = {
   project: null,
@@ -988,9 +989,19 @@ function peekReturnState() {
 
 export async function enterPeek(ref) {
   const files = await api.get(`/api/history/peek?ref=${encodeURIComponent(ref)}`);
-  const text = files[S.path];
-  if (text === undefined) { toast(`That state has no ${S.path}.`); return false; }
-  const doc = await api.post('/api/doc/parse', { text, path: S.path });
+  // the song that is open, or, when the revision has other songs, one of those (issue 145)
+  const songs = peekSongs(files, S.path);
+  let path = songs[0];
+  if (!path) { toast('That state has no song.'); return false; }
+  if (path !== S.path && songs.length > 1) {
+    const { ask, el } = await import('./ui.js');
+    const pick = el('select', { 'aria-label': 'Song' }, songs.map((song) => el('option', { value: song, textContent: song })));
+    const buttons = [{ label: 'Cancel', value: false }, { label: 'Look at it', value: true, primary: true }];
+    if (!(await ask('Look only', `${S.path} is not in that state. Which of its songs do you want to look at?`, buttons, [pick]))) return false;
+    path = pick.value;
+  }
+  const text = files[path];
+  const doc = await api.post('/api/doc/parse', { text, path });
   S.peek = { ref, returnState: S.peek?.returnState || peekReturnState() };
   S.doc = doc;
   setBarBeats(doc.project?.beatsPerBar);
