@@ -259,60 +259,66 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             options.Detail?.Invoke(new BlockProgress(queued.Name, "queued", 0, []));
         }
 
-        for (int levelIndex = 0; levelIndex < levels.Count; levelIndex++)
-        {
-            List<BlockNode> level = levels[levelIndex];
-            Task<BlockResult>[] tasks = [.. level.Select(async b =>
-            {
-                try { await gate.WaitAsync(cancellationToken).ConfigureAwait(false); }
-                catch (OperationCanceledException) { return new BlockResult(b.Name, "cancelled", null, "The build was cancelled before this block started."); }
-                try
-                {
-                    if (b.Flags.Contains("disabled")) return new BlockResult(b.Name, "disabled", null, "This block is disabled.");
-                    if (b.Type is "mixer" or "bus" && b.Froms.All(f => f.Disabled || results.Get(f.Block)?.Status == "disabled")) return new BlockResult(b.Name, "disabled", null, "No active mixer inputs.");
-                    if (b.Froms.Any(f => f.Disabled) && !b.Froms.Any(f => !f.Disabled) && b.Type is not ("mixer" or "bus")) return new BlockResult(b.Name, "disabled", null, "No active connections.");
-                    FromLine? disabledInput = b.Froms.FirstOrDefault(f => (f.Disabled || results.Get(f.Block)?.Status == "disabled") && (NeedsInput(spec.Templates[b.Type], f.Input) || spec.Templates[b.Type].Inputs.Any(p => p.Name == "render_in") && f.Input is "in" or "render_in"));
-                    if (disabledInput is not null) return new BlockResult(b.Name, "disabled", null, ImplicitlyDisabled(disabledInput.Input, disabledInput.Block));
-                    if (RenderChain.IsDeferred(b, doc, spec, wanted, options.Only)) return new BlockResult(b.Name, "deferred", null, null);
-                    try { return await BuildBlockAsync(b, doc, renderers, results, preview, rate, spb, range, songBars, tempoMilli, midiModules, options.Intent, options, cancellationToken).ConfigureAwait(false); }
-                    catch (OperationCanceledException) { return new BlockResult(b.Name, "cancelled", null, "The build was cancelled before this block completed."); }
-                }
-                finally
-                {
-                    gate.Release();
-                }
-            })];
-            List<Task<BlockResult>> pending = [.. tasks];
-            while (pending.Count > 0)
-            {
-                Task<BlockResult> finished = await Task.WhenAny(pending).ConfigureAwait(false);
-                pending.Remove(finished);
-                if (finished.IsCompletedSuccessfully) options.Progress?.Invoke(finished.Result.Block, finished.Result.Status);
-            }
-            BlockResult[] done = await Task.WhenAll(tasks).ConfigureAwait(false);
-            foreach (BlockResult r in done)
-            {
-                results.Set(r);
-                report.Add(r);
-            }
+        // a block starts as soon as its own inputs have finished (under the limit of the gate), not when every block of its level has: a slow generator on one branch does not hold back an
+        // independent chain that is ready. The report keeps the order of the levels, and a mixer still waits for all of its inputs (issue 288)
+        Dictionary<string, Task<BlockResult>> running = new(StringComparer.Ordinal);
+        List<BlockNode> inOrder = [.. levels.SelectMany(l => l)];
 
-            if (cancellationToken.IsCancellationRequested)
+        async Task<BlockResult> RunOneAsync(BlockNode b)
+        {
+            try { await gate.WaitAsync(cancellationToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return new BlockResult(b.Name, "cancelled", null, "The build was cancelled before this block started."); }
+            try
             {
-                for (int remaining = levelIndex + 1; remaining < levels.Count; remaining++)
-                {
-                    foreach (BlockNode block in levels[remaining])
-                    {
-                        FromLine? lost = block.Froms.FirstOrDefault(f => !f.Disabled && (results.Get(f.Block)?.Status is "cancelled" or "failed") && (NeedsInput(spec.Templates[block.Type], f.Input) || (spec.Templates[block.Type].Inputs.Any(p => p.Name == "render_in") && f.Input is ("in" or "render_in"))));
-                        BlockResult result = lost is null
-                            ? new BlockResult(block.Name, "cancelled", null, "The build was cancelled before this block started.")
-                            : new BlockResult(block.Name, "failed", null, $"Required input '{lost.Input}' from '{lost.Block}' did not complete because the build was cancelled.");
-                        results.Set(result);
-                        report.Add(result);
-                        options.Progress?.Invoke(result.Block, result.Status);
-                    }
-                }
-                break;
+                if (b.Flags.Contains("disabled")) return new BlockResult(b.Name, "disabled", null, "This block is disabled.");
+                if (b.Type is "mixer" or "bus" && b.Froms.All(f => f.Disabled || results.Get(f.Block)?.Status == "disabled")) return new BlockResult(b.Name, "disabled", null, "No active mixer inputs.");
+                if (b.Froms.Any(f => f.Disabled) && !b.Froms.Any(f => !f.Disabled) && b.Type is not ("mixer" or "bus")) return new BlockResult(b.Name, "disabled", null, "No active connections.");
+                FromLine? disabledInput = b.Froms.FirstOrDefault(f => (f.Disabled || results.Get(f.Block)?.Status == "disabled") && (NeedsInput(spec.Templates[b.Type], f.Input) || spec.Templates[b.Type].Inputs.Any(p => p.Name == "render_in") && f.Input is "in" or "render_in"));
+                if (disabledInput is not null) return new BlockResult(b.Name, "disabled", null, ImplicitlyDisabled(disabledInput.Input, disabledInput.Block));
+                if (RenderChain.IsDeferred(b, doc, spec, wanted, options.Only)) return new BlockResult(b.Name, "deferred", null, null);
+                try { return await BuildBlockAsync(b, doc, renderers, results, preview, rate, spb, range, songBars, tempoMilli, midiModules, options.Intent, options, cancellationToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) { return new BlockResult(b.Name, "cancelled", null, "The build was cancelled before this block completed."); }
             }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        BlockResult CancelledBeforeStart(BlockNode block)
+        {
+            FromLine? lost = block.Froms.FirstOrDefault(f => !f.Disabled && (results.Get(f.Block)?.Status is "cancelled" or "failed") && (NeedsInput(spec.Templates[block.Type], f.Input) || (spec.Templates[block.Type].Inputs.Any(p => p.Name == "render_in") && f.Input is ("in" or "render_in"))));
+            return lost is null
+                ? new BlockResult(block.Name, "cancelled", null, "The build was cancelled before this block started.")
+                : new BlockResult(block.Name, "failed", null, $"Required input '{lost.Input}' from '{lost.Block}' did not complete because the build was cancelled.");
+        }
+
+        async Task<BlockResult> RunWhenReadyAsync(BlockNode b, Task<BlockResult>[] inputs)
+        {
+            await Task.WhenAll(inputs).ConfigureAwait(false);
+            BlockResult result = cancellationToken.IsCancellationRequested ? CancelledBeforeStart(b) : await RunOneAsync(b).ConfigureAwait(false);
+            results.Set(result);   // the blocks that wait for this one read it from here
+            return result;
+        }
+
+        foreach (BlockNode block in inOrder)
+        {
+            Task<BlockResult>[] inputs = [.. block.Dependencies().Where(f => !f.Disabled).Select(f => f.Block).Distinct(StringComparer.Ordinal).Select(name => running.GetValueOrDefault(name)).OfType<Task<BlockResult>>()];
+            running[block.Name] = RunWhenReadyAsync(block, inputs);
+        }
+
+        List<Task<BlockResult>> pending = [.. running.Values];
+        while (pending.Count > 0)
+        {
+            Task<BlockResult> finished = await Task.WhenAny(pending).ConfigureAwait(false);
+            pending.Remove(finished);
+            if (finished.IsCompletedSuccessfully) options.Progress?.Invoke(finished.Result.Block, finished.Result.Status);
+        }
+
+        await Task.WhenAll(running.Values).ConfigureAwait(false);
+        foreach (BlockNode block in inOrder)
+        {
+            report.Add(await running[block.Name].ConfigureAwait(false));
         }
 
         BlockNode? master = blocks.LastOrDefault(b => b.Type == "master") ?? blocks.LastOrDefault(b => spec.Templates[b.Type].Outputs.Any(o => o.Type == "audio"));
