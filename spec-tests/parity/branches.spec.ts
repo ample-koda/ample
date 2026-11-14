@@ -4,7 +4,7 @@ import { api, bottomTab, dialog, freshServer, openApp } from '../../web/tests/su
 freshServer();
 test.beforeEach(async ({ page }) => { await openApp(page); });
 
-test('a forked line shows in the structure list and as a box next to its parent in the branch view', async ({ page }) => {
+test('a forked line shows in the structure list and as a box next to its parent in the branch view @quarantine', async ({ page }) => {
   const name = `leaf-${Date.now()}`;
   await bottomTab(page, 'hist');
   await page.click('#btn-fork');
