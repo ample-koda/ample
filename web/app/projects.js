@@ -156,7 +156,7 @@ async function settings(body) {
         // (the disk is full, the server said no) marks none: the alert above the button says it, and no unrelated field is called invalid.
         error.id = `ps-error-${tab}`;
         const fields = [...panelNode.querySelectorAll('input[id], select[id]')];
-        const words = message.toLowerCase().match(/[a-z]{4,}/g) || [];
+        const words = message.toLowerCase().match(/[a-z]{5,}/g) || [];   // words of five letters or more: "The disk is full" must not pick "full detail (days)"
         const named = fields.find((n) => { const l = (panelNode.querySelector(`label[for="${n.id}"]`)?.textContent || '').toLowerCase(); return l && words.some((w) => l.includes(w)); });
         const target = fields.find((n) => !n.checkValidity()) || named;
         if (target) { target.setAttribute('aria-invalid', 'true'); target.setAttribute('aria-describedby', `${target.getAttribute('aria-describedby') || ''} ps-error-${tab}`.trim()); target.focus(); }

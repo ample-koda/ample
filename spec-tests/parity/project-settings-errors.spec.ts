@@ -37,3 +37,13 @@ test('a failure that is not about a field marks no field, but still says so in t
   await expect(marked(page)).toHaveCount(0);   // no unrelated field is called invalid
   await expect(page.locator('#ps-save')).toBeEnabled();
 });
+
+test('an ordinary word in a server message does not pick a field: "The disk is full." is not about "full detail (days)"', async ({ page }) => {
+  await page.route((u) => u.pathname === '/api/project/settings', (route) => (route.request().method() === 'POST'
+    ? route.fulfill({ status: 500, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Server error', detail: 'The disk is full.', code: 'AMP5001' }) })
+    : route.continue()));
+  await page.locator('#ps-budget').fill('64');
+  await page.click('#ps-save');
+  await expect(page.locator('#ps-tab-general .ps-error[role="alert"]')).toContainText('The disk is full.');
+  await expect(marked(page)).toHaveCount(0);
+});
