@@ -1,7 +1,7 @@
 // Starts the app: token, project, panels, header buttons, event stream. @ample:layout
 
 import { extensionOf, AUDIO_EXTENSIONS, MIDI_EXTENSIONS, SEQUENCE_EXTENSIONS, LYRICS_EXTENSIONS, TEXT_EXTENSIONS } from '../lib/file-types.mjs';
-import { $, showMenu, toast } from './ui.js';
+import { $, el, showMenu, toast } from './ui.js';
 import { api, connectEvents, initToken } from './api.js';
 import { S, bakeDynamicHelpers, quiet, redo, build, dirty, flat, graphBroken, loadHistory, loadProject, notify, onBlockProgress, onBuildProgress, openDoc, readOnly, refreshInputs, reloadDoc, save, select, stopBuild, subscribe, subscribeSelection, undo, errors } from './store.js';
 import { applyView, initCanvas, paintSelection, renderGraph } from './canvas.js';
@@ -41,6 +41,7 @@ import { buildButton, failedBadge, masterTakeOf, playButton, playingLabel, runni
 import { liveActive, onLiveChange, stopLive } from './component-live.js';
 import './live-chain-ui.js';   // the bar of the live chain (the chain itself starts from the Studio window of an effect)
 import { buildAndPlayClientPreview, cancelClientPreview, clientPreviewProgress, clientPreviewRunning } from './clientside-preview.js';
+import { announcement, buildState, percentOf } from '../lib/build-status.mjs';
 
 const masterTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) => n.id), flat().nodes);
 
@@ -141,9 +142,33 @@ function renderHeader() {
   const server = S.build.running ? total ? `· server render ${done}/${total}${runningText(S.build.live)}`.replace(/^/, ' ') : ' · server render' : '';
   $('#bfill').style.width = preview ? `${Math.round(Math.min(1, preview.done.size / Math.max(preview.total, 1)) * (preview.phase ? 1 : 0.95) * 100)}%` : S.build.running ? `${Math.round((done / Math.max(total, 1)) * 100)}%` : '0';
   $('#btxt').textContent = preview ? (preview.phase ? `preview · ${preview.phase}` : `preview ${Math.min(preview.done.size, preview.total)}/${preview.total}${preview.active.length ? ` · ${preview.active.at(-1)}` : ''}${server}`) : S.build.running ? `building ${done}/${total || '?'}${runningText(S.build.live)}` : clientPreviewRunning() ? 'preparing client preview' : 'idle';
+  announceBuildProgress(preview ? percentOfPreview(preview) : percentOf(done, total), $('#btxt').textContent, buildState({
+    running: S.build.running, previewRunning: Boolean(preview), failed: Object.values(S.build.status || {}).filter((s) => s?.status === 'failed').length,
+  }));
   $('#btxt').title = preview ? (preview.phase ? `Preview: ${preview.phase}` : `Preview: ${preview.done.size} of ${preview.total} blocks ready. Working on: ${preview.active.join(', ') || 'the next block'}${server ? '. A block is being rendered on the server.' : ''}`) : '';
   renderHistoryHeader();
 }
+
+/** The progress readout is a progress bar with a value, and a hidden polite status says when a build starts, finishes or fails (not on every tick). */
+let announcedState = null;
+function announceBuildProgress(percent, text, state) {
+  const bar = $('#bprog');
+  bar.setAttribute('role', 'progressbar');
+  bar.setAttribute('aria-label', 'Build progress');
+  bar.setAttribute('aria-valuemin', '0');
+  bar.setAttribute('aria-valuemax', '100');
+  bar.setAttribute('aria-valuenow', String(percent));
+  bar.setAttribute('aria-valuetext', text);
+  let status = document.getElementById('build-status');
+  if (!status) {
+    status = el('div', { id: 'build-status', className: 'sr-only', role: 'status', 'aria-live': 'polite' });
+    document.body.append(status);
+  }
+  const say = announcement(announcedState, state, Object.values(S.build.status || {}).filter((s) => s?.status === 'failed').length);
+  if (say) status.textContent = say;
+  announcedState = state;
+}
+const percentOfPreview = (preview) => percentOf(Math.min(preview.done.size, preview.total) * (preview.phase ? 1 : 0.95), preview.total);
 
 function renderAll() {
   renderHeader();

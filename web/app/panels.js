@@ -132,6 +132,7 @@ export function renderLib() {
       const it = el('div', { className: 'tplitem', draggable: true, 'data-tpl': t.id, tabindex: '0' }, [el('span', { className: 'tpl-title', textContent: t.title })]);
       it.ondragstart = (e) => e.dataTransfer.setData('text/plain', t.id);
       it.ondblclick = () => { const r = $('#cv').getBoundingClientRect(); addBlock(t.id, (r.width / 2 - S.view.x) / S.view.k - W / 2, (r.height / 2 - S.view.y) / S.view.k - 30); };
+      it.onkeydown = (e) => { if (e.target === it && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); it.ondblclick(); } };
       d.append(it);
     });
     box.append(d);
@@ -165,6 +166,7 @@ export function renderLib() {
         const p = { x: (r.width / 2 - S.view.x) / S.view.k, y: (r.height / 2 - S.view.y) / S.view.k };
         addBlock(t.id, p.x - W / 2, p.y - 30);
       };
+      it.onkeydown = (e) => { if (e.target === it && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); it.ondblclick(); } };
       it.oncontextmenu = (e) => {
         e.preventDefault();
         const place = (version) => {

@@ -64,6 +64,8 @@ details{border-top:1px solid var(--line)}details>summary{cursor:pointer;padding:
 #bottom{background:var(--panel);border-top:1px solid var(--line);display:flex;flex-direction:column;height:var(--bh,280px);max-height:var(--bmax,none);min-height:34px;min-width:0;overflow:hidden}
 #bottom.min{height:34px}
 #bgrip{height:8px;flex:none;cursor:ns-resize;touch-action:none;background:var(--line)}
+#bgrip:focus-visible,.grip.v:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;background:color-mix(in srgb,var(--acc) 40%,var(--line))}
+.banner-exit{margin-left:8px;font-size:12px}
 #btabs{display:flex;gap:2px;padding:4px 8px 0}
 #btabs button{border-radius:6px 6px 0 0;border-bottom:none}
 #btabs button[data-t="assistant"]{display:inline-flex;align-items:center;gap:5px}

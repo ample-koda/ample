@@ -1823,6 +1823,8 @@ Press to hear this sound. Right-click a row's cells to delete.`, event);
     const target = event.target, field = target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
     if (field) return;
     const key = event.key, mod = event.ctrlKey || event.metaKey;
+    // Space and Enter on a focused button press that button; the transport shortcut belongs to the grid and the other places that are no control
+    if (target instanceof HTMLButtonElement && (key === ' ' || key === 'Enter')) return;
     if (key === 'ArrowLeft' && event.altKey && !mod && !event.shiftKey && !state.selected.size && backStack.length) { event.preventDefault(); goBack(); return; }
     if (mod && key.toLowerCase() === 't') { event.preventDefault(); setTyping(!state.typing); return; }
     if (mod && key.toLowerCase() === 'z') { event.preventDefault(); if (options.pseudo) stepHistory(!event.shiftKey); else (event.shiftKey ? redo : undo)(); return; }
@@ -1918,7 +1920,6 @@ Press to hear this sound. Right-click a row's cells to delete.`, event);
     if (shift.dPitch && reaudition()) hear({ pitch: picked[0].pitch + shift.dPitch, velocity: picked[0].velocity, length: picked[0].length });
     requestDraw();
   }
-  panel.addEventListener('keyup', (event) => { if (event.key === ' ' && event.target instanceof HTMLButtonElement) event.preventDefault(); });
   panel.addEventListener('cancel', (event) => event.preventDefault());   // Esc never closes the roll (decision 23)
 
   // ---- view memory per block (decision 20.4) and the switch to the Advanced roll (decision 3 / 20.11) ----

@@ -111,7 +111,8 @@ export function initSequencer() {
   addEventListener('keydown', (event) => {
     if (V.mode !== 'seq' || event.code !== 'Space' || event.ctrlKey || event.metaKey || event.altKey) return;
     const target = event.target;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable || target.tagName === 'BUTTON')) return;
+    const isControl = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+    if (isControl || target?.tagName === 'BUTTON' || target?.closest?.('.mls-panel')) return;   // a Jam of a row owns its own Space
     event.preventDefault(); event.stopPropagation();
     if (loopState().playing) stopNow(); else playNow().catch((error) => { setStatus(''); toast(error.message || String(error)); });
   }, true);

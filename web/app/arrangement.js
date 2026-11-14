@@ -225,7 +225,10 @@ export function renderArrangement() {
         ]);
       };
       b.onkeydown = async (event) => {
-        if (readOnly() || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        if (readOnly()) return;
+        // Enter opens the same dialog as a double click: an exact start and length
+        if (event.key === 'Enter') { event.preventDefault(); editPartTiming(n, parts, Number(b.dataset.part)); return; }
+        if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
         event.preventDefault();
         const i = Number(b.dataset.part), next = parts.map((part, j) => j !== i ? part : event.shiftKey
           ? { ...part, length: Math.max(1, part.length + (event.key === 'ArrowRight' ? 1 : -1)) }

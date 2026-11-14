@@ -1,6 +1,7 @@
 // Panels: show or hide, resize, remember per project. @ample:layout
 
 import { $ } from './ui.js';
+import { resizedByKey } from '../lib/keyboard-resize.mjs';
 
 const KEY = 'ample.layout';
 
@@ -77,6 +78,22 @@ export function initLayout() {
     fs.onclick = () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {}); };
   }
   const grip = $('#bgrip');
+  // keyboard: the handle is a separator that can be focused; Up makes the panel taller, Down shorter (Shift: four steps), Home and End go to the least and the most
+  grip.setAttribute('role', 'separator'); grip.setAttribute('tabindex', '0'); grip.setAttribute('aria-orientation', 'horizontal');
+  grip.setAttribute('aria-label', 'Resize the bottom panel');
+  const announceHeight = () => {
+    grip.setAttribute('aria-valuemin', '120');
+    grip.setAttribute('aria-valuemax', String(fit()));
+    grip.setAttribute('aria-valuenow', String(Math.round(bottom.getBoundingClientRect().height)));
+  };
+  grip.onfocus = announceHeight;
+  grip.onkeydown = (e) => {
+    const size = resizedByKey(bottom.getBoundingClientRect().height, e.key, { min: 120, max: fit(), grow: 'ArrowUp', shrink: 'ArrowDown', shift: e.shiftKey });
+    if (size === null) return;
+    e.preventDefault();
+    saved.bh = size; saved.min = false; bottom.classList.remove('min'); bottom.style.setProperty('--bh', `${size}px`);
+    store(saved); resized(); announceHeight();
+  };
   grip.onpointerdown = (e) => {
     grip.setPointerCapture(e.pointerId);
     const y0 = e.clientY, h0 = bottom.getBoundingClientRect().height;
@@ -92,6 +109,23 @@ export function initLayout() {
   };
   const resizeSide = (id, prop, dir) => {
     const handle = $(id);
+    const panel = dir === 'l' ? $('#left') : $('#right');
+    handle.setAttribute('role', 'separator'); handle.setAttribute('tabindex', '0'); handle.setAttribute('aria-orientation', 'vertical');
+    handle.setAttribute('aria-label', dir === 'l' ? 'Resize the block library' : 'Resize the properties');
+    const announceWidth = () => {
+      handle.setAttribute('aria-valuemin', '160');
+      handle.setAttribute('aria-valuemax', '560');
+      handle.setAttribute('aria-valuenow', String(Math.round(panel.getBoundingClientRect().width)));
+    };
+    handle.onfocus = announceWidth;
+    handle.onkeydown = (e) => {
+      // the library grows to the right, the properties to the left
+      const [grow, shrink] = dir === 'l' ? ['ArrowRight', 'ArrowLeft'] : ['ArrowLeft', 'ArrowRight'];
+      const size = resizedByKey(panel.getBoundingClientRect().width, e.key, { min: 160, max: 560, grow, shrink, shift: e.shiftKey });
+      if (size === null) return;
+      e.preventDefault();
+      saved[prop] = size; apply(); store(saved); resized(); announceWidth();
+    };
     handle.onmousedown = (e) => e.preventDefault();   // no native drag of a library item or a text selection may start under the handle (it cancels the pointer)
     handle.onpointerdown = (e) => {
       handle.setPointerCapture(e.pointerId);
