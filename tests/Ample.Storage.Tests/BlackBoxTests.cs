@@ -372,6 +372,35 @@ public sealed class BlackBoxTests
     }
 
     [Fact]
+    public async Task Two_settings_saves_made_from_the_same_settings_keep_each_others_groups()
+    {
+        InMemoryFileSystem fs = new();
+        FakeClock clock = new(T0);
+        using OpenProject project = await ProjectStore.CreateAsync(fs, clock, new SequentialIdGenerator([Guid.NewGuid()]), Root, "song");
+        using Journal j = await Open(fs, clock);
+        CommandBus bus = new(j, new CommandContext(fs, Root, clock), "ui");
+        ProjectSettings basis = project.Manifest.Settings;   // both saves started from this
+        await bus.ExecuteAsync(new SetSettingsCommand(basis with { BlackBox = new BlackBoxSettings(123, 30, 60), BuildParallelism = 2 }, basis));
+        await bus.ExecuteAsync(new SetSettingsCommand(basis with { DefaultEngine = "turbo", Koda = basis.Koda with { Language = "nl" } }, basis));   // must not put the first save back to the basis
+        ProjectSettings now = ProjectFile.Parse(await fs.ReadAllTextAsync(Path.Combine(Root, ".ample", "project.json"), CancellationToken.None)).Settings;
+        Assert.Equal(123, now.BlackBox.BudgetBytes);
+        Assert.Equal(2, now.BuildParallelism);
+        Assert.Equal("turbo", now.DefaultEngine);
+        Assert.Equal("nl", now.Koda.Language);
+
+        // the same group saved twice: the later save wins; a group a save did not change is never written from its stale copy
+        await bus.ExecuteAsync(new SetSettingsCommand(basis with { BlackBox = new BlackBoxSettings(456, 30, 60) }, basis));
+        now = ProjectFile.Parse(await fs.ReadAllTextAsync(Path.Combine(Root, ".ample", "project.json"), CancellationToken.None)).Settings;
+        Assert.Equal(456, now.BlackBox.BudgetBytes);
+        Assert.Equal("turbo", now.DefaultEngine);
+        Assert.Equal(2, now.BuildParallelism);
+
+        // without a basis the whole settings are written, as before
+        await bus.ExecuteAsync(new SetSettingsCommand(basis));
+        Assert.Equal(basis.BlackBox.BudgetBytes, ProjectFile.Parse(await fs.ReadAllTextAsync(Path.Combine(Root, ".ample", "project.json"), CancellationToken.None)).Settings.BlackBox.BudgetBytes);
+    }
+
+    [Fact]
     public async Task Project_settings_changes_go_through_the_bus_and_can_be_restored()
     {
         InMemoryFileSystem fs = new();

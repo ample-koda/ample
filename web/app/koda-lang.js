@@ -23,6 +23,9 @@ export async function loadKodaLanguage() {
   return lang;
 }
 
+/** Uses a language that was saved together with the other General settings. */
+export function useKodaLanguage(next) { set(next); return lang; }
+
 /** Saves the language in the project settings and uses it at once. */
 export async function saveKodaLanguage(next) {
   if (!LANGUAGES.includes(next)) return lang;

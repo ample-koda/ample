@@ -978,6 +978,52 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Equal(both, await File.ReadAllTextAsync(Path.Combine(folder, "disk-conflict.amplet"), CancellationToken.None));
     }
 
+    private async Task<string?> DefaultEngine()
+    {
+        using JsonDocument document = JsonDocument.Parse(await Text("/api/project/settings"));
+        JsonElement engine = document.RootElement.GetProperty("defaultEngine");
+        return engine.ValueKind == JsonValueKind.String ? engine.GetString() : null;
+    }
+
+    [Fact]
+    public async Task The_default_engine_is_kept_when_left_out_and_cleared_by_an_empty_string_or_null()
+    {
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { defaultEngine = "turbo" })).StatusCode);
+        Assert.Equal("turbo", await DefaultEngine());
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { fullDetailDays = 11 })).StatusCode);
+        Assert.Equal("turbo", await DefaultEngine());   // left out: kept
+
+        foreach (object clear in new object[] { new { defaultEngine = "" }, new { defaultEngine = "   " }, new { defaultEngine = (string?)null } })
+        {
+            Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { defaultEngine = "turbo" })).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", clear)).StatusCode);
+            Assert.Null(await DefaultEngine());
+        }
+    }
+
+    [Fact]
+    public async Task A_saved_build_parallelism_above_the_server_limit_does_not_block_other_settings_and_no_new_value_above_it_is_taken()
+    {
+        int limit;
+        using (JsonDocument settings = JsonDocument.Parse(await Text("/api/project/settings")))
+        {
+            limit = settings.RootElement.GetProperty("parallelismLimit").GetInt32();
+        }
+
+        string file = Path.Combine(folder, ".ample", "project.json");
+        ProjectManifest manifest = ProjectFile.Parse(await File.ReadAllTextAsync(file));
+        await File.WriteAllTextAsync(file, ProjectFile.Serialize(manifest with { Settings = manifest.Settings with { BuildParallelism = limit + 5 } }));
+        async Task<int?> Saved() { using JsonDocument d = JsonDocument.Parse(await Text("/api/project/settings")); JsonElement e = d.RootElement.GetProperty("buildParallelism"); return e.ValueKind == JsonValueKind.Number ? e.GetInt32() : null; }
+
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { fullDetailDays = 11 })).StatusCode);   // an unrelated change
+        Assert.Equal(limit + 5, await Saved());
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { buildParallelism = limit + 5 })).StatusCode);   // the saved value sent back
+        Assert.NotEqual(HttpStatusCode.OK, (await Post("/api/project/settings", new { buildParallelism = limit + 6 })).StatusCode);   // another value above the limit
+        Assert.Equal(limit + 5, await Saved());
+        Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { buildParallelism = 1 })).StatusCode);
+        Assert.Equal(1, await Saved());
+    }
+
     [Fact]
     public async Task The_estimate_of_a_cold_build_counts_the_blocks_that_wait_for_a_stale_one_and_says_so()
     {
