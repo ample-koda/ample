@@ -4,7 +4,8 @@ namespace Ample.Setup
     internal static class PackOutcome
     {
         /// <summary>
-        /// Null when the pack was installed, else the reason. A download that had finished (exit code 0) before Stop arrived worked, also when Stop was pressed;
+        /// Null when the pack was installed, else the reason. A download that had finished (exit code 0) before Stop arrived
+        /// worked, also when Stop was pressed;
         /// only a download that did not finish is reported as cancelled.
         /// </summary>
         internal static string Describe(bool stopRequested, int exitCode, string lastLine)

@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The logic of the Tune-up wizard that does not need Windows Forms. The wizard itself is a .NET Framework 4.7.2 program (the MSI starts it on every Windows 10/11),
-       so these tests compile its plain source files into a .NET 9 test project and run on any system. The old-style code of those files is not held to the style rules of the rest of the repository, as in the wizard itself. -->
+  <!-- The logic of the Tune-up wizard that does not need Windows Forms.
+       The wizard itself is a .NET Framework 4.7.2 program (the MSI starts it on every Windows 10/11),
+       so these tests compile its plain source files into a .NET 9 test project and run on any system.
+       The old-style code of those files is not held to the style rules of the rest of the repository, as in the wizard itself. -->
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
     <Nullable>disable</Nullable>

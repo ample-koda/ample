@@ -25,7 +25,8 @@ public class LoadGateTests
     [Fact]
     public void Showing_the_page_after_every_failed_load_starts_exactly_one_load_per_visit()
     {
-        // what the wizard does: Show starts the load, the end of the load calls Show again. With a list that never can be read this used to be a loop without end.
+        // what the wizard does: Show starts the load, the end of the load calls Show again. With a list that never can be
+        // read this used to be a loop without end.
         LoadGate gate = new();
         int starts = 0;
         void Show(int depth)
@@ -88,12 +89,21 @@ public class HubSettingsMergeTests
 
     private static string Serialize(Dictionary<string, object> settings) => JsonSerializer.Serialize(settings);
 
-    private static JsonElement Merged(string existing, bool login) => JsonDocument.Parse(HubSettingsMerge.Merge(existing, login, Parse, Serialize)).RootElement.Clone();
+    private static JsonElement Merged(string existing, bool login)
+        => JsonDocument.Parse(HubSettingsMerge.Merge(existing, login, Parse, Serialize)).RootElement.Clone();
+
+    private static bool StartAtLoginOf(string existing, bool startAtLoginDefault)
+    {
+        string text = HubSettingsMerge.Merge(existing, true, Parse, Serialize, startAtLoginDefault: startAtLoginDefault);
+        return JsonDocument.Parse(text).RootElement.GetProperty("startAtLogin").GetBoolean();
+    }
 
     [Fact]
     public void Only_the_sign_in_option_changes_and_every_other_field_is_kept()
     {
-        JsonElement result = Merged("{\"mainPort\": 5180, \"acceptOthers\": false, \"startAtLogin\": false, \"theme\": \"dark\", \"nested\": {\"a\": [1, 2]}, \"mainLogin\": false}", login: true);
+        string existing = "{\"mainPort\": 5180, \"acceptOthers\": false, \"startAtLogin\": false, \"theme\": \"dark\", "
+            + "\"nested\": {\"a\": [1, 2]}, \"mainLogin\": false}";
+        JsonElement result = Merged(existing, login: true);
         Assert.True(result.GetProperty("mainLogin").GetBoolean());
         Assert.Equal(5180, result.GetProperty("mainPort").GetInt32());
         Assert.False(result.GetProperty("acceptOthers").GetBoolean());
@@ -119,24 +129,27 @@ public class HubSettingsMergeTests
     public void A_missing_start_at_sign_in_follows_the_installer_and_a_value_that_is_there_is_never_replaced()
     {
         // the installer chose no start at sign-in (no Run entry): a hub.json made now says so
-        Assert.False(JsonDocument.Parse(HubSettingsMerge.Merge(null, true, Parse, Serialize, startAtLoginDefault: false)).RootElement.GetProperty("startAtLogin").GetBoolean());
-        Assert.False(JsonDocument.Parse(HubSettingsMerge.Merge("{\"mainPort\": 1}", true, Parse, Serialize, startAtLoginDefault: false)).RootElement.GetProperty("startAtLogin").GetBoolean());
-        Assert.True(JsonDocument.Parse(HubSettingsMerge.Merge("{\"mainPort\": 1}", true, Parse, Serialize, startAtLoginDefault: true)).RootElement.GetProperty("startAtLogin").GetBoolean());
+        Assert.False(StartAtLoginOf(null, false));
+        Assert.False(StartAtLoginOf("{\"mainPort\": 1}", false));
+        Assert.True(StartAtLoginOf("{\"mainPort\": 1}", true));
         Assert.True(Merged(null, login: false).GetProperty("startAtLogin").GetBoolean());   // without a choice the answer is yes, as it was
 
         // the person's own choice in hub.json wins over the installer's, both ways
-        Assert.True(JsonDocument.Parse(HubSettingsMerge.Merge("{\"startAtLogin\": true}", true, Parse, Serialize, startAtLoginDefault: false)).RootElement.GetProperty("startAtLogin").GetBoolean());
-        Assert.False(JsonDocument.Parse(HubSettingsMerge.Merge("{\"startAtLogin\": false}", true, Parse, Serialize, startAtLoginDefault: true)).RootElement.GetProperty("startAtLogin").GetBoolean());
+        Assert.True(StartAtLoginOf("{\"startAtLogin\": true}", false));
+        Assert.False(StartAtLoginOf("{\"startAtLogin\": false}", true));
     }
 
     [Fact]
     public void A_file_that_is_not_a_json_object_is_refused_and_left_alone()
     {
-        InvalidOperationException broken = Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("{ not json", true, Parse, Serialize));
+        InvalidOperationException broken =
+            Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("{ not json", true, Parse, Serialize));
         Assert.Contains("left alone", broken.Message, StringComparison.Ordinal);
-        InvalidOperationException array = Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("[1, 2]", true, Parse, Serialize));
+        InvalidOperationException array =
+            Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("[1, 2]", true, Parse, Serialize));
         Assert.Contains("left alone", array.Message, StringComparison.Ordinal);
-        InvalidOperationException nothing = Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("null", true, Parse, Serialize));
+        InvalidOperationException nothing =
+            Assert.Throws<InvalidOperationException>(() => HubSettingsMerge.Merge("null", true, Parse, Serialize));
         Assert.Contains("not a JSON object", nothing.Message, StringComparison.Ordinal);
     }
 

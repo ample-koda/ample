@@ -7,7 +7,10 @@ namespace Ample.Setup
     /// <summary>Runs a child process with both output streams drained at the same time and a real deadline.</summary>
     internal static class ProcessRunner
     {
-        /// <summary>Returns null when the child finished in time, else the reason (a timeout kills the child). The exit code is in <paramref name="code"/>.</summary>
+        /// <summary>
+        /// Returns null when the child finished in time, else the reason (a timeout kills the child). The exit code is in
+        /// <paramref name="code"/>.
+        /// </summary>
         internal static string Capture(ProcessStartInfo start, int timeoutMs, out string stdout, out string stderr, out int code)
         {
             stdout = string.Empty; stderr = string.Empty; code = -1;

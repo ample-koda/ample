@@ -45,7 +45,8 @@ namespace Ample.Setup
         private const int WingetNothingToDo = -1978335189;   // 0x8A15002B: already installed and up to date
 
         /// <summary>Runs one fix in this process. Returns null when it worked, else the reason.</summary>
-        internal static string Run(Fix fix, string ample, string home, Action<int, string> report, CancellationToken cancel = default(CancellationToken))
+        internal static string Run(
+            Fix fix, string ample, string home, Action<int, string> report, CancellationToken cancel = default(CancellationToken))
         {
             try
             {
