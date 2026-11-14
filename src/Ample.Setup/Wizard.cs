@@ -246,11 +246,10 @@ namespace Ample.Setup
             }
 
             if (current == healthPage && !healthStarted) { healthStarted = true; _ = RunDoctorAsync(); }
-            if (current != packsPage) packsFailed = false;   // leaving the page allows a new try the next time it is shown
-            if (current == packsPage && !packsLoaded && !packsLoading && !packsFailed) { _ = LoadPacksAsync(); }
+            if (packsGate.ShouldStart(current == packsPage)) { _ = LoadPacksAsync(); }
             back.Visible = index > 0 && !finished && current != resultPage;
             next.Text = finished ? "Close" : current == actionsPage ? "Finish" : "Next";
-            next.Enabled = (current != resultPage || finished) && !(current == healthPage && healthBusy) && !(current == packsPage && packsLoading);
+            next.Enabled = (current != resultPage || finished) && !(current == healthPage && healthBusy) && !(current == packsPage && packsGate.Loading);
             cancel.Visible = !finished;
             UpdateShield();
         }
@@ -512,25 +511,9 @@ namespace Ample.Setup
                 try { owned = gate.WaitOne(5000); } catch (System.Threading.AbandonedMutexException) { owned = true; }
                 try
                 {
-                    Dictionary<string, object> settings = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                    if (File.Exists(HubJson))
-                    {
-                        string text = File.ReadAllText(HubJson);
-                        if (text.Trim().Length > 0)
-                        {
-                            Dictionary<string, object> parsed;
-                            try { parsed = new JavaScriptSerializer().DeserializeObject(text) as Dictionary<string, object>; }
-                            catch (Exception ex) { throw new InvalidOperationException("hub.json is not valid JSON, so it was left alone (" + ex.Message + ")"); }
-                            if (parsed == null) throw new InvalidOperationException("hub.json is not a JSON object, so it was left alone");
-                            foreach (KeyValuePair<string, object> pair in parsed) settings[pair.Key] = pair.Value;
-                        }
-                    }
-
-                    if (!settings.ContainsKey("mainPort")) settings["mainPort"] = 0;
-                    if (!settings.ContainsKey("acceptOthers")) settings["acceptOthers"] = true;
-                    if (!settings.ContainsKey("startAtLogin")) settings["startAtLogin"] = true;
-                    settings["mainLogin"] = on;
-                    string json = new JavaScriptSerializer().Serialize(settings) + "\n";
+                    string json = HubSettingsMerge.Merge(File.Exists(HubJson) ? File.ReadAllText(HubJson) : null, on,
+                        text => new JavaScriptSerializer().DeserializeObject(text) as Dictionary<string, object>,
+                        settings => new JavaScriptSerializer().Serialize(settings));
                     string temporary = HubJson + "." + Guid.NewGuid().ToString("N") + ".tmp";
                     try
                     {

@@ -28,7 +28,7 @@ namespace Ample.Setup
         private readonly Label packsStatus = new Label();
         private readonly Label packsSummary = new Label();
         private readonly List<PackInfo> packs = new List<PackInfo>();
-        private bool packsLoading, packsLoaded, packsFailed;
+        private readonly LoadGate packsGate = new LoadGate();
         private string packsProblem;
         private readonly ToolTip tips = new ToolTip { AutoPopDelay = 20000 };
 
@@ -71,7 +71,7 @@ namespace Ample.Setup
         {
             Control wanted = pageName == "health" ? healthPage : packsPage;
             Show(pages.IndexOf(wanted));
-            for (int i = 0; i < 400 && ((wanted == packsPage && !packsLoaded) || (wanted == healthPage && healthBusy)); i++) await Task.Delay(100);
+            for (int i = 0; i < 400 && ((wanted == packsPage && !packsGate.Loaded) || (wanted == healthPage && healthBusy)); i++) await Task.Delay(100);
             await Task.Delay(300);
             if (scroll > 0) { packRows.AutoScrollPosition = new Point(0, scroll); await Task.Delay(200); }
             using (Bitmap picture = new Bitmap(Width, Height))
@@ -85,14 +85,14 @@ namespace Ample.Setup
 
         private async Task LoadPacksAsync()
         {
-            packsLoading = true; next.Enabled = false; packsProblem = null;
+            packsGate.Started(); next.Enabled = false; packsProblem = null;
             List<PackInfo> found = await Task.Run(() => ReadPacks());
             packRows.SuspendLayout();
             packRows.Controls.Clear();
             packs.Clear();
             foreach (PackInfo info in found) { packs.Add(info); packRows.Controls.Add(PackRow(info)); }
             packRows.ResumeLayout();
-            packsLoaded = packsProblem == null; packsFailed = packsProblem != null; packsLoading = false;   // a failed list waits for the next visit of the page: Show(page) below must not start it again at once
+            packsGate.Finished(packsProblem == null);   // a failed list waits for the next visit of the page: Show(page) below must not start it again at once
             packsStatus.Text = packs.Count == 0 ? (packsProblem != null ? "The list of packs could not be read: " + packsProblem : "This version of AMPLE has no sound packs to offer.") : "Tick the packs to download. Installed packs stay as they are; use Remove on a pack to take it away.";
             UpdatePacksSummary();
             Show(page);
