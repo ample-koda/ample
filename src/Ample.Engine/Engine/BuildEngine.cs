@@ -666,7 +666,8 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
 
         long loadStart = Stopwatch.GetTimestamp();
         foreach (Func<Task> load in loads) await load().ConfigureAwait(false);
-        loading += Stopwatch.GetElapsedTime(loadStart);   // the reads happen here now, after the cache lookup; still a local of this block alone
+        // the reads happen here now, after the cache lookup; still a local of this block alone
+        loading += Stopwatch.GetElapsedTime(loadStart);
         long workStart = Stopwatch.GetTimestamp();
         TakeTicket ticket = await bank.BeginAsync(plan, cancellationToken).ConfigureAwait(false);
         try
