@@ -166,3 +166,6 @@ export function planChain({ nodes, links, target, takeOf }) {
 
 /** The blocks of a plan that can be bypassed or tuned: every effect and sum, in order. */
 export const tunable = (plan) => plan.items.filter((item) => item.kind !== 'source' && item.kind !== 'local');
+
+/** Whether a solo bus silences the others: only a bus that is part of the audition (`planIds`: the ids of the plan) counts, so a solo elsewhere (another branch, downstream of the target, removed from the chain) never mutes it. */
+export const soloInPlan = (nodes, planIds) => nodes.some((n) => n.tpl === 'bus' && n.params?.solo === 'on' && planIds.has(n.id));

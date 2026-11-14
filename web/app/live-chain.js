@@ -9,7 +9,7 @@ import { playbackOutput } from './playback-volume.js';
 import { flat, S, subscribe, subscribeSelection } from './store.js';
 import { setExternalPlayer, stop as stopPlayer } from './player.js';
 import { toast } from './ui.js';
-import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId } from '../lib/live-chain-model.mjs';
+import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId, soloInPlan } from '../lib/live-chain-model.mjs';
 import { mixerGraph, sendGraph } from '../lib/live-mixer.mjs';
 import { getToken } from './api.js';
 import { localInfo, renderLocal, toAudio, toBuffer, drumVoicePlan } from './live-local.js';
@@ -373,7 +373,8 @@ function refresh(force = false) {
     if (session.localKeys.get(item.id) !== key) { session.localKeys.set(item.id, key); rerender(session, item.id); }
   }
   refreshImpulses(session);
-  const anySolo = flat().nodes.some((n) => n.tpl === 'bus' && n.params?.solo === 'on');
+  const inPlan = new Set(session.plan.items.map((i) => i.id));   // only the buses of this audition can solo it; an unrelated branch cannot silence it
+  const anySolo = soloInPlan(flat().nodes, inPlan);
   for (const [id, entry] of session.built) {
     const song = paramsOf(id), previous = session.last.get(id);
     if (previous && JSON.stringify(previous.song) !== JSON.stringify(song)) session.override.delete(id);   // the written value has arrived: it replaces the preview
