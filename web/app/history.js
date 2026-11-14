@@ -114,6 +114,24 @@ async function unsavedChoice() {
   return true;
 }
 
+/** The files match the latest revision, so no new one is made; a name that was typed can still be kept, as a tag on that revision (issue 142). */
+async function nameExisting(typed) {
+  if (!typed) { toast('Nothing changed since the last checkpoint: it already holds these files.'); return; }
+  let head = null;
+  try {
+    const graph = await api.get('/api/history/graph');
+    head = graph.lines.find((l) => l.name === graph.current)?.head ?? null;
+  } catch { /* the toast below says it */ }
+  if (!head) { toast('Nothing changed since the last checkpoint.'); return; }
+  const text = `The files are the same as in the latest revision, so no new one is needed. Keep the name "${typed}" on that revision as a tag? Tags are locked.`;
+  if (!(await ask('Nothing changed', text, [{ label: 'No', value: false }, { label: 'Tag it', value: true, primary: true }]))) return;
+  try {
+    await api.post('/api/history/tag', { name: typed, ref: head, reason: 'named checkpoint' });
+    await loadHistory();
+    toast(`Tagged the latest revision as ${typed}.`);
+  } catch (e) { toast(e.message); }
+}
+
 export async function checkpoint() {
   const name = el('input', { placeholder: 'name (empty = "checkpoint")' });
   const ok = await ask('Checkpoint', 'All recoverable source drafts and the current song or module are saved first. AMPLE then makes one checkpoint containing the saved work.', [{ label: 'Cancel', value: false }, { label: 'Save all work and checkpoint', value: true, primary: true }], [name]);
@@ -127,7 +145,8 @@ export async function checkpoint() {
       await (await import('./source.js')).saveRecoveryDraftsForCheckpoint();
       await saveForCheckpoint();
       const r = await api.post('/api/history/checkpoint', { message: name.value.trim() || 'checkpoint' });
-      toast(r.created ? 'Checkpoint taken.' : 'Nothing changed since the last checkpoint.');
+      if (r.created) { toast('Checkpoint taken.'); return; }
+      await nameExisting(name.value.trim());
       return;
     } catch (e) {
       if (!(e instanceof CheckpointDraftConflict)) { toast(e.message); return; }
@@ -258,7 +277,10 @@ export async function compareDialog(refA, refB) {
   run();
   const dialog = $('#dlg');
   dialog.classList.add('compare-dialog');
-  try { await ask('Compare', 'Changes from A to B, grouped by file.', [{ label: 'Close', value: true, primary: true }], [row, out]); } finally { dialog.classList.remove('compare-dialog'); }
+  const about = 'Changes from A to B, grouped by file. A branch means its saved tip: edits that are not saved are not part of it.';
+  try {
+    await ask('Compare', about, [{ label: 'Close', value: true, primary: true }], [row, out]);
+  } finally { dialog.classList.remove('compare-dialog'); }
 }
 
 /* ---------- the graph ---------- */
