@@ -1298,6 +1298,16 @@ export function openAiTask(id, options = {}) {
     const checking = ['pending', 'running'].includes(t.build.status);
     const none = t.kind === 'explain' || !t.changes.length;
     const pendingMoves = t.kind !== 'explain' ? t.moves.filter((move) => !move.applied) : [];
+    if (!t.applied && t.acceptedPaths?.length) {
+      // some files were accepted: they can be taken back from the proposal (issue 216)
+      foot.append(el('button', {
+        type: 'button',
+        id: 'ai-undo-accepted',
+        textContent: 'Undo the accepted files',
+        title: 'Puts the files that were accepted back as they were; they stay in the proposal',
+        onclick: () => post('/undo').then(async (r) => { await reloadDoc(); toast('Undone.'); shown = ''; poll(); }).catch(say),
+      }));
+    }
     if (t.applied) {
       foot.append(el('span', { className: 'ai-ok', id: 'ai-accepted', textContent: 'Applied. The song is changed and not saved. Undo (Ctrl+Z)' }), el('button', { type: 'button', textContent: 'Undo the files of this change', title: 'Puts back the files other than the open song', onclick: () => post('/undo').then(async (r) => { if (r.songText != null && S.path === r.song) await applyText(r.songText); await reloadDoc(); toast('Undone.'); shown = ''; poll(); }).catch(say) }), el('button', { type: 'button', className: 'primary', textContent: 'New request in this session', title: 'The accepted assistant thread has ended. Start a new thread with this task’s prompt, result, and changes as context.', onclick: () => { box.close(); openAiPrompt({ sessionId: t.sessionId, title: 'New request in this session', kind: 'custom', scope: 'project', path: t.path, song: t.song, continueFrom: id, hint: 'What would you like to discuss next?' }); } }), el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() }));
       return;

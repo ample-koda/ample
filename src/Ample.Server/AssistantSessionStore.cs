@@ -40,6 +40,7 @@ internal sealed record AssistantTaskSnapshot(
     string? RebaseMessage)
 {
     public string[] AcceptedPaths { get; init; } = [];
+    public AiChange[] AcceptedChanges { get; init; } = [];
     public string? OutputSong { get; init; }
     public bool SkipBuildRequested { get; init; }
     public string SkipBuildReason { get; init; } = string.Empty;
@@ -52,12 +53,23 @@ internal sealed record AssistantTaskSnapshot(
     public Dictionary<string, string?> Written { get; init; } = new(StringComparer.Ordinal);
     public string[] IncludedPaths { get; init; } = [];
     public string? SongBefore { get; init; }
+
+    /// <summary>Messages that were kept for the next turn and not delivered yet: they survive a restart (issue 224).</summary>
+    public string[] QueuedMessages { get; init; } = [];
 }
 
 /// <summary>Project-local durable records for assistant sessions and the recoverable portion of their Codex tasks.</summary>
 internal sealed class AssistantSessionStore
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
+
+    private static string[] QueuedOf(AiTask task)
+    {
+        lock (task.QueuedMessages)
+        {
+            return [.. task.QueuedMessages];
+        }
+    }
     private readonly object gate = new();
     private readonly string folder;
     private readonly string indexPath;
@@ -237,7 +249,9 @@ internal sealed class AssistantSessionStore
             Undo = new(task.Undo, StringComparer.Ordinal),
             Written = new(task.Written, StringComparer.Ordinal),
             IncludedPaths = [.. task.IncludedPaths],
+            AcceptedChanges = [.. task.AcceptedChanges],
             SongBefore = task.SongBefore,
+            QueuedMessages = QueuedOf(task),
         };
         lock (gate)
         {
