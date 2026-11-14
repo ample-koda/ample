@@ -40,6 +40,7 @@ async function session() {
 
 // "Hang around": the task Koda was last busy with; the next question can go on in its Codex conversation
 let approver = null;
+document.addEventListener('ample:song-opened', () => { hanging = ''; hooked = false; });   // a conversation is not carried to another song unseen (issue 211)
 let lastTask = '', hanging = '', hangSince = 0, hooked = false, interrupted = false;   // hooked: the person chose this conversation in the detailed view, so the next question always goes on in it
 const HANG_QUICK_MS = 5 * 60 * 1000;   // a next question within this time goes on without asking
 
@@ -274,7 +275,9 @@ export const serverBackend = {
   /** A request on top of the proposal that is on the table (the same working copy, nothing accepted yet): a question gets an answer, a change gives a new proposal (new variants when the model offers them again). */
   async continue(taskId, subject, text, { signal, onGlance, onThought } = {}) {
     let task;
-    try { task = await api.post(`/api/ai/tasks/${taskId}/message`, { text }); } catch (error) { throw kodaFailure(error); }
+    if (kodaAttachments().busy()) throw new KodaUnavailable('Wait until the attached files are uploaded.');
+    try { task = await api.post(`/api/ai/tasks/${taskId}/message`, { text, attachments: kodaAttachments().ids() }); } catch (error) { throw kodaFailure(error); }
+    kodaAttachments().take();   // delivered: the files leave the tray
     return resultOf(await follow(task, signal, onGlance, onThought, true), subject, text);
   },
 };

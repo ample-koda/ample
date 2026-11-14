@@ -80,7 +80,8 @@ export function showInline({ proposed, onAccept, onReject, onDiscuss, onStale })
   };
   raf = requestAnimationFrame(follow);
   const keys = (e) => {
-    if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); onAccept?.(); }
+    // Tab accepts only from the editor itself: in the message field or on a button it moves on (issue 209)
+    if (e.key === 'Tab' && e.target === ta && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); onAccept?.(); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onReject?.(); }
   };
   wrap.addEventListener('keydown', keys, true);
