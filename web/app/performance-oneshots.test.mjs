@@ -49,6 +49,15 @@ test('loop ignores the length; a second press stops it at the grid, not at once'
   assert.equal(s.state('bed', 2.5).playing, true); assert.equal(s.state('bed', 3).playing, false);
 });
 
+test('a loop pad pressed again before its queued stop keeps playing when the handle can take the stop back', () => {
+  const log = [];
+  const s = createLaunchScheduler({ quantize: (t) => Math.ceil(t), startVoice: () => { const v = { stops: [], cancelStop() { this.stops.pop(); }, stop(at) { this.stops.push(at); } }; log.push(v); return v; } });
+  s.configure('bed', { mode: 'loop' }); s.launch('bed', 0);
+  assert.deepEqual(s.launch('bed', 2.2), { action: 'stop', at: 3 });
+  assert.deepEqual(s.launch('bed', 2.4), { action: 'keep' });
+  assert.deepEqual(log[0].stops, []); assert.equal(s.state('bed', 4).playing, true); assert.equal(log.length, 1);
+});
+
 test('retrigger replaces the queued start (no stacking) and the running voice stops at the new start', () => {
   const { s, log } = make(); s.configure('a', { mode: 'oneshot', length: 4 });
   s.launch('a', 0); s.launch('a', 1.2);            // 2nd press replaces nothing queued: first runs 0..4 but is cut at 2

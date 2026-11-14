@@ -13,6 +13,7 @@ export const normalizeMode = (mode) => (MODES.includes(mode) ? mode : 'loop');
 // (the same shape as the engine's play(clip, when, lane)). It must return a handle with
 //   stop(at?)  stop at the clock time `at` (immediately without it)
 //   cancel()   optional: withdraw a start that has not happened yet (falls back to stop())
+//   cancelStop() optional: take back a stop(at) that has not happened yet (the launch engine's handles have it)
 //   ended      optional: set to true by the handle when the voice finished by itself
 export function createLaunchScheduler({ startVoice, quantize = (t) => t, now = () => 0 }) {
   const slots = new Map();   // id -> { mode, length, voice, next, held }; voice/next: { handle, when, endAt }
@@ -33,6 +34,8 @@ export function createLaunchScheduler({ startVoice, quantize = (t) => t, now = (
       if (s.mode === 'momentary') { if (s.held) return { action: 'held' }; s.held = true; }
       const q = quantize(t), when = Number.isFinite(q) && q >= t ? q : t;
       if (s.mode === 'loop' && s.voice && !s.next && s.voice.endAt === null) { stopAt(s.voice, when); return { action: 'stop', at: when }; }   // loop pads toggle, at the grid
+      // pressing a loop pad again before its queued stop has happened takes the stop back (when the handle can), so the pad toggles twice = keeps playing
+      if (s.mode === 'loop' && s.voice && !s.next && s.voice.endAt !== null && s.voice.endAt > t && s.voice.handle.cancelStop) { s.voice.handle.cancelStop(); s.voice.endAt = null; return { action: 'keep' }; }
       if (s.next) { cancelHandle(s.next.handle); s.next = null; }
       const handle = startVoice({ id, mode: s.mode }, when), v = { handle, when, endAt: null };
       if (s.mode === 'oneshot' && s.length > 0) { v.endAt = when + s.length; handle.stop?.(v.endAt); }   // the length counts from the audible start, not from the press
