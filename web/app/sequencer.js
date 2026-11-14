@@ -29,6 +29,7 @@ import { createLiveSwap } from '../lib/live-swap.mjs';
 import { barAt, barOfClick, barSeconds, rangeSeconds, rangeWhileDragging } from '../lib/loop-model.mjs';
 import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { rangeFromFields } from '../lib/range-edit.mjs';
+import { scopeText, versionState } from '../lib/seq-scope.mjs';
 import {
   TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
@@ -406,6 +407,8 @@ function render() {
       el('button', { id: 'sq-live', className: Q.live ? 'on' : '', textContent: '● Live', 'aria-pressed': String(Q.live), title: 'On: a change you make while it plays is built in the background and you hear it the next time the loop comes round. Off: changes are heard the next time you press Play.', onclick: () => { Q.live = !Q.live; if (!Q.live) { clearTimeout(liveTimer); Q.liveAgain = false; } render(); } }),
       el('span', { id: 'sq-pos', className: 'sqpos', textContent: `bar ${Q.cursor}` }),
       rangeFields(),
+      el('span', { id: 'sq-scope', className: 'sqrangelabel', textContent: scopeText({ mode: Q.playMode, pattern: Q.pattern, range: Q.range, repeat: Q.repeat, savedLoop: Q.seq.loop }) }),
+      el('span', { id: 'sq-version', className: 'sqrangelabel', role: 'status' }),
       ...(Q.range ? [el('span', { id: 'sq-range', className: 'sqrangelabel', textContent: `repeat bars ${Q.range.at} to ${Q.range.at + Q.range.bars - 1}` }), el('button', { id: 'sq-range-clear', textContent: '✕', title: 'Do not repeat a part: repeat the whole song', onclick: () => chooseRange(null).catch(() => {}) })] : []),
       el('span', { id: 'sq-status', className: 'sqstatus', textContent: Q.status }),
       el('button', { id: 'sq-hint-toggle', className: 'sqinfo', textContent: 'ⓘ', title: 'How playing and looping work', 'aria-label': 'Explain playing and looping', 'aria-expanded': String(hintOpen), onclick: () => { hintOpen = !hintOpen; render(); } }),
@@ -599,6 +602,8 @@ function paintPlayhead() {
   if (pos) pos.textContent = st.playing ? `bar ${barAt(st.position, tempo()).toFixed(1)}` : `bar ${Q.cursor}`;
   const stop = $('#sq-stop');
   if (stop) stop.disabled = !(st.playing || Q.preparing);
+  const version = $('#sq-version');   // which version of the edits is heard (issue 264)
+  if (version) version.textContent = versionState({ playing: st.playing, preparing: Boolean(Q.preparing || Q.busy || Q.liveBusy), pending: Boolean(st.pending), stale: Q.stale });
   if (st.playing && st.pending) { const status = $('#sq-status'); if (status && !status.textContent) status.textContent = 'the change plays when the loop comes round'; }
   if (!st.pending && Q.status === 'the change plays when the loop comes round' && st.playing) setStatus('');
 }

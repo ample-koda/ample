@@ -78,8 +78,9 @@ internal sealed class TrayApp : ApplicationContext
             Add(menu.Items, $"Main instance: running on port {running.Record.Port}" + pendingText, null, false);
             Add(menu.Items, "Open the studio", OpenMain);
             Add(menu.Items, "Copy the URL", () => Clipboard.SetText(main.LaunchUrl(running.Record) ?? string.Empty));
-            Add(menu.Items, "Restart", () => Do("Restarting AMPLE", main.RestartAsync), pending is null);
-            Add(menu.Items, "Stop", () => Do("Stopping AMPLE", main.StopAsync), pending is null);
+            string mainName = running.Record.Name;
+            Add(menu.Items, "Restart…", () => { if (Confirm("Restart", mainName)) Do("Restarting AMPLE", main.RestartAsync); }, pending is null);
+            Add(menu.Items, "Stop…", () => { if (Confirm("Stop", mainName)) Do("Stopping AMPLE", main.StopAsync); }, pending is null);
         }
         else
         {
@@ -95,8 +96,15 @@ internal sealed class TrayApp : ApplicationContext
             ToolStripMenuItem sub = new($"{other.Record.Name} (port {other.Record.Port})" + (other.Record.Agent is null ? string.Empty : "  [AI]"));
             Add(sub.DropDownItems, "Open", () => Open(other));
             Add(sub.DropDownItems, "Copy the URL", () => Clipboard.SetText(main.LaunchUrl(other.Record) ?? string.Empty));
-            Add(sub.DropDownItems, "Restart", () => Do("Restarting " + other.Record.Name, t => main.RestartOtherAsync(other.Record, t)), other.CanRestart);
-            Add(sub.DropDownItems, "Shut down", () => Do("Shutting down " + other.Record.Name, t => main.ShutDownOtherAsync(other.Record, t)));
+            string otherName = other.Record.Name;
+            Add(sub.DropDownItems, "Restart…", () =>
+            {
+                if (Confirm("Restart", otherName)) Do("Restarting " + otherName, t => main.RestartOtherAsync(other.Record, t));
+            }, other.CanRestart);
+            Add(sub.DropDownItems, "Shut down…", () =>
+            {
+                if (Confirm("Shut down", otherName)) Do("Shutting down " + otherName, t => main.ShutDownOtherAsync(other.Record, t));
+            });
             Add(sub.DropDownItems, "Open the folder", () => Process.Start(new ProcessStartInfo(other.Record.Folder) { UseShellExecute = true })?.Dispose());
             menu.Items.Add(sub);
         }
@@ -131,6 +139,11 @@ internal sealed class TrayApp : ApplicationContext
             Do("Starting AMPLE", async t => { await main.StartAsync(t); return await Program.OpenStudioAsync(main, quitting); });
         }
     }
+
+    /// <summary>Says which project is affected and that work in it is interrupted (a build, a render, an assistant task); the person decides.</summary>
+    private static bool Confirm(string action, string project) => MessageBox.Show(
+        $"{action} \"{project}\"?{Environment.NewLine}{Environment.NewLine}A build, a render or an assistant task that is running in it is interrupted.",
+        "AMPLE", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
 
     private void Do(string what, Func<CancellationToken, Task<string?>> action, Action? then = null)
     {
