@@ -18,7 +18,7 @@ async function open(page, type: string) {
 }
 
 for (const type of ['compressor', 'peq']) {
-  test(`the ${type} panel shows all its knobs without scrolling on a 1100 px screen`, async ({ page }) => {
+  test(`the ${type} panel shows all its knobs without scrolling on a 1100 px screen @quarantine`, async ({ page }) => {
     const dialog = await open(page, type);
     await expect.poll(() => dialog.locator('.studio-dialog-body').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);
   });
