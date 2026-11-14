@@ -20,6 +20,8 @@ function outIndex(block, name) {
 /** While a region line is being dragged, the effects show their region input too (otherwise it shows only when a region is connected). */
 export const regionReveal = { on: false, control: false };   // on: a region is dragged (the loop seam ports show); control: a control is dragged (the control inputs of the parameters show)
 
+import { templateForVersion } from '../lib/component-versions.mjs';
+
 export function flatGraph(doc, templates) {
   const blocks = doc.blocks;
   const disabled = new Map(blocks.filter((b) => b.flags.includes('disabled')).map((b) => [b.name, b.name]));
@@ -27,7 +29,7 @@ export function flatGraph(doc, templates) {
     changed = false;
     for (const b of blocks) {
       if (disabled.has(b.name)) continue;
-      const template = templates[b.type];
+      const template = templateForVersion(templates[b.type], b.version);
       if ((b.type === 'mixer' || b.type === 'bus') && b.froms.every((f) => f.disabled || disabled.has(f.block))) { disabled.set(b.name, b.froms[0]?.block || b.name); changed = true; continue; }
       const input = b.froms.find((f) => (f.disabled || disabled.has(f.block)) && (template?.inputs.some((p) => p.name === f.input && p.required) || BUILTIN_EFFECT_TYPES.has(b.type) && ['in', 'render_in'].includes(f.input)));
       if (input) { disabled.set(b.name, input.block); changed = true; }
@@ -37,7 +39,7 @@ export function flatGraph(doc, templates) {
   const freeScratches = blocks.some((r) => r.type === 'rewind' && !blocks.some((x) => x.froms.some((f) => f.block === r.name && f.output === 'region')));
   const auto = autoLayout(blocks, templates);
   const nodes = blocks.map((b) => {
-    const t = templates[b.type];
+    const t = templateForVersion(templates[b.type], b.version);
     const p = b.layout || auto.get(b.name) || { x: 20, y: 20 };
     return {
       id: b.name,

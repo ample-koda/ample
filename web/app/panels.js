@@ -9,7 +9,7 @@ const MAX_SEED = 18446744073709551615n;
 
 import { $, activatable, el, showMenu, ask, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
-import { S, applyText, build, editsDone, current, edit, editAll, flat, notify, readOnly, paramProblem, saveNotes, select, container } from './store.js';
+import { S, tplOf, applyText, build, editsDone, current, edit, editAll, flat, notify, readOnly, paramProblem, saveNotes, select, container } from './store.js';
 import { noteAbove, withNoteAbove } from '../lib/block-notes.mjs';
 import { addBlock, alignSelected, deleteSelected, distributeSelected, enter, fit, focusNode, groupSelected, selectAll, toggleFlag, ungroupNode, up } from './canvas.js';
 import { W } from './geometry.js';
@@ -413,7 +413,7 @@ export function renderProps() {
   const tabs = el('div', { className: 'prop-tabs', role: 'tablist', 'aria-label': 'Block properties' });
   const deck = el('div', { className: 'prop-deck' });
   pad = info;
-  const t = S.tpl[n.tpl];
+  const t = tplOf(n);
   if (t?.description?.trim()) pad.append(el('h4', { textContent: 'Tip', style: 'padding-left:0' }), el('p', { className: 'note block-tip', textContent: t.description }));
   if (n.tpl === 'master') pad.append(renderMasterMeter());
   if (t?.parameters?.length && !['eq', 'filter', 'distortion', 'delay', 'reverb', 'compressor'].includes(n.tpl)) {

@@ -111,6 +111,25 @@ public sealed class ComponentServiceTests : IDisposable
     }
 
     [Fact]
+    public void Every_version_lists_its_own_ports_and_properties_not_the_ones_of_the_default_version()
+    {
+        static string Twice(string version, string port, string property)
+            => $"component demo.fx.twice version {version} {{\n  id \"com.demo.twice\"\n  input {port}: Notes\n"
+            + $"  property {property}: Int = 2\n  output notes: Notes\n  process {{\n    emit {port}\n  }}\n}}\n";
+
+        string both = Twice("1.0.0", "source", "copies") + Twice("2.0.0", "feed", "repeats");
+        using ModuleService service = Service(both);
+        ComponentListing twice = Assert.Single(ComponentCatalog.List(service, Song(), EngineRig.Spec).Components);
+        ComponentVersionInfo older = twice.Versions.Single(x => x.Version == "1.0.0");
+        ComponentVersionInfo newer = twice.Versions.Single(x => x.Version == "2.0.0");
+        Assert.Equal(["source"], older.Inputs.Select(i => i.Name));
+        Assert.Equal(["copies"], older.Properties.Select(p => p.Name));
+        Assert.Equal(["feed"], newer.Inputs.Select(i => i.Name));
+        Assert.Equal(["repeats"], newer.Properties.Select(p => p.Name));
+        Assert.Equal(["feed"], twice.Inputs.Select(i => i.Name));   // the family itself still shows the default version
+    }
+
+    [Fact]
     public void The_properties_tell_the_panel_which_control_fits_them()
     {
         string component = "component demo.fx.twice version 1.0.0 {\n  id \"com.demo.twice\"\n  input source: Notes\n"

@@ -58,7 +58,7 @@ export function templateOf(c) {
     dynamic: false,   // "dynamic" is a volatile result (an AI take, the clock): a component is deterministic, so no dynamic badge, no variants or bake menu and no seed controls on its card
     component: true,
     componentId: c.id,
-    componentVersions: c.versions,
+    componentVersions: c.versions.map((v) => ({ ...v, view: viewOf(v) })),
     kind: c.kind || 'Notes',
     clientPreview: c.clientPreview !== false,
     noPreview: c.noPreview || [],
@@ -73,6 +73,18 @@ export function templateOf(c) {
     inputs: c.inputs.map((i) => ({ name: i.name, type: portType(i.type), required: !i.optional, title: i.name, description: i.description || '' })),
     outputs: c.outputs.map((o) => ({ name: o.name, type: portType(o.type), required: false, title: o.name, description: o.description || '' })),
     parameters: c.properties.map(parameterOf),
+  };
+}
+
+/** What a version shows on the board: its ports, properties and layout (the family template has the ones of the default version). */
+function viewOf(v) {
+  if (!v.inputs && !v.properties && !v.outputs) return null;   // an older server: the template of the default version stays
+  return {
+    inputs: (v.inputs || []).map((i) => ({ name: i.name, type: portType(i.type), required: !i.optional, title: i.name, description: i.description || '' })),
+    outputs: (v.outputs || []).map((o) => ({ name: o.name, type: portType(o.type), required: false, title: o.name, description: o.description || '' })),
+    parameters: (v.properties || []).map(parameterOf),
+    ui: v.ui || null,
+    cardHeight: cardHeightOf(v.ui?.card),
   };
 }
 

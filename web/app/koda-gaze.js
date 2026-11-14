@@ -1,7 +1,7 @@
 // What Koda looks at, drawn as neon lines from Koda to the thing: drag from Koda with Ctrl held and let go on a block or a line of code, and Koda looks there (the block or line is selected, the line stays while that
 // holds and fades when it does not). While Koda thinks, thin dotted lines glance at the blocks the model reads and fade by themselves. The lines hang like cords and sway; they glow with the beat when music plays.
 // Everything is a decoration over the page that never takes a click. @ample:koda
-import { S, flat, notifySelection, select } from './store.js';
+import { S, flat, notifySelection, select, tplOf } from './store.js';
 import { chainText, regionChain } from '../lib/region-chain.mjs';
 import { arrangementSubject, barSubject, blockSubject, branchSubject, codeSubject, fieldSubject, fileSubject, groupSubject, multiSubject, partSubject, portSubject, revisionSubject, songSubject, templateSubject, typeSubject } from '../lib/koda-context.mjs';
 import { newStrand, nearestOnRect, stepStrand, strandPath } from '../lib/koda-strand.mjs';
@@ -179,7 +179,7 @@ export function targetAt(x, y) {
       const n = flat().nodes.find((x) => x.id === port.dataset.node);
       const pt = n && (port.dataset.dir === 'in' ? n.ins : n.outs)[+port.dataset.idx];
       if (pt) {
-        const spec = (S.tpl[n.tpl]?.[port.dataset.dir === 'in' ? 'inputs' : 'outputs'] || []).find((p) => p.name === pt[0]);
+        const spec = (tplOf(n)?.[port.dataset.dir === 'in' ? 'inputs' : 'outputs'] || []).find((p) => p.name === pt[0]);
         const chain = pt[1] === 'region' ? chainText(regionChain(S.doc?.blocks, n.id, port.dataset.dir === 'out' && !!(S.doc?.blocks || []).find((b) => b.name === n.id)?.froms?.some((f) => f.input === 'region_in'))) : '';
         return { kind: 'port', id: `${n.id}.${port.dataset.dir}.${pt[0]}`, block: n.id, dir: port.dataset.dir, name: pt[0], type: pt[1], title: spec?.title || '', description: spec?.description || '', chain, selector: `.port[data-node="${esc(n.id)}"][data-dir="${port.dataset.dir}"][data-idx="${port.dataset.idx}"]` };
       }
