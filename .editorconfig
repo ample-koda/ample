@@ -22,3 +22,10 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Line length: a guideline for the lines a change adds (see tools/check-long-lines.mjs; the hard limit is 200, html 240)
+[*.{js,mjs,cjs,ts,cs,css}]
+max_line_length = 140
+
+[*.html]
+max_line_length = 160
