@@ -36,6 +36,12 @@ function sha256Of(file) {
   return cache[key];
 }
 
+/** The sha256 of the adapter as it runs: plugin.mjs and the file it starts processes with (run-process.mjs), so the provenance names both. */
+function adapterSha256() {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return crypto.createHash('sha256').update(sha256Of(path.join(here, 'plugin.mjs'))).update(sha256Of(path.join(here, 'run-process.mjs'))).digest('hex');
+}
+
 /** How the voice is isolated from the synthesis: ace (an ACE-Step Base or SFT model), demucs (Demucs in a Python of your own) or off. The old boolean vocalExtraction=false still means off. */
 const isolationMode = s => s.vocalIsolation || (s.vocalExtraction === false ? 'off' : 'ace');
 
@@ -382,7 +388,7 @@ serve({
     fs.writeFileSync(path.join(params.jobDir, 'out', output), wav(samples, params.sampleRate));
     const modelHashes = Object.fromEntries([synthModel, isolation === 'extract' ? isolationModel : '', plan.lm_model, plan.vae_model, plan.text_encoder_model].filter(name => typeof name === 'string' && name && s.modelsFolder && fs.existsSync(path.join(s.modelsFolder, name))).map(name => [name, sha256Of(path.join(s.modelsFolder, name))]));
     const engine = s.aceBinFolder && path.join(s.aceBinFolder, exeName(cli ? 'ace-synth' : 'ace-server'));
-    const recipe = { schema: 1, block: params.block, seed: params.seed, sampleRate: params.sampleRate, samplesPerBar: params.samplesPerBar, firstBar: params.firstBar, barCount: params.barCount, activeBars: params.activeBars, planRequest: body, plan, synthRequest, extractionRequest, modelHashes, software: { adapterSha256: sha256Of(fileURLToPath(import.meta.url)), engineSha256: engine && fs.existsSync(engine) ? sha256Of(engine) : null, node: process.version, platform: process.platform, arch: process.arch }, warnings: [!modelHashes[synthModel] ? 'Synthesis model hash unavailable: exact model identity is unverified.' : '', !engine || !fs.existsSync(engine) ? 'ACE executable hash unavailable: engine identity is unverified.' : ''].filter(Boolean) };
+    const recipe = { schema: 1, block: params.block, seed: params.seed, sampleRate: params.sampleRate, samplesPerBar: params.samplesPerBar, firstBar: params.firstBar, barCount: params.barCount, activeBars: params.activeBars, planRequest: body, plan, synthRequest, extractionRequest, modelHashes, software: { adapterSha256: adapterSha256(), engineSha256: engine && fs.existsSync(engine) ? sha256Of(engine) : null, node: process.version, platform: process.platform, arch: process.arch }, warnings: [!modelHashes[synthModel] ? 'Synthesis model hash unavailable: exact model identity is unverified.' : '', !engine || !fs.existsSync(engine) ? 'ACE executable hash unavailable: engine identity is unverified.' : ''].filter(Boolean) };
     return { outputs: [{ role: isVoice ? 'vocal' : 'audio', path: `out/${output}` }], meta: { melodyPlan: melody ? 'requested' : 'none', mode: isVoice ? 'vocal-only' : 'music', vocalIsolation: isolation, vocalIsolationModel: isolation === 'extract' ? isolationModel : isolation === 'demucs' ? (s.demucsModel || 'htdemucs') : 'none', backend, synthModel, guidance, recipe, vocalIsolationSha256: isolationHash || 'unknown', voiceStretch: Math.round(stretched * 1000) / 1000, seconds: Math.round((Date.now() - started) / 100) / 10 } };
   },
 });

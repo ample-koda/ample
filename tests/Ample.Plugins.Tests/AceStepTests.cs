@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Ample.Audio.Engine;
 using Ample.Audio.IO;
@@ -343,6 +345,10 @@ public sealed class AceStepTests : IDisposable
         Assert.Contains("ace-server-lm-synth-job", plan.ToolprintJson, StringComparison.Ordinal);
         using JsonDocument provenance = JsonDocument.Parse(bank.GetTake(vox.TakeId!).MetaJson);
         Assert.Equal(1, provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("synthRequest").GetProperty("guidance_scale").GetInt32());
+        // the provenance names the adapter by plugin.mjs and the file it starts processes with: a change in either shows
+        string adapter = provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("software").GetProperty("adapterSha256").GetString()!;
+        string Sha(string file) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(Paths.PluginFolder, "acestep", file))));
+        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(Sha("plugin.mjs") + Sha("run-process.mjs")))), adapter);
         Assert.Contains("templateDefaults", plan.SettingsJson, StringComparison.Ordinal);
         Assert.Contains("pluginSettings", plan.SettingsJson, StringComparison.Ordinal);
         Assert.Equal("cached", (await engine.BuildAsync(doc, new BuildOptions(ExtraRenderers: renderers))).Blocks.Single(b => b.Block == "vox").Status);
