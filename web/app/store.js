@@ -1005,7 +1005,7 @@ export async function enterPeek(ref) {
     path = pick.value;
   }
   const text = files[path];
-  const doc = await api.post('/api/doc/parse', { text, path });
+  const doc = await api.post('/api/doc/parse', { text, path, ref });   // the server reads the files of that state for the song, not the ones of today (issue 150)
   S.peek = { ref, returnState: S.peek?.returnState || peekReturnState() };
   S.doc = doc;
   setBarBeats(doc.project?.beatsPerBar);
