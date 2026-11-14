@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve, wav } from '../sdk/ample-plugin.mjs';
-import { toMono16 } from '../sdk/wav.mjs';
+import { toChannels16, toMono16, wavChannels } from '../sdk/wav.mjs';
 import { soundEnd, stretch } from '../sdk/stretch.mjs';
 import { runProcess } from './run-process.mjs';
 
@@ -435,6 +435,9 @@ serve({
       if (s.modelsFolder && fs.existsSync(path.join(s.modelsFolder, isolationModel))) { isolationHash = sha256Of(path.join(s.modelsFolder, isolationModel)); }
     }
     let samples = toMono16(audio, params.sampleRate, wanted, sung);
+    // a music block keeps the stereo image that the backend made (channels: auto), or is made mono or stereo on purpose; a voice is one channel
+    const channelMode = isVoice ? 'mono' : String(p.channels || 'auto').replace(/"/g, '');
+    let music = isVoice ? null : toChannels16(audio, params.sampleRate, wanted, sung, channelMode === 'mono' || channelMode === 'stereo' ? channelMode : 'auto');
     let stretched = 1;
     // fit stretch: ACE tends to sing a little faster than the music and then runs out. The voice is slowed (the pitch stays) so that it ends where the lyrics end (the end of the sing length).
     if (isVoice && p.fit === 'stretch') {
@@ -450,9 +453,15 @@ serve({
       }
     }
     if (offset > 0) { const placed = new Int16Array(wanted); placed.set(samples.subarray(0, Math.max(0, wanted - offset)), offset); samples = placed; }
+    if (offset > 0 && music) {
+      music = music.map((channel) => { const placed = new Int16Array(wanted); placed.set(channel.subarray(0, Math.max(0, wanted - offset)), offset); return placed; });
+    }
     fs.mkdirSync(path.join(params.jobDir, 'out'), { recursive: true });
     const output = isVoice ? 'vocal.wav' : 'audio.wav';
-    fs.writeFileSync(path.join(params.jobDir, 'out', output), wav(samples, params.sampleRate));
+    const bytes = music && music.length > 1
+      ? wavChannels(music.map((channel) => channel.subarray(0, wanted)), params.sampleRate)
+      : wav(samples, params.sampleRate);
+    fs.writeFileSync(path.join(params.jobDir, 'out', output), bytes);
     const modelHashes = Object.fromEntries([synthModel, isolation === 'extract' ? isolationModel : '', plan.lm_model, plan.vae_model, plan.text_encoder_model].filter(name => typeof name === 'string' && name && s.modelsFolder && fs.existsSync(path.join(s.modelsFolder, name))).map(name => [name, sha256Of(path.join(s.modelsFolder, name))]));
     const engine = s.aceBinFolder && path.join(s.aceBinFolder, exeName(cli ? 'ace-synth' : 'ace-server'));
     const software = {
