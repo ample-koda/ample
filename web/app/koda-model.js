@@ -15,7 +15,7 @@ export function loadModels(force = false) {
   if (state.loaded && !force) return state.loaded;
   state.loaded = (async () => {
     try {
-      const [models, settings] = await Promise.all([api.get('/api/ai/models'), api.get('/api/project/settings')]);
+      const [models, settings] = await Promise.all([api.get('/api/ai/models?koda=1'), api.get('/api/project/settings')]);
       state.models = models.models || [];
       state.serverDefault = models.default || state.models.find((m) => m.isDefault)?.id || '';
       state.saved = { model: settings.koda?.model || '', effort: settings.koda?.effort || '' };

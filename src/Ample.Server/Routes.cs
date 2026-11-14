@@ -2833,7 +2833,8 @@ public static class Routes
             return Ok(await AiService.CachedAsync(c.Request.Headers["X-Ample-Context"].ToString(), $"file|{location}|{path}|{offset}", () => Task.FromResult(AiContext.File_(s, path, AiService.ContextText(c.Request.Headers["X-Ample-Context"].ToString(), path, location), offset, location == "work" ? "task work folder (read-only)" : "project proposal"))));
         });
         add("GET", "/api/ai/status", "ai", "Where the AI assistant stands: what the server allows, what the project chose, whether Codex is installed and (with auth=true) whether it is signed in.", false, s is null ? null : async (HttpContext c) => Ok(await s.Ai.StatusAsync(c.Request.Query["auth"].ToString() == "true", c.RequestAborted)));
-        add("GET", "/api/ai/models", "ai", "The models Codex offers and the current account's usage limits.", false, s is null ? null : async (HttpContext c) => Ok(await s.Ai.ModelsAsync(c.RequestAborted)));
+        add("GET", "/api/ai/models", "ai", "The models Codex offers and the current account's usage limits.", false,
+            s is null ? null : async (HttpContext c) => Ok(await s.Ai.ModelsAsync(c.RequestAborted, c.Request.Query["koda"] == "1")));
         add("GET", "/api/ai/policy", "ai", "What this server allows projects to use of Codex.", false, s is null ? null : () => Ok(AiPolicy.Read().ToJson()));
         add("POST", "/api/ai/policy", "ai", "Changes what this server allows projects to use of Codex (capabilities only: they say what a project MAY choose).", true, s is null ? null : async (HttpContext c) =>
         {
