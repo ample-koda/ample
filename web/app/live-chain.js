@@ -183,7 +183,8 @@ export function prewarm(target) {
 subscribeSelection(() => { const id = S.sel; const node = id && flat().nodes.find((n) => n.id === id); prewarm(node && (CHAIN_EFFECTS.has(node.tpl) || SUM_TYPES.has(node.tpl)) ? id : null); });
 
 /** Plays the chain that ends at `target`. Returns whether it started. */
-let startGeneration = 0, failedStart = null;   // a Stop, a project switch or a newer start bumps the generation and so cancels a start that is still preparing
+let startGeneration = 0, failedStart = null, pendingTarget = null;   // pendingTarget: the chain being prepared, so a song change restarts that one and not the one still playing
+   // a Stop, a project switch or a newer start bumps the generation and so cancels a start that is still preparing
 export async function startChain(target) { return Boolean(await startSession(target)); }
 
 /**
@@ -192,6 +193,7 @@ export async function startChain(target) { return Boolean(await startSession(tar
  */
 async function startSession(target) {
   const generation = ++startGeneration, current = () => generation === startGeneration;
+  pendingTarget = target;
   const plan = planNow(target);
   if (!plan.ok) { toast(plan.reason); return null; }
   const mine = { cpu: createCpuMonitor(), cpuBypassed: new Set(), target, plan, signature: signatureOf(plan), bypass: new Set(), override: new Map(), last: new Map(), built: new Map(), taps: new Map(), spectra: new Map(), starting: true, sources: [], disposables: [], slots: new Map(), localKeys: new Map(), renders: new Map(), watch: new Set() };
@@ -225,7 +227,7 @@ async function startSession(target) {
     }
     // the song may have changed while this was made: then it is made again for the song as it is now (the old chain keeps playing meanwhile)
     const now = planNow(target);
-    if (!now.ok) { toast(now.reason); return null; }
+    if (!now.ok) { pendingTarget = null; toast(now.reason); return null; }
     if (signatureOf(now) !== mine.signature) return await startSession(target);
     // the swap: no await from here, so nothing can slip in between the old chain stopping and the new one playing
     stopPlayer();
@@ -244,9 +246,10 @@ async function startSession(target) {
       dispose(mine); session = null; emit();
       throw error;
     }
-    failedStart = null;
+    failedStart = null; pendingTarget = null;
     return mine;
   } catch (error) {
+    if (current()) pendingTarget = null;
     if (current()) { failedStart = { target, signature: mine.signature }; toast(error?.message || String(error)); }   // a request that was superseded stays quiet
     return null;
   }
@@ -538,7 +541,7 @@ function dispose(s) {
 
 /** Stops the chain (the sound stops with it). */
 export function stopChain({ quiet = false } = {}) {
-  if (!quiet) startGeneration++;   // also cancels a start that is still preparing (the chain it would swap in is not wanted any more)
+  if (!quiet) { startGeneration++; pendingTarget = null; }   // also cancels a start that is still preparing (the chain it would swap in is not wanted any more)
   if (!session) return;
   const s = session;
   session = null;
@@ -567,7 +570,7 @@ subscribe(() => {
   if (!plan.ok) { stopChain(); toast(plan.reason); return; }
   if (session.stale) { session.stale = null; emit(); }
   if (signatureOf(plan) !== session.signature) {
-    const target = session.target, bypass = new Set(session.bypass);
+    const target = pendingTarget || session.target, bypass = new Set(session.bypass);
     if (failedStart && failedStart.target === target && failedStart.signature === signatureOf(plan)) { refresh(); return; }   // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again
     startSession(target).then((started) => { if (started && session === started) { bypass.forEach((id) => started.bypass.add(id)); refresh(true); emit(); } });
     return;
