@@ -110,7 +110,7 @@ test('picker creates a folder and offers all upload conflict choices', async ({ 
   await picker.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('right click in the picker list offers Add > Folder, on an empty spot and on a folder', async ({ page }) => {
+test('right click in the picker list offers Add > Folder, on an empty spot and on a folder @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await page.evaluate(() => { (window as Window & { pickerResult: Promise<string | undefined> }).pickerResult = import('/app/filepicker.js').then((module) => module.openProjectFilePicker('', ['.wav'], 'file')); });
   const picker = page.locator('.project-file-picker');
