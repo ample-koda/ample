@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { biquadMagnitude, clamp, compressorOutput, delayTapGain, denormalize, distortionSample, duckGain, equalizerResponse, estimatedRt60, formatValue, interpolateCurve, knobDragValue, normalize, snap, spectrumBins } from '../studio-math.js';
+import { biquadMagnitude, clamp, compressorOutput, delayTapGain, denormalize, distortionSample, duckGain, equalizerResponse, estimatedRt60, formatValue, interpolateCurve, knobDragValue, normalize, snap, spectrumBins, knobPrecision } from '../studio-math.js';
 
 test('linear and logarithmic scales round trip', () => {
   for (const scale of ['linear', 'log']) {
@@ -78,4 +78,14 @@ test('the parametric EQ response is flat at 0 dB and a peak band lifts its own f
   assert.ok(peqResponse(800, boosted) > 8.5 && peqResponse(800, boosted) < 9.5);
   assert.ok(peqResponse(50, boosted) < 1);
   assert.deepEqual(bandOf({ band1_type: 'notch', band1_hz: '100 Hz' }, 1), { type: 'notch', hz: 100, gain: 0, q: 1, enabled: true });
+});
+
+test('a knob that starts below one can say a fraction, the others keep whole numbers and decibels in tenths (issue 180)', () => {
+  assert.deepEqual(knobPrecision('ms', 0.1), { step: undefined, commit: 2, display: 2 });
+  assert.deepEqual(knobPrecision('ms', 1), { step: 1, commit: 0, display: 0 });
+  assert.deepEqual(knobPrecision('Hz', 20), { step: 1, commit: 0, display: 0 });
+  assert.deepEqual(knobPrecision('%', 0), { step: 1, commit: 0, display: 0 }, 'a range from 0 stays in whole numbers');
+  assert.deepEqual(knobPrecision('dB', -24), { step: undefined, commit: 1, display: 0 });
+  assert.equal(Number((0.5).toFixed(knobPrecision('ms', 0.1).commit)), 0.5);
+  assert.equal(Number((4).toFixed(knobPrecision('ms', 0.1).commit)), 4);
 });

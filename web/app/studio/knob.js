@@ -52,14 +52,20 @@ export function knob(options) {
     if (bubble) bubble.textContent = formatted;
     svg.setAttribute('aria-valuenow', String(value)); svg.setAttribute('aria-valuetext', formatted);
   };
-  const preview = (next) => { value = snap(clamp(next, options.min, options.max), options.step || 0, options.min, options.max); draw(); if (options.onPreview) options.onPreview(value); };
+  const preview = (next) => {
+    if (!Number.isFinite(next)) return;   // a value that is not a number is never drawn or written
+    value = snap(clamp(next, options.min, options.max), options.step || 0, options.min, options.max);
+    draw();
+    if (options.onPreview) options.onPreview(value);
+  };
   const commit = () => { if (options.onCommit && !options.disabled) options.onCommit(value); };
   // the drag ends on the window too: a knob that is drawn again while it is dragged (a card of a block that redraws itself) loses its pointer events, and without this the hidden cursor stays hidden
   const end = () => { window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); window.removeEventListener('blur', end); if (!active) return; const gone = !svg.isConnected; clearDrag(); if (gone && value !== startValue) commit(); };
   const clearDrag = () => { if (!active) return; bubble?.remove(); bubble = null; active = false; document.body.classList.remove('studio-dragging'); };
   svg.onpointerdown = (event) => {
     if (options.disabled || event.button !== 0) return;
-    if (event.altKey) { event.preventDefault(); preview(options.defaultValue); commit(); return; }   // Alt+click: back to the default
+    // Alt+click: back to the default, and nothing when this knob has no default to go back to
+    if (event.altKey) { event.preventDefault(); if (Number.isFinite(options.defaultValue)) { preview(options.defaultValue); commit(); } return; }
     active = true; startValue = value; dragPosition = normalize(value, options.min, options.max, options.scale); startX = event.clientX; startY = event.clientY;
     svg.setPointerCapture(event.pointerId); document.body.classList.add('studio-dragging'); event.preventDefault();
     bubble = el('span', { className: 'studio-knob-bubble', role: 'status', textContent: readout.textContent }); root.append(bubble);
@@ -90,7 +96,16 @@ export function knob(options) {
     else return;
     event.preventDefault(); commit();
   };
-  svg.onwheel = (event) => { if (options.disabled) return; event.preventDefault(); const delta = (options.step || (options.max - options.min) / 100) * (event.deltaY < 0 ? 1 : -1); preview(options.scale === 'log' ? denormalize(normalize(value, options.min, options.max, options.scale) + (event.deltaY < 0 ? .01 : -.01), options.min, options.max, options.scale) : value + delta); commit(); };
+  // the wheel moves a knob only once it has the focus: passing over it with the wheel scrolls the panel and changes nothing
+  svg.onwheel = (event) => {
+    if (options.disabled || document.activeElement !== svg) return;
+    event.preventDefault();
+    const up = event.deltaY < 0;
+    const delta = (options.step || (options.max - options.min) / 100) * (up ? 1 : -1);
+    const along = normalize(value, options.min, options.max, options.scale) + (up ? 0.01 : -0.01);
+    preview(options.scale === 'log' ? denormalize(along, options.min, options.max, options.scale) : value + delta);
+    commit();
+  };
   // a double click opens a small field to type the value yourself (Enter applies, Esc cancels); Alt+click gives the default value back
   svg.ondblclick = (event) => { event.stopPropagation(); if (options.disabled) return; enterValue(); };
   // typing a value: a small numeric field in place of the readout (Enter on the knob or a right-click); Enter applies, Esc or leaving cancels
