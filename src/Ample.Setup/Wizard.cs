@@ -428,11 +428,20 @@ namespace Ample.Setup
                     {
                         string folder = Path.Combine(home, "projects", "Welcome");
                         Directory.CreateDirectory(folder);
-                        using (Process server = Process.Start(new ProcessStartInfo(ample, "serve --create --project \"" + folder + "\" --home \"" + home + "\"" + (wantLogin ? " --login" : "")) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true }))
+                        Process server = Process.Start(new ProcessStartInfo(ample, "serve --create --project \"" + folder + "\" --home \"" + home + "\"" + (wantLogin ? " --login" : "")) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true });
+                        // the error text is read as it comes (an unread pipe would block a server that logs a lot); the server is not disposed here, it keeps running
+                        StringBuilder serverErrors = new StringBuilder();
+                        server.ErrorDataReceived += (sender, e) => { if (e.Data != null) lock (serverErrors) serverErrors.AppendLine(e.Data); };
+                        server.BeginErrorReadLine();
+                        // a server that fails to start (no project, port taken) exits within moments: a bounded wait reports that instead of a false success;
+                        // a slow machine does not give a false failure (only an exit counts), at worst a late failure goes unseen
+                        if (server.WaitForExit(6000))
                         {
-                            // a server that fails to start (no project, port taken) exits within moments: wait a bounded time and report that instead of a false success
-                            if (server.WaitForExit(6000)) throw new InvalidOperationException("the server stopped at once (exit code " + server.ExitCode + "): " + server.StandardError.ReadToEnd().Trim());
+                            server.WaitForExit();
+                            string errors; lock (serverErrors) errors = serverErrors.ToString().Trim();
+                            throw new InvalidOperationException("the server stopped at once (exit code " + server.ExitCode + ")" + (errors.Length > 0 ? ": " + errors : "."));
                         }
+
                         Log("OK  AMPLE started and the studio opens in your browser." + (mode == "fresh" ? string.Empty : " (A running AMPLE has to be stopped by you first: without the tray hub this setup cannot restart it.)"));
                     }
                     catch (Exception ex) { Log("FAILED  AMPLE did not start: " + ex.Message); }

@@ -25,12 +25,19 @@ internal static class Program
         HubSettings settings = HubSettings.Load(home);
         // no hub.json yet: the installer's choice (the Run entry is there or not) is the preference, not the record default
         bool firstSettings = !File.Exists(HubSettings.PathIn(home));
-        if (firstSettings) settings = settings with { StartAtLogin = HasRunEntry() };
+        if (firstSettings) settings = settings with { StartAtLogin = RunEntryPolicy.InitialPreference(new RunEntryStore(), settings.StartAtLogin) };
         string? login = ValueOf(args, "--main-login");
         string? port = ValueOf(args, "--main-port");
         if (login is not null) settings = settings with { MainLogin = login == "on" };
         if (int.TryParse(port, out int p) && p is >= 0 and <= 65535) settings = settings with { MainPort = p };
-        if (login is not null || port is not null || firstSettings) settings.Save(home);
+        if (login is not null || port is not null || firstSettings)
+        {
+            try { settings.Save(home); }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                MessageBox.Show("The settings were not saved: " + ex.Message, "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
 
         try
         {
@@ -52,19 +59,28 @@ internal static class Program
         return 0;
     }
 
-    private static bool HasRunEntry()
-    {
-        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, false);
-        return key?.GetValue(RunName) is not null;
-    }
+    /// <summary>Makes the Run entry match the preference (no write when it already does); null when done, else why not.</summary>
+    internal static string? SetStartAtLogin(bool on) => RunEntryPolicy.Apply(new RunEntryStore(), on, Environment.ProcessPath);
 
-    internal static void SetStartAtLogin(bool on)
+    private sealed class RunEntryStore : IRunEntryStore
     {
-        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, true);
-        if (key is null) return;
-        if (on && key.GetValue(RunName) is string existing && existing == "\"" + Environment.ProcessPath + "\"") return;
-        if (on) key.SetValue(RunName, "\"" + Environment.ProcessPath + "\"");
-        else key.DeleteValue(RunName, false);
+        public string? Read()
+        {
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, false);
+            return key?.GetValue(RunName) as string;
+        }
+
+        public void Write(string value)
+        {
+            using RegistryKey key = Registry.CurrentUser.CreateSubKey(RunKey, true);
+            key.SetValue(RunName, value);
+        }
+
+        public void Delete()
+        {
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, true);
+            key?.DeleteValue(RunName, false);
+        }
     }
 
     internal static void OpenStudio(MainInstance main)

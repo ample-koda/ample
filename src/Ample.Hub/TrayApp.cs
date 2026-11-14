@@ -14,12 +14,15 @@ internal sealed class TrayApp : ApplicationContext
     private string? pending;
     private int busy;
     private readonly CancellationTokenSource quit = new();
+    // finished actions come back to the UI thread through this control: its handle is created up front (a context menu that was never opened has none)
+    private readonly Control ui = new();
     // the installer asks a running hub to quit by setting this event (it cannot close a window: the hub has none); the timer sees it within a few seconds
     private readonly EventWaitHandle exitSignal = new(false, EventResetMode.AutoReset, @"Local\AMPLE-Hub-Exit");
 
     internal TrayApp(MainInstance main)
     {
         this.main = main;
+        _ = ui.Handle;
         icon = new NotifyIcon { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application, Visible = true, Text = "AMPLE", ContextMenuStrip = menu };
         icon.DoubleClick += (_, _) => OpenMain();
         menu.Opening += (_, _) => Rebuild();
@@ -35,6 +38,7 @@ internal sealed class TrayApp : ApplicationContext
             quit.Cancel();
             quit.Dispose();
             timer.Dispose();
+            ui.Dispose();
             exitSignal.Dispose();
             icon.Visible = false;
             icon.Dispose();
@@ -69,7 +73,7 @@ internal sealed class TrayApp : ApplicationContext
         menu.Items.Clear();
         if (state.Main is { } running)
         {
-            Add(menu.Items, $"Main instance: running on port {running.Record.Port}", null, false);
+            Add(menu.Items, $"Main instance: running on port {running.Record.Port}" + (pending is null ? string.Empty : $" ({pending}…)"), null, false);
             Add(menu.Items, "Open the studio", OpenMain);
             Add(menu.Items, "Copy the URL", () => Clipboard.SetText(main.LaunchUrl(running.Record) ?? string.Empty));
             Add(menu.Items, "Restart", () => Do("Restarting AMPLE", main.RestartAsync), pending is null);
@@ -77,7 +81,7 @@ internal sealed class TrayApp : ApplicationContext
         }
         else
         {
-            Add(menu.Items, pending is null ? "Main instance: stopped" : "Main instance: " + pending.ToLowerInvariant() + "…", null, false);
+            Add(menu.Items, pending is null ? "Main instance: stopped" : $"Main instance: {pending}…", null, false);
             Add(menu.Items, "Start", () => Do("Starting AMPLE", async t => { await main.StartAsync(t); return null; }), pending is null);
         }
 
@@ -118,7 +122,12 @@ internal sealed class TrayApp : ApplicationContext
     private void OpenMain()
     {
         if (state.Main is not null) Open(state.Main);
-        else Do("Starting AMPLE", async t => { await main.StartAsync(t); return await Program.OpenStudioAsync(main, quit.Token); });
+        else
+        {
+            // taken now: a continuation that runs after the tray quit must not touch the disposed source
+            CancellationToken quitting = quit.Token;
+            Do("Starting AMPLE", async t => { await main.StartAsync(t); return await Program.OpenStudioAsync(main, quitting); });
+        }
     }
 
     private void Do(string what, Func<CancellationToken, Task<string?>> action, Action? then = null)
@@ -131,7 +140,7 @@ internal sealed class TrayApp : ApplicationContext
             string? problem;
             try { problem = await action(CancellationToken.None); }
             catch (Exception ex) { problem = ex.Message; }
-            try { menu.BeginInvoke(() =>
+            try { ui.BeginInvoke(() =>
             {
                 pending = null;
                 if (problem is not null) icon.ShowBalloonTip(5000, "AMPLE", problem, ToolTipIcon.Warning);
@@ -160,7 +169,8 @@ internal sealed class TrayApp : ApplicationContext
             return;
         }
 
-        (current with { MainPort = port }).Save(main.Home);
+        try { HubSettingsStore.Update(main.Home, stored => stored with { MainPort = port }); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { icon.ShowBalloonTip(5000, "AMPLE", ex.Message, ToolTipIcon.Warning); }
     }
 
     private void ChooseSettings()
@@ -168,8 +178,14 @@ internal sealed class TrayApp : ApplicationContext
         HubSettings current = HubSettings.Load(main.Home);
         using SettingsForm dialog = new(current);
         if (dialog.ShowDialog() != DialogResult.OK) return;
-        dialog.Result.Save(main.Home);
-        Program.SetStartAtLogin(dialog.Result.StartAtLogin);
+        try { dialog.Result.Save(main.Home); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            icon.ShowBalloonTip(5000, "AMPLE", ex.Message, ToolTipIcon.Warning);
+            return;
+        }
+
+        if (Program.SetStartAtLogin(dialog.Result.StartAtLogin) is { } entryProblem) icon.ShowBalloonTip(5000, "AMPLE", entryProblem, ToolTipIcon.Warning);
         if (dialog.Result.MainLogin != current.MainLogin && state.Main is not null && MessageBox.Show("Restart AMPLE now, so the sign-in setting applies?", "AMPLE", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             Do("Restarting AMPLE", main.RestartAsync);
         _ = RefreshAsync();
