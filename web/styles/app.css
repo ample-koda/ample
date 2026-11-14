@@ -275,6 +275,10 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .perf-x{border-radius:0 6px 6px 0;padding:0 8px}
 .perf-add{display:flex;gap:6px;align-items:center}
 #b-performance :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.perf-scene-row,.perf-bind-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.perf-scenes h4{margin:6px 0 2px}
+.perf-pads,.perf-mixer{border-top:1px solid var(--line);padding-top:6px}
+.perf-bindings{margin:4px 0;padding-left:18px}
 
 /* The Playlist view (web/app/playlist.js) */
 #b-playlist{display:none;flex-direction:column;min-height:0}

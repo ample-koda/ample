@@ -16,9 +16,13 @@ import { getUiKey, loadUiState, setUiKey } from './ui-state.js';
 import { QUANTIZE, createPerformance, performanceEnabled, setPerformanceEnabled } from './performance.js';
 import { createClipPlayer } from '../lib/performance-audio.mjs';
 import {
-  addClip, addLane, clickAction, clipCount, clipOptions, emptyLayout, parseLayout, pruneLayout,
-  removeClip, removeLane, serializeLayout, statusText,
+  addClip, addLane, addScene, clickAction, clipCount, clipOptions, emptyLayout, parseLayout, pruneLayout,
+  removeClip, removeLane, removeScene, sceneChoice, serializeLayout, setSceneEntry, statusText,
 } from '../lib/performance-layout.mjs';
+import { createEngineSceneQueue } from './performance-scenes.js';
+import { attachPerformanceInput, bindingsList, clearBinding, detachPerformanceInput, learnAction, onBindingsChange } from './performance-input.js';
+import { performanceMixerPanel } from './performance-mixer.js';
+import { actionText, clipActionId, parseClipActionId } from '../lib/performance-actions.mjs';
 
 const UI_KEY = 'performanceLayout';
 let layout = emptyLayout();
@@ -44,7 +48,7 @@ setExternalPlayer({
   playing: () => busy(),
   loading: () => (entering ? 'performance' : null),
   take: () => 'performance',
-  stop: () => { if (session) { session.engine.stopAll(); paint(); } },
+  stop: () => { if (session) { session.scenes.stopAll(); paint(); } },
 });
 
 /** The tab exists only while the setting is on; off means no button, no section, no timer. */
@@ -113,7 +117,10 @@ async function enter() {
       quantize,
     });
     for (const lane of layout.lanes) for (const c of lane.clips) engine.addClip(lane.name, { id: c.id, label: c.label });
-    session = { ctx, engine, player };
+    const scenes = createEngineSceneQueue(engine, { available: () => true, leadSeconds: 0.1 });   // the engine refuses a clip it does not know
+    session = { ctx, engine, player, scenes };
+    // pads and keys launch the same way the buttons do: through launchAction
+    attachPerformanceInput({ launch: launchAction, active: () => Boolean(session) && Boolean($('#b-performance')?.classList.contains('on')) });
     timer = setInterval(paint, 100);
   } catch (error) {
     toast(error.message || String(error));
@@ -130,7 +137,8 @@ function leave() {
   clearInterval(timer);
   timer = 0;
   if (!session) return;
-  try { session.engine.stopAll(); } catch { /* nothing was scheduled */ }
+  try { session.scenes.stopAll(); } catch { /* nothing was scheduled */ }
+  detachPerformanceInput();
   session.player.releaseAll();
   session = null;
   wasBusy = false;
@@ -140,7 +148,7 @@ function leave() {
 
 function stopAll() {
   if (!session) return;
-  session.engine.stopAll();
+  session.scenes.stopAll();   // also drops a scene that waits for the bar
   paint();
   notifyPlayer();
 }
@@ -154,6 +162,25 @@ function clickClip(lane, id) {
   } catch (error) { toast(error.message || String(error)); }
   paint();
   notifyPlayer();
+}
+
+/** A scene is queued for the next bar line; pressing it again while it waits takes it back. */
+function queueScene(id) {
+  if (!session) { toast('Enter Performance to launch scenes.'); return; }
+  const scene = layout.scenes.find((s) => s.id === id);
+  if (!scene) return;
+  if (session.scenes.pending?.scene.id === id) { session.scenes.cancel(); paint(); return; }
+  const result = session.scenes.queue(scene);
+  if (!result.ok) toast(result.problems.map((p) => p.reason).join('; '));
+  paint();
+}
+
+/** What a pad or a key does: a clip, a scene or Stop all. */
+function launchAction(action) {
+  if (!session) return;
+  if (action.kind === 'stop') stopAll();
+  else if (action.kind === 'scene') queueScene(action.id);
+  else if (action.kind === 'clip') { const at = parseClipActionId(action.id); if (at) clickClip(at.lane, at.clip); }
 }
 
 /** Stops what plays on one lane at the next bar line (a queued launch on it is taken back first). */
@@ -172,6 +199,11 @@ function stopLaneAtBar(lane) {
 function paint() {
   const box = $('#b-performance');
   if (!box || !session) return;
+  session.scenes.tick();
+  session.scenes.settle();
+  const waiting = session.scenes.pending;
+  const note = box.querySelector('.perf-pending');
+  if (note) note.textContent = waiting ? `Scene "${waiting.scene.name}" starts on the next bar.` : '';
   const state = session.engine.state();
   for (const button of box.querySelectorAll('button.perf-clip')) {
     const status = state[button.dataset.lane]?.find((c) => c.id === button.dataset.clip)?.status ?? 'ready';
@@ -294,6 +326,88 @@ function addLaneForm() {
   }, [name, el('button', { type: 'submit', textContent: 'Add lane', disabled: isLocked() })]);
 }
 
+function sceneRow(scene) {
+  const picks = layout.lanes.map((lane) => {
+    const select = el('select', { 'aria-label': `${scene.name}: ${lane.name}`, disabled: isLocked() }, [
+      el('option', { value: '', textContent: `${lane.name}: keep` }),
+      el('option', { value: 'stop', textContent: `${lane.name}: stop` }),
+      ...lane.clips.map((clip) => el('option', { value: `start:${clip.id}`, textContent: `${lane.name}: start ${clip.label}` })),
+    ]);
+    select.value = sceneChoice(scene, lane.name);
+    select.onchange = () => {
+      const [intent, clip] = select.value === '' ? ['keep'] : select.value === 'stop' ? ['stop'] : ['start', select.value.slice(6)];
+      layout = setSceneEntry(layout, scene.id, lane.name, intent, clip);
+      save();
+      render();
+    };
+    return select;
+  });
+  const launch = el('button', {
+    type: 'button',
+    className: 'perf-scene',
+    textContent: `Scene: ${scene.name}`,
+    title: 'Queue this scene for the next bar: every lane changes together',
+    onclick: () => queueScene(scene.id),
+  });
+  const bind = el('button', {
+    type: 'button',
+    textContent: 'Pad or key…',
+    title: 'Bind a MIDI pad or a key to this scene',
+    onclick: () => learn({ kind: 'scene', id: scene.id }),
+  });
+  const remove = el('button', {
+    type: 'button',
+    textContent: 'Remove scene',
+    disabled: isLocked(),
+    title: isLocked() ? LOCK_HINT : 'Remove this scene',
+    onclick: () => { layout = removeScene(layout, scene.id); save(); render(); },
+  });
+  return el('div', { className: 'perf-scene-row', role: 'group', 'aria-label': `Scene ${scene.name}` }, [launch, ...picks, bind, remove]);
+}
+
+function scenesSection() {
+  const name = el('input', { type: 'text', maxLength: 32, placeholder: 'Scene name, for example Chorus', 'aria-label': 'New scene name', disabled: isLocked() });
+  const form = el('form', { className: 'perf-add', onsubmit: (event) => { event.preventDefault(); applyLayout(addScene(layout, name.value)); } }, [
+    name, el('button', { type: 'submit', textContent: 'Add scene', disabled: isLocked() || !layout.lanes.length, title: layout.lanes.length ? '' : 'Add a lane first' }),
+  ]);
+  return el('section', { className: 'perf-scenes', 'aria-label': 'Scenes' }, [
+    el('h4', { textContent: 'Scenes' }),
+    el('p', { className: 'note perf-pending', role: 'status' }),
+    ...layout.scenes.map(sceneRow), form,
+  ]);
+}
+
+/** Learn: the next key or pad press is bound to the action (Escape cancels). */
+function learn(action) {
+  if (!session) { toast('Enter Performance to bind pads and keys.'); return; }
+  if (learnAction(action)) toast('Press a key or a pad to bind it. Escape cancels.');
+}
+
+function padsSection() {
+  const names = { stop: 'Stop all' };
+  const label = (action) => actionText(action, layout, names);
+  const rows = bindingsList().map((b) => el('li', {}, [
+    el('span', { textContent: `${b.label} → ${label(b.action)}` }),
+    el('button', { type: 'button', textContent: 'Remove', 'aria-label': `Remove the binding of ${b.label}`, onclick: () => clearBinding(b.source) }),
+  ]));
+  const clips = layout.lanes.flatMap((lane) => lane.clips.map((clip) => el('button', {
+    type: 'button', textContent: `Bind ${lane.name}: ${clip.label}`, onclick: () => learn({ kind: 'clip', id: clipActionId(lane.name, clip.id) }),
+  })));
+  return el('details', { className: 'perf-pads' }, [
+    el('summary', { textContent: 'Pads and keys' }),
+    el('p', { className: 'note', textContent: 'Choose Bind, then press a key or a pad. They only work while the Performance tab is showing and a session is on.' }),
+    el('div', { className: 'perf-bind-row' }, [el('button', { type: 'button', textContent: 'Bind Stop all', onclick: () => learn({ kind: 'stop' }) }), ...clips]),
+    rows.length ? el('ul', { className: 'perf-bindings' }, rows) : el('p', { className: 'note', textContent: 'Nothing is bound yet.' }),
+  ]);
+}
+
+/** The temporary mixer of the session: faders and pans heard now, kept in the session, applied to the song only when you say so. */
+function mixerSection() {
+  return el('details', { className: 'perf-mixer' }, [el('summary', { textContent: 'Session mixer' }), performanceMixerPanel()]);
+}
+
+onBindingsChange(() => { if ($('#b-performance') && performanceOn()) render(); });
+
 export function render() {
   const box = $('#b-performance');
   if (!box || !performanceOn()) return;
@@ -310,7 +424,7 @@ export function render() {
   const lanes = layout.lanes.length
     ? layout.lanes.map((lane) => laneRow(lane, options.filter((o) => !lane.clips.some((c) => c.id === o.id))))
     : [el('p', { className: 'note', textContent: empty })];
-  box.replaceChildren(headBar(), el('div', { className: 'perf-lanes' }, lanes), addLaneForm());
+  box.replaceChildren(headBar(), el('div', { className: 'perf-lanes' }, lanes), addLaneForm(), scenesSection(), padsSection(), mixerSection());
   box.setAttribute('aria-label', 'Performance');
   if (session) paint();
 }
