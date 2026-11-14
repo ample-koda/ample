@@ -71,11 +71,17 @@ export function qualifyRef(m, ref) {
   return ref;
 }
 
+/** The revisions the Compare picker lists: every named checkpoint, whatever its age, and the latest twenty of the others, in their order. */
+export function comparableNodes(nodes, recent = 20) {
+  const keep = new Set(nodes.slice(-recent).map((n) => n.nodeId));
+  return nodes.filter((n) => keep.has(n.nodeId) || n.kind === 'checkpoint');
+}
+
 export function compareRefs(m, refA, refB) {
   const refs = [
-    ...m.lines.map((l) => [`line:${l.name}`, `line ${l.name}`]),
+    ...m.lines.map((l) => [`line:${l.name}`, `line ${l.name} (saved tip)`]),
     ...m.h.tags.map((t) => [`tag:${t.name}`, `tag ${t.name}`]),
-    ...m.h.nodes.slice(-20).map((n) => [n.nodeId, `${shortId(n.nodeId)} ${n.message}`]),
+    ...comparableNodes(m.h.nodes).map((n) => [n.nodeId, `${shortId(n.nodeId)} ${n.message}`]),
   ];
   for (const ref of [refA, refB].map((r) => qualifyRef(m, r))) if (ref && !refs.some(([value]) => value === ref)) {
     const node = m.byId.get(ref);

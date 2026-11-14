@@ -98,7 +98,7 @@ test('a line and a tag with the same name are two different choices in Compare (
   assert.equal(refs.filter(([id]) => id === 'line:try').length, 1);
   assert.equal(refs.filter(([id]) => id === 'tag:try').length, 1);
   assert.equal(refs.find(([id]) => id === 'tag:try')[1], 'tag try');
-  assert.equal(refs.find(([id]) => id === 'line:try')[1], 'line try');
+  assert.equal(refs.find(([id]) => id === 'line:try')[1], 'line try (saved tip)');
 });
 
 test('a plain name is made into line: or tag:, and a revision id stays as it is', () => {
@@ -108,4 +108,15 @@ test('a plain name is made into line: or tag:, and a revision id stays as it is'
   assert.equal(qualifyRef(m, 'n2'), 'n2');
   assert.equal(qualifyRef(m, 'tag:studio'), 'tag:studio');
   assert.equal(qualifyRef(m, undefined), undefined);
+});
+
+test('Compare lists every named checkpoint, also an old one, and the latest twenty others (issue 143)', async () => {
+  const { comparableNodes } = await import('../../app/history-model.js');
+  const nodes = Array.from({ length: 40 }, (_, i) => ({ nodeId: `n${i + 1}`, kind: i === 3 ? 'checkpoint' : 'auto', message: `m${i + 1}` }));
+  const ids = comparableNodes(nodes).map((n) => n.nodeId);
+  assert.ok(ids.includes('n4'), 'the old named checkpoint stays');
+  assert.ok(ids.includes('n40') && ids.includes('n21'));
+  assert.ok(!ids.includes('n20') && !ids.includes('n5'));
+  assert.equal(ids.length, 21);
+  assert.deepEqual(comparableNodes([]), []);
 });
