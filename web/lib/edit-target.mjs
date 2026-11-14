@@ -1,4 +1,5 @@
-// Which document an edit belongs to: the song, or the module that is open inside it. The identity is captured when the edit is asked for and checked when it runs, so a tab switch in between never sends it to another document. @ample:edit-target
+// Which document an edit belongs to: the song, or the module that is open inside it.
+// The identity is captured when the edit is asked for and checked when it runs, so a tab switch never moves it. @ample:edit-target
 
 /** The document the editor shows now: the open module when the person is inside one, otherwise the song. */
 export function documentTarget(state) {
