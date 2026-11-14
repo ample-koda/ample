@@ -48,6 +48,45 @@ public sealed class ComponentServiceTests : IDisposable
     }
 
     [Fact]
+    public void A_saved_state_reads_its_own_component_file_and_not_the_one_of_the_project_now()
+    {
+        string changedNow = Comp().Replace("copies", "repeats", StringComparison.Ordinal);
+        using ModuleService service = Service(changedNow);   // the project as it is today
+        Dictionary<string, string> state = new() { ["components/fx.amplec"] = Comp() };   // the revision that is looked at
+
+        (IReadOnlyList<ComponentDefinition> components, IReadOnlyList<Diagnostic> issues) =
+            ModuleService.ComponentsForEditors(Song(), EngineRig.Spec, target => ModuleService.ReadComponentFileFrom(target, state));
+
+        Assert.Empty(issues);
+        Assert.Equal(["copies"], Assert.Single(components).Properties.Select(p => p.Name));
+        ComponentDefinition today = Assert.Single(service.ComponentsForEditors(Song(), EngineRig.Spec).Components);
+        Assert.Equal(["repeats"], today.Properties.Select(p => p.Name));
+    }
+
+    [Fact]
+    public void A_component_file_that_is_not_in_the_saved_state_is_reported_even_when_the_project_has_it_now()
+    {
+        Service(Comp()).Dispose();   // the file exists in the project today
+        Dictionary<string, string> state = new() { ["song.amplet"] = Song() };   // but not in the revision
+
+        (IReadOnlyList<ComponentDefinition> components, IReadOnlyList<Diagnostic> issues) =
+            ModuleService.ComponentsForEditors(Song(), EngineRig.Spec, target => ModuleService.ReadComponentFileFrom(target, state));
+
+        Assert.Empty(components);
+        Assert.NotEmpty(issues);
+    }
+
+    [Fact]
+    public void An_import_of_a_saved_state_is_found_with_or_without_the_extension_and_only_in_that_state()
+    {
+        Dictionary<string, string> state = new() { ["components/fx.amplec"] = "text" };
+
+        Assert.Equal("text", ModuleService.ReadComponentFileFrom("fx", state));
+        Assert.Equal("text", ModuleService.ReadComponentFileFrom("fx.amplec", state));
+        Assert.Null(ModuleService.ReadComponentFileFrom("other", state));
+    }
+
+    [Fact]
     public void The_editors_know_the_imported_components_as_block_types()
     {
         using ModuleService service = Service(Comp());

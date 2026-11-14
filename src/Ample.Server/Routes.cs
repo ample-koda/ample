@@ -2311,6 +2311,13 @@ public static class Routes
             JsonElement b = await Body(c);
             string text = Str(b, "text");
             DocSession temp = new(Opt(b, "path") ?? "peek", text);
+            // a state of the history is read with the files of that state: its own dependencies, and nothing of the project as it is now (issue 150)
+            if (Opt(b, "ref") is { Length: > 0 } reference)
+            {
+                IReadOnlyDictionary<string, string> files = await s.History.PeekAsync(reference, c.RequestAborted);
+                return Ok(DocView(temp, s.ParseSnapshot(temp, files), s));
+            }
+
             return Ok(DocView(temp, s.Parse(temp), s));
         });
         add("GET", "/api/docs", "documents", "The song files of the project.", false, s is null ? null : () => Ok(SongFiles(s.Root).Select(f => Path.GetRelativePath(s.Root, f).Replace('\\', '/')).Order(StringComparer.Ordinal)));

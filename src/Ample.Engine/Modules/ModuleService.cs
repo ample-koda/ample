@@ -83,6 +83,31 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
         return null;
     }
 
+    /// <summary>The text of a file of components that an <c>import</c> names, read from the files of a saved state (a revision of the history).
+    /// Nothing is read from the project folder: what is not in the state is not found (issue 150).</summary>
+    /// <param name="target">The name as written in the import (with or without the extension).</param>
+    /// <param name="files">The files of the state by relative path.</param>
+    public static string? ReadComponentFileFrom(string target, IReadOnlyDictionary<string, string> files)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(files);
+        if (target.StartsWith(BuiltInComponents.Prefix, StringComparison.Ordinal))
+        {
+            return BuiltInComponents.Read(target);   // a component that ships with AMPLE is the same in every state
+        }
+
+        string name = target.EndsWith(ComponentExtension, StringComparison.OrdinalIgnoreCase) ? target : target + ComponentExtension;
+        foreach (string candidate in new[] { name, "components/" + name, "modules/" + name, "templates/" + name })
+        {
+            if (files.TryGetValue(candidate.Replace('\\', '/'), out string? text))
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>The components a song can see: its own, and what its imports bring, with the problems of putting them together (conflicts, missing files, cycles).</summary>
     /// <param name="songText">The song text.</param>
     /// <param name="spec">The language data.</param>

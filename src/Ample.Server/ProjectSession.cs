@@ -230,6 +230,21 @@ public sealed class ProjectSession : IAsyncDisposable
         return Parser.Parse(session.Text, Spec, options);
     }
 
+    /// <summary>Parses the text of a song as it was in a saved state: the files it reads (lyrics, sequences) and the component files it imports
+    /// come from that state, not from the project as it is now (issue 150).</summary>
+    internal AmpleDocument ParseSnapshot(DocSession session, IReadOnlyDictionary<string, string> files)
+    {
+        ParseOptions options = ParseOptions.Editor;
+        options.ReadFile = relative => files.TryGetValue(relative.Replace('\\', '/'), out string? text) ? text : null;
+        (IReadOnlyList<ComponentDefinition> components, IReadOnlyList<Diagnostic> extra) = Ample.Engine.Modules.ModuleService.ComponentsForEditors(
+            session.Text,
+            Spec,
+            target => Ample.Engine.Modules.ModuleService.ReadComponentFileFrom(target, files));
+        options.Components = components;
+        options.ExtraDiagnostics = extra;
+        return Parser.Parse(session.Text, Spec, options);
+    }
+
     internal async Task<ModuleDocState> ModuleDocAsync(string relative, CancellationToken cancellationToken)
     {
         relative = relative.Replace('\\', '/');
