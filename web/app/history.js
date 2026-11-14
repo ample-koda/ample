@@ -214,15 +214,16 @@ export async function promote() {
   let changes = [];
   try { changes = await api.get('/api/history/promote-preview'); } catch (e) { toast(e.message); return; }
   const body = changes.length ? changes.map((c) => `• ${c.path}: ${c.change}`).join('\n') : 'garage and studio hold the same files.';
-  const text = 'studio becomes what garage is now. The old studio stays in the history (and can be tagged), '
-    + 'and work on studio that is not saved yet is put there first. No merge.';
+  const head = model().lines.find((line) => line.name === 'garage')?.head;
+  const text = `studio becomes what garage is now (garage at revision ${head ? shortId(head) : '?'}). The old studio stays in the history `
+    + '(and can be tagged), and work on studio that is not saved yet is put there first. No merge.';
   const choices = [{ label: 'Cancel', value: false }, { label: 'Make main', value: true, primary: true }];
   const ok = await ask('Make garage the main branch', `${text}\n\n${body}`, choices);
   if (!ok) return;
   // studio is replaced: when it is the open branch, its unsaved work is dealt with first, as before a branch switch
   if (model().h.current === 'studio' && !(await unsavedChoice())) return;
   try {
-    await api.post('/api/history/promote');
+    await api.post('/api/history/promote', { expect: head });   // the revision that was shown is the one that is promoted
     await afterChange();
     toast('studio is now what garage was.');
   } catch (e) { toast(e.message); }
