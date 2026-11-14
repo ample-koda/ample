@@ -407,6 +407,15 @@ export function chainPreview(block, name, value) {
   refresh();
 }
 
+/** Takes the preview of one parameter back: the song's value plays again (also for a value the song does not write, where its default plays). */
+export function chainRevert(block, name) {
+  const mine = session?.override.get(block);
+  if (!mine || !(name in mine)) return;
+  const { [name]: gone, ...rest } = mine;   // eslint-disable-line no-unused-vars
+  if (Object.keys(rest).length) session.override.set(block, rest); else session.override.delete(block);
+  refresh();
+}
+
 /**
  * A/B against the build: the built take of the target block plays in place of the live chain (same place of the loop, a short crossfade); false puts the live chain back.
  * Returns the new state, or null when there is nothing to compare with.
