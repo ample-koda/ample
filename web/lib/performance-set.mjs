@@ -23,7 +23,13 @@ export function classifyClip(clip) {
   const { id, plan, prepared = null } = clip;
   const assets = clip.assets instanceof Set ? clip.assets : new Set(clip.assets || []);
   const fallback = (why) => (prepared
-    ? { id, state: READY_PREPARED, reason: `${why}; plays as the prepared audio take`, bytes: validBytes(prepared.bytes) ? prepared.bytes : 0, pins: [prepared.key] }
+    ? {
+      id,
+      state: READY_PREPARED,
+      reason: `${why}; plays as the prepared audio take`,
+      bytes: validBytes(prepared.bytes) ? prepared.bytes : 0,
+      pins: [prepared.key],
+    }
     : { id, state: UNAVAILABLE, reason: `${why}; no prepared audio take chosen`, bytes: 0, pins: [] });
   if (!plan || !plan.ok) return fallback(plan?.reason || 'the live chain cannot be planned');
   const missing = [];
@@ -57,7 +63,9 @@ const freezeReport = (clips, pinSizes, budget) => Object.freeze({
  * Returns { clips, pinned: Set (a copy), bytes, budget, ok } where ok means every clip is ready.
  */
 export function prepareSet(clips, { sizes = new Map(), budget = Infinity } = {}) {
-  if (typeof budget !== 'number' || Number.isNaN(budget) || budget < 0) throw new RangeError(`budget must be a number of bytes >= 0 (or Infinity), got ${budget}`);
+  if (typeof budget !== 'number' || Number.isNaN(budget) || budget < 0) {
+    throw new RangeError(`budget must be a number of bytes >= 0 (or Infinity), got ${budget}`);
+  }
   const ids = new Set();
   for (const c of clips) { if (ids.has(c.id)) throw new Error(`duplicate clip id ${c.id}`); ids.add(c.id); }
   const pinned = new Map(); // asset key -> bytes
@@ -71,10 +79,16 @@ export function prepareSet(clips, { sizes = new Map(), budget = Infinity } = {})
       return k === clip.prepared?.key && validBytes(clip.prepared.bytes) ? clip.prepared.bytes : undefined;
     };
     const unknown = result.pins.filter((k) => sizeOf(k) === undefined);
-    if (unknown.length && budget !== Infinity) return { ...result, state: UNAVAILABLE, reason: `size of ${unknown.join(', ')} is unknown, so the memory budget cannot be kept`, bytes: 0, pins: [] };
+    if (unknown.length && budget !== Infinity) {
+      const reason = `size of ${unknown.join(', ')} is unknown, so the memory budget cannot be kept`;
+      return { ...result, state: UNAVAILABLE, reason, bytes: 0, pins: [] };
+    }
     const size = (k) => sizeOf(k) ?? 0;
     const add = result.pins.filter((k) => !pinned.has(k)).reduce((sum, k) => sum + size(k), 0);
-    if (bytes + add > budget) return { ...result, state: UNAVAILABLE, reason: `not enough decoded-audio memory (needs ${add} more bytes, ${Math.max(0, budget - bytes)} left)`, bytes: 0, pins: [] };
+    if (bytes + add > budget) {
+      const reason = `not enough decoded-audio memory (needs ${add} more bytes, ${Math.max(0, budget - bytes)} left)`;
+      return { ...result, state: UNAVAILABLE, reason, bytes: 0, pins: [] };
+    }
     result.pins.forEach((k) => pinned.set(k, size(k)));
     bytes += add;
     return { ...result, bytes: result.pins.reduce((sum, k) => sum + size(k), 0) };
@@ -95,7 +109,8 @@ export function invalidated(report, changedKeys) {
 export function invalidate(report, changedKeys) {
   const hit = new Set(invalidated(report, changedKeys));
   if (!hit.size) return report;
-  const clips = report.clips.map((c) => (hit.has(c.id) ? { ...c, state: UNAVAILABLE, reason: 'content changed; prepare the set again', bytes: 0, pins: [] } : c));
+  const changed = { state: UNAVAILABLE, reason: 'content changed; prepare the set again', bytes: 0, pins: [] };
+  const clips = report.clips.map((c) => (hit.has(c.id) ? { ...c, ...changed } : c));
   const stillPinned = new Set(clips.flatMap((c) => c.pins));
   const pinSizes = new Map([...report.pinSizes].filter(([k]) => stillPinned.has(k)));
   return freezeReport(clips, pinSizes, report.budget);

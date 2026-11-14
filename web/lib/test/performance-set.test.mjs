@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyClip, prepareSet, invalidated, invalidate, isAvailable, READY_LIVE, READY_PREPARED, UNAVAILABLE } from '../performance-set.mjs';
+import {
+  classifyClip, prepareSet, invalidated, invalidate, isAvailable, READY_LIVE, READY_PREPARED, UNAVAILABLE,
+} from '../performance-set.mjs';
 
 const src = (take) => ({ kind: 'source', take });
 const live = { ok: true, items: [src('a'), { kind: 'effect', tpl: 'reverb', id: 'r' }] };
@@ -20,7 +22,10 @@ test('unplannable chain uses its reason', () => {
   assert.match(classifyClip({ id: 3, plan: { ok: false, reason: 'nope' } }).reason, /nope/);
 });
 test('memory budget rejects what does not fit, and changes invalidate', () => {
-  const clips = [{ id: 1, plan: live, assets: new Set(['chain:a']) }, { id: 2, plan: conv, assets: new Set(['chain:b']), prepared: { key: 'take:2', bytes: 100 } }];
+  const clips = [
+    { id: 1, plan: live, assets: new Set(['chain:a']) },
+    { id: 2, plan: conv, assets: new Set(['chain:b']), prepared: { key: 'take:2', bytes: 100 } },
+  ];
   const sizes = new Map([['chain:a', 60]]);
   const ok = prepareSet(clips, { sizes, budget: 200 });
   assert.ok(ok.ok); assert.equal(ok.bytes, 160);
@@ -86,8 +91,11 @@ test('reports cannot be changed by the caller, and the pinned set is a copy', ()
   r.pinned.add('x'); assert.equal(invalidated(r, ['x']).length, 0);
 });
 test('isAvailable: ready live and prepared yes, unavailable and unknown ids no', () => {
-  const clips = [{ id: 1, plan: live, assets: new Set(['chain:a']) },
-    { id: 2, plan: conv, assets: new Set(['chain:b']), prepared: { key: 'take:2', bytes: 10 } }, { id: 3, plan: conv, assets: new Set(['chain:b']) }];
+  const clips = [
+    { id: 1, plan: live, assets: new Set(['chain:a']) },
+    { id: 2, plan: conv, assets: new Set(['chain:b']), prepared: { key: 'take:2', bytes: 10 } },
+    { id: 3, plan: conv, assets: new Set(['chain:b']) },
+  ];
   const r = prepareSet(clips);
   assert.deepEqual([1, 2, 3, 4].map((id) => isAvailable(r, id)), [true, true, false, false]);
   assert.equal(isAvailable(null, 1), false);
