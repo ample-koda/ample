@@ -51,7 +51,12 @@ test('loop ignores the length; a second press stops it at the grid, not at once'
 
 test('a loop pad pressed again before its queued stop keeps playing when the handle can take the stop back', () => {
   const log = [];
-  const s = createLaunchScheduler({ quantize: (t) => Math.ceil(t), startVoice: () => { const v = { stops: [], cancelStop() { this.stops.pop(); }, stop(at) { this.stops.push(at); } }; log.push(v); return v; } });
+  const startVoice = () => {
+    const v = { stops: [], cancelStop() { this.stops.pop(); }, stop(at) { this.stops.push(at); } };
+    log.push(v);
+    return v;
+  };
+  const s = createLaunchScheduler({ quantize: (t) => Math.ceil(t), startVoice });
   s.configure('bed', { mode: 'loop' }); s.launch('bed', 0);
   assert.deepEqual(s.launch('bed', 2.2), { action: 'stop', at: 3 });
   assert.deepEqual(s.launch('bed', 2.4), { action: 'keep' });
@@ -135,7 +140,11 @@ test('a quantizer that returns a time in the past does not move the start before
 
 test('now() is the default clock (injected, seconds)', () => {
   let t = 10; const log = [];
-  const s = createLaunchScheduler({ now: () => t, quantize: (x) => Math.ceil(x / 2) * 2, startVoice: (slot, when) => { log.push(when); return { stop() {} }; } });
+  const s = createLaunchScheduler({
+    now: () => t,
+    quantize: (x) => Math.ceil(x / 2) * 2,
+    startVoice: (slot, when) => { log.push(when); return { stop() {} }; },
+  });
   s.configure('a', { mode: 'oneshot', length: 3 });
   t = 10.5; assert.equal(s.launch('a').at, 12);
   assert.equal(s.remaining('a'), 4.5); t = 13; assert.equal(s.remaining('a'), 2);
