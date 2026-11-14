@@ -121,10 +121,12 @@ namespace Ample.Msi
                 {
                     string launch = Path.ChangeExtension(json, ".launch");
                     int port, pidValue; string token;
-                    if (!TryReadInstance(File.ReadAllText(json), File.Exists(launch) ? File.ReadAllText(launch) : string.Empty, out port, out token, out pidValue))
+                    string launchText = File.Exists(launch) ? File.ReadAllText(launch) : string.Empty;
+                    if (!TryReadInstance(File.ReadAllText(json), launchText, out port, out token, out pidValue))
                     {
                         // a server that cannot be identified is never stopped
-                        session.Log("AmpleClose: left alone an instance file that does not name its port, token and pid: " + Path.GetFileName(json));
+                        session.Log("AmpleClose: left alone an instance file that does not name its port, token and pid: "
+                            + Path.GetFileName(json));
                         continue;
                     }
 
