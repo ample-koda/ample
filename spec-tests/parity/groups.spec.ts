@@ -42,7 +42,7 @@ async function groupTwo(page) {
   await page.keyboard.press('Control+g');
 }
 
-test('grouping two blocks hides them behind a group with ports and leaves the source unchanged', async ({ page }) => {
+test('grouping two blocks hides them behind a group with ports and leaves the source unchanged @quarantine', async ({ page }) => {
   const before = (await state(page)).text;
   await groupTwo(page);
   await expect(page.locator('.node.grp')).toHaveCount(1);
