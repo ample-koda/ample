@@ -6,6 +6,7 @@ import { readNotes } from '../lib/notes-load.mjs';
 import { stop } from './player.js';
 import { containerView, flatGraph, pruneGroups, regionReveal } from './graph.js';
 import { ask, toast } from './ui.js';
+import { documentTarget, sameTarget, staleTargetMessage } from '../lib/edit-target.mjs';
 import { signatureOf, staleBlocks, staleByFiles } from '../lib/build-stale.mjs';
 import { buildSummary } from '../lib/transport-model.mjs';
 import { collectBuildErrors } from '../lib/build-errors.mjs';
@@ -567,29 +568,41 @@ let chain = Promise.resolve();
 export const editsDone = () => chain;
 
 export function edit(ops) {
-  const p = chain.then(() => run(ops));
+  // the edit belongs to the document that is open now, not to the one that is open when its turn comes
+  const target = documentTarget(S);
+  const p = chain.then(() => run(ops, target));
   chain = p.catch(() => {});
   return p;
 }
 
-async function run(ops) {
+async function run(ops, target) {
+  if (target && !sameTarget(target, documentTarget(S))) { toast(staleTargetMessage(target)); return false; }
   if (!S.doc || readOnly()) { toast('The song has errors: it is read-only until they are fixed.'); return false; }
   if (ops.some((op) => op.type !== 'setLayout')) stopBuild();
   quiet.edits++;
-  try { return await runOps(ops); } finally { quiet.edits--; }
+  try { return await runOps(ops, target); } finally { quiet.edits--; }
 }
 
-async function runOps(ops) {
-  const inModule = S.moduleStack.length > 0 && S.modulePath;
+async function runOps(ops, target = documentTarget(S)) {
+  const inModule = target.kind === 'module';
+  const editPath = target.songPath;
+  const editModulePath = target.path;
+  const stillHere = () => sameTarget(target, documentTarget(S));
   const prev = inModule ? S.moduleDoc.text : S.doc.text;
   let doc = inModule ? S.moduleDoc : S.doc;
   let current = null;
   try {
-    if (!inModule && ops.length > 1 && ops.every((op) => op.type === 'setLayout')) doc = await api.post('/api/doc/layouts', { path: S.path, baseVersion: doc.version, items: ops.map((op) => ({ block: op.block, x: op.x, y: op.y })) });   // Auto format, align, distribute: one request instead of one per block
+    const layoutsOnly = !inModule && ops.length > 1 && ops.every((op) => op.type === 'setLayout');
+    // Auto format, align, distribute: one request instead of one per block
+    if (layoutsOnly) {
+      const items = ops.map((op) => ({ block: op.block, x: op.x, y: op.y }));
+      doc = await api.post('/api/doc/layouts', { path: editPath, baseVersion: doc.version, items });
+    }
     else for (const op of ops) doc = (current = op, inModule)
-      ? await api.post('/api/module/doc/edit', { path: S.modulePath, baseVersion: doc.version, op })
-      : await api.post('/api/doc/edit', { path: S.path, baseVersion: doc.version, op });
+      ? await api.post('/api/module/doc/edit', { path: editModulePath, baseVersion: doc.version, op })
+      : await api.post('/api/doc/edit', { path: editPath, baseVersion: doc.version, op });
   } catch (e) {
+    if (!stillHere()) { toast(staleTargetMessage(target)); return false; }
     if (inModule && doc !== S.moduleDoc) { S.undo.push(prev); editCount++; S.redo.length = 0; S.moduleDoc = doc; S.moduleFlat = flatGraph(doc, S.tpl); notify(); }
     else if (!inModule && doc !== S.doc) { S.undo.push(prev); editCount++; S.redo.length = 0; setDoc(doc); }
     if (current?.type === 'setParameter' && /AMP2081/.test(String(e.message || ''))) {
@@ -602,12 +615,15 @@ async function runOps(ops) {
         { label: 'Cancel', value: undefined },
       ]);
       if (mode === 'source') { toast('Edit the expression in the Source tab (the line of this property).'); return false; }
-      if (mode) return runOps([{ type: 'setPropertyValue', block: current.block, name: current.name, value: String(current.value ?? ''), mode }]);
+      if (mode && !stillHere()) { toast(staleTargetMessage(target)); return false; }
+      const again = { type: 'setPropertyValue', block: current.block, name: current.name, value: String(current.value ?? ''), mode };
+      if (mode) return runOps([again], target);
       return false;
     }
     fail(e);
     return false;
   }
+  if (!stillHere()) { toast(staleTargetMessage(target)); return false; }
   if (doc.text !== prev) { S.undo.push(prev); editCount++; S.redo.length = 0; }
   if (inModule) { S.moduleDoc = doc; S.moduleFlat = flatGraph(doc, S.tpl); notify(); persistWorkSoon(); }
   else setDoc(doc);

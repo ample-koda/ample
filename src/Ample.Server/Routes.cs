@@ -3399,6 +3399,7 @@ public static class Routes
         add("POST", "/api/history/promote", "history", "Replaces studio with garage (the old studio stays in the history).", true, s is null ? null : async (HttpContext c) =>
         {
             NodeInfo n = await s.History.PromoteAsync(cancellationToken: c.RequestAborted);
+            s.ForgetDocs();
             events!.Publish("history.changed", new { kind = "promote" });
             return Ok(new { node = n.NodeId });
         });

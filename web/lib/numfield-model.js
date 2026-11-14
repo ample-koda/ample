@@ -60,5 +60,18 @@ export function splitChannels(text, count, fallback) {
   return Array.from({ length: count }, (_, i) => words[i] ?? fallback);
 }
 
+/** How many lanes a channels field shows: the declared count, or more when the value already holds more words. */
+export const channelCount = (text, declared = 4) => Math.max(declared || 4, String(text ?? '').trim().split(/\s+/).filter(Boolean).length);
+
+/**
+ * A level in dB as the renderer reads it. The renderer only reads whole numbers (a fraction would play as 0 dB),
+ * so a typed number is rounded to a whole one and a text that is not a number is kept as it is.
+ */
+export function wholeDb(text) {
+  const t = String(text ?? '').trim();
+  const n = Number(t.replace(/\s*dB$/i, ''));
+  return t !== '' && Number.isFinite(n) ? String(Math.round(n)) : t;
+}
+
 /** The words of a channels value written back as one text, each number with its unit when it has one ("-2 dB" is written as "-2": the unit is part of the field, not of each channel). */
 export const joinChannels = (words) => words.join(' ');

@@ -16,6 +16,7 @@ import { variableHover, variableSpots } from '../lib/variable-types.mjs';
 import { docTipShown, hideDocTip, showDocTip } from './doc-tip.js';
 import { evaluate, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
 import { api } from './api.js';
+import { FORMAT_STALE_MESSAGE, formatStillApplies } from '../lib/source-guards.mjs';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { S, applyText, edit, flat, notify, notifySelection, readOnly, refreshActiveModule, refreshInputs, select, setBeforeSave, subscribe } from './store.js';
 import { LspClient } from './lsp.js';
@@ -1428,6 +1429,18 @@ export async function apply() {
   return true;
 }
 
+/**
+ * Save all (and Save) must not leave out what is typed in the Source editor: it is applied first (a text file is written, a song goes to
+ * its working copy). Returns the path that was handled, null when nothing was typed, false when it could not be applied.
+ */
+export async function flushTypedSource() {
+  const ta = $('#se-ta');
+  if (!ta || !SE.file || !SE.edit || SE.textFile !== SE.file || S.peek) return null;
+  if (ta.value === SE.orig) return null;
+  const file = SE.file;
+  return (await apply()) ? file : false;
+}
+
 /** A component file was written: the board reads its components again and the song is read with them, so the palette, the cards and the build see the new code without a reload. */
 async function componentFileWritten() {
   await (await import('./components.js')).loadComponents(S.path);
@@ -1445,8 +1458,13 @@ export async function openModuleSource() {
 
 async function revert() {
   if (!(await ask('Revert file', `Throw away your changes to ${SE.file} and go back to the saved text?`, [{ label: 'Revert', value: true, primary: true }, { label: 'Keep editing', value: false }]))) return;
+  // the working copy on the server holds what was applied (the song stays changed and dirty): it goes back to the saved file there first
+  const route = isSong() ? '/api/doc/revert' : '/api/wc/revert';
+  try { await api.post(route, { path: SE.file }); } catch (e) { toast(e.message || String(e)); return; }
   clearSourceDraft(SE.file);
+  if (isSong()) await (await import('./store.js')).reloadDoc();
   SE.text = isSong() ? S.doc?.text || SE.orig : SE.orig;
+  SE.orig = SE.text;
   SE.syncedText = SE.text;
   S.sourceEditMessage = null;
   $('#se-ta').value = SE.text;
@@ -1569,7 +1587,11 @@ async function fixAll() {
 }
 
 async function format() {
+  const sent = $('#se-ta').value;
+  // the server formats the text it has: the buffer as it is shown goes first, not the last debounced copy
+  if (sent !== SE.syncedText) { SE.text = sent; await SE.lsp.change(sent); }
   const edits = await SE.lsp.ask('textDocument/formatting', { options: { tabSize: 2, insertSpaces: true } });
+  if (!formatStillApplies(sent, $('#se-ta').value)) { toast(FORMAT_STALE_MESSAGE); return; }
   if (!edits.length) { toast('Already formatted.'); return; }
   applyEdits(edits);
   toast('Formatted.');
