@@ -1844,7 +1844,20 @@ public static class Routes
         {
             ProjectManifest m = ProjectFile.Parse(File.ReadAllText(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile)));
             (bool Project, bool Server, string Source) braveStatus = AiService.BraveKeyStatus(s.Library.Home, m.Id);
-            return Ok(new { m.Name, masterSeed = m.MasterSeed, m.Settings.BlackBox, m.Settings.Mounts, m.Settings.DefaultEngine, m.Settings.ProjectPanel, m.Settings.Faer, koda = m.Settings.Koda, buildParallelism = m.Settings.BuildParallelism, parallelismLimit = Ample.Engine.Engine.BuildParallelism.ServerLimit, cores = Ample.Engine.Engine.BuildParallelism.Cores, ai = m.Settings.Ai, braveSearchKeyStoreAvailable = OperatingSystem.IsWindows(), braveSearchKeyConfigured = braveStatus.Source != "none", braveSearchProjectKey = braveStatus.Project, braveSearchServerKey = braveStatus.Server, braveSearchSource = braveStatus.Source });
+            return Ok(new
+            {
+                m.Name, masterSeed = m.MasterSeed, m.Settings.BlackBox, m.Settings.Mounts, m.Settings.DefaultEngine,
+                m.Settings.ProjectPanel, m.Settings.Faer, koda = m.Settings.Koda,
+                buildParallelism = m.Settings.BuildParallelism,
+                parallelismLimit = Ample.Engine.Engine.BuildParallelism.ServerLimit,
+                cores = Ample.Engine.Engine.BuildParallelism.Cores,
+                ai = m.Settings.Ai,
+                braveSearchKeyStoreAvailable = OperatingSystem.IsWindows(),
+                braveSearchKeyConfigured = braveStatus.Source != "none",
+                braveSearchProjectKey = braveStatus.Project,
+                braveSearchServerKey = braveStatus.Server,
+                braveSearchSource = braveStatus.Source,
+            });
         });
         add("GET", "/api/project/first-run", "project", "The first-time setup wizard of the project: whether it still has to be walked through (pending), where the project came from (origin: new or existing), the wizard version of this program and the version that was done.", false, s is null ? null : async (HttpContext c) =>
         {
