@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Ample.Hub.Core;
+using Ample.Storage.Projects;
 using Microsoft.Win32;
 
 namespace Ample.Hub;
@@ -22,11 +23,24 @@ internal static class Program
         MainInstance main = new(home, ample);
 
         HubSettings settings = HubSettings.Load(home);
+        // no hub.json yet: the installer's choice (the Run entry is there or not) is the preference, not the record default
+        bool firstSettings = !File.Exists(HubSettings.PathIn(home));
+        if (firstSettings)
+        {
+            settings = settings with { StartAtLogin = RunEntryPolicy.InitialPreference(new RunEntryStore(), settings.StartAtLogin) };
+        }
         string? login = ValueOf(args, "--main-login");
         string? port = ValueOf(args, "--main-port");
         if (login is not null) settings = settings with { MainLogin = login == "on" };
         if (int.TryParse(port, out int p) && p is >= 0 and <= 65535) settings = settings with { MainPort = p };
-        if (login is not null || port is not null) settings.Save(home);
+        if (login is not null || port is not null || firstSettings)
+        {
+            try { settings.Save(home); }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                MessageBox.Show("The settings were not saved: " + ex.Message, "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
 
         try
         {
@@ -48,30 +62,49 @@ internal static class Program
         return 0;
     }
 
-    internal static void SetStartAtLogin(bool on)
+    /// <summary>Makes the Run entry match the preference (no write when it already does); null when done, else why not.</summary>
+    internal static string? SetStartAtLogin(bool on) => RunEntryPolicy.Apply(new RunEntryStore(), on, Environment.ProcessPath);
+
+    private sealed class RunEntryStore : IRunEntryStore
     {
-        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, true);
-        if (key is null) return;
-        if (on) key.SetValue(RunName, "\"" + Environment.ProcessPath + "\"");
-        else key.DeleteValue(RunName, false);
+        public string? Read()
+        {
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, false);
+            return key?.GetValue(RunName) as string;
+        }
+
+        public void Write(string value)
+        {
+            using RegistryKey key = Registry.CurrentUser.CreateSubKey(RunKey, true);
+            key.SetValue(RunName, value);
+        }
+
+        public void Delete()
+        {
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKey, true);
+            key?.DeleteValue(RunName, false);
+        }
     }
 
     internal static void OpenStudio(MainInstance main)
     {
-        DateTime until = DateTime.UtcNow.AddSeconds(40);
-        while (DateTime.UtcNow < until)
+        string? problem = Task.Run(() => OpenStudioAsync(main, CancellationToken.None)).GetAwaiter().GetResult();
+        if (problem is not null) MessageBox.Show(problem, "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+
+    /// <summary>
+    /// Waits (without blocking a UI thread, cancellable) until the main server is ready, then opens the browser; null when
+    /// opened, else the problem.
+    /// </summary>
+    internal static async Task<string?> OpenStudioAsync(MainInstance main, CancellationToken cancellationToken)
+    {
+        InstanceRecord? record = await main.WaitReadyAsync(TimeSpan.FromSeconds(40), cancellationToken);
+        if (record is null || main.LaunchUrl(record) is not { } url)
         {
-            HubState state = Task.Run(() => main.StateAsync(CancellationToken.None)).GetAwaiter().GetResult();
-            if (state.Main is not null && main.LaunchUrl(state.Main.Record) is { } url)
-            {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
-                return;
-            }
-
-            Thread.Sleep(500);
+            return "The AMPLE server did not start in time. Use the tray menu to start it again.";
         }
-
-        MessageBox.Show("The AMPLE server did not start in time. Use the tray menu to start it again.", "AMPLE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+        return null;
     }
 
     private static void Run(Func<CancellationToken, Task<string?>> action)

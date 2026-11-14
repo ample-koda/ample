@@ -30,13 +30,12 @@ public sealed record HubSettings(int MainPort = 0, bool MainLogin = false, bool 
         }
     }
 
-    /// <summary>Writes the settings (a temporary file, then a replace).</summary>
+    /// <summary>
+    /// Writes the settings under the hub.json mutex, keeping fields this program does not know (see <see
+    /// cref="HubSettingsStore"/>).
+    /// </summary>
     public void Save(string home)
     {
-        Directory.CreateDirectory(home);
-        string path = PathIn(home);
-        string temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(this, Json));
-        File.Move(temporary, path, true);
+        HubSettingsStore.Update(home, _ => this);
     }
 }
