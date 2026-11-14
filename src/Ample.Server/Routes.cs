@@ -1238,11 +1238,34 @@ public static class Routes
                 (StereoBuffer channels, _) = StereoWav.Decode(originalBytes);
                 rangeBytes = StereoWav.Encode(new StereoBuffer(channels.Left[firstSample..lastSample], channels.Right[firstSample..lastSample]), sampleRate);
             }
+            // a compressor with a connected key (the sidechain): the renderer reads the take of the key block next to the input, cut to the same range (issue 168)
+            byte[]? keyBytes = null;
+            FromLine? keyLine = block.Froms.FirstOrDefault(input => !input.Disabled && input.Input == "key");
+            if (keyLine is not null)
+            {
+                IReadOnlyList<IBlockRenderer> keyRenderers = await s.RenderersAsync(c.RequestAborted).ConfigureAwait(false);
+                string? keyTake = s.NewControl(document, keyRenderers).SelectedTake(keyLine.Block);
+                if (keyTake is not null)
+                {
+                    Ample.Storage.Takes.TakeRecord keyRecord = s.Bank.GetTake(s.Bank.ResolveTakeId(keyTake));
+                    Ample.Storage.Takes.TakeDataRef keyData = keyRecord.Data.FirstOrDefault(data => data.Role == "audio" || data.Role == "out")
+                        ?? throw new AmpleException("AMP5530", "The take of the key input has no audio data.");
+                    await using Stream keyStream = s.Bank.OpenData(keyData.DataId);
+                    using MemoryStream keyBuffer = new();
+                    await keyStream.CopyToAsync(keyBuffer, c.RequestAborted).ConfigureAwait(false);
+                    keyBytes = EffectPreviewRange.Cut(keyBuffer.ToArray(), fromMs, toMs);
+                }
+            }
+
             // the render uses the tempo and the meter of the song, so a preview made at another tempo or meter is another preview (issue 169)
             string tempoText = (document.Project?.Tempo ?? 100).ToString(System.Globalization.CultureInfo.InvariantCulture);
             string meterText = (document.Project?.BeatsPerBar ?? 4.0).ToString(System.Globalization.CultureInfo.InvariantCulture);
             string timing = tempoText + "/" + meterText;
             string inputHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(rangeBytes));
+            if (keyBytes is not null)
+            {
+                inputHash += Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(keyBytes));   // another key is another preview
+            }
             string keyText = string.Join('\n', block.Type, blockName, parameters.GetRawText(), takeId, fromMs, toMs, timing, inputHash);
             string cacheKey = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(keyText)));
             if (!EffectPreviewCache.TryGetValue(cacheKey, out byte[]? preview))
@@ -1255,7 +1278,13 @@ public static class Routes
                         long tempoMilli = (long)Math.Round((document.Project?.Tempo ?? 100) * 1000, MidpointRounding.AwayFromZero);
                         int samplesPerBar = FixedAudio.SamplesPerBar(sampleRate, tempoMilli);
                         int bars = Math.Max(1, (rangeSamples.Length + samplesPerBar - 1) / samplesPerBar);
-                        RenderRequest request = new(block, s.Spec.Templates[block.Type], sampleRate, samplesPerBar, 1, bars, Enumerable.Range(1, bars).ToHashSet(), new Dictionary<string, byte[]> { ["in"] = rangeBytes }, 0, s.Root);
+                        Dictionary<string, byte[]> previewInputs = new() { ["in"] = rangeBytes };
+                        if (keyBytes is not null)
+                        {
+                            previewInputs["key"] = keyBytes;
+                        }
+
+                        RenderRequest request = new(block, s.Spec.Templates[block.Type], sampleRate, samplesPerBar, 1, bars, Enumerable.Range(1, bars).ToHashSet(), previewInputs, 0, s.Root);
                         IReadOnlyList<RenderOutput> outputs = await renderer.RenderAsync(request, c.RequestAborted).ConfigureAwait(false);
                         byte[] rendered = outputs.FirstOrDefault(output => output.Role == "out")?.Data ?? throw new AmpleException("AMP5530", "The effect renderer returned no audio preview.");
                         short[] renderedSamples;
