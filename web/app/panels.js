@@ -8,7 +8,7 @@ const MAX_SEED = 18446744073709551615n;
 
 import { $, activatable, el, showMenu, ask, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
-import { S, applyText, build, editsDone, current, edit, flat, notify, readOnly, paramProblem, saveNotes, select, container } from './store.js';
+import { S, applyText, build, editsDone, current, edit, editAll, flat, notify, readOnly, paramProblem, saveNotes, select, container } from './store.js';
 import { noteAbove, withNoteAbove } from '../lib/block-notes.mjs';
 import { addBlock, alignSelected, deleteSelected, distributeSelected, enter, fit, focusNode, groupSelected, selectAll, toggleFlag, ungroupNode, up } from './canvas.js';
 import { W } from './geometry.js';
@@ -286,7 +286,7 @@ function sidechainRow(n, disabled) {
       ops.push({ type: 'connect', from: select.value, output: (source.outs.find((p) => p[1] === 'audio') || source.outs[0])[0], to: n.id, input: 'key' });
     }
 
-    if (ops.length) await edit(ops);
+    if (ops.length) await editAll(ops);   // the old key goes only when the new one is accepted
   };
   return el('div', { className: 'row sidechain-row' }, [el('label', { textContent: 'Sidechain from ' }), select]);
 }

@@ -1,6 +1,6 @@
 // Steer a parameter with a control: a list of the controls in the song (the blocks that make one), written as a connection (from block.output -> parameter).
 import { ask, el } from './ui.js';
-import { S, edit, flat } from './store.js';
+import { S, edit, editAll, flat } from './store.js';
 
 /** The controls of the song: [{ block, output, label }] (an output of a block whose type starts with control). */
 export function controlsOf(nodes) {
@@ -25,5 +25,5 @@ export async function chooseControl(node, parameter) {
   if (answer === 'off') { await edit([{ type: 'disconnect', to: node.id, input: parameter }]); return; }
   if (!answer) return;
   const [block, output] = select.value.split('\u0000');
-  await edit([...(current ? [{ type: 'disconnect', to: node.id, input: parameter }] : []), { type: 'connect', from: block, output, to: node.id, input: parameter }]);
+  await editAll([...(current ? [{ type: 'disconnect', to: node.id, input: parameter }] : []), { type: 'connect', from: block, output, to: node.id, input: parameter }]);
 }
