@@ -737,6 +737,9 @@ let beforeSave = null;
 /** The code view hands in what must happen before a save: its typed text is brought into the working copy, so a save never writes an older text than the editor shows. */
 export const setBeforeSave = (fn) => { beforeSave = fn; };
 
+/** Brings the text the editor shows into the working copy (it is synced with a delay): call it before a request that sends the working copy to the server. */
+export const flushEditor = () => (beforeSave ? Promise.resolve(beforeSave()).catch(() => {}) : Promise.resolve());
+
 export async function save() {
   try {
     if (beforeSave) await Promise.resolve(beforeSave()).catch(() => {});

@@ -126,7 +126,8 @@ namespace Ample.Msi
         private static bool IsNine(string version)
         {
             Version parsed;
-            return Version.TryParse(version.Split('-')[0], out parsed) && parsed.Major >= 9;
+            // the hub is built for net9.0-windows: the default host policy binds only to a runtime of major 9, not to a newer one
+            return Version.TryParse(version.Split('-')[0], out parsed) && parsed.Major == 9;
         }
 
         private static MessageResult Say(Session session, string text)

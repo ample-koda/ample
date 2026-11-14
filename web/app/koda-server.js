@@ -2,7 +2,7 @@
 // made of the changes of the task; Yes applies them through the same accept as the assistant, one undo step. @ample:koda
 import { api } from './api.js';
 import { requestParts } from './koda-model.js';
-import { S, applyText, flat, reloadDoc } from './store.js';
+import { S, applyText, flat, flushEditor, reloadDoc } from './store.js';
 import { KodaBusy, KodaUnavailable } from './koda-backend.js';
 import { promptOf, splitAnswer, splitCheck, splitLong, splitTitle, subjectName, summaryOf, withoutNoChange } from '../lib/koda-context.mjs';
 import { addedBlocks } from '../lib/koda-draft.mjs';
@@ -92,6 +92,7 @@ async function runTask(subject, text, mode, signal, onGlance, onThought, resume 
   if (!activePath()) throw new KodaUnavailable('Open a song first: Koda works on the song that is open in the editor.');
   if (kodaAttachments().busy()) throw new KodaUnavailable('Wait until the attached files are uploaded.');
   let task;
+  await flushEditor();   // the text on the screen is the text Koda reads (issue 219)
   try {
     task = await api.post('/api/ai/tasks', {
       sessionId: await session(), kind: 'koda', scope: subject.kind === 'code' ? 'selection' : 'file', prompt: promptOf(subject, text, mode) + (bare ? BARE_TEXT : '') + buildErrorsText(failedBlocks()) + await tabsContext(subject), path: activePath(), song: S.path, context: 'unsaved',
