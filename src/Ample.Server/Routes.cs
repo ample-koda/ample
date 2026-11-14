@@ -3082,7 +3082,10 @@ public static class Routes
             BarRange? range = b.TryGetProperty("range", out JsonElement r) && r.ValueKind == JsonValueKind.Object ? new BarRange(r.GetProperty("firstBar").GetInt32(), r.GetProperty("bars").GetInt32()) : null;
             bool forceRender = b.TryGetProperty("forceRender", out JsonElement force) && force.ValueKind == JsonValueKind.True;
             if (forceRender && (string.IsNullOrWhiteSpace(Opt(b, "only")) || range is not null || parsed.Blocks.FirstOrDefault(block => block.Name == Opt(b, "only"))?.Type is not ("ace-music" or "ai-voice"))) throw new AmpleException("AMP5605", "Force render requires one complete ACE song or voice block.");
-            BuildEstimateReport estimate = await StorageApi.EstimateAsync(s, parsed, renderers, control, Opt(b, "intent") ?? "bake", range, Opt(b, "only"), c.RequestAborted);
+            // the estimate that the page just asked for (GET /api/build/estimate) is used again for the same text; a draft or a forced render works it out afresh
+            string estimateKey = $"{Str(b, "path")}|{d.Version}|{Opt(b, "intent") ?? "bake"}|{range?.FirstBar}-{range?.Bars}|{Opt(b, "only")}";
+            Task<BuildEstimateReport> WorkOutEstimate() => StorageApi.EstimateAsync(s, parsed, renderers, control, Opt(b, "intent") ?? "bake", range, Opt(b, "only"), c.RequestAborted);
+            BuildEstimateReport estimate = draft || forceRender ? await WorkOutEstimate() : await StorageApi.EstimateRememberedAsync(s, estimateKey, WorkOutEstimate);
             if (!estimate.Fits)
             {
                 throw new AmpleException("AMP5604", $"This build needs about {StorageApi.Size(estimate.Estimate.Bytes)} and the drive of the takebank has {StorageApi.Size(estimate.FreeBytes)} free. Free space (Projects, Storage can give back about {StorageApi.Size(estimate.ReclaimableBytes)}), move the takebank, or build a smaller part.");
@@ -3095,6 +3098,7 @@ public static class Routes
 
             System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
             BuildReport report = await s.Engine.BuildAsync(parsed, new BuildOptions(Opt(b, "intent") ?? "bake", range, Opt(b, "only"), 0, renderers, (block, status) => { if (!draft) { events!.Publish("build.progress", new { block, status, buildId }); } }, control, forceRender ? new BlockOverride(Opt(b, "only")!, null, null, true, null) : null, detail => events!.Publish("build.block", new { buildId, block = detail.Block, state = detail.State, fraction = detail.Fraction, steps = detail.Steps.Select(x => new { name = x.Name, fraction = x.Fraction }) })) { ModuleSources = s.ModuleSources() }, c.RequestAborted);
+            StorageApi.ForgetEstimate(s);   // the takes changed: the next estimate looks again
             if (!draft)
             {
                 StorageApi.RecordBuild(s, parsed, report, clock.Elapsed.TotalSeconds);
@@ -3164,7 +3168,9 @@ public static class Routes
 
             IReadOnlyList<IBlockRenderer> renderers = await s.RenderersAsync(c.RequestAborted);
             ControlService control = s.NewControl(parsed, renderers);
-            BuildEstimateReport e = await StorageApi.EstimateAsync(s, parsed, renderers, control, c.Request.Query["intent"].ToString() is { Length: > 0 } i ? i : "bake", null, null, c.RequestAborted);
+            string askedIntent = c.Request.Query["intent"].ToString() is { Length: > 0 } i ? i : "bake";
+            string asked = $"{c.Request.Query["path"]}|{d.Version}|{askedIntent}|-|";   // the key of a whole-song build: the build that follows finds this estimate
+            BuildEstimateReport e = await StorageApi.EstimateRememberedAsync(s, asked, () => StorageApi.EstimateAsync(s, parsed, renderers, control, askedIntent, null, null, c.RequestAborted));
             return Ok(new { ok = true, blocks = e.Estimate.Blocks, bytes = e.Estimate.Bytes, seconds = e.Estimate.Seconds, basis = e.Estimate.Basis, builds = e.Estimate.Builds, freeBytes = e.FreeBytes, reclaimableBytes = e.ReclaimableBytes, fits = e.Fits, text = e.Text });
         });
         add("GET", "/api/finals", "finals", "The finals of a song (a song without any has one implicit final, full) and what their last render made.", false, s is null ? null : (HttpContext c) => Ok(FinalsApi.List(s, c.Request.Query["song"].ToString())));

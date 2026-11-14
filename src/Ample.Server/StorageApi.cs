@@ -42,6 +42,29 @@ internal static class StorageApi
     /// <summary>How many blocks a build of this project renders at once.</summary>
     private static int Workers(ProjectSession s) => Ample.Engine.Engine.BuildParallelism.Effective(0, Ample.Engine.Engine.BuildParallelism.OfProject(s.Root));
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProjectSession, EstimateMemory> EstimateMemories = new();
+
+    /// <summary>
+    /// The estimate for a build, from the memory of the last one when it was made for the same song text, intent, range and block a moment ago: the page asks for the
+    /// estimate first and the build that follows needs it again, and the plan-only pass (a scan of the takes) is then done once. Any build or clean-up forgets it.
+    /// </summary>
+    public static async Task<BuildEstimateReport> EstimateRememberedAsync(ProjectSession s, string key, Func<Task<BuildEstimateReport>> make)
+    {
+        EstimateMemory memory = EstimateMemories.GetOrCreateValue(s);
+        DateTimeOffset now = s.Clock.UtcNow;
+        if (memory.TryGet(key, now, out BuildEstimateReport? kept) && kept is not null)
+        {
+            return kept;
+        }
+
+        BuildEstimateReport made = await make().ConfigureAwait(false);
+        memory.Put(key, made, now);
+        return made;
+    }
+
+    /// <summary>Forgets the remembered estimate: the takes changed (a build, a clean-up).</summary>
+    public static void ForgetEstimate(ProjectSession s) => EstimateMemories.GetOrCreateValue(s).Clear();
+
     /// <summary>Works out the estimate of a build (a plan-only pass that lists the blocks that have to render) and whether it fits on the drive.</summary>
     public static async Task<BuildEstimateReport> EstimateAsync(ProjectSession s, Ample.Language.AmpleDocument parsed, IReadOnlyList<Ample.Audio.Engine.IBlockRenderer> renderers, Ample.Engine.Control.ControlService control, string intent, Ample.Engine.Engine.BarRange? range, string? only, CancellationToken ct)
     {
@@ -169,6 +192,7 @@ internal static class StorageApi
     /// <summary>Forgets the kept overview (the options changed, so the next answer is made again).</summary>
     public static void ForgetOverview(ProjectSession s)
     {
+        ForgetEstimate(s);
         OverviewMemo memo = OverviewMemos.GetOrCreateValue(s);
         lock (memo)
         {
@@ -392,3 +416,42 @@ internal static class StorageApi
 /// <param name="Fits">Whether it fits (a small build always does).</param>
 /// <param name="Text">A sentence for the person.</param>
 internal sealed record BuildEstimateReport(BuildEstimate Estimate, long FreeBytes, long ReclaimableBytes, bool Fits, string Text);
+
+/// <summary>The last estimate of a build with what it was made for; it stays for a few seconds only.</summary>
+internal sealed class EstimateMemory
+{
+    private static readonly TimeSpan Lifetime = TimeSpan.FromSeconds(20);
+    private readonly object gate = new();
+    private string? key;
+    private BuildEstimateReport? report;
+    private DateTimeOffset at;
+
+    public bool TryGet(string wanted, DateTimeOffset now, out BuildEstimateReport? found)
+    {
+        lock (gate)
+        {
+            bool fresh = key == wanted && report is not null && now - at <= Lifetime && now >= at;
+            found = fresh ? report : null;
+            return fresh;
+        }
+    }
+
+    public void Put(string made, BuildEstimateReport value, DateTimeOffset now)
+    {
+        lock (gate)
+        {
+            key = made;
+            report = value;
+            at = now;
+        }
+    }
+
+    public void Clear()
+    {
+        lock (gate)
+        {
+            key = null;
+            report = null;
+        }
+    }
+}
