@@ -60,7 +60,8 @@ public sealed class CodexIdentityTests : IAsyncLifetime
         while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "global.json"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
         projectFolder = Path.Combine(temp, "project");
         using (OpenProject project = await ProjectStore.CreateAsync(
-            new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), projectFolder, "codex-identity", null, CancellationToken.None)) { }
+            new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(),
+            projectFolder, "codex-identity", null, CancellationToken.None)) { }
         await File.WriteAllTextAsync(Path.Combine(projectFolder, "song.amplet"), "project codex-identity\n");
         string root = ampleRoot ?? throw new InvalidOperationException("AMPLE root not found.");
         ServerOptions options = new(projectFolder, root, LibraryHome: temp + "-library");
