@@ -45,7 +45,23 @@ public sealed record CleanupPlan(IReadOnlyList<string> Nodes, IReadOnlyList<stri
 /// <summary>History: lines, checkpoints, tags, fork, go, peek, promote, drop and cleanup. Snapshots store file contents in the takebank (deduplicated); every change goes through the command bus, so the black box sees it. Nothing reachable from a tag or an active line is ever removed.</summary>
 public sealed class HistoryService
 {
-    private static readonly string[] SourcePatterns = [".amplet", ".amplec", ".amplelrc", ".lrc", ".chordpro", ".lyr", ".chords", ".txt", ".md", ".csv", ".json", ".seq", ".ampleseq"];
+    private static readonly string[] SourcePatterns =
+    [
+        ".amplet",
+        ".module",
+        ".amplec",
+        ".amplelrc",
+        ".lrc",
+        ".chordpro",
+        ".lyr",
+        ".chords",
+        ".txt",
+        ".md",
+        ".csv",
+        ".json",
+        ".seq",
+        ".ampleseq",
+    ];
     private readonly IFileSystem fs;
     private readonly IClock clock;
     private readonly string root;
@@ -551,7 +567,11 @@ public sealed class HistoryService
             }
         }
 
-        foreach (string path in working.Keys.Where(p => !target.ContainsKey(p)))
+        // a module is never deleted by going back: a revision made before modules were part of the history
+        // cannot tell "no module" from "not recorded"
+        IEnumerable<string> gone = working.Keys.Where(
+            p => !target.ContainsKey(p) && !p.EndsWith(".module", StringComparison.OrdinalIgnoreCase));
+        foreach (string path in gone)
         {
             await bus.ExecuteAsync(new DeleteFileCommand(path), cancellationToken).ConfigureAwait(false);
         }
