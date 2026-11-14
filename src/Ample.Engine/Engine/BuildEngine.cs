@@ -303,7 +303,8 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
 
         foreach (BlockNode block in inOrder)
         {
-            Task<BlockResult>[] inputs = [.. block.Dependencies().Where(f => !f.Disabled).Select(f => f.Block).Distinct(StringComparer.Ordinal).Select(name => running.GetValueOrDefault(name)).OfType<Task<BlockResult>>()];
+            IEnumerable<string> inputNames = block.Dependencies().Where(f => !f.Disabled).Select(f => f.Block).Distinct(StringComparer.Ordinal);
+            Task<BlockResult>[] inputs = [.. inputNames.Select(name => running.GetValueOrDefault(name)).OfType<Task<BlockResult>>()];
             running[block.Name] = RunWhenReadyAsync(block, inputs);
         }
 
