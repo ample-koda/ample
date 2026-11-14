@@ -140,18 +140,26 @@ async function settings(body) {
       const btn = document.getElementById(id), panelNode = panels[tab];
       if (btn.disabled) return;
       btn.disabled = true; btn.setAttribute('aria-busy', 'true');
-      panelNode.querySelector('.ps-error')?.remove(); panelNode.querySelectorAll('[aria-invalid]').forEach((n) => n.removeAttribute('aria-invalid'));
+      panelNode.querySelector('.ps-error')?.remove();
+      // the marks of the last failed save go: the invalid flag and this tab's message id in aria-describedby (so repeated failures do not pile up ids)
+      panelNode.querySelectorAll('[aria-invalid]').forEach((n) => {
+        n.removeAttribute('aria-invalid');
+        const ids = (n.getAttribute('aria-describedby') || '').split(/\s+/).filter((x) => x && x !== `ps-error-${tab}`);
+        if (ids.length) n.setAttribute('aria-describedby', ids.join(' ')); else n.removeAttribute('aria-describedby');
+      });
       try { await work(); dirty.delete(tab); paints[tab](); toast(`Saved: ${TAB_LABELS[tab] || tab}.`); rerender(tab); } catch (e) {
         btn.disabled = false; btn.removeAttribute('aria-busy');
         const message = `${e.code ? `${e.code}: ` : ''}${e.message}`;
         const error = el('div', { className: 'note ps-error', role: 'alert', textContent: message, style: 'color:var(--danger,#d33)' });
         btn.before(error);
-        // focus the field the message is about: an invalid number first, else the field whose label shares a word with the message, else the first field
+        // focus the field the message is about: an invalid number first, else the field whose label shares a word with the message. A message that is not about a field
+        // (the disk is full, the server said no) marks none: the alert above the button says it, and no unrelated field is called invalid.
+        error.id = `ps-error-${tab}`;
         const fields = [...panelNode.querySelectorAll('input[id], select[id]')];
         const words = message.toLowerCase().match(/[a-z]{4,}/g) || [];
         const named = fields.find((n) => { const l = (panelNode.querySelector(`label[for="${n.id}"]`)?.textContent || '').toLowerCase(); return l && words.some((w) => l.includes(w)); });
-        const target = fields.find((n) => !n.checkValidity()) || named || fields[0];
-        if (target) { target.setAttribute('aria-invalid', 'true'); target.setAttribute('aria-describedby', `${target.getAttribute('aria-describedby') || ''} ps-error-${tab}`.trim()); error.id = `ps-error-${tab}`; target.focus(); }
+        const target = fields.find((n) => !n.checkValidity()) || named;
+        if (target) { target.setAttribute('aria-invalid', 'true'); target.setAttribute('aria-describedby', `${target.getAttribute('aria-describedby') || ''} ps-error-${tab}`.trim()); target.focus(); }
         toast(message);
       }
     } }));

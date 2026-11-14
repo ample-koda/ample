@@ -1885,7 +1885,7 @@ public static class Routes
                 return Ok(new { configured = true, connected = false });
             }
         });
-        add("POST", "/api/project/settings", "project", "Changes AMPLE Redux retention, the default engine, independent Faer capability routes and buildParallelism (how many blocks a build renders at once: 1 to the limit of the server, or null for the server's number; the master seed is a dangerous act of its own).", true, s is null ? null : async (HttpContext c) =>
+        add("POST", "/api/project/settings", "project", "Changes AMPLE Redux retention, the default engine (an empty string or null clears it, leaving it out keeps it), independent Faer capability routes and buildParallelism (how many blocks a build renders at once: 1 to the limit of the server, or null for the server's number; the master seed is a dangerous act of its own).", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
             ProjectManifest m = ProjectFile.Parse(await File.ReadAllTextAsync(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), c.RequestAborted));
