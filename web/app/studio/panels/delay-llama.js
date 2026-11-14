@@ -20,6 +20,7 @@ import { singerOf } from '../../llama-avatar.js';
 import { noteName } from '../../../lib/clientside-autotune.mjs';
 import { parse, absolute } from '../../../lib/notes-model.mjs';
 import { barBeats } from '../../../lib/meter.mjs';
+import { api } from '../../api.js';
 
 const clean = (v) => String(v ?? '').replace(/^"|"$/g, '').trim();
 const live = { ctx: null, source: null, timer: 0, stop: null };
@@ -283,7 +284,12 @@ function delayLlamaPanel(context) {
   // recording: the notes of the clip go to the live voice on the clock of the audio context; the pad changes its vowel and mouth while it sings
   const startRecording = async (record = true, from = strip.from) => {
     const link = flat().links.find((l) => l.to === context.block && l.type === 'midi' && !l.disabled);
-    const clip = link && flat().nodes.find((n) => n.id === link.from), text = clean(clip?.params?.notes);
+    const clip = link && flat().nodes.find((n) => n.id === link.from);
+    // the notes of the connected clip as the song resolves them: a clip made of chords or a note pipeline has no literal notes text (issue 91)
+    let text = clean(clip?.params?.notes);
+    if (!text && clip?.tpl === 'midi-clip') {
+      try { text = clean((await api.post('/api/midi/clip-notes', { path: S.path, block: clip.id }))?.text); } catch { text = ''; }
+    }
     if (!text) { sing.textContent = idleLabel(); status.textContent = 'Connect a midi-clip with notes to record against.'; return; }
     try {
       stopSong();
