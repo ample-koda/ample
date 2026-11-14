@@ -15,6 +15,10 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
 {
     private Ample.Storage.Library.Library? opened;
 
+    /// <summary>Component files as a proposal would leave them, by relative path: a text is the proposed content (a file the proposal adds or changes), null says the proposal deletes it.
+    /// Used to check a proposal against its own file set instead of the project as it is now (issue 201).</summary>
+    public IReadOnlyDictionary<string, string?>? Overlay { get; init; }
+
     /// <summary>The readers of unsaved text, by full project folder: a host that keeps working copies of files (the studio server) puts one here, and a module or a component file that has unsaved changes is read from it instead of from the disk (plan/editor-tabs.md, part 1).</summary>
     public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Func<string, string?>> WorkingTextReaders = new(StringComparer.OrdinalIgnoreCase);
 
@@ -62,6 +66,16 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
         {
             try
             {
+                if (Overlay is not null && Overlay.TryGetValue(candidate, out string? proposed))
+                {
+                    if (proposed is not null)
+                    {
+                        return proposed;
+                    }
+
+                    continue;   // the proposal deletes this file
+                }
+
                 string full = ProjectPath.Resolve(projectRoot, candidate);
                 if (Working(candidate) is { } working) return working;   // the unsaved text of an open file
                 if (File.Exists(full)) return File.ReadAllText(full);
@@ -76,6 +90,11 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
         if (lib is null) return null;
         foreach (string candidate in new[] { name, "components/" + name, "modules/" + name, "templates/" + name })
         {
+            if (Overlay is not null && Overlay.ContainsKey(candidate))
+            {
+                continue;   // the proposal deletes it: the library must not find the project file again
+            }
+
             Resolution r = lib.Resolve(new AssetRef(candidate), projectRoot, projectId);
             if (r.Status is "found" or "changed" && r.FullPath is not null && r.FullPath.EndsWith(ComponentExtension, StringComparison.OrdinalIgnoreCase)) return File.ReadAllText(r.FullPath);
         }
