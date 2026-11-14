@@ -44,3 +44,10 @@ export function rejectedText(accepted) {
   if (!has(accepted)) return 'Rejected. Nothing in the project changed.';
   return `The rest was rejected. Already applied and kept: ${shown(accepted)}.`;
 }
+
+/** The options for a new request that replaces a proposal: the target of the old request fills what the caller did not say, and the old prompt is the hint. */
+export function regenerateOptions(options, task) {
+  const target = {};
+  for (const key of ['song', 'path', 'block', 'scope', 'sessionId', 'kind']) if (task?.[key] !== undefined && task[key] !== null && task[key] !== '') target[key] = task[key];
+  return { ...options, ...target, hint: task?.prompt };
+}

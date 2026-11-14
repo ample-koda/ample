@@ -11,7 +11,8 @@ import { onPlayer, playerState, stop } from './player.js';
 import { ask, el, toast } from './ui.js';
 import { registerPlaybackAudio } from './playback-volume.js';
 import { endsTracking, pillAction } from '../lib/task-pill.mjs';
-import { buildHeadline, rejectLabel, rejectQuestion, rejectedText } from '../lib/ai-review-text.mjs';
+import { buildHeadline, regenerateOptions, rejectLabel, rejectQuestion, rejectedText } from '../lib/ai-review-text.mjs';
+import { staleSelections } from '../lib/review-selection.mjs';
 
 /** The "Ai Assistant" lockup (icon tile + text), same neon-tube recipe as the AMPLE wordmark; used in the Assistant panel header. */
 const AI_ASSISTANT_LOGO_SVG = `<svg width="123" height="37" viewBox="0 0 240 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true" focusable="false">
@@ -675,6 +676,7 @@ export function openAiTask(id, options = {}) {
   const moveTicks = new Set();   // the moves the assistant proposed that are made when the proposal is accepted
   const moveSeen = new Set();
   const selectedChanges = new Set();
+  const reviewedDiff = new Map();   // path -> the diff on the screen when it was checked
   const dismissedClips = new Set(), clipUndo = [];
   const seenClipIds = new Set();   // samples that have been on screen in the Output tab (a new one makes the tab pulse)
   let seenLogLength = -1, logMemo = { top: 0, atEnd: true }, outputTop = 0;
@@ -963,7 +965,8 @@ export function openAiTask(id, options = {}) {
     if (t.status === 'failed' || t.status === 'cancelled') {
       put(el('div', { className: 'tx-error', id: 'ai-failed' }, [el('b', { textContent: t.status === 'failed' ? 'The task did not finish' : 'This conversation was archived' }), el('p', { textContent: t.error || (t.resumable ? 'Nothing in the project changed. You can resume the conversation.' : 'Nothing in the project changed.') })]), ...mainView(t, () => logView(t)));
       if (t.resumable) foot.append(el('button', { type: 'button', className: 'primary', textContent: 'Resume conversation', onclick: async () => { try { await post('/resume'); tab = 'activity'; shown = ''; poll(); } catch (error) { say(error); poll(); } } }));
-      foot.append(el('button', { type: 'button', textContent: 'Ask again', onclick: () => { box.close(); openAiPrompt({ ...options, hint: t.prompt }); } }), el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() }));
+      const again = () => { box.close(); openAiPrompt(regenerateOptions(options, t)); };
+      foot.append(el('button', { type: 'button', textContent: 'Ask again', onclick: again }), el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() }));
       return;
     }
     if (t.status === 'interrupted') {
@@ -1216,7 +1219,11 @@ export function openAiTask(id, options = {}) {
       el('b', { textContent: 'The project changed while the assistant was working' }), el('p', { textContent: `This proposal was made against an older state of: ${t.staleFiles.join(', ')}. It will not be applied blindly.` }),
       el('div', { className: 'tx-buttons' }, [
         el('button', { type: 'button', className: 'primary', textContent: 'Try to rebase', onclick: () => post('/rebase').then(() => { shown = ''; poll(); }).catch(say) }),
-        el('button', { type: 'button', textContent: 'Regenerate against the current state', onclick: () => post('/reject').then(() => { box.close(); openAiPrompt({ ...options, hint: t.prompt }); }).catch(say) }),
+        el('button', {
+          type: 'button',
+          textContent: 'Regenerate against the current state',
+          onclick: () => post('/reject').then(() => { box.close(); openAiPrompt(regenerateOptions(options, t)); }).catch(say),
+        }),
         el('button', { type: 'button', textContent: 'Review anyway (view only)', onclick: () => toast('You can read the proposal; it cannot be accepted until it is rebased or regenerated.') })]),
     ]);
   }
@@ -1224,8 +1231,14 @@ export function openAiTask(id, options = {}) {
   function changesView(t) {
     if (t.kind === 'explain' || !t.changes.length) return el('p', { className: 'tx-hint', textContent: t.kind === 'explain' ? 'This was a request for an explanation: nothing is proposed to change.' : 'The assistant did not propose any change.' });
     file = t.changes.some((c) => c.path === file) ? file : t.changes[0].path;
+    for (const path of staleSelections(selectedChanges, reviewedDiff, t.changes)) selectedChanges.delete(path);   // a changed file is checked again
     const list = el('div', { className: 'ai-files' }, t.changes.map((c) => {
-      const choose = el('input', { type: 'checkbox', checked: selectedChanges.has(c.path), 'aria-label': `Accept ${c.path} and continue`, onchange: () => { if (choose.checked) selectedChanges.add(c.path); else selectedChanges.delete(c.path); const action = document.getElementById('ai-accept-selected'); if (action) action.disabled = !selectedChanges.size || (t.build.status !== 'ok' && !t.build.skipRequested) || t.stale; } });
+      const onPick = () => {
+        if (choose.checked) { selectedChanges.add(c.path); reviewedDiff.set(c.path, c.diff ?? ''); } else selectedChanges.delete(c.path);
+        const action = document.getElementById('ai-accept-selected');
+        if (action) action.disabled = !selectedChanges.size || (t.build.status !== 'ok' && !t.build.skipRequested) || t.stale;
+      };
+      const choose = el('input', { type: 'checkbox', checked: selectedChanges.has(c.path), 'aria-label': `Accept ${c.path} and continue`, onchange: onPick });
       return el('div', { className: `ai-file-row ${c.path === file ? 'on' : ''}` }, [choose, el('button', { type: 'button', className: 'ai-file-pick', onclick: () => { file = c.path; shown = ''; draw(); } }, [el('span', { className: `ai-st ${c.status}`, textContent: c.status === 'added' ? 'A' : c.status === 'deleted' ? 'D' : 'M' }), el('span', { className: 'ai-file-name', title: c.path }, [el('b', { textContent: c.path.slice(c.path.lastIndexOf('/') + 1) }), el('small', { textContent: c.path.includes('/') ? c.path.slice(0, c.path.lastIndexOf('/')) : '' })]), el('small', { className: 'ai-file-count', textContent: `+${c.added} −${c.removed}` })])]);
     }));
     const c = t.changes.find((x) => x.path === file);

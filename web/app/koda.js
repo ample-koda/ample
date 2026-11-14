@@ -814,7 +814,9 @@ function showResultNow(kind, subject, result) {
     const onFocus = (block) => { if (block && nodeOf(block)) lookAt({ kind: 'block', id: block }); };
     const onHear = (on) => { import('./ai.js').then((m) => m.hearProposal(result.taskId, on)); };
     me.patchClear = () => { clearMarks(); onHear(false); };
-    const finish = () => { clearGhosts(); hideInline(); me.draftCtl = null; me.patchClear?.(); me.patchClear = null; };
+    const finish = () => { clearGhosts(); hideInline(); me.draftCtl = null; me.patchClear?.(); me.patchClear = null;
+      me.previewCtl?.abort();   // closing the draft ends a preview that is still preparing
+    };
     // every change has a switch: what is switched off is left out of what is kept
     const off = new Set();
     const base = () => result.baseText ?? activeText() ?? '';
@@ -868,7 +870,7 @@ function showResultNow(kind, subject, result) {
       const ctl = new AbortController();
       const bar = el('div', { className: 'koda-building', role: 'status' }, [el('span', { className: 'spin', 'aria-hidden': 'true' }), el('span', { textContent: tx('draft.building') }), el('button', { type: 'button', className: 'quiet', textContent: tx('draft.building.cancel'), onclick: () => { ctl.abort(); done(); toast(tx('draft.building.cancelled')); } })]);
       const done = () => { building = null; bar.remove(); };
-      building = ctl;
+      building = ctl; me.previewCtl = ctl;
       me.bubble?.node.querySelector('.chgs')?.after(bar);
       import('./ai.js').then((m) => m.buildAndListen(result.taskId, undefined, false, ctl.signal)).finally(() => { if (building === ctl) done(); });
     };
