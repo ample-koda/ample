@@ -593,7 +593,8 @@ public sealed partial class Takebank
             // Aliased roles (the same buffer under several names) are written and hashed once.
             if (data is MemoryStream ms && ms.TryGetBuffer(out ArraySegment<byte> seg) && seg.Array is { } array && ms.Position == 0)
             {
-                (byte[] Buffer, int Offset, int Count, string Id) known = stored.FirstOrDefault(s => ReferenceEquals(s.Buffer, array) && s.Offset == seg.Offset && s.Count == seg.Count);
+                (byte[] Buffer, int Offset, int Count, string Id) known = stored.FirstOrDefault(
+                    s => ReferenceEquals(s.Buffer, array) && s.Offset == seg.Offset && s.Count == seg.Count);
                 if (known.Id is not null)
                 {
                     refs.Add(new TakeDataRef(role, known.Id));

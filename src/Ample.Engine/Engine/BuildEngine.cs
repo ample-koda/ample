@@ -653,7 +653,9 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             // a pitch bend that comes with the notes (the curve of a midi-clip, the bend of single notes) bends the sound of the block that plays them, whatever instrument it is
             IReadOnlyList<RenderOutput> outputs = ChannelMode.Apply(PitchBend.Apply(ClipControls.Apply(await renderer.RenderAsync(request, cancellationToken).ConfigureAwait(false), request, cancellationToken), request, cancellationToken), channelMode);
             string metadata = JsonSerializer.Serialize(outputs.Where(o => o.MetadataJson is not null).ToDictionary(o => o.Role, o => JsonSerializer.Deserialize<JsonElement>(o.MetadataJson!)));
-            List<(string Role, Stream Data)> storedOutputs = [.. outputs.Select(o => (o.Role, (Stream)new MemoryStream(o.Data, 0, o.Data.Length, false, true)))];
+            // a stream that exposes its buffer (publiclyVisible) lets the takebank see which roles share one buffer
+            List<(string Role, Stream Data)> storedOutputs =
+                [.. outputs.Select(o => (o.Role, (Stream)new MemoryStream(o.Data, 0, o.Data.Length, false, true)))];
             if (metadata != "{}" && !outputs.Any(o => o.Role == "render-recipe")) storedOutputs.Add(("render-recipe", new MemoryStream(Encoding.UTF8.GetBytes(metadata))));
             TakeRecord take = await ticket.CommitAsync(storedOutputs, metadata, cancellationToken).ConfigureAwait(false);
             string? report = owner.Type is "meter" or "trim" && outputs.FirstOrDefault(o => o.Role == "report") is { } measured ? System.Text.Encoding.UTF8.GetString(measured.Data) : null;
