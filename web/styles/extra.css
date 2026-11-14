@@ -283,6 +283,8 @@ dialog.automation-dialog #dlg-b:empty{display:none}
 .sqtransport button.on{background:var(--acc);color:#fff}
 .sqmode{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.sqmode button{border:0;border-radius:0;padding:3px 9px;font-weight:700;letter-spacing:.04em}.sqmode button+button{border-left:1px solid var(--line)}
 .sqpos,.sqrangelabel{font-variant-numeric:tabular-nums;font-size:12px;color:var(--dim);min-width:48px}
+.sqrange-fields{font-size:12px;color:var(--dim)}
+.sqrange-in{width:56px}
 .sqstatus{font-size:12px;color:var(--warn,#c9a227)}
 .sqplaylist .sqscroll{position:relative}
 .sqplayhead{position:absolute;top:0;bottom:0;width:2px;background:var(--acc);box-shadow:0 0 6px var(--acc);pointer-events:none;z-index:4}
