@@ -45,7 +45,8 @@ export function createLaunchScheduler({ startVoice, quantize = (t) => t, now = (
         stopAt(s.voice, when);
         return { action: 'stop', at: when };
       }
-      // pressing a loop pad again before its queued stop has happened takes the stop back (when the handle can), so the pad toggles twice = keeps playing
+      // pressing a loop pad again before its queued stop has happened takes the stop back (when the handle can),
+      // so the pad toggles twice = keeps playing
       const stopQueued = s.voice && s.voice.endAt !== null && s.voice.endAt > t;
       if (s.mode === 'loop' && !s.next && stopQueued && s.voice.handle.cancelStop) {
         s.voice.handle.cancelStop();
