@@ -85,7 +85,9 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   const dry = node(context.createGain()), wet = node(context.createGain()), input = node(context.createGain());
   source.connect(dry).connect(output); source.connect(input); wet.connect(output);
   const set = (param, value) => { param.cancelScheduledValues(context.currentTime); param.setTargetAtTime(value, context.currentTime, .01); };
-  let suspendHook = null, updateEffect, updateMix = () => {}, replaceImpulse = null, oscillators = [], latency = 0, keyInput = null, setKey = null, loudness = null;   // latency in seconds (a limiter looks ahead)
+  // latency is in seconds (a limiter looks ahead)
+  let suspendHook = null, updateEffect, updateMix = () => {}, replaceImpulse = null, oscillators = [];
+  let latency = 0, keyInput = null, setKey = null, loudness = null;
   const disposers = [];
   if (type === 'volume') {
     const splitter = node(context.createChannelSplitter(2)), merger = node(context.createChannelMerger(2));
@@ -269,7 +271,11 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     input.connect(room).connect(wet);
     updateEffect = (params) => room.port.postMessage({ size: params.size, decay: params.decay, mix: params.mix });
     let suspendTimer = 0;   // after the wet fade is over a bypassed room stops computing; switching it on wakes it at once
-    suspendHook = (off) => { clearTimeout(suspendTimer); if (off) suspendTimer = setTimeout(() => room.port.postMessage({ suspended: true }), 150); else room.port.postMessage({ suspended: false }); };
+    suspendHook = (off) => {
+      clearTimeout(suspendTimer);
+      if (off) suspendTimer = setTimeout(() => room.port.postMessage({ suspended: true }), 150);
+      else room.port.postMessage({ suspended: false });
+    };
     disposers.push(() => clearTimeout(suspendTimer));
   } else if (type === 'reverb') {
     updateEffect = connectReverb(context, input, wet, node);
@@ -339,7 +345,12 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   dry.gain.value = initial.enabled === 'off' ? 1 : 0; wet.gain.value = initial.enabled === 'off' ? 0 : 1;
   update(initial);
   // oscillators must be stopped, not just disconnected, or they keep running silently on the shared meter context across every later preview
-  return { update, replaceImpulse, suspends: Boolean(suspendHook), keyInput, setKey, loudness, get latency() { return latency; }, dispose: () => { disposers.forEach((value) => value()); oscillators.forEach((value) => value.stop()); nodes.forEach((value) => value.disconnect()); } };
+  const dispose = () => {
+    disposers.forEach((value) => value());
+    oscillators.forEach((value) => value.stop());
+    nodes.forEach((value) => value.disconnect());
+  };
+  return { update, replaceImpulse, suspends: Boolean(suspendHook), keyInput, setKey, loudness, get latency() { return latency; }, dispose };
 }
 
 /** Steps (or cycles) per bar of the tremolo: the sync value (1/8 is 8), 16 when sync is off (a gate step is a sixteenth then). */

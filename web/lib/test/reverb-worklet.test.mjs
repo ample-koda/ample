@@ -1,4 +1,5 @@
-// The live reverb worklet: a room that was bypassed (suspended) must wake up empty, not play out the old sound (the stub stands in for the AudioWorklet globals).
+// The live reverb worklet: a room that was bypassed (suspended) must wake up empty, not play out the old sound
+// (the stub stands in for the AudioWorklet globals).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -15,7 +16,8 @@ const tone = () => Float32Array.from({ length: 128 }, (_, i) => 0.5 * Math.sin(i
 const message = (node, data) => node.port.onmessage({ data });
 
 test('a woken reverb is silent, like one that never played', () => {
-  const played = new Processor({ processorOptions: { size: 100, decay: 95, mix: 100 } }), fresh = new Processor({ processorOptions: { size: 100, decay: 95, mix: 100 } });
+  const options = { processorOptions: { size: 100, decay: 95, mix: 100 } };
+  const played = new Processor(options), fresh = new Processor(options);
   for (let i = 0; i < 200; i++) run(played, tone());   // fills the rings
   message(played, { suspended: true });
   run(played, new Float32Array(128));   // asleep: the block is skipped

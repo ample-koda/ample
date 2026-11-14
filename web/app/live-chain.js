@@ -52,7 +52,8 @@ export function chainState() {
   if (!session) return { active: false, items: [], notes: [] };
   const { context, t0, loop } = session;
   return {
-    active: true, target: session.target, comparingBuilt: Boolean(session.builtTake), comparePending: Boolean(session.compare?.pending), swaps: session.swaps || 0, notes: session.plan.notes || [], loop,
+    active: true, target: session.target, comparingBuilt: Boolean(session.builtTake), comparePending: Boolean(session.compare?.pending),
+    swaps: session.swaps || 0, notes: session.plan.notes || [], loop,
     latency: blockLatency(),   // seconds of look-ahead in the chain (a limiter)
     latencyReport: latencyReport({ ...contextLatency(), blocks: [...session.built].map(([id, entry]) => ({ id, title: flat().nodes.find((n) => n.id === id)?.title || id, seconds: entry.graph.latency || 0 })) }),
     position: context && loop > 0 ? loopPosition(session, context.currentTime) : 0,
@@ -105,7 +106,9 @@ const suspends = (s, id) => Boolean(s.built.get(id)?.graph.suspends);
 export function chainLoad() {
   if (!session) return { load: 0, level: 'ok', estimated: true, mode: safeMode() };
   if (session.measured) return { ...session.cpu.state(), estimated: false, mode: safeMode() };
-  const load = estimateLoad(session.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ tpl: i.tpl, bypassed: session.bypass.has(i.id) && suspends(session, i.id) })));   // a bypassed block that cannot sleep still costs its full share
+  // a bypassed block that cannot sleep still costs its full share
+  const effects = session.plan.items.filter((i) => i.kind === 'effect');
+  const load = estimateLoad(effects.map((i) => ({ tpl: i.tpl, bypassed: session.bypass.has(i.id) && suspends(session, i.id) })));
   return { load, level: load >= .7 ? 'warn' : 'ok', estimated: true, mode: safeMode() };
 }
 
@@ -116,7 +119,9 @@ export function chainFeedLoad(value, now = performance.now() / 1000) {
   s.measured = true;
   const state = s.cpu.feed(value, now);
   if (state.level === 'bypass' && safeMode() === 'auto') {
-    const item = heaviest(s.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ id: i.id, tpl: i.tpl, bypassed: s.bypass.has(i.id) || !suspends(s, i.id) })));   // only a block that stops computing when bypassed (the worklet reverb) relieves the CPU
+    // only a block that stops computing when bypassed (the worklet reverb) relieves the CPU
+    const effects = s.plan.items.filter((i) => i.kind === 'effect');
+    const item = heaviest(effects.map((i) => ({ id: i.id, tpl: i.tpl, bypassed: s.bypass.has(i.id) || !suspends(s, i.id) })));
     if (item) {
       s.bypass.add(item.id); s.cpuBypassed.add(item.id); s.cpu.reset(); refresh(); emit();
       toast(`The computer cannot keep up: ${flat().nodes.find((n) => n.id === item.id)?.title || item.id} is bypassed (CPU). Switch it on again with its button when there is room.`);
@@ -184,13 +189,15 @@ export function prewarm(target) {
 subscribeSelection(() => { const id = S.sel; const node = id && flat().nodes.find((n) => n.id === id); prewarm(node && (CHAIN_EFFECTS.has(node.tpl) || SUM_TYPES.has(node.tpl)) ? id : null); });
 
 /** Plays the chain that ends at `target`. Returns whether it started. */
-let startGeneration = 0, failedStart = null, pendingTarget = null;   // pendingTarget: the chain being prepared, so a song change restarts that one and not the one still playing
+// pendingTarget: the chain being prepared, so a song change restarts that one and not the one still playing
+let startGeneration = 0, failedStart = null, pendingTarget = null;
    // a Stop, a project switch or a newer start bumps the generation and so cancels a start that is still preparing
 export async function startChain(target) { return Boolean(await startSession(target)); }
 
 /**
- * Makes the successor session and swaps it in: the takes, the worklets, the impulses and the local renders are all made while the current chain keeps playing, and the swap itself has no await,
- * so a failure while preparing leaves the old chain playing (with a notice). Returns the new session, or null (superseded, or failed).
+ * Makes the successor session and swaps it in: the takes, the worklets, the impulses and the local renders are all made
+ * while the current chain keeps playing, and the swap itself has no await, so a failure while preparing leaves the old chain
+ * playing (with a notice). Returns the new session, or null (superseded, or failed).
  */
 async function startSession(target) {
   let swapping = false;
@@ -227,14 +234,16 @@ async function startSession(target) {
       mine.watch.add(baseId(item.id)); item.midi?.transforms.forEach((t) => mine.watch.add(t.id)); mine.watch.add(item.midi?.clip);
       if (!current()) return null;
     }
-    // the song may have changed while this was made: then it is made again for the song as it is now (the old chain keeps playing meanwhile)
+    // the song may have changed while this was made: then it is made again for the song as it is now
+    // (the old chain keeps playing meanwhile)
     const now = planNow(target);
     if (!now.ok) { pendingTarget = null; toast(now.reason); return null; }
     if (signatureOf(now) !== mine.signature) return await startSession(target);
     // the graph is made while the old chain still plays (it starts 80 ms ahead): if making it throws, nothing was taken away
     try { build(mine); } catch (error) { dispose(mine); throw error; }
     // the swap: no await from here, so nothing can slip in between the old chain stopping and the new one playing
-    swapping = true;   // stopPlayer() below stops the chain's own player too, and that bumps the generation: a failure after this point still has to be reported
+    // stopPlayer() below stops the chain's own player too, and that bumps the generation: a failure after this point still has to be reported
+    swapping = true;
     stopPlayer();
     stopChain({ quiet: true });
     session = mine;
@@ -243,7 +252,14 @@ async function startSession(target) {
       startAutomation(mine);
       loadTakeTimes(mine);
       mine.starting = false;
-      try { const capacity = context.renderCapacity; if (capacity) { capacity.start({ updateInterval: .25 }); capacity.onupdate = (event) => chainFeedLoad(event.averageLoad); mine.capacity = capacity; } } catch { /* no render capacity here: the figure is estimated */ }
+      try {
+        const capacity = context.renderCapacity;
+        if (capacity) {
+          capacity.start({ updateInterval: .25 });
+          capacity.onupdate = (event) => chainFeedLoad(event.averageLoad);
+          mine.capacity = capacity;
+        }
+      } catch { /* no render capacity here: the figure is estimated */ }
       refresh(true);
       emit();
     } catch (error) {   // the old chain is gone by now: say so, and stay silent rather than half built
@@ -254,14 +270,21 @@ async function startSession(target) {
     return mine;
   } catch (error) {
     if (current() || swapping) pendingTarget = null;
-    if (current() || swapping) { failedStart = { target, signature: mine.signature }; toast(error?.message || String(error)); }   // a request that was superseded stays quiet
+    // a request that was superseded stays quiet
+    if (current() || swapping) { failedStart = { target, signature: mine.signature }; toast(error?.message || String(error)); }
     return null;
   }
 }
 
-const effective = (id, s = session) => ({ ...paramsOf(baseId(id)), ...(s?.override.get(baseId(id)) || {}) });   // a splitter output `s:left` has the parameters of the block `s`
+// a splitter output `s:left` has the parameters of the block `s`
+const effective = (id, s = session) => ({ ...paramsOf(baseId(id)), ...(s?.override.get(baseId(id)) || {}) });
 /** What a local block depends on: its parameters, the notes and transforms feeding it, and the blocks it works on. */
-const localKey = (item, s = session) => JSON.stringify([effective(item.id, s), item.midi ? [effective(item.midi.clip, s), item.midi.transforms.map((t) => effective(t.id, s))] : null, item.inputs.map((i) => s?.localKeys.get(i.from) || ''), S.doc?.project?.tempo]);
+const localKey = (item, s = session) => JSON.stringify([
+  effective(item.id, s),
+  item.midi ? [effective(item.midi.clip, s), item.midi.transforms.map((t) => effective(t.id, s))] : null,
+  item.inputs.map((i) => s?.localKeys.get(i.from) || ''),
+  S.doc?.project?.tempo,
+]);
 
 const impulseKey = (id, s = session) => JSON.stringify([effective(id, s).ir, effective(id, s).file]);
 /** Fetches and decodes the impulse response of a convolution block (the server picks it from `ir` / `file`) and remembers which values it was made for. */
@@ -304,8 +327,13 @@ async function updateDrumHits(s, item) {
     s.drumPlans.set(item.id, voicePlan); s.localKeys.set(item.id, key); s.failedKeys?.delete(item.id);
     s.slots.get(item.id)?.node.set(voicePlan);
   } catch (error) {
-    // an older update was already discarded when this one started, so when the newest fails the previous pattern keeps playing; it is not marked up to date, so a change retries
-    if (session === s && token === tokens.get(item.id)) { s.localKeys.delete(item.id); (s.failedKeys ||= new Map()).set(item.id, key); toast(error?.message || String(error)); }
+    // an older update was already discarded when this one started, so when the newest fails the previous pattern keeps playing;
+    // it is not marked up to date, so a change retries
+    if (session === s && token === tokens.get(item.id)) {
+      s.localKeys.delete(item.id);
+      (s.failedKeys ||= new Map()).set(item.id, key);
+      toast(error?.message || String(error));
+    }
   }
 }
 
@@ -313,7 +341,8 @@ function rerender(s, id) {
   const drums = s.drumPlans && s.plan.items.find((i) => i.id === id && s.drumPlans.has(i.id));
   if (drums) { updateDrumHits(s, drums); return; }
   clearTimeout(s.renders.get(id)?.timer);
-  const entry = { timer: 0 }, ticket = bumpRevision(s.revs ||= new Map(), id);   // the older results of this block are void from now on, also while this render waits for its timer
+  // the older results of this block are void from now on, also while this render waits for its timer
+  const entry = { timer: 0 }, ticket = bumpRevision(s.revs ||= new Map(), id);
   s.renders.set(id, entry);
   entry.timer = setTimeout(() => runRenderJob({
     items: s.plan.items.filter((i) => i.kind === 'local'), id, ticket, revs: s.revs, alive: () => session === s,
@@ -325,7 +354,8 @@ function rerender(s, id) {
       swap(s, item.id, s.buffers.get(item.id));
       if (item.tpl === 'normalize') emit();   // the note on the chip says the new gain
     },
-    // the newest render failed: the old sound stays, the block is not "up to date" for these values, and the next change of them tries again (not every 40 ms: refresh() skips the failed values)
+    // the newest render failed: the old sound stays, the block is not "up to date" for these values,
+    // and the next change of them tries again (not every 40 ms: refresh() skips the failed values)
     invalidate: (item, key) => { s.localKeys.delete(item.id); (s.failedKeys ||= new Map()).set(item.id, key); },
     report: (error) => toast(error?.message || String(error)),
   }), 150);
@@ -378,7 +408,8 @@ function build(s) {
       pre.fftSize = post.fftSize = 4096; pre.smoothingTimeConstant = post.smoothingTimeConstant = .7;
       input.connect(pre); out.connect(post); s.disposables.push(pre, post);
       s.spectra.set(item.id, { pre, post, preBins: new Float32Array(pre.frequencyBinCount), postBins: new Float32Array(post.frequencyBinCount), preWave: new Float32Array(2048), postWave: new Float32Array(2048) });
-      const graph = liveEffectGraph(context, input, out, item.tpl, withAuto(item.id, paramsOf(item.id), s), s.tempo, s.impulses.get(item.id), clock);
+      const params = withAuto(item.id, paramsOf(item.id), s);
+      const graph = liveEffectGraph(context, input, out, item.tpl, params, s.tempo, s.impulses.get(item.id), clock);
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
@@ -406,7 +437,10 @@ function refresh(force = false) {
   }
   for (const item of session.plan.items.filter((i) => i.kind === 'local')) {
     const key = localKey(item);
-    if (session.localKeys.get(item.id) !== key && session.failedKeys?.get(item.id) !== key) { session.localKeys.set(item.id, key); rerender(session, item.id); }
+    if (session.localKeys.get(item.id) !== key && session.failedKeys?.get(item.id) !== key) {
+      session.localKeys.set(item.id, key);
+      rerender(session, item.id);
+    }
   }
   refreshImpulses(session);
   const anySolo = flat().nodes.some((n) => n.tpl === 'bus' && n.params?.solo === 'on');
@@ -561,7 +595,8 @@ function dispose(s) {
 
 /** Stops the chain (the sound stops with it). */
 export function stopChain({ quiet = false } = {}) {
-  if (!quiet) { startGeneration++; pendingTarget = null; }   // also cancels a start that is still preparing (the chain it would swap in is not wanted any more)
+  // also cancels a start that is still preparing (the chain it would swap in is not wanted any more)
+  if (!quiet) { startGeneration++; pendingTarget = null; }
   if (!session) return;
   const s = session;
   session = null;
@@ -592,8 +627,11 @@ subscribe(() => {
   if (signatureOf(plan) !== session.signature) {
     const target = pendingTarget || session.target, bypass = new Set(session.bypass);
     const wanted = target === session.target ? plan : planNow(target);
-    if (wanted.ok && failedAlready(failedStart, target, signatureOf(wanted))) { refresh(); return; }   // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again
-    startSession(target).then((started) => { if (started && session === started) { bypass.forEach((id) => started.bypass.add(id)); refresh(true); emit(); } });
+    // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again
+    if (wanted.ok && failedAlready(failedStart, target, signatureOf(wanted))) { refresh(); return; }
+    startSession(target).then((started) => {
+      if (started && session === started) { bypass.forEach((id) => started.bypass.add(id)); refresh(true); emit(); }
+    });
     return;
   }
   refresh();

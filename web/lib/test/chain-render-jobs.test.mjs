@@ -4,13 +4,22 @@ import assert from 'node:assert/strict';
 import { bumpRevision, runRenderJob, createCompareGate } from '../chain-render-jobs.mjs';
 
 const items = [{ id: 'a', inputs: [] }, { id: 'b', inputs: [{ from: 'a' }] }, { id: 'c', inputs: [] }];
-const deferred = () => { let resolve, reject; const promise = new Promise((y, n) => { resolve = y; reject = n; }); return { promise, resolve, reject }; };
+const deferred = () => {
+  let resolve, reject;
+  const promise = new Promise((y, n) => { resolve = y; reject = n; });
+  return { promise, resolve, reject };
+};
 const tick = () => new Promise((r) => setImmediate(r));
 function harness(list = items) {
   const log = { adopted: [], invalid: [], errors: [] }, revs = new Map(), jobs = [];
   const start = (id, render) => {
     const ticket = bumpRevision(revs, id);
-    jobs.push(runRenderJob({ items: list, id, ticket, revs, alive: () => true, keyOf: (i) => `${i.id}@${ticket}`, render, adopt: (i, audio, key) => log.adopted.push([i.id, audio, key]), invalidate: (i, key) => log.invalid.push([i.id, key]), report: (e) => log.errors.push(e.message) }));
+    jobs.push(runRenderJob({
+      items: list, id, ticket, revs, alive: () => true, keyOf: (i) => `${i.id}@${ticket}`, render,
+      adopt: (i, audio, key) => log.adopted.push([i.id, audio, key]),
+      invalidate: (i, key) => log.invalid.push([i.id, key]),
+      report: (e) => log.errors.push(e.message),
+    }));
   };
   return { log, revs, start, all: () => Promise.all(jobs) };
 }
@@ -98,13 +107,21 @@ test('A/B gate: a load that fails or is cancelled always ends with nothing pendi
 
 test('a job whose chain is gone before its render starts renders nothing (stop during the 150 ms wait)', async () => {
   const revs = new Map(), rendered = [];
-  await runRenderJob({ items, id: 'a', ticket: bumpRevision(revs, 'a'), revs, alive: () => false, keyOf: (i) => i.id, render: async (i) => { rendered.push(i.id); return i.id; }, adopt: () => rendered.push('adopt'), invalidate: () => {}, report: () => {} });
+  await runRenderJob({
+    items, id: 'a', ticket: bumpRevision(revs, 'a'), revs, alive: () => false, keyOf: (i) => i.id,
+    render: async (i) => { rendered.push(i.id); return i.id; },
+    adopt: () => rendered.push('adopt'), invalidate: () => {}, report: () => {},
+  });
   assert.deepEqual(rendered, []);
 });
 
 test('a chain stopped after the first block rendered does not render the downstream block', async () => {
   const revs = new Map(), rendered = []; let live = true;
-  await runRenderJob({ items, id: 'a', ticket: bumpRevision(revs, 'a'), revs, alive: () => live, keyOf: (i) => i.id, render: async (i) => { rendered.push(i.id); live = false; return i.id; }, adopt: () => rendered.push('adopt'), invalidate: () => {}, report: () => {} });
+  await runRenderJob({
+    items, id: 'a', ticket: bumpRevision(revs, 'a'), revs, alive: () => live, keyOf: (i) => i.id,
+    render: async (i) => { rendered.push(i.id); live = false; return i.id; },
+    adopt: () => rendered.push('adopt'), invalidate: () => {}, report: () => {},
+  });
   assert.deepEqual(rendered, ['a']);
 });
 
@@ -123,9 +140,11 @@ test('live-chain.js uses the extracted module: no copy of the ordering logic is 
   assert.equal(src.split('runRenderJob(').length - 1, 1);
   assert.ok(!src.includes('s.dirty') && src.split('drumToken').length === src.split('drumTokens').length);
   const rerender = src.slice(src.indexOf('function rerender('), src.indexOf('function swap('));
-  assert.ok(rerender.indexOf('bumpRevision(') > -1 && rerender.indexOf('bumpRevision(') < rerender.indexOf('setTimeout('), 'the revision is bumped when scheduled');
+  const bumped = rerender.indexOf('bumpRevision(');
+  assert.ok(bumped > -1 && bumped < rerender.indexOf('setTimeout('), 'the revision is bumped when scheduled');
   const cmp = src.slice(src.indexOf('export async function setCompareBuilt'));
-  assert.ok(cmp.indexOf('createCompareGate()') > -1 && cmp.indexOf('gate.begin()') > -1 && cmp.indexOf('gate.finish(intent)') > cmp.indexOf('gate.begin()'));
+  assert.ok(cmp.indexOf('createCompareGate()') > -1 && cmp.indexOf('gate.begin()') > -1);
+  assert.ok(cmp.indexOf('gate.finish(intent)') > cmp.indexOf('gate.begin()'));
   const ui = fs.readFileSync(new URL('../../app/live-chain-ui.js', import.meta.url), 'utf8');
   assert.ok(ui.includes('setCompareBuilt(!(state.comparingBuilt || state.comparePending))'));
 });
