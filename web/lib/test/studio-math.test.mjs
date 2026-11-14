@@ -110,3 +110,8 @@ test('a knob that starts at a sixteenth can say 0.0625 (issue 163)', () => {
   assert.equal(Number((0.25).toFixed(knobPrecision('', 0.0625).commit)), 0.25);
   assert.equal(knobPrecision('ms', 0.1).commit, 2);
 });
+
+test('an octave knob moves in tenths (issue 172)', () => {
+  assert.deepEqual(knobPrecision('oct', 0), { step: undefined, commit: 1, display: 1 });
+  assert.equal(Number((1.5).toFixed(knobPrecision('oct', 0).commit)), 1.5);
+});
