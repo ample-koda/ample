@@ -408,7 +408,14 @@ addEventListener('pagehide', saveSourceDraft);
 /* ---------- loading ---------- */
 // a load that is overtaken by a newer one (a quick tab or view switch) must not put its text into the state of the newer file
 let loadToken = 0;
+// the load that is under way: a view that is drawn meanwhile waits for it instead of starting a load of its own (which would be the newer one and make this one count as overtaken)
+let loadingNow = null;
 async function loadFile(file, stillWanted) {
+  const run = loadFileNow(file, stillWanted);
+  loadingNow = run;
+  try { return await run; } finally { if (loadingNow === run) loadingNow = null; }
+}
+async function loadFileNow(file, stillWanted) {
   const loadMine = ++loadToken;
   const song = file === S.path, module = !!S.modulePath && file === S.modulePath;
   const saved = module ? (await api.get(`/api/module/source?path=${encodeURIComponent(file)}`)).text : song ? S.doc.text : (await api.get(`/api/file?path=${encodeURIComponent(file)}`)).text;
@@ -608,7 +615,8 @@ async function render() {
     $('#se-ta').readOnly = true;
         return;
   }
-  if (!SE.file || (isSong() && SE.loadedFor !== `${S.path}`)) { await loadFile(S.path); SE.loadedFor = S.path; }
+  while (loadingNow) await loadingNow.catch(() => {});   // a file is being opened: draw what it brings, do not load the song over it
+  if (!SE.file || (isSong() && SE.loadedFor !== `${S.path}`)) { if (await loadFile(S.path)) SE.loadedFor = S.path; }
   await files();
   syncPropertiesText();
   refreshSeqDiagnostics();

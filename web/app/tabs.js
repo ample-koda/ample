@@ -75,7 +75,7 @@ function answered(e) {
     if (!options?.existing) add(path, options?.preview);
     T.active = path;
     refreshState();
-  }
+  } else tabOpenOptions.get(request)?.onRefused?.();   // the opener said no: whoever asked takes its own change back
   save();
   render();
 }
@@ -86,8 +86,10 @@ function openFile(path, options) {
   document.dispatchEvent(request);
 }
 
-function activate(path) {
-  openFile(path, { existing: true });
+/** Makes a tab the active one: the open request decides. onRefused runs when the editor did not take it (a refused or failed open, a file that is open in another window). */
+function activate(path, onRefused) {
+  if (T.remote.has(path)) onRefused?.();   // the question about the other window follows; this tab does not become active
+  openFile(path, { existing: true, onRefused });
 }
 
 export function isTabReactivation(request) { return tabOpenOptions.get(request)?.existing === true; }
@@ -208,13 +210,25 @@ async function closeTabNow(path, tab) {
   }
   const index = T.tabs.findIndex((t) => t.path === path);
   if (index < 0) { render(); return; }   // the tab went away while the question was open
+  const savedAs = closed !== path, wasShown = S.path === path;   // saved under a new name: the blank file it came from is gone
   lastClose = { path: closed, index, wasActive: T.active === path, serial: editSerial(), open: false };   // Ctrl+Z reopens it while nothing was edited since
   T.tabs.splice(index, 1);
   if (T.active === path) {
     const neighbours = T.tabs.filter((candidate) => !T.remote.has(candidate.path));
-    const next = neighbours[Math.min(index, neighbours.length - 1)];
+    let next = neighbours[Math.min(index, neighbours.length - 1)];
+    const goneBlank = savedAs && wasShown;
+    if (goneBlank) {
+      // the editor still holds the blank file that is gone: it has to move to a song. Without another song tab the song that was just saved stays open under its new name.
+      const songs = neighbours.filter((candidate) => kindOf(candidate.path) === 'song');
+      next = songs.find((candidate) => T.tabs.indexOf(candidate) >= index) || songs[songs.length - 1];
+      if (!next && neighbours.length) { lastClose = null; T.active = ''; save(); render(); openFile(closed, {}); return; }
+    }
+    // an activation the editor refuses (the question cancelled, the file failed to open): the close did not go through, the tab comes back and is the active one
+    const takeBack = goneBlank
+      ? () => { lastClose = null; openFile(closed, {}); }
+      : () => { if (T.tabs.some((t) => t.path === closed)) return; T.tabs.splice(Math.min(index, T.tabs.length), 0, { path: closed }); T.active = closed; lastClose = null; save(); render(); refreshState(); };
     T.active = '';
-    if (next) activate(next.path); else { await openUntitled(); return; }   // there is always one editor
+    if (next) activate(next.path, takeBack); else { await openUntitled(); return; }   // there is always one editor
   }
   save(); refreshState(); render();
 }
