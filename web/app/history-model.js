@@ -63,9 +63,21 @@ export const shortId = (id) => (id ? id.replace(/^node:/, '').slice(0, 8) : '-')
 export const fmtTime = (t) => (t ? String(t).slice(0, 16).replace('T', ' ') : '-');
 
 /** Recent compare choices plus any older revision supplied by the action that opened Compare. */
+/** A reference the way the server wants it when a line and a tag may share a name: line:NAME or tag:NAME. A revision id stays as it is. */
+export function qualifyRef(m, ref) {
+  if (!ref || /^(line|tag):/.test(ref)) return ref;
+  if (m.lines.some((l) => l.name === ref)) return `line:${ref}`;
+  if (m.h.tags.some((t) => t.name === ref)) return `tag:${ref}`;
+  return ref;
+}
+
 export function compareRefs(m, refA, refB) {
-  const refs = [...m.lines.map((l) => [l.name, `line ${l.name}`]), ...m.h.tags.map((t) => [t.name, `tag ${t.name}`]), ...m.h.nodes.slice(-20).map((n) => [n.nodeId, `${shortId(n.nodeId)} ${n.message}`])];
-  for (const ref of [refA, refB]) if (ref && !refs.some(([value]) => value === ref)) {
+  const refs = [
+    ...m.lines.map((l) => [`line:${l.name}`, `line ${l.name}`]),
+    ...m.h.tags.map((t) => [`tag:${t.name}`, `tag ${t.name}`]),
+    ...m.h.nodes.slice(-20).map((n) => [n.nodeId, `${shortId(n.nodeId)} ${n.message}`]),
+  ];
+  for (const ref of [refA, refB].map((r) => qualifyRef(m, r))) if (ref && !refs.some(([value]) => value === ref)) {
     const node = m.byId.get(ref);
     refs.push([ref, node ? `${shortId(node.nodeId)} ${node.message}` : ref]);
   }
