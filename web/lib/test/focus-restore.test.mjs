@@ -49,3 +49,11 @@ test('the neighbour key is the control that Tab or Shift+Tab would reach', () =>
   assert.equal(neighbourKey(root, c, 1), null);
   assert.equal(neighbourKey(root, control('INPUT', { id: 'elsewhere' }), 1), null);
 });
+
+test('a step that changes its value or title with the edit is still found', () => {
+  const cell = (value, title) => control('BUTTON', { title }, { bar: '0', step: '1', value });
+  const old = cell('.', 'rest');
+  const key = focusKeyOf(rootOf([control('BUTTON', {}, { bar: '0', step: '0', value: 'x' }), old]), old);
+  const fresh = [control('BUTTON', {}, { bar: '0', step: '0', value: 'x' }), cell('x', 'hit')];
+  assert.equal(findByFocusKey(rootOf(fresh), key), fresh[1]);
+});

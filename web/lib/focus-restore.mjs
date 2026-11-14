@@ -1,13 +1,15 @@
 /**
- * Keeps the keyboard on "the same control" when a view is redrawn. A control is known by what it is (tag, type, id, label, title, data-*) plus its
+ * Keeps the keyboard on "the same control" when a view is redrawn. A control is known by what it is (tag, type, id, label, data-* that name it) plus its
  * place among the controls that look the same, not by its index among all controls, so a control that appears or disappears before it does not move the focus
  * to a neighbour.
  */
 export const FOCUSABLE = 'button,input,select,textarea,[tabindex]';
 
+// data-* that describe the state of a control (a step's value, a count) change with the edit itself, and so do titles; they are not part of what the control is
+const STATE_DATA = new Set(['value', 'state', 'on', 'selected', 'active', 'checked', 'pressed', 'count']);
 const signatureOf = (node) => JSON.stringify([
-  String(node.tagName || '').toLowerCase(), node.type || '', node.id || '', node.getAttribute?.('aria-label') || '', node.getAttribute?.('title') || '', node.getAttribute?.('name') || '',
-  Object.entries(node.dataset || {}).sort(([a], [b]) => (a < b ? -1 : 1)),
+  String(node.tagName || '').toLowerCase(), node.type || '', node.id || '', node.getAttribute?.('aria-label') || '', node.getAttribute?.('name') || '',
+  Object.entries(node.dataset || {}).filter(([key]) => !STATE_DATA.has(key)).sort(([a], [b]) => (a < b ? -1 : 1)),
 ]);
 const usable = (node) => !node.disabled && node.getAttribute?.('tabindex') !== '-1';
 
