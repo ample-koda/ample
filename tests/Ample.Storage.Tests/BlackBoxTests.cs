@@ -360,7 +360,8 @@ public sealed class BlackBoxTests
         CompactionResult again = await j.CompactAsync(settings, CancellationToken.None);
         Assert.Empty(await j.FindInterruptedAsync());
         Assert.True(again.Thinned >= 1);
-        Assert.DoesNotContain(fs.GetFiles(Path.Combine(Root, ".ample", "blackbox")), f => f.EndsWith("0000000001.seg", StringComparison.Ordinal));
+        IReadOnlyList<string> files = fs.GetFiles(Path.Combine(Root, ".ample", "blackbox"));
+        Assert.DoesNotContain(files, f => f.EndsWith("0000000001.seg", StringComparison.Ordinal));
     }
 
     [Theory]

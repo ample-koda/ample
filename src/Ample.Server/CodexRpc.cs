@@ -95,8 +95,12 @@ internal sealed class CodexRpc : IAsyncDisposable
         limit.CancelAfter(timeout);
         try
         {
-            JsonObject message = new() { ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject() };
-            // A write to a pipe that the child does not read can block the calling thread without honouring a token, so it runs on its own task and the deadline is awaited next to it.
+            JsonObject message = new()
+            {
+                ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject(),
+            };
+            // A write to a pipe that the child does not read can block the calling thread without honouring a token,
+            // so it runs on its own task and the deadline is awaited next to it.
             Task write = Task.Run(() => WriteAsync(message, limit.Token), CancellationToken.None);
             try
             {
@@ -104,10 +108,13 @@ internal sealed class CodexRpc : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                // The deadline (or the caller) gave up while the line was queued or half written: such a line cannot be retried safely, so the connection is closed.
-                // Closing also ends a write that is still blocked; its outcome is observed so that it never surfaces as an unobserved task exception.
+                // The deadline (or the caller) gave up while the line was queued or half written:
+                // such a line cannot be retried safely, so the connection is closed.
+                // Closing also ends a write that is still blocked; its outcome is observed
+                // so that it never surfaces as an unobserved task exception.
                 StopNow();
-                _ = write.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+                _ = write.ContinueWith(
+                    static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
                 if (ct.IsCancellationRequested)
                 {
                     throw;

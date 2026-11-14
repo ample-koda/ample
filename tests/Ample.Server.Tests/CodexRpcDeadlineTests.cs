@@ -5,7 +5,10 @@ using System.Text.Json.Nodes;
 
 namespace Ample.Server.Tests;
 
-/// <summary>The deadline of a Codex request covers queueing, writing and waiting for the answer; a failed or timed-out send leaves no pending request and no live connection.</summary>
+/// <summary>
+/// The deadline of a Codex request covers queueing, writing and waiting for the answer;
+/// a failed or timed-out send leaves no pending request and no live connection.
+/// </summary>
 public sealed class CodexRpcDeadlineTests : IDisposable
 {
     private readonly string folder = Path.Combine(Path.GetTempPath(), "ample-codexrpc-" + Guid.NewGuid().ToString("N"));
@@ -26,12 +29,18 @@ public sealed class CodexRpcDeadlineTests : IDisposable
 
     private CodexRpc Start(string script) => CodexRpc.Start(Fake(script), Path.Combine(folder, "home"), folder, []);
 
-    private static int PendingCount(CodexRpc rpc) => ((ConcurrentDictionary<long, TaskCompletionSource<JsonNode?>>)typeof(CodexRpc).GetField("pending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(rpc)!).Count;
+    private static int PendingCount(CodexRpc rpc)
+    {
+        FieldInfo field = typeof(CodexRpc).GetField("pending", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return ((ConcurrentDictionary<long, TaskCompletionSource<JsonNode?>>)field.GetValue(rpc)!).Count;
+    }
 
     [Fact]
     public async Task A_request_that_answers_works_and_leaves_nothing_pending()
     {
-        await using CodexRpc rpc = Start("require('readline').createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{ok:true}}));});");
+        await using CodexRpc rpc = Start(
+            "require('readline').createInterface({input:process.stdin}).on('line',l=>{const m=JSON.parse(l);"
+            + "console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{ok:true}}));});");
         JsonNode? result = await rpc.RequestAsync("ping", null, TimeSpan.FromSeconds(30), CancellationToken.None);
         Assert.True(result!["ok"]!.GetValue<bool>());
         Assert.Equal(0, PendingCount(rpc));
@@ -64,7 +73,8 @@ public sealed class CodexRpcDeadlineTests : IDisposable
         }
 
         Assert.True(rpc.Exited);
-        await Assert.ThrowsAnyAsync<Exception>(() => rpc.RequestAsync("late", new JsonObject { ["blob"] = new string('x', 1024 * 1024) }, TimeSpan.FromSeconds(10), CancellationToken.None));
+        JsonObject big = new() { ["blob"] = new string('x', 1024 * 1024) };
+        await Assert.ThrowsAnyAsync<Exception>(() => rpc.RequestAsync("late", big, TimeSpan.FromSeconds(10), CancellationToken.None));
         Assert.Equal(0, PendingCount(rpc));
     }
 }

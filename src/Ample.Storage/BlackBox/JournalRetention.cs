@@ -10,7 +10,10 @@ namespace Ample.Storage.BlackBox;
 /// <summary>What a compaction did.</summary>
 /// <param name="Thinned">Segments replaced by hourly summaries.</param>
 /// <param name="Deleted">Old summaries removed.</param>
-/// <param name="BudgetWarning">True when the journal uses the warning share (20%, see <see cref="JournalRetention.WarnAtBytes"/>) or more of its budget after compaction; the same threshold as the status endpoint.</param>
+/// <param name="BudgetWarning">
+/// True when the journal uses the warning share (20%, see <see cref="JournalRetention.WarnAtBytes"/>) or more of its budget
+/// after compaction; the same threshold as the status endpoint.
+/// </param>
 /// <param name="TotalBytes">Bytes used by the Redux archive, including nested artifacts.</param>
 public sealed record CompactionResult(int Thinned, int Deleted, bool BudgetWarning, long TotalBytes);
 
@@ -22,18 +25,28 @@ public sealed record CompactionResult(int Thinned, int Deleted, bool BudgetWarni
 /// <param name="BytesAfter">Bytes used after compaction.</param>
 /// <param name="BudgetBytes">The configured budget.</param>
 /// <param name="ThroughSequence">The last record the preview covers.</param>
-/// <param name="ProtectedSegments">Old segments that compaction keeps because they hold a command that started and has no terminal record yet.</param>
+/// <param name="ProtectedSegments">
+/// Old segments that compaction keeps because they hold a command that started and has no terminal record yet.
+/// </param>
 /// <param name="ProtectedBytes">The bytes of those segments.</param>
-public sealed record CompactionPreview(int SegmentsToThin, int RecordsToThin, int SummariesToDelete, long BytesBefore, long BytesAfter, long BudgetBytes, long ThroughSequence, int ProtectedSegments = 0, long ProtectedBytes = 0);
+public sealed record CompactionPreview(
+    int SegmentsToThin, int RecordsToThin, int SummariesToDelete, long BytesBefore, long BytesAfter, long BudgetBytes,
+    long ThroughSequence, int ProtectedSegments = 0, long ProtectedBytes = 0);
 
 /// <summary>Retention of AMPLE Redux: full detail for a number of days, then one summary line per hour and kind for a year, within a size budget. The newest segment is never thinned. The summaries that replace old segments hold only hours, kinds and counts and are not encrypted; the records themselves are, when the project is encrypted.</summary>
 public static class JournalRetention
 {
-    /// <summary>The size from which the archive warns: one fifth of the budget. Shared by the status endpoint and the compaction result.</summary>
+    /// <summary>
+    /// The size from which the archive warns: one fifth of the budget. Shared by the status endpoint and the compaction result.
+    /// </summary>
     public static long WarnAtBytes(long budgetBytes) => budgetBytes / 5;
 
-    /// <summary>Segments that hold a start record without a terminal record anywhere in the journal: they are kept until the command is resolved.</summary>
-    private static async ValueTask<HashSet<string>> UnresolvedSegments(IFileSystem fs, List<string> segments, DataCipher? cipher, CancellationToken cancellationToken)
+    /// <summary>
+    /// Segments that hold a start record without a terminal record anywhere in the journal:
+    /// they are kept until the command is resolved.
+    /// </summary>
+    private static async ValueTask<HashSet<string>> UnresolvedSegments(
+        IFileSystem fs, List<string> segments, DataCipher? cipher, CancellationToken cancellationToken)
     {
         List<(string Segment, JournalRecord Record)> all = [];
         foreach (string seg in segments)
@@ -64,7 +77,8 @@ public static class JournalRetention
         Dictionary<string, List<JournalRecord>> loaded = new(StringComparer.Ordinal);
         long after = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
         int records = 0, deleted = 0;
-        HashSet<string> protectedSegments = await UnresolvedSegments(fs, segments, ProjectEncryption.CipherFor(projectRoot), cancellationToken).ConfigureAwait(false);
+        DataCipher? cipher = ProjectEncryption.CipherFor(projectRoot);
+        HashSet<string> protectedSegments = await UnresolvedSegments(fs, segments, cipher, cancellationToken).ConfigureAwait(false);
         foreach (string segment in segments.Take(Math.Max(0, segments.Count - 1)).Where(x => !protectedSegments.Contains(x)))
         {
             (List<JournalRecord> rows, _, _) = await Journal.ReadSegmentAsync(fs, segment, ProjectEncryption.CipherFor(projectRoot), cancellationToken).ConfigureAwait(false);
@@ -83,7 +97,9 @@ public static class JournalRetention
             if (!thin.Contains(Path.ChangeExtension(summary, ".seg")) && Expired(first, now, settings)) { after -= FileSize(fs, summary); deleted++; }
         }
         List<string> kept = [.. segments.Take(Math.Max(0, segments.Count - 1)).Where(protectedSegments.Contains)];
-        return new CompactionPreview(thin.Count, records, deleted, await Size(fs, folder, cancellationToken).ConfigureAwait(false), Math.Max(0, after), settings.BudgetBytes, 0, kept.Count, kept.Sum(x => FileSize(fs, x)));
+        long before = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
+        return new CompactionPreview(
+            thin.Count, records, deleted, before, Math.Max(0, after), settings.BudgetBytes, 0, kept.Count, kept.Sum(x => FileSize(fs, x)));
 
         void AddThin(string segment, List<JournalRecord> rows)
         {

@@ -695,7 +695,9 @@ public static class Routes
             ProjectManifest manifest = ProjectFile.Parse(await File.ReadAllTextAsync(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), c.RequestAborted));
             long used = await JournalRetention.StorageBytesAsync(s.Context.Fs, s.Root, c.RequestAborted);
             long budget = manifest.Settings.BlackBox.BudgetBytes;
-            return Ok(new { usedBytes = used, warnAtBytes = JournalRetention.WarnAtBytes(budget), budgetBytes = budget, state = used >= budget ? "limit" : used >= JournalRetention.WarnAtBytes(budget) ? "warning" : "ok" });
+            long warnAt = JournalRetention.WarnAtBytes(budget);
+            string state = used >= budget ? "limit" : used >= warnAt ? "warning" : "ok";
+            return Ok(new { usedBytes = used, warnAtBytes = warnAt, budgetBytes = budget, state });
         });
         add("GET", "/api/redux/compact-preview", "redux", "Previews the exact records and bytes an explicit AMPLE Redux compaction would affect.", false, s is null ? null : async (HttpContext c) =>
         {
