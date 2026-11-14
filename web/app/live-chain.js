@@ -5,6 +5,7 @@
 import { liveEffectGraph, decodedInput, fetchTakeAudio, prepareWorklets, decodePreviewBlob } from './studio/preview/audio.js';
 import { api } from './api.js';
 import { bumpRevision, runRenderJob, createCompareGate } from '../lib/chain-render-jobs.mjs';
+import { failedAlready } from '../lib/chain-start-guard.mjs';
 import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 import { flat, S, subscribe, subscribeSelection } from './store.js';
@@ -34,8 +35,7 @@ export const onChain = (f) => { listeners.add(f); return () => listeners.delete(
 
 const paramsOf = (id) => ({ ...(flat().nodes.find((n) => n.id === id)?.params || {}) });
 /** A volume gain written as auto(...) / fadein(...) / fadeout(...) is a number at the loop position (the server applies the curve per sample; the live graph follows it every 40 ms). */
-const withAuto = (id, params) => {
-  const s = session;
+const withAuto = (id, params, s = session) => {
   if (!s || flat().nodes.find((n) => n.id === id)?.tpl !== 'volume' || !isAutomation(params.gain)) return params;
   const db = gainAtSeconds(params.gain, s.t0 === undefined ? 0 : Math.max(0, loopPosition(s, s.context.currentTime)), barSeconds(s));
   return db === null ? params : { ...params, gain: `${Math.round(Math.max(-60, db) * 10) / 10} dB` };
@@ -98,11 +98,14 @@ const SAFE_KEY = 'ample.live.safeMode';
 export function safeMode() { try { return localStorage.getItem(SAFE_KEY) === 'off' ? 'off' : 'auto'; } catch { return 'auto'; } }
 export function setSafeMode(mode) { try { localStorage.setItem(SAFE_KEY, mode === 'off' ? 'off' : 'auto'); } catch { /* no storage */ } emit(); }
 
+/** Whether a block of the session stops computing while bypassed (today only the worklet reverb). */
+const suspends = (s, id) => Boolean(s.built.get(id)?.graph.suspends);
+
 /** The load of the live chain: { load (0..1+), level, estimated, mode }. Measured by renderCapacity where the browser has it, else estimated from the blocks. */
 export function chainLoad() {
   if (!session) return { load: 0, level: 'ok', estimated: true, mode: safeMode() };
   if (session.measured) return { ...session.cpu.state(), estimated: false, mode: safeMode() };
-  const load = estimateLoad(session.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ tpl: i.tpl, bypassed: session.bypass.has(i.id) })));
+  const load = estimateLoad(session.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ tpl: i.tpl, bypassed: session.bypass.has(i.id) && suspends(session, i.id) })));   // a bypassed block that cannot sleep still costs its full share
   return { load, level: load >= .7 ? 'warn' : 'ok', estimated: true, mode: safeMode() };
 }
 
@@ -113,7 +116,7 @@ export function chainFeedLoad(value, now = performance.now() / 1000) {
   s.measured = true;
   const state = s.cpu.feed(value, now);
   if (state.level === 'bypass' && safeMode() === 'auto') {
-    const item = heaviest(s.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ id: i.id, tpl: i.tpl, bypassed: s.bypass.has(i.id) })));
+    const item = heaviest(s.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ id: i.id, tpl: i.tpl, bypassed: s.bypass.has(i.id) || !suspends(s, i.id) })));   // only a block that stops computing when bypassed (the worklet reverb) relieves the CPU
     if (item) {
       s.bypass.add(item.id); s.cpuBypassed.add(item.id); s.cpu.reset(); refresh(); emit();
       toast(`The computer cannot keep up: ${flat().nodes.find((n) => n.id === item.id)?.title || item.id} is bypassed (CPU). Switch it on again with its button when there is room.`);
@@ -181,66 +184,90 @@ export function prewarm(target) {
 subscribeSelection(() => { const id = S.sel; const node = id && flat().nodes.find((n) => n.id === id); prewarm(node && (CHAIN_EFFECTS.has(node.tpl) || SUM_TYPES.has(node.tpl)) ? id : null); });
 
 /** Plays the chain that ends at `target`. Returns whether it started. */
-export async function startChain(target) {
-  stopPlayer();
-  stopChain({ quiet: true });
+let startGeneration = 0, failedStart = null, pendingTarget = null;   // pendingTarget: the chain being prepared, so a song change restarts that one and not the one still playing
+   // a Stop, a project switch or a newer start bumps the generation and so cancels a start that is still preparing
+export async function startChain(target) { return Boolean(await startSession(target)); }
+
+/**
+ * Makes the successor session and swaps it in: the takes, the worklets, the impulses and the local renders are all made while the current chain keeps playing, and the swap itself has no await,
+ * so a failure while preparing leaves the old chain playing (with a notice). Returns the new session, or null (superseded, or failed).
+ */
+async function startSession(target) {
+  let swapping = false;
+  const generation = ++startGeneration, current = () => generation === startGeneration;
+  pendingTarget = target;
   const plan = planNow(target);
-  if (!plan.ok) { toast(plan.reason); return false; }
+  if (!plan.ok) { toast(plan.reason); return null; }
   const mine = { cpu: createCpuMonitor(), cpuBypassed: new Set(), target, plan, signature: signatureOf(plan), bypass: new Set(), override: new Map(), last: new Map(), built: new Map(), taps: new Map(), spectra: new Map(), starting: true, sources: [], disposables: [], slots: new Map(), localKeys: new Map(), renders: new Map(), watch: new Set() };
-  session = mine;
+  const paramsFor = (id) => effective(id, mine);
   try {
     const buffers = new Map();
     for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role)));
-    if (session !== mine) return false;
+    if (!current()) return null;
     const context = liveAudioContext();
     await context.resume();
     await prepareWorklets(context);
-    if (session !== mine) return false;
+    if (!current()) return null;
     Object.assign(mine, { context, buffers, tempo: Number(S.doc?.project?.tempo) || 120, impulses: new Map(), impulseKeys: new Map() });
     // a convolution block needs the impulse response of its `ir` / `file` before its graph is made (the server serves it; length and normalize are done in the graph)
-    for (const item of plan.items.filter((i) => i.tpl === 'convolution')) { await loadImpulse(mine, item.id); if (session !== mine) return false; }
+    for (const item of plan.items.filter((i) => i.tpl === 'convolution')) { await loadImpulse(mine, item.id); if (!current()) return null; }
     // the blocks the browser makes itself (drums, sampler, cut, fade, ...), in the order of the plan, each from the sound it works on
     for (const item of plan.items.filter((i) => i.kind === 'local')) {
       if (hitDrums(plan, item)) {   // built-in drums that only feed effects: single hits on the audio clock, no loop render
-        const voicePlan = await drumVoicePlan(item, { paramsOf: effective });
+        const voicePlan = await drumVoicePlan(item, { paramsOf: paramsFor });
         (mine.drumPlans ||= new Map()).set(item.id, voicePlan);
         buffers.set(item.id, context.createBuffer(1, Math.max(1, Math.round(voicePlan.loop * context.sampleRate)), context.sampleRate));   // only its length: the loop of the chain
-        mine.localKeys.set(item.id, localKey(item));
+        mine.localKeys.set(item.id, localKey(item, mine));
         mine.watch.add(baseId(item.id));
-        if (session !== mine) return false;
+        if (!current()) return null;
         continue;
       }
       buffers.set(item.id, toBuffer(context, await makeLocal(mine, item)));
-      mine.localKeys.set(item.id, localKey(item));
+      mine.localKeys.set(item.id, localKey(item, mine));
       mine.watch.add(baseId(item.id)); item.midi?.transforms.forEach((t) => mine.watch.add(t.id)); mine.watch.add(item.midi?.clip);
-      if (session !== mine) return false;
+      if (!current()) return null;
     }
-    build(mine);
-    startControls(mine);
-    startAutomation(mine);
-    loadTakeTimes(mine);
-    mine.starting = false;
-    try { const capacity = context.renderCapacity; if (capacity) { capacity.start({ updateInterval: .25 }); capacity.onupdate = (event) => chainFeedLoad(event.averageLoad); mine.capacity = capacity; } } catch { /* no render capacity here: the figure is estimated */ }
-    refresh(true);
-    emit();
-    return true;
+    // the song may have changed while this was made: then it is made again for the song as it is now (the old chain keeps playing meanwhile)
+    const now = planNow(target);
+    if (!now.ok) { pendingTarget = null; toast(now.reason); return null; }
+    if (signatureOf(now) !== mine.signature) return await startSession(target);
+    // the graph is made while the old chain still plays (it starts 80 ms ahead): if making it throws, nothing was taken away
+    try { build(mine); } catch (error) { dispose(mine); throw error; }
+    // the swap: no await from here, so nothing can slip in between the old chain stopping and the new one playing
+    swapping = true;   // stopPlayer() below stops the chain's own player too, and that bumps the generation: a failure after this point still has to be reported
+    stopPlayer();
+    stopChain({ quiet: true });
+    session = mine;
+    try {
+      startControls(mine);
+      startAutomation(mine);
+      loadTakeTimes(mine);
+      mine.starting = false;
+      try { const capacity = context.renderCapacity; if (capacity) { capacity.start({ updateInterval: .25 }); capacity.onupdate = (event) => chainFeedLoad(event.averageLoad); mine.capacity = capacity; } } catch { /* no render capacity here: the figure is estimated */ }
+      refresh(true);
+      emit();
+    } catch (error) {   // the old chain is gone by now: say so, and stay silent rather than half built
+      dispose(mine); session = null; emit();
+      throw error;
+    }
+    failedStart = null; pendingTarget = null;
+    return mine;
   } catch (error) {
-    if (session === mine) { dispose(mine); session = null; }
-    emit();
-    toast(error?.message || String(error));
-    return false;
+    if (current() || swapping) pendingTarget = null;
+    if (current() || swapping) { failedStart = { target, signature: mine.signature }; toast(error?.message || String(error)); }   // a request that was superseded stays quiet
+    return null;
   }
 }
 
-const effective = (id) => ({ ...paramsOf(baseId(id)), ...(session?.override.get(baseId(id)) || {}) });   // a splitter output `s:left` has the parameters of the block `s`
+const effective = (id, s = session) => ({ ...paramsOf(baseId(id)), ...(s?.override.get(baseId(id)) || {}) });   // a splitter output `s:left` has the parameters of the block `s`
 /** What a local block depends on: its parameters, the notes and transforms feeding it, and the blocks it works on. */
-const localKey = (item) => JSON.stringify([effective(item.id), item.midi ? [effective(item.midi.clip), item.midi.transforms.map((t) => effective(t.id))] : null, item.inputs.map((i) => session?.localKeys.get(i.from) || ''), S.doc?.project?.tempo]);
+const localKey = (item, s = session) => JSON.stringify([effective(item.id, s), item.midi ? [effective(item.midi.clip, s), item.midi.transforms.map((t) => effective(t.id, s))] : null, item.inputs.map((i) => s?.localKeys.get(i.from) || ''), S.doc?.project?.tempo]);
 
-const impulseKey = (id) => JSON.stringify([effective(id).ir, effective(id).file]);
+const impulseKey = (id, s = session) => JSON.stringify([effective(id, s).ir, effective(id, s).file]);
 /** Fetches and decodes the impulse response of a convolution block (the server picks it from `ir` / `file`) and remembers which values it was made for. */
 async function loadImpulse(s, id) {
-  const key = impulseKey(id);
-  s.impulses.set(id, await decodePreviewBlob(await api.effectImpulse({ path: S.path, block: id, params: effective(id) })));
+  const key = impulseKey(id, s);
+  s.impulses.set(id, await decodePreviewBlob(await api.effectImpulse({ path: S.path, block: id, params: effective(id, s) })));
   s.impulseKeys.set(id, key);
 }
 /** A convolution whose `ir` or `file` changed gets the new impulse in its idle convolver and crossfades to it (the graph does that), without a restart of the chain. */
@@ -260,7 +287,7 @@ function refreshImpulses(s) {
 async function makeLocal(s, item) {
   const inputs = new Map();
   for (const link of item.inputs) inputs.set(link.from, toAudio(s.buffers.get(link.from)));
-  return renderLocal(item, { paramsOf: effective, inputs, context: s.context });
+  return renderLocal(item, { paramsOf: (id) => effective(id, s), inputs, context: s.context });
 }
 
 /** A local block changed: make it again (and what works on it), then swap the new sound in at the same place of the loop with a short crossfade. */
@@ -351,7 +378,7 @@ function build(s) {
       pre.fftSize = post.fftSize = 4096; pre.smoothingTimeConstant = post.smoothingTimeConstant = .7;
       input.connect(pre); out.connect(post); s.disposables.push(pre, post);
       s.spectra.set(item.id, { pre, post, preBins: new Float32Array(pre.frequencyBinCount), postBins: new Float32Array(post.frequencyBinCount), preWave: new Float32Array(2048), postWave: new Float32Array(2048) });
-      const graph = liveEffectGraph(context, input, out, item.tpl, withAuto(item.id, paramsOf(item.id)), s.tempo, s.impulses.get(item.id), clock);
+      const graph = liveEffectGraph(context, input, out, item.tpl, withAuto(item.id, paramsOf(item.id), s), s.tempo, s.impulses.get(item.id), clock);
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
@@ -534,6 +561,7 @@ function dispose(s) {
 
 /** Stops the chain (the sound stops with it). */
 export function stopChain({ quiet = false } = {}) {
+  if (!quiet) { startGeneration++; pendingTarget = null; }   // also cancels a start that is still preparing (the chain it would swap in is not wanted any more)
   if (!session) return;
   const s = session;
   session = null;
@@ -562,8 +590,10 @@ subscribe(() => {
   if (!plan.ok) { stopChain(); toast(plan.reason); return; }
   if (session.stale) { session.stale = null; emit(); }
   if (signatureOf(plan) !== session.signature) {
-    const target = session.target, bypass = new Set(session.bypass);
-    startChain(target).then(() => { if (session) { bypass.forEach((id) => session.bypass.add(id)); refresh(true); emit(); } });
+    const target = pendingTarget || session.target, bypass = new Set(session.bypass);
+    const wanted = target === session.target ? plan : planNow(target);
+    if (wanted.ok && failedAlready(failedStart, target, signatureOf(wanted))) { refresh(); return; }   // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again
+    startSession(target).then((started) => { if (started && session === started) { bypass.forEach((id) => started.bypass.add(id)); refresh(true); emit(); } });
     return;
   }
   refresh();
