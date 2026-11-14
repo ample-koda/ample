@@ -29,7 +29,7 @@ test('#283: the same take id from the studio and from the playlist decodes once'
   assert.equal(cache.size(), 1);
 });
 
-test('#283: the playlist uses the live chain's key for a take (shared with the studio), not a second key space', () => {
+test('#283: the playlist uses the key of the live chain for a take (shared with the studio), not a second key space', () => {
   const source = readFileSync(new URL('../../app/playlist-preview.js', import.meta.url), 'utf8');
   assert.match(source, /takeCache\.getDecoded\(`chain:\$\{takeId\}`,/);
   assert.doesNotMatch(source, /playlist:\$\{/);
@@ -77,5 +77,5 @@ test('audition stops on the real song change, not on the open request', () => {
   const source = readFileSync(new URL('../../app/playlist-preview.js', import.meta.url), 'utf8');
   assert.match(source, /addEventListener\('ample:song-opened', \(\) => stopMix\(\)\)/);
   assert.doesNotMatch(source, /addEventListener\('ample:open'/);
-  assert.match(source, /await resumed;/);   // a suspended context is resumed before the source starts
+  assert.match(source, /await Promise\.race\(\[resumed,/);   // a suspended context is resumed before the source starts
 });

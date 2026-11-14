@@ -72,7 +72,7 @@ export async function playMix(lines, bars, secondsPerBar, maxSeconds = 90) {
   try { context ||= getContext(); if (context.state !== 'running') resumed = context.resume().catch(() => {}); } catch { /* no audio: the decode below reports it */ }   // started inside the click, awaited below
   try {
     const decoded = await Promise.all(chosen.map((l) => bufferOf(S.build.takes[takeBlockOf(l)])));
-    await resumed;   // a suspended shared context would play nothing while Stop is enabled
+    if (resumed) await Promise.race([resumed, new Promise((r) => setTimeout(r, 1500))]);   // never wait forever on a context the browser keeps suspended; a suspended shared context would play nothing while Stop is enabled
     if (!current()) return false;   // stopped, cleared or replaced while the takes loaded
     context ||= getContext();
     const rate = decoded[0].sampleRate, length = Math.max(1, Math.floor(seconds * rate)), start = Math.floor(from * secondsPerBar * rate);
