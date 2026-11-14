@@ -110,11 +110,15 @@ internal sealed partial class AiService
     private static DateTimeOffset? LastBraveSearchAt;
     private const int EstimatedBraveMonthlyLimit = 1000;
 
-    /// <summary>The Brave key used at search time: the project key, else the per-project environment key, else the server-wide environment key. Blank values count as not set.</summary>
+    /// <summary>
+    /// The Brave key used at search time: the project key, else the per-project environment key, else the server-wide environment key.
+    /// Blank values count as not set.
+    /// </summary>
     internal static string? ResolveBraveKey(string? projectKey, Guid projectId)
     {
         if (!string.IsNullOrWhiteSpace(projectKey)) return projectKey;
-        string? perProject = Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY_" + projectId.ToString("N", CultureInfo.InvariantCulture).ToUpperInvariant());
+        string projectName = projectId.ToString("N", CultureInfo.InvariantCulture).ToUpperInvariant();
+        string? perProject = Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY_" + projectName);
         if (!string.IsNullOrWhiteSpace(perProject)) return perProject;
         string? global = Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY");
         return string.IsNullOrWhiteSpace(global) ? null : global;
