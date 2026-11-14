@@ -134,14 +134,24 @@ async function nameExisting(typed) {
 
 export async function checkpoint() {
   const name = el('input', { placeholder: 'name (empty = "checkpoint")' });
-  const ok = await ask('Checkpoint', 'All recoverable source drafts and the current song or module are saved first. AMPLE then makes one checkpoint containing the saved work.', [{ label: 'Cancel', value: false }, { label: 'Save all work and checkpoint', value: true, primary: true }], [name]);
+  const both = el('input', { type: 'checkbox', 'aria-label': 'Also keep the state on disk first' });
+  const bothLabel = el('label', {}, [both, document.createTextNode(' Also keep the state on disk first (a checkpoint before the drafts are saved)')]);
+  const about = 'All recoverable source drafts and the current song or module are saved first. AMPLE then makes one checkpoint containing the saved work.';
+  const buttons = [{ label: 'Cancel', value: false }, { label: 'Save all work and checkpoint', value: true, primary: true }];
+  const ok = await ask('Checkpoint', about, buttons, [name, bothLabel]);
   if (!ok) return;
   // a recovery copy in this browser that differs from the file stops the checkpoint: the person chooses what happens to it, then the checkpoint goes on
+  let keptDisk = false;
   for (let round = 0; round < 20; round++) {
     try {
       // every conflict is found and decided before a single file is written: a cancel then changes nothing
       const found = await firstCheckpointDraftConflict();
       if (found) throw found;
+      // the state on disk as it is now, before the drafts are written (the checkpoint after the save follows as usual) (issue 158)
+      if (both.checked && !keptDisk) {
+        keptDisk = true;
+        await api.post('/api/history/checkpoint', { message: `${name.value.trim() || 'checkpoint'} (before saving)` });
+      }
       await (await import('./source.js')).saveRecoveryDraftsForCheckpoint();
       await saveForCheckpoint();
       const r = await api.post('/api/history/checkpoint', { message: name.value.trim() || 'checkpoint' });
@@ -449,6 +459,8 @@ export async function renderEditHistory() {
     row.onclick = async () => {
       selectedEditStep = index;
       if (index === current) { if (S.peek?.edit) await leavePeek(); renderEditHistory(); return; }
+      // a layout step (grouping, folding) has no text to show: it is undone with Undo, not previewed here (issue 154)
+      if (state.kind === 'layout') { toast('A layout step cannot be previewed here. Undo and Redo take it back and bring it again.'); return; }
       clearTimeout(editPreviewTimer);
       editPreviewTimer = window.setTimeout(async () => {
         if (S.peek?.edit && S.editPeek?.label === state.label) return;
@@ -535,12 +547,14 @@ export function renderDetail() {
   add('branch', lineName + (m.lines.find((l) => l.name === lineName && l.head === n.nodeId) ? ' (tip)' : ''));
   add('kind', n.kind);
   add('time', fmtTime(n.at));
-  add('files', String(n.files));
+  add('files', `${n.files} source files`);
   add('AMPLE Redux', n.reduxRef || '-');
   add('is', [n.nodeId === m.hereId ? 'here' : '', n.nodeId === m.studioId ? 'studio' : ''].filter(Boolean).join(', ') || '-');
   add('tags', (m.tagsAt.get(n.nodeId) || []).join(', ') || '-');
   if (S.adv) { add('id', n.nodeId); add('parent', n.parentId || '-'); }
-  box.append(kv);
+  const scope = 'A revision holds the source files of the project (songs, components, lyrics, sequences, text). '
+    + 'Audio samples and project settings are not part of it, so going back to it does not bring them back.';
+  box.append(kv, el('p', { className: 'note', textContent: scope }));
   const r = el('div', { className: 'row' });
   r.append(el('button', { textContent: 'Go here', onclick: () => goToNode(n.nodeId) }), el('button', { textContent: 'Look only', onclick: () => enterPeek(n.nodeId) }), el('button', { textContent: 'Compare...', onclick: () => compareDialog(n.nodeId, m.h.current) }));
   const r2 = el('div', { className: 'row' });
