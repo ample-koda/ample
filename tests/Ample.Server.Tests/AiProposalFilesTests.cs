@@ -225,4 +225,107 @@ public sealed class AiProposalFilesTests
             Cleanup(folder);
         }
     }
+
+    private static AiTask SavedTask(string folder, bool applying)
+    {
+        AssistantSessionStore store = new(folder);
+        AssistantSession assistant = store.Create("accept test", archiveConversation: false);
+        AiTask saved = new()
+        {
+            Request = new AiTaskRequest("modify-file", "file", "prompt", "song.amplet", "song.amplet", null, null, null, null),
+            Status = "ready",
+            SessionId = assistant.Id,
+            Applying = applying,
+        };
+        saved.Undo["notes.txt"] = "original text";
+        saved.Undo["created.txt"] = null;
+        saved.IncludedPaths.Add("samples/kick.wav");
+        store.SaveTask(saved);
+        return saved;
+    }
+
+    [Fact]
+    public async Task A_proposal_that_was_being_applied_when_the_server_stopped_is_put_back_when_it_is_read_again()
+    {
+        (ProjectSession session, string folder) = await OpenAsync();
+        try
+        {
+            await using (session)
+            {
+                AiTask saved = SavedTask(folder, applying: true);
+                await File.WriteAllTextAsync(Path.Combine(folder, "notes.txt"), "half applied text");   // what the interrupted Accept had written
+                await File.WriteAllTextAsync(Path.Combine(folder, "created.txt"), "new file");
+                Directory.CreateDirectory(Path.Combine(folder, "samples"));
+                await File.WriteAllTextAsync(Path.Combine(folder, "samples", "kick.wav"), "bytes");
+
+                AiTask task = session.Ai.GetTask(saved.Id);
+
+                Assert.Equal("original text", await File.ReadAllTextAsync(Path.Combine(folder, "notes.txt")));
+                Assert.False(File.Exists(Path.Combine(folder, "created.txt")));
+                Assert.False(File.Exists(Path.Combine(folder, "samples", "kick.wav")));
+                Assert.False(task.Applying);
+                Assert.False(task.Applied);
+                Assert.Empty(task.Undo);
+                Assert.Empty(task.IncludedPaths);
+                Assert.False(Assert.Single(new AssistantSessionStore(folder).SavedTasks(saved.SessionId!)).Applying);
+            }
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
+
+    [Fact]
+    public async Task A_proposal_that_was_not_being_applied_keeps_what_is_on_disk_when_it_is_read_again()
+    {
+        (ProjectSession session, string folder) = await OpenAsync();
+        try
+        {
+            await using (session)
+            {
+                AiTask saved = SavedTask(folder, applying: false);
+                await File.WriteAllTextAsync(Path.Combine(folder, "notes.txt"), "text of the person");
+
+                _ = session.Ai.GetTask(saved.Id);
+
+                Assert.Equal("text of the person", await File.ReadAllTextAsync(Path.Combine(folder, "notes.txt")));
+            }
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
+
+    [Fact]
+    public async Task An_accept_that_fails_half_way_puts_the_files_back_and_is_not_left_applying()
+    {
+        (ProjectSession session, string folder) = await OpenAsync();
+        try
+        {
+            await using (session)
+            {
+                await File.WriteAllTextAsync(Path.Combine(folder, "notes.txt"), "original text");
+                Directory.CreateDirectory(Path.Combine(folder, "blocked"));   // a folder where the proposal wants to write a file
+                AiTask task = TaskFor("song.amplet");
+                task.BuildStatus = "skipped";
+                task.Baseline["notes.txt"] = "original text";
+                task.Changes.Add(new AiChange { Path = "notes.txt", Before = "original text", After = "proposed text" });
+                task.Changes.Add(new AiChange { Path = "blocked", Status = "added", Before = null, After = "proposed too" });
+                session.Ai.Adopt(task);
+
+                await Assert.ThrowsAnyAsync<Exception>(async () => await session.Ai.AcceptAsync(task.Id, true, null, CancellationToken.None));
+
+                Assert.Equal("original text", await File.ReadAllTextAsync(Path.Combine(folder, "notes.txt")));
+                Assert.False(task.Applying);
+                Assert.False(task.Applied);
+                Assert.Empty(task.Undo);
+            }
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
 }

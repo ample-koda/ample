@@ -52,6 +52,9 @@ internal sealed record AssistantTaskSnapshot(
     public Dictionary<string, string?> Undo { get; init; } = new(StringComparer.Ordinal);
     public Dictionary<string, string?> Written { get; init; } = new(StringComparer.Ordinal);
     public string[] IncludedPaths { get; init; } = [];
+
+    /// <summary>Set while Accept writes the files: a task that is read back with it set was interrupted half way, and the files are put back (issue 197).</summary>
+    public bool Applying { get; init; }
     public string? SongBefore { get; init; }
 
     /// <summary>Messages that were kept for the next turn and not delivered yet: they survive a restart (issue 224).</summary>
@@ -249,6 +252,7 @@ internal sealed class AssistantSessionStore
             Undo = new(task.Undo, StringComparer.Ordinal),
             Written = new(task.Written, StringComparer.Ordinal),
             IncludedPaths = [.. task.IncludedPaths],
+            Applying = task.Applying,
             AcceptedChanges = [.. task.AcceptedChanges],
             SongBefore = task.SongBefore,
             QueuedMessages = QueuedOf(task),
