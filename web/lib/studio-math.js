@@ -145,3 +145,11 @@ export function peqResponse(frequency, params) {
   return db;
 }
 
+/**
+ * How many steps of a pattern a release of `releaseMs` covers: the pattern spreads over one bar, so a step lasts a bar divided by the
+ * number of steps, whatever the tempo and the meter are.
+ */
+export function releaseInSteps(releaseMs, tempo, beatsPerBar, steps = 16) {
+  const stepMs = (beatsPerBar * 60000) / Math.max(1, Number(tempo) || 120) / Math.max(1, steps);
+  return Math.max(0, Number(releaseMs) || 0) / stepMs;
+}

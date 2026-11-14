@@ -9,7 +9,7 @@ import { S } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
 import { onPlayer, playerState, stop as stopSong } from '../../player.js';
 import { parseRewindEvents, rewindAudio } from '../../../lib/clientside-rewind.mjs';
-import { barBeats } from '../../../lib/meter.mjs';
+import { barBeats, barMilliseconds } from '../../../lib/meter.mjs';
 
 const WIDTH = 640, HEIGHT = 120;
 const round = (n) => Math.round(n * 100) / 100;
@@ -84,7 +84,10 @@ function rewindPanel(context) {
 
   // seconds: the events are read at a "rate" of 1000, so every sample is a millisecond
   const read = () => {
-    try { return parseRewindEvents(String(context.params.events || '').replace(/^"|"$/g, ''), 1000, Math.round(240000 / tempo)).map((e) => ({ at: e.at / 1000, scratch: e.scratch / 1000, back: e.back / 1000 })); } catch { return []; }
+    try {
+      const events = String(context.params.events || '').replace(/^"|"$/g, '');
+      return parseRewindEvents(events, 1000, barMilliseconds(tempo)).map((e) => ({ at: e.at / 1000, scratch: e.scratch / 1000, back: e.back / 1000 }));
+    } catch { return []; }
   };
   const text = () => events.map(formatEvent).join('; ');
   const commit = () => {
