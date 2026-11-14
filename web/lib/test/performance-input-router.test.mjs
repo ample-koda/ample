@@ -6,10 +6,15 @@ const rig = (over = {}) => {
   const log = { launched: [], saved: 0, changed: 0 };
   const h = { isActive: true, devices: 0 };
   const state = createInputState(over.json);
-  const router = createInputRouter({ state, launch: (a) => log.launched.push(a), active: () => h.isActive, persist: () => log.saved++, onChange: () => log.changed++, deviceCount: () => h.devices });
+  const router = createInputRouter({
+    state, launch: (a) => log.launched.push(a), active: () => h.isActive, persist: () => log.saved++,
+    onChange: () => log.changed++, deviceCount: () => h.devices,
+  });
   return { state, router, log, h };
 };
-const key = (code, extra = {}) => ({ code, target: { tagName: 'DIV' }, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra });
+const key = (code, extra = {}) => ({
+  code, target: { tagName: 'DIV' }, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra,
+});
 const bindKey = (r, code, action) => { r.router.learnAction(action); return r.router.handleKey(key(code)); };
 
 test('a bound key launches once, is consumed, and repeat/modifiers/text fields do not launch', () => {
@@ -18,8 +23,12 @@ test('a bound key launches once, is consumed, and repeat/modifiers/text fields d
   const e = key('KeyQ');
   assert.equal(r.router.handleKey(e), true); assert.ok(e.prevented && e.stopped);
   assert.deepEqual(r.log.launched, [{ kind: 'clip', id: 'a' }]);
-  for (const bad of [{ repeat: true }, { ctrlKey: true }, { metaKey: true }, { altKey: true }, { shiftKey: true }, { isComposing: true }, { defaultPrevented: true },
-    { target: { tagName: 'INPUT' } }, { target: { tagName: 'textarea' } }, { target: { tagName: 'SELECT' } }, { target: { tagName: 'DIV', isContentEditable: true } }])
+  const blocked = [
+    { repeat: true }, { ctrlKey: true }, { metaKey: true }, { altKey: true }, { shiftKey: true }, { isComposing: true },
+    { defaultPrevented: true }, { target: { tagName: 'INPUT' } }, { target: { tagName: 'textarea' } },
+    { target: { tagName: 'SELECT' } }, { target: { tagName: 'DIV', isContentEditable: true } },
+  ];
+  for (const bad of blocked)
     assert.equal(r.router.handleKey(key('KeyQ', bad)), false);
   assert.equal(r.log.launched.length, 1);
   assert.equal(r.router.handleKey(key('KeyW')), false); // unbound key is left alone
@@ -65,7 +74,10 @@ test('isMappedPad: true for a bound pad and for any pad while learning, only whe
 test('learn: Escape cancels, reserved keys cannot be bound, a pad is learned too', () => {
   const r = rig();
   r.router.learnAction({ kind: 'clip', id: 'a' });
-  for (const code of ['ShiftLeft', 'ControlRight', 'Tab', 'F5', 'CapsLock', 'MetaLeft']) { assert.equal(r.router.handleKey(key(code)), false); assert.ok(r.state.waiting, code); }
+  for (const code of ['ShiftLeft', 'ControlRight', 'Tab', 'F5', 'CapsLock', 'MetaLeft']) {
+    assert.equal(r.router.handleKey(key(code)), false);
+    assert.ok(r.state.waiting, code);
+  }
   assert.equal(keyBindable('Escape'), false); assert.equal(keyBindable('Space'), true);
   r.router.handleKey(key('Escape'));
   assert.equal(r.state.waiting, null);
@@ -107,14 +119,19 @@ test('midi disconnect cancels a learn that had a device; without a device a stat
 
 test('serialization: round trip, unknown and legacy entries survive but never launch, a late load does not override', () => {
   const json = JSON.stringify({ 'note:36': { kind: 'clip', id: 'a' }, 'key:KeyQ': { kind: 'stop' }, 'note:300': { kind: 'clip', id: 'x' },
-    'pad:7': { kind: 'clip', id: 'p' }, 'note:40': { kind: 'future-thing', id: 'f' }, 'note:41': 'clip:legacy', 'key:Tab': { kind: 'stop' }, 'note:42': { kind: 'clip' } });
+    'pad:7': { kind: 'clip', id: 'p' }, 'note:40': { kind: 'future-thing', id: 'f' }, 'note:41': 'clip:legacy',
+    'key:Tab': { kind: 'stop' }, 'note:42': { kind: 'clip' } });
   const s = createInputState(json);
   assert.deepEqual(s.list().map(x => x.source).sort(), ['key:KeyQ', 'note:36']);
   assert.equal(s.lookup('note:40'), null); assert.equal(s.lookup('note:300'), null); assert.equal(s.lookup('key:Tab'), null);
   const back = JSON.parse(s.serialize());
-  assert.equal(Object.keys(back).length, 8); assert.equal(back['note:40'].kind, 'future-thing'); assert.equal(back['note:41'], 'clip:legacy');
+  assert.equal(Object.keys(back).length, 8);
+  assert.equal(back['note:40'].kind, 'future-thing');
+  assert.equal(back['note:41'], 'clip:legacy');
   assert.deepEqual(createInputState(s.serialize()).list(), s.list());
-  assert.equal(createInputState('null').list().length, 0); assert.equal(createInputState('[1,2]').list().length, 0); assert.equal(createInputState('{oops').list().length, 0);
+  assert.equal(createInputState('null').list().length, 0);
+  assert.equal(createInputState('[1,2]').list().length, 0);
+  assert.equal(createInputState('{oops').list().length, 0);
   // binding an extra's source replaces it; clear removes it
   s.listen({ kind: 'clip', id: 'n' }); s.learn('note:40');
   assert.equal(JSON.parse(s.serialize())['note:40'].kind, 'clip');

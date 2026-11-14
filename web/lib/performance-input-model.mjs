@@ -1,14 +1,19 @@
-// Pure model for Performance-mode launch input (issue 277): bindings from a MIDI note or a computer key to a launch action (clip, scene or stop), learn mode, the keyboard focus rules, and the router
+// Pure model for Performance-mode launch input (issue 277): bindings from a MIDI note or a computer key to a launch
+// action (clip, scene or stop), learn mode, the keyboard focus rules, and the router
 // that ties them together (no DOM or MIDI objects in here, so it is tested in node).
-// Sources are strings: 'note:36' (any channel; the MIDI hub filters the channel) or 'key:KeyQ'. Actions are { kind: 'clip' | 'scene' | 'stop', id? }.
+// Sources are strings: 'note:36' (any channel; the MIDI hub filters the channel) or 'key:KeyQ'. Actions are { kind:
+// 'clip' | 'scene' | 'stop', id? }.
 export const noteSource = (pitch) => `note:${pitch}`;
 export const keySource = (code) => `key:${code}`;
 export const actionKey = (a) => `${a.kind}:${a.id ?? ''}`;
-export const sourceLabel = (s) => s.startsWith('note:') ? `Note ${s.slice(5)}` : s.startsWith('key:') ? s.slice(4).replace(/^Key|^Digit/, '') : s;
+export const sourceLabel = (s) => (s.startsWith('note:')
+  ? `Note ${s.slice(5)}`
+  : s.startsWith('key:') ? s.slice(4).replace(/^Key|^Digit/, '') : s);
 
 const KINDS = new Set(['clip', 'scene', 'stop']);
 const SOURCE_RE = /^(?:note:(\d{1,3})|key:([A-Za-z0-9]+))$/;
 /** Keys that can never be bound: modifiers, focus/browser keys and Escape (which cancels learn). */
+// long-lines-ok: one regular expression that cannot be split
 const RESERVED_KEY = /^(?:(?:Shift|Control|Alt|Meta)(?:Left|Right)|Tab|CapsLock|Escape|ContextMenu|NumLock|ScrollLock|Pause|PrintScreen|F\d{1,2}|OS(?:Left|Right))$/;
 export const keyBindable = (code) => typeof code === 'string' && /^[A-Za-z0-9]+$/.test(code) && !RESERVED_KEY.test(code);
 
@@ -25,7 +30,10 @@ function cleanSource(s) {
 }
 const device = (s) => s.split(':')[0];
 
-/** True when a key event must not launch anything: repeat, modifiers, composition, an event someone else already handled, or focus in a text field. */
+/**
+ * True when a key event must not launch anything: repeat, modifiers, composition, an event someone else already
+ * handled, or focus in a text field.
+ */
 export function keyIgnored(e) {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || e.defaultPrevented) return true;
   const t = e.target, tag = (t?.tagName || '').toUpperCase();
@@ -36,13 +44,21 @@ export function createInputState(json = null) {
   const bindings = new Map();   // source -> action
   const extras = new Map();     // entries this version does not understand (other kind, odd source): kept as they are, never launched
   let waiting = null;           // action waiting for the next source
-  const sameSlot = (source, action) => { for (const [s, a] of bindings) if (actionKey(a) === actionKey(action) && device(s) === device(source)) return true; return false; };
+  const sameSlot = (source, action) => {
+    for (const [s, a] of bindings) {
+      if (actionKey(a) === actionKey(action) && device(s) === device(source)) return true;
+    }
+    return false;
+  };
   const api = {
     bindings,
     get waiting() { return waiting; },
     listen(action) { const a = cleanAction(action); waiting = a; return Boolean(a); },
     cancel() { waiting = null; },
-    /** Offers a source: binds it when an action waits (one source per action and device type, one action per source) and returns the action; otherwise null. */
+    /**
+     * Offers a source: binds it when an action waits (one source per action and device type, one action per source) and
+     * returns the action; otherwise null.
+     */
     learn(source) {
       const src = cleanSource(source);
       if (!waiting || !src) return null;
@@ -109,7 +125,10 @@ export function createInputRouter({ state, launch, active, persist = () => {}, o
       if (count > 0) hadDevices = true;
       else if (state.waiting && hadDevices) { hadDevices = false; router.cancelLearn(); }
     },
-    /** True when this pad is (or, while learning, may become) a launch pad and the workspace is showing: the Jam note listener should skip it. */
+    /**
+     * True when this pad is (or, while learning, may become) a launch pad and the workspace is showing: the Jam note
+     * listener should skip it.
+     */
     isMappedPad(pitch) { return isActive() && Boolean(state.waiting || state.lookup(noteSource(pitch))); },
   };
   return router;
