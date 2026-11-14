@@ -178,10 +178,7 @@ public sealed class LspTests
     public async Task Code_actions_offer_quick_fixes_fix_all_and_bake()
     {
         await using LspClient c = await LspClient.StartAsync();
-        string text = null!;
-        string? path = Directory.GetFiles(Path.Combine(Root.Dir, "spec-tests", "invalid"), "*.amplet").FirstOrDefault(f => Parser.Parse(File.ReadAllText(f), Root.Spec).Diagnostics.Any(d => d.Fix is not null));
-        Assert.NotNull(path);
-        text = File.ReadAllText(path);
+        string text = File.ReadAllText(Path.Combine(Root.Dir, "spec-tests", "invalid", "AMP1002-tempo-range.amplet"));
         await c.DiagnosticsAfterOpenAsync(Uri, text);
         int lines = text.Split('\n').Length;
         JsonArray actions = (JsonArray)(await c.RequestAsync("textDocument/codeAction", new { textDocument = new { uri = Uri }, range = new { start = new { line = 0, character = 0 }, end = new { line = lines, character = 0 } }, context = new { diagnostics = Array.Empty<object>() } }))!;

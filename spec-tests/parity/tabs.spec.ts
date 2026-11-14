@@ -2,11 +2,22 @@ import { test, expect, type Page } from '@playwright/test';
 import { api, freshServer, openApp } from '../../web/tests/support';
 
 // Open files as tabs (plan/editor-tabs.md, parts 2 and 3): the row, the marks, the overflow list, Save all.
-freshServer();
+// A tiny real WAV (8-bit mono, 8 kHz, 80 samples): a tab is kept only when its file really opens, so the audio tabs need audio that plays. Every byte is below 0x80, so it can be written as text.
+const tinyWav = `RIFF${String.fromCharCode(116, 0, 0, 0)}WAVEfmt ${String.fromCharCode(16, 0, 0, 0, 1, 0, 1, 0, 0x40, 0x1f, 0, 0, 0x40, 0x1f, 0, 0, 1, 0, 8, 0)}data${String.fromCharCode(80, 0, 0, 0)}${'@'.repeat(80)}`;
+freshServer({ files: { 'one.wav': tinyWav, 'two.wav': tinyWav } });
 test.beforeEach(async ({ page }) => { await openApp(page, { reset: false }); });
 
 const makeFile = (path: string, text = 'hello\n') => api('/api/file', { method: 'PUT', body: { path, text } });
-const open = (page: Page, path: string) => page.evaluate((p) => document.dispatchEvent(new CustomEvent('ample:open-file', { detail: p })), path);
+const open = (page: Page, path: string) => page.evaluate((p) => new Promise<void>((resolve) => {
+  const request = new CustomEvent('ample:open-file', { detail: p });
+  const done = (event: Event) => {
+    if ((event as CustomEvent).detail.request !== request) return;
+    document.removeEventListener('ample:open-result', done);
+    resolve();
+  };
+  document.addEventListener('ample:open-result', done);
+  document.dispatchEvent(request);
+}), path);
 
 test('the open song has a tab, and opening files adds tabs that can be switched and closed', async ({ page }) => {
   await expect(page.locator('#tabbar')).toBeVisible();
@@ -21,11 +32,14 @@ test('the open song has a tab, and opening files adds tabs that can be switched 
   await expect(page.locator('#tabbar .tab')).toHaveCount(2);
 });
 
-test('audio and image files share one tab each', async ({ page }) => {
-  await page.evaluate(() => { document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'one.wav' })); document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'two.wav' })); document.dispatchEvent(new CustomEvent('ample:open-file', { detail: 'pic.png' })); });
+test('audio files share one tab, and an image (no viewer in the studio) gets none', async ({ page }) => {
+  await open(page, 'one.wav');
+  await expect(page.locator('#tabbar .tab[data-path="one.wav"]')).toHaveCount(1);
+  await open(page, 'two.wav');
+  await open(page, 'pic.png');
   await expect(page.locator('#tabbar .tab[data-path$=".wav"]')).toHaveCount(1);
-  await expect(page.locator('#tabbar .tab[data-path="two.wav"]')).toHaveCount(1);   // the next audio file took the place of the first
-  await expect(page.locator('#tabbar .tab[data-path="pic.png"]')).toHaveCount(1);
+  await expect(page.locator('#tabbar .tab[data-path="two.wav"]')).toHaveCount(1);
+  await expect(page.locator('#tabbar .tab[data-path="pic.png"]')).toHaveCount(0);
 });
 
 test('with many tabs the row keeps to one line and the list holds all of them, with a filter', async ({ page }) => {

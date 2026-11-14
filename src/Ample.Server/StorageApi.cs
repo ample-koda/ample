@@ -39,24 +39,23 @@ internal static class StorageApi
 
     private const long GbBytes = 1024L * 1024 * 1024;
 
+    /// <summary>How many blocks a build of this project renders at once.</summary>
+    private static int Workers(ProjectSession s) => Ample.Engine.Engine.BuildParallelism.Effective(0, Ample.Engine.Engine.BuildParallelism.OfProject(s.Root));
+
     /// <summary>Works out the estimate of a build (a plan-only pass that lists the blocks that have to render) and whether it fits on the drive.</summary>
     public static async Task<BuildEstimateReport> EstimateAsync(ProjectSession s, Ample.Language.AmpleDocument parsed, IReadOnlyList<Ample.Audio.Engine.IBlockRenderer> renderers, Ample.Engine.Control.ControlService control, string intent, Ample.Engine.Engine.BarRange? range, string? only, CancellationToken ct)
     {
         Ample.Engine.Engine.BuildReport plan = await s.Engine.BuildAsync(parsed, new Ample.Engine.Engine.BuildOptions(intent, range, only, 0, renderers, null, control, null, null) { PlanOnly = true }, ct).ConfigureAwait(false);
-        Dictionary<string, string> types = [];
-        foreach (Ample.Language.BlockNode block in parsed.Blocks)
-        {
-            types[block.Name] = block.Type;
-        }
-
-        List<string> stale = [.. plan.Blocks.Where(b => b.Status == "stale").Select(b => types.GetValueOrDefault(b.Block, "mixer"))];
+        HashSet<string> rendering = [.. plan.Blocks.Where(b => BuildStats.WillRender(b.Status)).Select(b => b.Block)];   // a waiting block renders after its stale input does
+        int waiting = plan.Blocks.Count(b => b.Status == "waiting");
+        IReadOnlyList<RenderStep> steps = BuildStats.StepsOf(parsed.Blocks.Select(b => (b.Name, b.Type, (IReadOnlyList<string>)[.. b.Froms.Select(f => f.Block)])), rendering);
         double seconds = s.Engine.SongSeconds(parsed);
         if (range is { } r)
         {
             seconds = Math.Min(seconds, r.Bars * 4 * 60.0 / (parsed.Project?.Tempo ?? 92));
         }
 
-        BuildEstimate estimate = BuildStats.Load(s.Root).Estimate(stale, seconds);
+        BuildEstimate estimate = BuildStats.Load(s.Root).Estimate(steps, seconds, Workers(s));
         StorageService service = Service(s);
         long free = 0;
         try
@@ -75,6 +74,12 @@ internal static class StorageApi
         string text = estimate.Blocks == 0
             ? "Nothing to render: every block is cached."
             : $"{estimate.Blocks} block(s) to render: about {Size(estimate.Bytes)} and {BuildStats.Pretty(estimate.Seconds)} ({(estimate.Basis == "learned" ? $"from {estimate.Builds} earlier build(s)" : "a first guess, it gets better with every build")}).";
+        // a waiting block renders only if the block before it comes out different: the plan cannot know, so the numbers are the worst case
+        if (waiting > 0 && estimate.Blocks > 0)
+        {
+            text += $" {waiting} of them only render if the block before them changes the sound, so this is the most it can be.";
+        }
+
         return new BuildEstimateReport(estimate, free, reclaimable, fits, text);
     }
 
@@ -91,7 +96,19 @@ internal static class StorageApi
 
             List<(string Type, long Bytes)> rendered = [.. report.Blocks.Where(b => b.Status == "rendered" && b.TakeId is not null).Select(b => (types.GetValueOrDefault(b.Block, "mixer"), s.Bank.SizeOfTake(b.TakeId!)))];
             BuildStats stats = BuildStats.Load(s.Root);
-            stats.Record(rendered, Math.Max(1, s.Engine.SongSeconds(parsed)), elapsedSeconds, 4);
+            HashSet<string> done = [.. report.Blocks.Where(b => b.Status == "rendered").Select(b => b.Block)];
+            IReadOnlyList<RenderStep> steps = BuildStats.StepsOf(parsed.Blocks.Select(b => (b.Name, b.Type, (IReadOnlyList<string>)[.. b.Froms.Select(f => f.Block)])), done);
+            double songSeconds = Math.Max(1, s.Engine.SongSeconds(parsed));
+            List<Ample.Engine.Engine.BlockResult> renderedBlocks = [.. report.Blocks.Where(b => b.Status == "rendered" && b.TakeId is not null)];
+            if (renderedBlocks.Count > 0 && renderedBlocks.All(b => b.Seconds is not null))
+            {
+                // every block says how long it really worked: learn a pace per block type from that (waiting and the guessed concurrency play no part)
+                stats.Record([.. renderedBlocks.Select(b => (types.GetValueOrDefault(b.Block, "mixer"), s.Bank.SizeOfTake(b.TakeId!), b.Seconds!.Value))], songSeconds);
+            }
+            else
+            {
+                stats.Record(rendered, songSeconds, elapsedSeconds, stats.Concurrency(steps, Workers(s)));   // an older report has no times: how many blocks really ran at once decides how much work the elapsed time stands for
+            }
         }
         catch (Exception ex) when (ex is IOException or AmpleException)
         {

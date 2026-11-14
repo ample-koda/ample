@@ -134,6 +134,15 @@ export function parseLanes(text, channels) {
   return lanes;
 }
 
+/** The lanes text as it is written: `all` stays the token `all` (a channel added later is still in that lane). Use it for every edit that is not about that lane. */
+export const parseLanesRaw = (text) => parseLanes(text, [{ name: 'all' }]);
+
+/** The lanes after the channel `name` is switched in or out of lane `lane`: only that lane is written out as names, the others keep what the source says (including `all`). */
+export function toggleLaneChannel(text, channels, lane, name) {
+  const current = parseLanes(text, channels)[lane] ?? [];
+  return { ...parseLanesRaw(text), [lane]: current.includes(name) ? current.filter((x) => x !== name) : [...current, name] };
+}
+
 export const formatLanes = (lanes) => Object.entries(lanes).filter(([, names]) => names.length).sort((a, b) => a[0] - b[0]).map(([lane, names]) => `lane${lane}=${names.join('+')}`).join(' ');
 
 export function uniqueName(base, taken) {

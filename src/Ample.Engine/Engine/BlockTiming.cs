@@ -60,17 +60,20 @@ internal static class BlockTiming
         if (ChannelAudio.IsStereo(audio))
         {
             (StereoBuffer buffer, int sampleRate) = ChannelAudio.Decode(audio);
-            short[] left = Wav.Decode(Place(Wav.Encode(buffer.Left, sampleRate), origin, range, samplesPerBar)).Samples;
-            short[] right = Wav.Decode(Place(Wav.Encode(buffer.Right, sampleRate), origin, range, samplesPerBar)).Samples;
-            return StereoWav.Encode(new StereoBuffer(left, right), sampleRate);
+            return StereoWav.Encode(new StereoBuffer(PlaceSamples(buffer.Left, origin, range, samplesPerBar), PlaceSamples(buffer.Right, origin, range, samplesPerBar)), sampleRate);
         }
         (short[] samples, int rate) = Wav.Decode(audio);
+        return Wav.Encode(PlaceSamples(samples, origin, range, samplesPerBar), rate);
+    }
+
+    private static short[] PlaceSamples(short[] samples, int origin, BarRange range, int samplesPerBar)
+    {
         short[] placed = new short[checked(range.Bars * samplesPerBar)];
         long offset = (long)(origin - range.FirstBar) * samplesPerBar;
         int source = (int)Math.Min(samples.Length, Math.Max(0, -offset));
         int target = (int)Math.Min(placed.Length, Math.Max(0, offset));
         int count = Math.Min(samples.Length - source, placed.Length - target);
         if (count > 0) samples.AsSpan(source, count).CopyTo(placed.AsSpan(target));
-        return Wav.Encode(placed, rate);
+        return placed;
     }
 }

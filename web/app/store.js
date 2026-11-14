@@ -2,6 +2,7 @@
 // (selection, zoom, groups). Every change of the song goes through edit(), which calls the edit API.
 
 import { api, ApiError } from './api.js';
+import { readNotes } from '../lib/notes-load.mjs';
 import { stop } from './player.js';
 import { containerView, flatGraph, pruneGroups, regionReveal } from './graph.js';
 import { ask, toast } from './ui.js';
@@ -309,8 +310,7 @@ export async function setModuleLevel(length) {
   notify();
 }
 
-const notesKey = () => `ample.notes:${S.project ? S.project.id : ''}:${S.path}`;
-const notesFile = () => `notes/${S.path.replace(/[\/]/g, '_')}.notes.json`;
+const notesFile = () => notesFileFor(S.path);
 let notesTimer = 0;
 /** Block notes live in the project (notes/<song>.notes.json, written through the command bus), so they travel with the project and its history. */
 export function saveNotes() {
@@ -319,14 +319,9 @@ export function saveNotes() {
   const text = JSON.stringify(S.notes, null, 2);
   notesTimer = setTimeout(() => { api.put('/api/file', { path, text }).catch(() => {}); }, 400);
 }
-async function loadNotes() {
-  try { const file = await api.get(`/api/file?path=${encodeURIComponent(notesFile())}&optional=1`); if (file.text == null) throw new Error('no notes file yet'); S.notes = JSON.parse(file.text || '{}'); return; } catch { S.notes = {}; }
-  // Notes that an older version kept in this browser move into the project once.
-  try {
-    const old = JSON.parse(localStorage.getItem(notesKey()) || '{}');
-    if (Object.keys(old).length) { S.notes = old; saveNotes(); }
-  } catch { /* storage may be blocked */ }
-}
+const notesFileFor = (path) => `notes/${path.replace(/[\/]/g, '_')}.notes.json`;
+/** Reads the notes of one song and returns them; the caller commits them only while that song is still the one being opened. */
+const loadNotes = (path) => readNotes({ get: (url) => api.get(url), file: notesFileFor(path), legacyKey: `ample.notes:${S.project ? S.project.id : ''}:${path}`, storage: localStorage });
 
 const workKey = (path) => `ample.work:${S.project ? S.project.id : ''}:${path}`;
 let workTimer = 0, workHold = false;
@@ -453,14 +448,23 @@ export async function loadProject() {
   else notify();
 }
 
-export async function openDoc(path) {
+let openGeneration = 0;
+/** Opens a song. Returns false when the open was refused or superseded by a newer open. */
+export async function openDoc(path, stillWanted) {
   const leftPath = S.path, leftText = S.doc?.text;
-  if (path !== S.path) { const { confirmSongSwitch } = await import('./source.js'); if (!(await confirmSongSwitch(path))) return; }
+  if (path !== S.path) { const { confirmSongSwitch } = await import('./source.js'); if (!(await confirmSongSwitch(path))) return false; }
+  if (stillWanted && !stillWanted()) return false;
+  const gen = ++openGeneration;
+  const current = () => gen === openGeneration && (!stillWanted || stillWanted());
   if (path !== S.path) stopBuild();
   const doc = await api.get(`/api/doc?path=${encodeURIComponent(path)}`);
+  if (!current()) return false;   // a newer open owns the editor now
+  const loaded = await loadNotes(path).catch(() => ({ notes: {}, migrate: false }));
+  if (!current()) return false;
   S.path = path;
   S.groups = loadGroups();
-  await loadNotes();
+  S.notes = loaded.notes;
+  if (loaded.migrate) saveNotes();   // notes an older version kept in this browser move into the project once
   S.stack = ['root'];
   S.moduleStack = [];
   S.modulePath = null;
@@ -482,15 +486,19 @@ export async function openDoc(path) {
   setDoc(doc);
   const keepWorkRecord = await resumeWork(stored, doc);
   workHold = false;
+  if (!current()) return false;
   if (keepWorkRecord) persistWorkSoon();
   await restoreModuleNavigation();
   await refreshModuleGraph();
+  if (!current()) return false;
   activateHistory(false);
   notify();
   try { await api.post('/api/project/last-song', { path }); } catch (error) { toast(`Could not remember the last song: ${error.message}`); }
+  if (!current()) return false;
   document.dispatchEvent(new CustomEvent('ample:song-opened'));
   // a song that opens with errors cannot be edited as blocks: it starts in the source editor, as at the start of the app
   if (graphBroken()) { const { setView } = await import('./views.js'); if (setView('src', true)) toast('This song opened with errors that stop the blocks from being read, so it starts in the code view. Fix them to use the Blocks view.'); }
+  return true;
 }
 
 /** The browser may hold more than the saved song has after a server restart: restore undo history for identical text, otherwise require a saved-versus-recovered review. */
