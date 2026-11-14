@@ -4,6 +4,7 @@
 import { api, ApiError } from './api.js';
 import { readNotes } from '../lib/notes-load.mjs';
 import { stop } from './player.js';
+import { abortable } from '../lib/settle.mjs';
 import { containerView, flatGraph, pruneGroups, regionReveal } from './graph.js';
 import { ask, toast } from './ui.js';
 import { documentTarget, sameTarget, staleTargetMessage } from '../lib/edit-target.mjs';
@@ -827,7 +828,14 @@ export async function build(only, range, intent, forceRender) {
   notify();
   let report = null;
   try {
-    try { const inputs = await api.get(`/api/doc/inputs?path=${encodeURIComponent(S.path)}`); S.build.inputs = inputs.hash; S.build.files = inputs.blocks || S.build.files; S.build.follows = inputs.followsMaster || S.build.follows; } catch { /* the build itself checks inputs */ }
+    // the requests that prepare the build end at once when Cancel build is pressed, not when their answer arrives
+    try {
+      const request = api.get(`/api/doc/inputs?path=${encodeURIComponent(S.path)}`);
+      const inputs = await abortable(request, buildAbortController.signal);
+      S.build.inputs = inputs.hash;
+      S.build.files = inputs.blocks || S.build.files;
+      S.build.follows = inputs.followsMaster || S.build.follows;
+    } catch { /* the build itself checks inputs */ }
     buildAbortController.signal.throwIfAborted();
     if (!only && !range) {
       stop();
@@ -836,7 +844,7 @@ export async function build(only, range, intent, forceRender) {
     // a full build says first how big and how long it will be (a guess that learns); a big one asks before it starts
     if (!only && !range && intent !== 'preview') {
       try {
-        const e = await api.get(`/api/build/estimate?path=${encodeURIComponent(S.path)}`);
+        const e = await abortable(api.get(`/api/build/estimate?path=${encodeURIComponent(S.path)}`), buildAbortController.signal);
         if (e.ok && e.blocks > 0) {
           appendBuildLog(`Estimate: ${e.text}`);
           S.build.estimate = { blocks: e.blocks, seconds: e.seconds, startedAt: performance.now(), rendered: 0, nextReport: 0.25 };
