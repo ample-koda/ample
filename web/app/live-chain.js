@@ -4,6 +4,7 @@
 // Advisory like every live preview: nothing is built or written here. @ample:live-chain
 import { liveEffectGraph, decodedInput, fetchTakeAudio, prepareWorklets, decodePreviewBlob } from './studio/preview/audio.js';
 import { api } from './api.js';
+import { failedAlready } from '../lib/chain-start-guard.mjs';
 import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 import { flat, S, subscribe, subscribeSelection } from './store.js';
@@ -33,8 +34,7 @@ export const onChain = (f) => { listeners.add(f); return () => listeners.delete(
 
 const paramsOf = (id) => ({ ...(flat().nodes.find((n) => n.id === id)?.params || {}) });
 /** A volume gain written as auto(...) / fadein(...) / fadeout(...) is a number at the loop position (the server applies the curve per sample; the live graph follows it every 40 ms). */
-const withAuto = (id, params) => {
-  const s = session;
+const withAuto = (id, params, s = session) => {
   if (!s || flat().nodes.find((n) => n.id === id)?.tpl !== 'volume' || !isAutomation(params.gain)) return params;
   const db = gainAtSeconds(params.gain, s.t0 === undefined ? 0 : Math.max(0, loopPosition(s, s.context.currentTime)), barSeconds(s));
   return db === null ? params : { ...params, gain: `${Math.round(Math.max(-60, db) * 10) / 10} dB` };
@@ -192,6 +192,7 @@ export async function startChain(target) { return Boolean(await startSession(tar
  * so a failure while preparing leaves the old chain playing (with a notice). Returns the new session, or null (superseded, or failed).
  */
 async function startSession(target) {
+  let swapping = false;
   const generation = ++startGeneration, current = () => generation === startGeneration;
   pendingTarget = target;
   const plan = planNow(target);
@@ -229,12 +230,14 @@ async function startSession(target) {
     const now = planNow(target);
     if (!now.ok) { pendingTarget = null; toast(now.reason); return null; }
     if (signatureOf(now) !== mine.signature) return await startSession(target);
+    // the graph is made while the old chain still plays (it starts 80 ms ahead): if making it throws, nothing was taken away
+    try { build(mine); } catch (error) { dispose(mine); throw error; }
     // the swap: no await from here, so nothing can slip in between the old chain stopping and the new one playing
+    swapping = true;   // stopPlayer() below stops the chain's own player too, and that bumps the generation: a failure after this point still has to be reported
     stopPlayer();
     stopChain({ quiet: true });
     session = mine;
     try {
-      build(mine);
       startControls(mine);
       startAutomation(mine);
       loadTakeTimes(mine);
@@ -249,8 +252,8 @@ async function startSession(target) {
     failedStart = null; pendingTarget = null;
     return mine;
   } catch (error) {
-    if (current()) pendingTarget = null;
-    if (current()) { failedStart = { target, signature: mine.signature }; toast(error?.message || String(error)); }   // a request that was superseded stays quiet
+    if (current() || swapping) pendingTarget = null;
+    if (current() || swapping) { failedStart = { target, signature: mine.signature }; toast(error?.message || String(error)); }   // a request that was superseded stays quiet
     return null;
   }
 }
@@ -366,7 +369,7 @@ function build(s) {
       pre.fftSize = post.fftSize = 4096; pre.smoothingTimeConstant = post.smoothingTimeConstant = .7;
       input.connect(pre); out.connect(post); s.disposables.push(pre, post);
       s.spectra.set(item.id, { pre, post, preBins: new Float32Array(pre.frequencyBinCount), postBins: new Float32Array(post.frequencyBinCount), preWave: new Float32Array(2048), postWave: new Float32Array(2048) });
-      const graph = liveEffectGraph(context, input, out, item.tpl, withAuto(item.id, paramsOf(item.id)), s.tempo, s.impulses.get(item.id), clock);
+      const graph = liveEffectGraph(context, input, out, item.tpl, withAuto(item.id, paramsOf(item.id), s), s.tempo, s.impulses.get(item.id), clock);
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
@@ -571,7 +574,8 @@ subscribe(() => {
   if (session.stale) { session.stale = null; emit(); }
   if (signatureOf(plan) !== session.signature) {
     const target = pendingTarget || session.target, bypass = new Set(session.bypass);
-    if (failedStart && failedStart.target === target && failedStart.signature === signatureOf(plan)) { refresh(); return; }   // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again
+    const wanted = target === session.target ? plan : planNow(target);
+    if (wanted.ok && failedAlready(failedStart, target, signatureOf(wanted))) { refresh(); return; }   // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again
     startSession(target).then((started) => { if (started && session === started) { bypass.forEach((id) => started.bypass.add(id)); refresh(true); emit(); } });
     return;
   }

@@ -45,3 +45,19 @@ test('@audio a switch that fails while preparing leaves the old chain playing', 
   expect(await page.evaluate(() => import('/app/live-chain.js').then((m) => m.chainLevels('room')?.left ?? 0)), 'and still sounds').toBeGreaterThan(0.002);
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });
+
+test('@audio a song state that failed to start is not tried again on every change (no repeated fetch or notice)', async ({ page }) => {
+  await startedChain(page, [['convolution', 'room']]);
+  let impulseRequests = 0;
+  await page.route('**/api/effects/impulse', (route) => { impulseRequests++; return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'no impulse today' }) }); });
+  await addTemplateBlock(page, 'eq', 'after');   // a new block in the chain: the song state changes, the chain restarts, the restart fails
+  await connect(page, 'room', 'after');
+  await expect.poll(() => impulseRequests).toBeGreaterThan(0);
+  await page.waitForTimeout(800);
+  const afterFailure = impulseRequests;
+  await page.evaluate(() => import('/app/store.js').then((s) => { s.notify(); }));   // more edits of the same state
+  await page.waitForTimeout(800);
+  expect(impulseRequests, 'the failed state was not tried again').toBe(afterFailure);
+  expect(await page.evaluate(() => import('/app/live-chain.js').then((m) => m.chainActive())), 'the old chain still plays').toBe(true);
+  await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
+});
