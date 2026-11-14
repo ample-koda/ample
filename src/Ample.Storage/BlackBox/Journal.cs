@@ -256,28 +256,52 @@ public sealed class Journal : IDisposable
     {
         ArgumentNullException.ThrowIfNull(matches);
         if (maximumResults is < 1 or > 201) throw new ArgumentOutOfRangeException(nameof(maximumResults));
+        // A segment is named after the first sequence number it holds, so a segment that starts at or after the newest wanted record has nothing to offer
+        // and is not opened at all; the others are read one at a time, and the writer gets its turn between two segments instead of waiting for the whole search.
+        long upper = throughSequence < long.MaxValue ? Math.Min(beforeSequence, throughSequence + 1) : beforeSequence;
+        string[] segments;
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<JournalRecord> page = [];
-            DataCipher? cipher = Cipher();
-            IEnumerable<string> segments = fs.GetFiles(folder)
-                .Where(file => file.EndsWith(".seg", StringComparison.Ordinal))
-                .OrderByDescending(file => long.TryParse(Path.GetFileNameWithoutExtension(file), NumberStyles.None, CultureInfo.InvariantCulture, out long sequence) ? sequence : 0);
-            foreach (string segmentPath in segments)
+            segments =
+            [
+                .. fs.GetFiles(folder)
+                    .Where(file => file.EndsWith(".seg", StringComparison.Ordinal))
+                    .OrderByDescending(file => SegmentStart(file)),
+            ];
+        }
+        finally { gate.Release(); }
+
+        List<JournalRecord> page = [];
+        foreach (string segmentPath in segments)
+        {
+            if (SegmentStart(segmentPath) is long start && start > 0 && start >= upper)
             {
-                SegmentRead segmentRead = await ReadSegmentAsync(fs, segmentPath, cipher, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (!fs.FileExists(segmentPath))
+                {
+                    continue;   // compacted while the search was between two segments: its records are in a summary now
+                }
+
+                SegmentRead segmentRead = await ReadSegmentAsync(fs, segmentPath, Cipher(), cancellationToken).ConfigureAwait(false);
                 foreach (JournalRecord record in segmentRead.Records.AsEnumerable().Reverse())
                 {
                     if (record.Seq <= throughSequence && record.Seq < beforeSequence && matches(record)) page.Add(record);
                     if (page.Count == maximumResults) return page;
                 }
             }
-
-            return page;
+            finally { gate.Release(); }
         }
-        finally { gate.Release(); }
+
+        return page;
     }
+
+    private static long SegmentStart(string path) => long.TryParse(Path.GetFileNameWithoutExtension(path), NumberStyles.None, CultureInfo.InvariantCulture, out long sequence) ? sequence : 0;
 
     /// <summary>Checks checksums and the hash chain of everything that is on disk.</summary>
     public async ValueTask<VerifyReport> VerifyAsync(CancellationToken cancellationToken = default)

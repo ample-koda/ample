@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Ample.Audio.IO;
 using Ample.Core.Abstractions;
 using Ample.Storage.Projects;
@@ -74,6 +75,7 @@ public static class JournalRetention
         string folder = Path.Combine(projectRoot, ProjectLayout.AmpleFolder, "blackbox");
         List<string> segments = [.. fs.GetFiles(folder).Where(f => f.EndsWith(".seg", StringComparison.Ordinal)).Order(StringComparer.Ordinal)];
         HashSet<string> thin = new(StringComparer.Ordinal);
+        HashSet<string> candidates = new(StringComparer.Ordinal);
         Dictionary<string, List<JournalRecord>> loaded = new(StringComparer.Ordinal);
         long after = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
         int records = 0, deleted = 0;
@@ -96,6 +98,13 @@ public static class JournalRetention
             string first = (await fs.ReadAllTextAsync(summary, cancellationToken).ConfigureAwait(false)).Split('\n')[0];
             if (!thin.Contains(Path.ChangeExtension(summary, ".seg")) && Expired(first, now, settings)) { after -= FileSize(fs, summary); deleted++; }
         }
+        // the artifacts (proposal text) that only the thinned segments referred to go with them
+        HashSet<string> stillUsed = await ReferencedHashes(fs, [.. segments.Where(segment => !thin.Contains(segment))], cipher, cancellationToken).ConfigureAwait(false);
+        foreach (string artifact in FreedArtifacts(fs, folder, candidates, stillUsed))
+        {
+            after -= FileSize(fs, artifact);
+        }
+
         List<string> kept = [.. segments.Take(Math.Max(0, segments.Count - 1)).Where(protectedSegments.Contains)];
         long before = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
         return new CompactionPreview(
@@ -104,6 +113,7 @@ public static class JournalRetention
         void AddThin(string segment, List<JournalRecord> rows)
         {
             thin.Add(segment);
+            AddHashes(candidates, rows);
             records += rows.Count;
             after -= FileSize(fs, segment);
             string sum = Path.ChangeExtension(segment, ".sum");
@@ -124,6 +134,7 @@ public static class JournalRetention
         DataCipher? cipher = ProjectEncryption.CipherFor(projectRoot);
         int thinned = 0;
         int deleted = 0;
+        HashSet<string> candidates = new(StringComparer.Ordinal);
         List<string> segments = [.. fs.GetFiles(folder).Where(f => f.EndsWith(".seg", StringComparison.Ordinal)).Order(StringComparer.Ordinal)];
         HashSet<string> protectedSegments = await UnresolvedSegments(fs, segments, cipher, cancellationToken).ConfigureAwait(false);
         foreach (string seg in segments.Take(Math.Max(0, segments.Count - 1)).Where(x => !protectedSegments.Contains(x)).ToList())
@@ -131,6 +142,7 @@ public static class JournalRetention
             (List<JournalRecord> records, _, _) = await Journal.ReadSegmentAsync(fs, seg, cipher, cancellationToken).ConfigureAwait(false);
             if (records.Count > 0 && now - records[^1].At > TimeSpan.FromDays(settings.FullDetailDays))
             {
+                AddHashes(candidates, records);
                 await Thin(fs, seg, records, cancellationToken).ConfigureAwait(false);
                 segments.Remove(seg);
                 thinned++;
@@ -146,6 +158,7 @@ public static class JournalRetention
             }
 
             (List<JournalRecord> records, _, _) = await Journal.ReadSegmentAsync(fs, seg, cipher, cancellationToken).ConfigureAwait(false);
+            AddHashes(candidates, records);
             await Thin(fs, seg, records, cancellationToken).ConfigureAwait(false);
             thinned++;
             total = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
@@ -161,8 +174,68 @@ public static class JournalRetention
             }
         }
 
+        // the artifacts (proposal text) that only the thinned segments referred to are removed: nothing points at them any more
+        string[] keptSegments = [.. fs.GetFiles(folder).Where(file => file.EndsWith(".seg", StringComparison.Ordinal))];
+        HashSet<string> stillUsed = await ReferencedHashes(fs, keptSegments, cipher, cancellationToken).ConfigureAwait(false);
+        foreach (string artifact in FreedArtifacts(fs, folder, candidates, stillUsed))
+        {
+            fs.DeleteFile(artifact);
+        }
+
         total = await Size(fs, folder, cancellationToken).ConfigureAwait(false);
         return new CompactionResult(thinned, deleted, total >= WarnAtBytes(settings.BudgetBytes), total);
+    }
+
+    private static readonly Regex Sha256Text = new("[0-9a-f]{64}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>Adds the content hashes that the records name (the proposal text kept in the artifacts folder) to a set.</summary>
+    private static void AddHashes(HashSet<string> into, IEnumerable<JournalRecord> records)
+    {
+        foreach (JournalRecord record in records)
+        {
+            foreach (Match match in Sha256Text.Matches(record.PayloadJson)) into.Add(match.Value);
+            if (record.PreImageJson is not null) foreach (Match match in Sha256Text.Matches(record.PreImageJson)) into.Add(match.Value);
+        }
+    }
+
+    private static async ValueTask<HashSet<string>> ReferencedHashes(IFileSystem fs, IEnumerable<string> segments, DataCipher? cipher, CancellationToken cancellationToken)
+    {
+        HashSet<string> used = new(StringComparer.Ordinal);
+        foreach (string segment in segments)
+        {
+            (List<JournalRecord> rows, _, _) = await Journal.ReadSegmentAsync(fs, segment, cipher, cancellationToken).ConfigureAwait(false);
+            AddHashes(used, rows);
+        }
+
+        return used;
+    }
+
+    /// <summary>The artifact files that a thinned segment named and that no kept segment names: nothing points at them any more.</summary>
+    private static List<string> FreedArtifacts(IFileSystem fs, string folder, HashSet<string> candidates, HashSet<string> stillUsed)
+        => [.. ArtifactFiles(fs, folder).Where(file => candidates.Contains(Path.GetFileNameWithoutExtension(file)) && !stillUsed.Contains(Path.GetFileNameWithoutExtension(file)))];
+
+    private static IEnumerable<string> ArtifactFiles(IFileSystem fs, string folder)
+    {
+        string root = Path.Combine(folder, "artifacts");
+        Stack<string> pending = new();
+        pending.Push(root);
+        while (pending.TryPop(out string? current))
+        {
+            IReadOnlyList<string> files;
+            IReadOnlyList<string> directories;
+            try
+            {
+                files = fs.GetFiles(current);
+                directories = fs.GetDirectories(current);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                continue;   // there are no artifacts yet
+            }
+
+            foreach (string file in files) yield return file;
+            foreach (string directory in directories) pending.Push(directory);
+        }
     }
 
     private static async ValueTask Thin(IFileSystem fs, string segment, List<JournalRecord> records, CancellationToken cancellationToken)
