@@ -10,6 +10,7 @@ import { S, applyAiBuild, applyText, enterAiPeek, notify, reloadDoc, subscribe }
 import { onPlayer, playerState, stop } from './player.js';
 import { ask, el, toast } from './ui.js';
 import { registerPlaybackAudio } from './playback-volume.js';
+import { endsTracking, pillAction } from '../lib/task-pill.mjs';
 import { buildHeadline, rejectLabel, rejectQuestion, rejectedText } from '../lib/ai-review-text.mjs';
 
 /** The "Ai Assistant" lockup (icon tile + text), same neon-tube recipe as the AMPLE wordmark; used in the Assistant panel header. */
@@ -496,10 +497,12 @@ export function syncPeekBar() {
   const sendFromBar = async () => {
     const text = barInput.value.trim();
     if (!text) return;
+    if ([barHum, barOffer, barFiles].some((tray) => tray.busy?.())) { toast('Wait until the attached files are uploaded.'); return; }
     barSend.disabled = true;
     try {
       stopPreview();
-      await api.post(`/api/ai/tasks/${taskId}/message`, { text, hums: barHum.take(), offered: barOffer.take(), attachments: barFiles.take() });
+      await api.post(`/api/ai/tasks/${taskId}/message`, { text, hums: barHum.ids(), offered: barOffer.ids(), attachments: barFiles.ids() });
+      barHum.take(); barOffer.take(); barFiles.take();   // they were delivered: only now they leave the tray
       barInput.value = '';
       barStatus.textContent = 'The assistant is changing the proposal...';
       for (let i = 0; i < 1200; i++) {
@@ -568,10 +571,24 @@ export function trackTask(id) {
     try {
     let pill = document.getElementById('ai-pill');
     const requested = activeTask;
-    const t = activeTask ? await api.get(`/api/ai/tasks/${activeTask}?since=${Number.MAX_SAFE_INTEGER}&diffs=0`).catch(() => null) : null;   // the pill needs the state only, not the log or diffs
+    let t = null, failure = null;
+    if (activeTask) {
+      // the pill needs the state only, not the log or diffs
+      try { t = await api.get(`/api/ai/tasks/${activeTask}?since=${Number.MAX_SAFE_INTEGER}&diffs=0`); } catch (error) { failure = error; }
+    }
     if (activeTask !== requested) return;
     const open = document.getElementById('ai-task')?.open || document.getElementById('ai-prompt')?.open;
-    if (!t || ['rejected', 'cancelled'].includes(t.status) || t.applied || S.peek?.ai || open) { pill?.remove(); if (!t || t.applied || t.status === 'rejected') { activeTask = null; clearInterval(pillTimer); } return; }
+    const action = activeTask ? pillAction({ error: failure, task: t }) : 'gone';
+    if (action === 'reconnecting') {
+      // the task is not lost: the pill stays with what it showed, says it is reconnecting, and the next tick tries again
+      if (pill && !S.peek?.ai && !open) pill.textContent = 'AI: reconnecting... (open)';
+      return;
+    }
+    if (action !== 'show' || S.peek?.ai || open) {
+      pill?.remove();
+      if (endsTracking(action, t)) { activeTask = null; clearInterval(pillTimer); }
+      return;
+    }
     const koda = t.kind === 'koda';   // asked through Koda: its own icon and name
     const who = koda ? 'Koda' : 'AI';
     const label = ['queued', 'preparing', 'running', 'validating', 'waiting-approval'].includes(t.status) ? (t.status === 'waiting-approval' ? `${who}: waiting for your answer` : `${who}: working...`) : t.status === 'failed' ? `${who}: the task failed` : koda ? 'Koda: answer ready' : 'AI: proposal ready';
@@ -785,6 +802,7 @@ export function openAiTask(id, options = {}) {
   const sendMessage = async (prompt = msgInput.value) => {
     const text = prompt.trim();
     if (!text) return;
+    if ([msgHum, msgOffer, msgFiles].some((tray) => tray.busy?.())) { toast('Wait until the attached files are uploaded.'); return; }
     msgSend.disabled = true;
     try { await api.post(`/api/ai/tasks/${id}/message`, { text, hums: msgHum.ids(), offered: msgOffer.ids(), attachments: msgFiles.ids() }); msgHum.take(); msgOffer.take(); msgFiles.take(); msgInput.value = ''; growMsgInput(); tab = 'activity'; scrollActivity = true; shown = ''; poll(); } catch (error) { say(error); } finally { msgSend.disabled = false; msgInput.focus(); }
   };

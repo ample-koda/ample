@@ -9,8 +9,9 @@ export async function openKodaLogin() {
   const link = el('button', { type: 'button', className: 'primary', textContent: 'Link a login for Koda' });
   const cancel = el('button', { type: 'button', textContent: 'Cancel', hidden: true });
   const unlink = el('button', { type: 'button', textContent: 'Unlink', hidden: true });
-  let timer = 0;
+  let timer = 0, closed = false;
   const paint = (s) => {
+    if (closed) return;   // an answer that comes after the window was closed starts no new polling
     const waiting = s.login?.state === 'waiting';
     status.textContent = s.linked
       ? 'Koda has a login of their own. They can work at the same time as the assistant.'
@@ -32,7 +33,7 @@ export async function openKodaLogin() {
     id: 'koda-login', title: "Koda's login", width: 460, height: 320,
     content: el('div', { className: 'kl' }, [status, code, el('div', { className: 'kl-buttons' }, [link, cancel, unlink])]),
     buttons: [{ label: 'Close', value: 'close', primary: true }],
-    onClose: () => { if (timer) clearInterval(timer); },
+    onClose: () => { closed = true; if (timer) clearInterval(timer); timer = 0; },
   });
   await refresh();
   return win;
