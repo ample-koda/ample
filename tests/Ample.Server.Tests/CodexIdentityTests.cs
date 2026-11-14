@@ -5,9 +5,12 @@ using Ample.Storage.Projects;
 
 namespace Ample.Server.Tests;
 
-/// <summary>The Codex model catalog belongs to the identity that runs the task (the server account, the project identity or Koda's own login), and a sign-in that fails
-/// ends in a terminal state, releases its Codex process and can be started again at once. A fake <c>codex app-server</c> (a node script) stands in for Codex; AMPLE_HOME
-/// points at a private folder while a test runs, so nothing of the real user is read or changed.</summary>
+/// <summary>
+/// The Codex model catalog belongs to the identity that runs the task (the server account, the project identity or Koda's own login),
+/// and a sign-in that fails ends in a terminal state, releases its Codex process and can be started again at once.
+/// A fake <c>codex app-server</c> (a node script) stands in for Codex; AMPLE_HOME points at a private folder while a test runs,
+/// so nothing of the real user is read or changed.
+/// </summary>
 public sealed class CodexIdentityTests : IAsyncLifetime
 {
     private const string FakeCodex = """
@@ -24,7 +27,10 @@ public sealed class CodexIdentityTests : IAsyncLifetime
           if (m.id === undefined) return;
           const fail = (text) => send({ id: m.id, error: { message: text } });
           if (m.method === 'initialize') return mode() === 'init-fails' ? fail('init refused') : send({ id: m.id, result: {} });
-          if (m.method === 'model/list') { fs.appendFileSync(path.join(home, 'spawn.log'), 'models ' + who + '\n'); return send({ id: m.id, result: { data: [{ model: 'model-of-' + who }] } }); }
+          if (m.method === 'model/list') {
+            fs.appendFileSync(path.join(home, 'spawn.log'), 'models ' + who + '\n');
+            return send({ id: m.id, result: { data: [{ model: 'model-of-' + who }] } });
+          }
           if (m.method === 'account/read') return send({ id: m.id, result: { account: { type: 'apikey' } } });
           if (m.method === 'account/login/start') {
             if (mode() === 'login-fails') return fail('login refused');
@@ -53,9 +59,12 @@ public sealed class CodexIdentityTests : IAsyncLifetime
         string? ampleRoot = AppContext.BaseDirectory;
         while (ampleRoot is not null && !File.Exists(Path.Combine(ampleRoot, "global.json"))) ampleRoot = Path.GetDirectoryName(ampleRoot);
         projectFolder = Path.Combine(temp, "project");
-        using (OpenProject project = await ProjectStore.CreateAsync(new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), projectFolder, "codex-identity", null, CancellationToken.None)) { }
+        using (OpenProject project = await ProjectStore.CreateAsync(
+            new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), projectFolder, "codex-identity", null, CancellationToken.None)) { }
         await File.WriteAllTextAsync(Path.Combine(projectFolder, "song.amplet"), "project codex-identity\n");
-        session = await ProjectSession.OpenAsync(new ServerOptions(projectFolder, ampleRoot ?? throw new InvalidOperationException("AMPLE root not found."), LibraryHome: temp + "-library"), new EventBus(), CancellationToken.None);
+        string root = ampleRoot ?? throw new InvalidOperationException("AMPLE root not found.");
+        ServerOptions options = new(projectFolder, root, LibraryHome: temp + "-library");
+        session = await ProjectSession.OpenAsync(options, new EventBus(), CancellationToken.None);
     }
 
     public async Task DisposeAsync()
@@ -96,7 +105,11 @@ public sealed class CodexIdentityTests : IAsyncLifetime
     {
         for (int i = 0; i < 100; i++)
         {
-            if (pids.All(pid => { try { using Process p = Process.GetProcessById(pid); return p.HasExited; } catch (ArgumentException) { return true; } }))
+            if (pids.All(pid =>
+            {
+                try { using Process p = Process.GetProcessById(pid); return p.HasExited; }
+                catch (ArgumentException) { return true; }
+            }))
             {
                 return true;
             }
@@ -107,7 +120,9 @@ public sealed class CodexIdentityTests : IAsyncLifetime
         return false;
     }
 
-    private IEnumerable<int> Pids() => Log().Where(l => l.StartsWith("spawn ", StringComparison.Ordinal)).Select(l => int.Parse(l.Split(' ')[1], System.Globalization.CultureInfo.InvariantCulture));
+    private IEnumerable<int> Pids() => Log()
+        .Where(l => l.StartsWith("spawn ", StringComparison.Ordinal))
+        .Select(l => int.Parse(l.Split(' ')[1], System.Globalization.CultureInfo.InvariantCulture));
 
     [Fact]
     public async Task Models_come_from_the_identity_that_runs_the_task_and_are_forgotten_on_unlink()

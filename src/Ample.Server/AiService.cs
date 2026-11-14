@@ -1137,7 +1137,9 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
 
     private static long modelsGeneration;
 
-    /// <summary>Forgets every catalog; a fetch that started before the clear (a sign-in finished meanwhile) does not store its result.</summary>
+    /// <summary>
+    /// Forgets every catalog; a fetch that started before the clear (a sign-in finished meanwhile) does not store its result.
+    /// </summary>
     private static void ClearModels() { lock (modelsCache) { modelsCache.Clear(); modelsGeneration++; } }
 
     /// <summary>The models Codex offers and the current account's usage limits.</summary>
@@ -1150,7 +1152,13 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         JsonObject usage = new();
         JsonArray? cached = null;
         long generation;
-        lock (modelsCache) { generation = modelsGeneration; if (modelsCache.TryGetValue(cacheKey, out (JsonArray Models, DateTimeOffset At) e) && DateTimeOffset.UtcNow - e.At <= TimeSpan.FromMinutes(10)) { cached = e.Models; } }
+        lock (modelsCache)
+        {
+            generation = modelsGeneration;
+            bool fresh = modelsCache.TryGetValue(cacheKey, out (JsonArray Models, DateTimeOffset At) e)
+                && DateTimeOffset.UtcNow - e.At <= TimeSpan.FromMinutes(10);
+            if (fresh) { cached = e.Models; }
+        }
         if (cached is null)
         {
             try
@@ -1158,7 +1166,8 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
                 await using CodexRpc rpc = CodexRpc.Start(policy.CodexPath, home, s.Root, []);
                 await rpc.InitializeAsync(ct).ConfigureAwait(false);
                 JsonNode? list = await rpc.RequestAsync("model/list", new JsonObject(), TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
-                cached = [.. (list?["data"] as JsonArray ?? []).Where(m => m?["hidden"]?.GetValue<bool>() != true).Select(m => (JsonNode)new JsonObject
+                JsonArray offered = list?["data"] as JsonArray ?? [];
+                cached = [.. offered.Where(m => m?["hidden"]?.GetValue<bool>() != true).Select(m => (JsonNode)new JsonObject
                 {
                     ["id"] = m!["model"]?.GetValue<string>() ?? m["id"]?.GetValue<string>(),
                     ["name"] = m["displayName"]?.GetValue<string>(),
@@ -1493,7 +1502,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
         try
         {
             await rpc.InitializeAsync(ct).ConfigureAwait(false);
-            answer = await rpc.RequestAsync("account/login/start", new JsonObject { ["type"] = "chatgptDeviceCode" }, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+            JsonObject start = new() { ["type"] = "chatgptDeviceCode" };
+            answer = await rpc.RequestAsync("account/login/start", start, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1579,7 +1589,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
         try
         {
             await rpc.InitializeAsync(ct).ConfigureAwait(false);
-            answer = await rpc.RequestAsync("account/login/start", new JsonObject { ["type"] = "chatgptDeviceCode" }, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+            JsonObject start = new() { ["type"] = "chatgptDeviceCode" };
+            answer = await rpc.RequestAsync("account/login/start", start, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
