@@ -581,11 +581,15 @@ async function contextMenu(event, item) {
   ]);
 }
 
+let refreshGeneration = 0;   // a newer refresh makes the answer of an older one stale
+
 export async function refreshProjectPanel() {
   const host = $('#project-panel-content');
   if (!host) return;
   usageCache.clear(); hashCache.clear();
+  const mine = ++refreshGeneration, asked = folder;
   const response = await api.get(`/api/project/tree?path=${encodeURIComponent(folder)}&depth=1${hiddenQuery()}`);
+  if (mine !== refreshGeneration || asked !== folder) return;   // another folder was opened meanwhile: the list must match the breadcrumb
   baseItems = response.children;
   items = baseItems;
   await refreshProjectTree();
@@ -763,11 +767,13 @@ export function initProjectPanel() {
       },
     });
   }
+  // the list is drawn into its own container: the panel around it (toolbar, tree) is left as it is (issue 94)
+  const redraw = () => renderContents($('#project-panel-content') ?? host);
   host.addEventListener('keydown', (event) => {
     if (event.target.closest?.('input, textarea, select')) return;
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') { event.preventDefault(); selectedPaths = new Set(items.filter(matches).map((entry) => entry.path)); renderContents(host); return; }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') { event.preventDefault(); selectedPaths = new Set(items.filter(matches).map((entry) => entry.path)); redraw(); return; }
     if (event.altKey && event.key === 'ArrowUp' && folder) { event.preventDefault(); folder = parentFolder(folder); saveState(); refreshProjectPanel().catch((error) => toast(error.message)); return; }
-    if (event.key === 'Escape' && selectedPaths.size) { selectedPaths = new Set(); anchor = ''; renderContents(host); return; }
+    if (event.key === 'Escape' && selectedPaths.size) { selectedPaths = new Set(); anchor = ''; redraw(); return; }
     if (event.key === 'Delete' && selectedPaths.size > 1) { event.preventDefault(); deleteGroup(selectedItems()); }
   });
   if (treeHost) {
