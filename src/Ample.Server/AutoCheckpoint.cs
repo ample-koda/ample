@@ -53,6 +53,29 @@ internal sealed partial class AutoCheckpoint : IDisposable
         }
     }
 
+    /// <summary>
+    /// Saves the working copy of a text file that is not a song (a component, a lyric, a sequence, plain text)
+    /// with the same protection as a song:
+    /// with the setting on, a checkpoint of the files as they are on disk, the save, and a checkpoint named after what changed.
+    /// </summary>
+    internal async Task SaveTextAsync(string path, string reason, bool suppressCheckpoint, CancellationToken cancellationToken)
+    {
+        bool on = Read(session.Root).Enabled && !suppressCheckpoint;
+        (string text, string before, _, _) = session.Texts.Get(path);
+        if (on)
+        {
+            string message = "Before " + reason.ToLowerInvariant() + " of " + path;
+            await session.History.CheckpointAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
+        await session.Texts.SaveAsync(path, cancellationToken).ConfigureAwait(false);
+        if (on)
+        {
+            await session.History.CheckpointAsync(NameOf(reason, path, before, text), cancellationToken).ConfigureAwait(false);
+            session.Events.Publish("history.changed", new { kind = "checkpoint" });
+        }
+    }
+
     /// <summary>A name that says what changed: the blocks that were added or removed, otherwise the number of lines.</summary>
     internal static string NameOf(string reason, string path, string before, string after)
     {
@@ -101,6 +124,12 @@ internal sealed partial class AutoCheckpoint : IDisposable
                 await SaveAsync(d, "Autosave", false, CancellationToken.None).ConfigureAwait(false);
                 d.Version++;
                 session.Events.Publish("doc.changed", new { d.Path, d.Version });
+            }
+
+            // the other editable files (components, lyrics, sequences, text) are protected like the songs
+            foreach (string path in session.Texts.Dirty())
+            {
+                await SaveTextAsync(path, "Autosave", false, CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or AmpleException)

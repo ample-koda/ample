@@ -45,7 +45,23 @@ public sealed record CleanupPlan(IReadOnlyList<string> Nodes, IReadOnlyList<stri
 /// <summary>History: lines, checkpoints, tags, fork, go, peek, promote, drop and cleanup. Snapshots store file contents in the takebank (deduplicated); every change goes through the command bus, so the black box sees it. Nothing reachable from a tag or an active line is ever removed.</summary>
 public sealed class HistoryService
 {
-    private static readonly string[] SourcePatterns = [".amplet", ".amplec", ".amplelrc", ".lrc", ".chordpro", ".lyr", ".chords", ".txt", ".md", ".csv", ".json", ".seq", ".ampleseq"];
+    private static readonly string[] SourcePatterns =
+    [
+        ".amplet",
+        ".module",
+        ".amplec",
+        ".amplelrc",
+        ".lrc",
+        ".chordpro",
+        ".lyr",
+        ".chords",
+        ".txt",
+        ".md",
+        ".csv",
+        ".json",
+        ".seq",
+        ".ampleseq",
+    ];
     private readonly IFileSystem fs;
     private readonly IClock clock;
     private readonly string root;
@@ -252,6 +268,18 @@ public sealed class HistoryService
         LineInfo source = LineOf(from);
         LineOf(to);
         Quality.QualityService.Enforce(root, bank, clock, "promote");
+        if (CurrentLine == to && await IsDirtyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // the line that is replaced is the one that is open: its files are overwritten below,
+            // so what is not saved yet goes into its history first
+            string message = "automatic checkpoint before promote " + from;
+            await bus.RunWithStartRecordAsync(
+                "history.checkpoint",
+                Json(new { message, line = CurrentLine, auto = true }),
+                async start => await AdvanceAsync(CurrentLine, "auto", message, null, start.Seq, cancellationToken).ConfigureAwait(false),
+                cancellationToken).ConfigureAwait(false);
+        }
+
         NodeInfo? made = null;
         await bus.RunWithStartRecordAsync("history.promote", Json(new { from, to, changes = PreviewPromote(from, to).Count }), async start =>
         {
@@ -529,22 +557,66 @@ public sealed class HistoryService
             }
         }
 
-        foreach ((string path, string id) in target)
+        // the files are written and deleted one by one: when one fails, the ones that were already changed are put back,
+        // so a failed switch leaves the project as it was and not a mixture of two versions
+        List<(string Path, string? Before)> changed = [];
+        try
         {
-            if (!working.TryGetValue(path, out (string Id, string Text) w) || w.Id != id)
+            foreach ((string path, string id) in target)
             {
-                await using Stream s = bank.OpenData(id);
-                using StreamReader reader = new(s, Encoding.UTF8);
-                await bus.ExecuteAsync(new WriteFileCommand(path, await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false)), cancellationToken).ConfigureAwait(false);
+                if (!working.TryGetValue(path, out (string Id, string Text) w) || w.Id != id)
+                {
+                    await using Stream s = bank.OpenData(id);
+                    using StreamReader reader = new(s, Encoding.UTF8);
+                    changed.Add((path, working.TryGetValue(path, out (string Id, string Text) before) ? before.Text : null));
+                    string text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                    await bus.ExecuteAsync(new WriteFileCommand(path, text), cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // a module is never deleted by going back: a revision made before modules were part of the history
+            // cannot tell "no module" from "not recorded"
+            IEnumerable<string> gone = working.Keys.Where(
+                p => !target.ContainsKey(p) && !p.EndsWith(".module", StringComparison.OrdinalIgnoreCase));
+            foreach (string path in gone)
+            {
+                changed.Add((path, working[path].Text));
+                await bus.ExecuteAsync(new DeleteFileCommand(path), cancellationToken).ConfigureAwait(false);
             }
         }
-
-        foreach (string path in working.Keys.Where(p => !target.ContainsKey(p)))
+        catch
         {
-            await bus.ExecuteAsync(new DeleteFileCommand(path), cancellationToken).ConfigureAwait(false);
+            await PutBackAsync(changed).ConfigureAwait(false);
+            throw;
         }
 
         _ = context;
+    }
+
+    /// <summary>
+    /// Puts back the files that a failed restore had already changed: the earlier text, or removed when the file was new.
+    /// </summary>
+    private async ValueTask PutBackAsync(List<(string Path, string? Before)> changed)
+    {
+        for (int i = changed.Count - 1; i >= 0; i--)
+        {
+            (string path, string? before) = changed[i];
+            try
+            {
+                if (before is null)
+                {
+                    await bus.ExecuteAsync(new DeleteFileCommand(path), CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    await bus.ExecuteAsync(new WriteFileCommand(path, before), CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or AmpleException)
+            {
+                // best effort: the original error is the one that is reported
+            }
+        }
     }
 
     private SqliteConnection Connect() => TakeDatabase.Open(dbPath);

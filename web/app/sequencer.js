@@ -11,7 +11,9 @@ import { clipTickAt } from '../lib/song-follow.mjs';
 import { notesIn, thumbRects } from '../lib/seq-notes.mjs';
 import { activeChannels } from '../lib/seq-activity.mjs';
 import { gmProgramName, parseGmProgram } from '../lib/gm-programs.mjs';
+import { afterRestore, afterSavedWrite, afterStagedWrite, mayWrite, needsRestore, playPlan } from '../lib/seq-writes.mjs';
 import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } from './store.js';
+import { takeFromReport } from '../lib/build-report-take.mjs';
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
 import { lostAnything, lossText, restoreLost, sequenceLoss } from '../lib/seq-loss.mjs';
 import { V, registerView, setView } from './views.js';
@@ -37,6 +39,8 @@ const COLORS = ['#e8505b', '#f2994a', '#f2c94c', '#6fcf97', '#56ccf2', '#7c83fd'
 const dirty = () => !!Q.seq && formatSeq(Q.seq) !== Q.snapshot;
 /** Differs from the version the editor was opened on (or last saved): staged edits, or text that Play/Build/live-swap already wrote out. */
 const changed = () => !!Q.seq && (formatSeq(Q.seq) !== Q.original || Q.snapshot !== Q.original);
+/** The song is read-only, or this block carries the lock flag (also when it was locked after the workspace opened). */
+const isLocked = () => readOnly() || !!node()?.flags.includes('lock');
 const colorOf = (index) => COLORS[index % COLORS.length];
 
 /** Opens the workspace for a sequencer block; it asks for a file first when the block has none. */
@@ -117,7 +121,7 @@ export function initSequencer() {
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
     if (target?.closest?.('.mls-panel')) return;   // AMPLE Jam of a row keeps its own undo
     const key = event.key.toLowerCase();
-    const locked = readOnly() || !!node()?.flags.includes('lock');
+    const locked = isLocked();
     if ((event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y')) {
       event.preventDefault(); event.stopPropagation();
       if (key === 'y' || event.shiftKey) redoEdit(); else undoEdit();
@@ -129,10 +133,9 @@ export function initSequencer() {
   typedProbe(() => V.mode === 'seq' && dirty());
   // what is saved is the new baseline Revert goes back to
   beforeSave(async () => {
-    if (V.mode !== 'seq' || !Q.seq) return;
+    if (V.mode !== 'seq' || !Q.seq || isLocked()) return;
     if (dirty()) await writeFile();
-    Q.original = Q.snapshot;
-    Q.wroteLive = false;
+    Object.assign(Q, afterSavedWrite(Q, Q.snapshot));
   });
   onRevert({ can: () => V.mode === 'seq' && changed(), run: revertSequence });
   subscribe(() => { if (V.mode === 'seq' && !Q.busy) { const lanes = $('#sq-lanes'); if (lanes) paintLanes(lanes); } });
@@ -143,12 +146,13 @@ export function initSequencer() {
  * so the original text is on disk again.
  */
 async function restoreWritten() {
-  if (Q.snapshot === Q.original && !Q.wroteLive) return;
+  if (!needsRestore(Q)) return;
+  if (!mayWrite({ locked: isLocked() })) return;
   if (Q.embedded) {
     const line = headerLineOf(Q.blockId);
     if (line !== undefined) await applyText(withEmbedded(S.doc.text, line, Q.original));
   } else await api.put('/api/file', { path: Q.path, text: Q.original });
-  Q.snapshot = Q.original; Q.wroteLive = false; refreshInputs().catch(() => {});
+  Object.assign(Q, afterRestore(Q)); refreshInputs().catch(() => {});
 }
 
 /**
@@ -164,11 +168,16 @@ async function revertSequence() {
   render(); refreshSaveControls(); scheduleLive(); toast('Reverted the sequence to the saved version.');
 }
 
-async function writeFile() {
+/**
+ * Writes the sequence out. A staged write (Play, Build, Live) is marked, so Undo and Revert put the saved text back;
+ * any other write is a save and becomes the text they go back to. A locked block is never written.
+ */
+async function writeFile(staged = false) {
+  if (!mayWrite({ locked: isLocked() })) throw new Error('This block is locked: the sequence is not written.');
   const text = formatSeq(Q.seq);
   if (Q.embedded) { const line = headerLineOf(Q.blockId); if (line === undefined || !(await applyText(withEmbedded(S.doc.text, line, text)))) throw new Error('The sequence could not be written into the song.'); }
   else await api.put('/api/file', { path: Q.path, text });
-  Q.snapshot = text;
+  Object.assign(Q, staged ? afterStagedWrite(Q, text) : afterSavedWrite(Q, text));
   await refreshInputs().catch(() => {});
   refreshSaveControls();
 }
@@ -241,6 +250,7 @@ const lanesNow = () => parseLanes((node()?.params.lanes ?? '').replace(/^"|"$/g,
 const lanesRawNow = () => parseLanesRaw((node()?.params.lanes ?? '').replace(/^"|"$/g, ''));
 
 async function setLanes(lanes) {
+  if (isLocked()) { toast('This block is locked: its lanes cannot be changed.'); return; }
   const text = formatLanes(lanes);
   await edit([text ? { type: 'setParameter', block: Q.blockId, name: 'lanes', value: text } : { type: 'removeParameter', block: Q.blockId, name: 'lanes' }]);
 }
@@ -259,6 +269,7 @@ async function leave(applyIt) {
   if (applyIt && Q.error) { toast('Fix the file first: ' + Q.error); return; }
   const undoChoices = [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }];
   if (applyIt) {
+    if (dirty() && isLocked()) { toast('This block is locked: the changes are not written.'); return; }
     if (dirty()) await writeFile();
   } else if (changed() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', undoChoices))) return;
   stopLoopPlayer();
@@ -402,15 +413,16 @@ function setPlayMode(mode) {
 /** Makes sure there is a take of the block that matches the file: writes the file and builds the block when something changed. */
 async function ensureTake() {
   while (Q.liveBusy) await new Promise((r) => setTimeout(r, 100));   // a background build of the same block finishes first
-  if (Q.builtTake && !Q.stale) return Q.builtTake;
+  const plan = playPlan({ locked: isLocked(), hasTake: !!Q.builtTake, stale: Q.stale });
+  if (plan === 'reuse') return Q.builtTake;
   Q.busy = true;
   try {
-    await writeFile();
-    await build(Q.blockId);
-    const take = S.build.takes?.[Q.blockId];
-    if (!take) throw new Error('The block could not be built. See the build log.');
-    Q.builtTake = take; Q.stale = false;
-    return take;
+    if (plan === 'write-and-build') await writeFile(true);
+    // the take of THIS build: the store still holds the take of an earlier build, which a failed or cancelled build must not hand back
+    const made = takeFromReport(await build(Q.blockId), Q.blockId);
+    if (!made.ok) { Q.stale = true; throw new Error(made.message); }
+    Q.builtTake = made.take; Q.stale = false;
+    return made.take;
   } finally { Q.busy = false; }
 }
 
@@ -450,11 +462,20 @@ function setStatus(text) {
 let liveTimer = 0;
 function scheduleLive() {
   clearTimeout(liveTimer);
-  if (!Q.live || !loopState().playing) return;
+  if (!Q.live || !loopState().playing || isLocked()) return;
   liveTimer = setTimeout(() => liveSwap().catch((e) => { setStatus('the new version could not be built'); toast(e.message || String(e)); }), 700);
 }
 
-const liveSwap = createLiveSwap({ state: Q, isPlaying: () => loopState().playing, write: () => writeFile(), build: () => build(Q.blockId), takeOf: () => S.build.takes?.[Q.blockId], swap: (take) => swapTake(take), setStatus: (text) => setStatus(text) });
+let liveReport = null;   // the report of the live build that just ran: the take comes from it, not from an earlier build
+const liveSwap = createLiveSwap({
+  state: Q,
+  isPlaying: () => loopState().playing,
+  write: () => writeFile(true),
+  build: async () => { liveReport = await build(Q.blockId); },
+  takeOf: () => takeFromReport(liveReport, Q.blockId).take,
+  swap: (take) => swapTake(take),
+  setStatus: (text) => setStatus(text),
+});
 
 let tickFrame = 0;
 function startTick() {
@@ -1002,7 +1023,7 @@ function paintLanes(host) {
   host.innerHTML = '';
   const lanes = lanesNow();
   host.append(el('h4', { textContent: 'Lanes', style: 'padding:0 0 4px' }), el('p', { className: 'note', textContent: 'Every channel is in the mix. A lane is an extra output of the block that carries the channels you pick; connect it to any block, or render it to a file.' }));
-  const locked = readOnly();
+  const locked = isLocked();
   for (let n = 1; n <= 8; n++) {
     const names = lanes[n] ?? [];
     const row = el('div', { className: 'sqlane' });
@@ -1018,10 +1039,10 @@ function paintLanes(host) {
 }
 
 async function renderLane(n) {
-  if (dirty()) await writeFile();
-  await build(Q.blockId);
-  const take = S.build.takes?.[Q.blockId];
-  if (!take) { toast('The block could not be built.'); return; }
+  if (dirty() && !isLocked()) await writeFile(true);
+  const laneTake = takeFromReport(await build(Q.blockId), Q.blockId);
+  if (!laneTake.ok) { toast(laneTake.message); return; }
+  const take = laneTake.take;
   const name = el('input', { value: `${Q.blockId}-lane${n}`, 'aria-label': 'File name without extension' });
   const folder = el('input', { value: 'renders', 'aria-label': 'Project folder' });
   const format = el('select', { 'aria-label': 'Format' }, [el('option', { value: 'wav', textContent: 'WAV' }), el('option', { value: 'mp3', textContent: 'MP3' })]);

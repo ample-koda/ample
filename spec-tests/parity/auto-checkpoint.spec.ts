@@ -33,6 +33,52 @@ test('unsaved changes are saved on their own after the interval, with checkpoint
   expect((await messages()).some((m) => m.startsWith('Autosave song.amplet'))).toBe(true);
 });
 
+test('saving a text file gets the same checkpoints as a song (issue 153)', async ({ page }) => {
+  await openApp(page, { reset: false });
+  await api('/api/project/auto-checkpoint', { method: 'POST', body: { enabled: true, minutes: 5 } });
+  await api('/api/file', { method: 'PUT', body: { path: 'notes.txt', text: 'first
+' } });
+  await api('/api/wc', { method: 'PUT', body: { path: 'notes.txt', text: 'first
+second
+' } });
+  await api('/api/wc/save', { method: 'POST', body: { path: 'notes.txt' } });
+  const names = await messages();
+  expect(names.some((m) => m.startsWith('Before saved of notes.txt'))).toBe(true);
+  expect(names.some((m) => m.startsWith('Saved notes.txt'))).toBe(true);
+  expect((await api('/api/file?path=notes.txt')).text).toBe('first
+second
+');
+});
+
+test('a save of a text file with the setting off makes no checkpoint, and suppressCheckpoint skips it', async ({ page }) => {
+  await openApp(page, { reset: false });
+  await api('/api/project/auto-checkpoint', { method: 'POST', body: { enabled: false, minutes: 5 } });
+  const before = (await messages()).length;
+  await api('/api/wc', { method: 'PUT', body: { path: 'notes.txt', text: 'off
+' } });
+  await api('/api/wc/save', { method: 'POST', body: { path: 'notes.txt' } });
+  expect((await messages()).length).toBe(before);
+  await api('/api/project/auto-checkpoint', { method: 'POST', body: { enabled: true, minutes: 5 } });
+  const counted = (await messages()).length;
+  await api('/api/wc', { method: 'PUT', body: { path: 'notes.txt', text: 'quiet
+' } });
+  await api('/api/wc/save', { method: 'POST', body: { path: 'notes.txt', suppressCheckpoint: true } });
+  expect((await messages()).length).toBe(counted);
+});
+
+test('unsaved changes of a text file are autosaved too @slow', async ({ page }) => {
+  test.setTimeout(150_000);
+  await openApp(page, { reset: false });
+  await api('/api/project/auto-checkpoint', { method: 'POST', body: { enabled: true, minutes: 1 } });
+  await api('/api/file', { method: 'PUT', body: { path: 'auto.txt', text: 'one
+' } });
+  await api('/api/wc', { method: 'PUT', body: { path: 'auto.txt', text: 'one
+two
+' } });
+  await expect.poll(async () => (await api('/api/wc?path=auto.txt')).dirty, { timeout: 120_000 }).toBe(false);
+  expect((await messages()).some((m) => m.startsWith('Autosave auto.txt'))).toBe(true);
+});
+
 test('the project settings have the switch and the slider with logical steps', async ({ page }) => {
   await openApp(page, { reset: false });
   await page.locator('#open-settings').click();

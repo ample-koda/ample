@@ -1,6 +1,7 @@
 // Koda, the small helper of AMPLE (plan/pet): one floating layer above the page with the note, its bubbles and its presence (visible, hiding, hidden, peeking, appearing, muted). Koda speaks only when asked: a block,
 // a piece of code or a field is the subject; what AMPLE can tell by itself is told at once, the rest goes to the backend (koda-backend.js). Nothing here changes the project except an accepted draft. @ample:koda
 import { S, applyText, flat, subscribe, undo, redo } from './store.js';
+import { foldAssistantSteps } from '../lib/live-undo.mjs';
 import { $, el, showMenu, toast } from './ui.js';
 import { currentPower, loadModels, menuItems, onModelChange, summary } from './koda-model.js';
 import { Koda } from './koda-art.js';
@@ -119,9 +120,9 @@ const lockRisk = () => { me.locked = true; paintRisk(); };
 
 // Bare metal, the live view: the song follows what the model makes, edit by edit; the steps in between are folded into one undo step when it is done,
 // and what the person changes meanwhile is handed to the model (koda-server.js tellUserEdit).
-const live = { running: false, applying: false, known: '', start: null, did: false };
+const live = { running: false, applying: false, known: '', start: null, firstUser: null, did: false };
 setLiveHooks({
-  start() { live.running = true; live.known = activeText(); live.start = null; live.did = false; },
+  start() { live.running = true; live.known = activeText(); live.start = null; live.firstUser = null; live.did = false; },
   async show(text) {
     if (live.start === null) live.start = S.undo.length;
     live.applying = true;
@@ -131,14 +132,20 @@ setLiveHooks({
   paused() { toast(tx('bare.paused')); },
   end() {
     live.running = false;
-    if (live.start !== null && S.undo.length > live.start + 1) S.undo.splice(live.start + 1);   // one undo step for everything Koda did while it worked
-    live.start = null;
+    // one undo step for what Koda did while it worked; what the person edited meanwhile stays, each edit undoable on its own
+    if (live.start !== null) S.undo.splice(0, S.undo.length, ...foldAssistantSteps(S.undo, live.start, live.firstUser));
+    live.start = null; live.firstUser = null;
   },
 });
 subscribe(() => {
   if (!live.running || live.applying) return;
   const now = activeText();
-  if (now !== live.known) { const was = live.known; live.known = now; tellUserEdit(was, now); }
+  if (now !== live.known) {
+    const was = live.known;
+    live.known = now;
+    if (live.firstUser === null) live.firstUser = S.undo.length - 1;   // the entry of this edit is the last one
+    tellUserEdit(was, now);
+  }
 });
 
 /** The note at the edge (Koda is away): drag it along the edge to move it, and pull it far enough from the edge to bring Koda out where you let go. */
