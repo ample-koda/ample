@@ -348,4 +348,35 @@ public sealed class HistoryTests
             }
         }
     }
+
+    [Fact]
+    public async Task A_name_that_is_both_a_line_and_a_tag_is_not_guessed_and_can_be_qualified()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "song"), ("a.txt", "A1"));
+        string first = r.History.LineOf("garage").Head;
+        r.Write("a.txt", "A2");
+        NodeInfo second = (await r.History.CheckpointAsync("second state"))!;
+        await r.History.ForkAsync("x", first);
+        await r.History.TagAsync("x", second.NodeId, "the second state");
+
+        AmpleException ambiguous = Assert.Throws<AmpleException>(() => r.History.Resolve("x"));
+        Assert.Equal("AMP5243", ambiguous.DiagnosticCode);
+        Assert.Contains("line:x", ambiguous.Message);
+        Assert.Equal(first, r.History.Resolve("line:x").NodeId);
+        Assert.Equal(second.NodeId, r.History.Resolve("tag:x").NodeId);
+        Assert.Equal(first, r.History.Resolve(first).NodeId);
+        Assert.Equal("AMP5243", Assert.Throws<AmpleException>(() => r.History.Resolve("tag:nothing")).DiagnosticCode);
+        Assert.Equal("AMP5243", Assert.Throws<AmpleException>(() => r.History.Resolve("line:nothing")).DiagnosticCode);
+    }
+
+    [Fact]
+    public async Task A_line_and_a_tag_with_the_same_name_at_the_same_revision_resolve_to_it()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "song"));
+        string head = r.History.LineOf("garage").Head;
+        await r.History.ForkAsync("same", head);
+        await r.History.TagAsync("same", head, "here");
+
+        Assert.Equal(head, r.History.Resolve("same").NodeId);
+    }
 }
