@@ -470,6 +470,9 @@ internal sealed class AiTask
 
     public bool Applied { get; set; }
 
+    /// <summary>True from the moment Accept starts to write until it has finished or has put everything back; it is saved with the task, so a crash in between is recovered (issue 197).</summary>
+    public bool Applying { get; set; }
+
     public string ContextToken { get; } = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
 
     public string BaseUrl { get; set; } = string.Empty;
@@ -2062,6 +2065,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                     foreach ((string path, string? before) in saved.Undo ?? []) task.Undo[path] = before;
                     foreach ((string path, string? hash) in saved.Written ?? []) task.Written[path] = hash;
                     task.IncludedPaths.AddRange(saved.IncludedPaths ?? []);
+                    task.Applying = saved.Applying;
                     task.SongBefore = saved.SongBefore;
                     if (saved.QueuedMessages is { Length: > 0 })
                     {
@@ -2073,6 +2077,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
                     task.LogAdded = AppendTaskLog;
                     foreach (AiLog line in sessionStore.SavedLog(session.Id, saved.Id)) task.AddRestored(line);
+                    if (task.Applying && !task.Applied)
+                    {
+                        RecoverInterruptedAccept(task);
+                    }
                     if (interrupted && saved.Status != "interrupted") task.Add("warn", "The server restarted while Codex was working. The temporary proposal was kept; resume this task to continue.");
                     tasks[task.Id] = task;
                     sessionStore.UpdateTask(task, touch: false);
@@ -5741,17 +5749,30 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         NodeInfo? checkpoint = await s.History.CheckpointAsync("Before AI change: " + (task.Request.Prompt.Length > 60 ? task.Request.Prompt[..60] + "…" : task.Request.Prompt), ct).ConfigureAwait(false);
         string historyRevision = (checkpoint ?? s.History.Node(s.History.LineOf(s.History.CurrentLine).Head)).NodeId;
-        string? songText = await WriteAcceptedFilesAsync(task, chosen, moves, ct).ConfigureAwait(false);
+        string? songText;
         bool songWritten;
         try
         {
-            songWritten = await WriteSongNotOpenAsync(task, songText, activeSong, ct).ConfigureAwait(false);
+            await BeginApplyAsync(task, chosen, ct).ConfigureAwait(false);
+            songText = await WriteAcceptedFilesAsync(task, chosen, moves, ct).ConfigureAwait(false);
+            try
+            {
+                songWritten = await WriteSongNotOpenAsync(task, songText, activeSong, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await RollbackWrittenAsync(task, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
         }
         catch
         {
-            await RollbackWrittenAsync(task, CancellationToken.None).ConfigureAwait(false);
+            task.Applying = false;   // everything is back as it was (or nothing was written): the proposal can be accepted again
+            sessionStore.SaveTask(task);
             throw;
         }
+
+        task.Applying = false;
 
         if (songWritten) songText = null;
         RecordWritten(task);
@@ -5769,6 +5790,92 @@ Answer in English, whatever language the question is in, unless the user asks fo
             ["song"] = task.Request.Song, ["songText"] = songText, ["songWritten"] = songWritten,
             ["others"] = others, ["invalid"] = invalid,
         };
+    }
+
+    /// <summary>
+    /// The first step of Accept, before anything is written: everything that can be known is checked (the paths, the audio that comes along), the text every file has now is
+    /// kept as its preimage, the files that will be new are listed, and the task is saved as "applying". A crash after this point is recovered when the task is read back (issue 197).
+    /// </summary>
+    private async Task BeginApplyAsync(AiTask task, string[] chosen, CancellationToken ct)
+    {
+        Dictionary<string, string?> preimages = new(StringComparer.Ordinal);
+        foreach (AiChange c in task.Changes.Where(c => !(c.Path == task.Request.Song && c.After is not null)))
+        {
+            string full = ProjectPath.Resolve(s.Root, c.Path);
+            preimages[c.Path] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
+        }
+
+        List<string> comingAlong = [];
+        foreach (OfferedFile o in task.Offered.Where(o => chosen.Contains(o.Id)))
+        {
+            if (!File.Exists(ProjectPath.Resolve(s.Root, o.ProjectPath)))
+            {
+                _ = AttachmentFile(o.Id);   // the audio that comes along must still be there: this says so before anything is written
+                comingAlong.Add(o.ProjectPath);
+            }
+        }
+
+        foreach (string rel in StagedBinaries(task))
+        {
+            if (!File.Exists(ProjectPath.Resolve(s.Root, rel)) && !comingAlong.Contains(rel))
+            {
+                comingAlong.Add(rel);
+            }
+        }
+
+        foreach ((string path, string? before) in preimages)
+        {
+            task.Undo[path] = before;
+        }
+
+        foreach (string rel in comingAlong.Where(rel => !task.IncludedPaths.Contains(rel)))
+        {
+            task.IncludedPaths.Add(rel);
+        }
+
+        task.Applying = true;
+        sessionStore.SaveTask(task);
+    }
+
+    /// <summary>
+    /// A task that was read back with <see cref="AiTask.Applying"/> set: the server stopped while Accept was writing. The files are put back from the saved preimages (new files are removed),
+    /// and the proposal is ready to be reviewed again (issue 197).
+    /// </summary>
+    private void RecoverInterruptedAccept(AiTask task)
+    {
+        foreach ((string path, string? before) in task.Undo.ToList())
+        {
+            string full = ProjectPath.Resolve(s.Root, path);
+            if (before is null)
+            {
+                if (File.Exists(full))
+                {
+                    File.Delete(full);
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                File.WriteAllText(full, before, new UTF8Encoding(false));
+            }
+
+            s.ForgetDoc(path);
+        }
+
+        foreach (string path in task.IncludedPaths)
+        {
+            string file = ProjectPath.Resolve(s.Root, path);
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+
+        task.Undo.Clear();
+        task.IncludedPaths.Clear();
+        task.Applying = false;
+        task.Add("warn", "The server stopped while this proposal was being applied. The files were put back as they were, so you can review and accept it again.");
+        sessionStore.SaveTask(task);
     }
 
     /// <summary>
