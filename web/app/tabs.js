@@ -59,6 +59,17 @@ function add(path, preview) {
 
 let opening;
 const tabOpenOptions = new WeakMap();
+// the view of a window that was put back (attached): applied once its file is the shown one, however long the open takes (the timers of the attached message only cover a quick open)
+let pendingView = null;
+const PENDING_VIEW_MS = 20000;
+function applyPendingView(path) {
+  const pending = pendingView;
+  if (!pending || pending.path !== path) return;
+  pendingView = null;
+  if (Date.now() - pending.at > PENDING_VIEW_MS) return;   // a request that was refused long ago must not decorate a later, unrelated open
+  const stillWanted = () => !opening && T.active === path;
+  setTimeout(() => { if (stillWanted()) applyViewState(pending.state, stillWanted); }, 300);
+}
 
 /** Register the request synchronously so a later open can supersede it before its first await. */
 export function beginTabOpen(request) {
@@ -75,6 +86,7 @@ function answered(e) {
     if (!options?.existing) add(path, options?.preview);
     T.active = path;
     refreshState();
+    applyPendingView(path);
   } else tabOpenOptions.get(request)?.onRefused?.();   // the opener said no: whoever asked takes its own change back
   save();
   render();
@@ -273,7 +285,7 @@ function openChannel() {
     }
     if (data.type === 'detached') { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); if (T.active === data.path) { const next = T.tabs.find((t) => !T.remote.has(t.path)); if (next) activate(next.path); } render(); }
     else if (data.type === 'alive') { if (T.remote.has(data.path)) T.remote.get(data.path).seen = Date.now(); else { T.remote.set(data.path, { windowId: data.from, seen: Date.now() }); add(data.path); render(); } }   // a popup that resumed (or a reloaded main window) takes its ownership again
-    else if (data.type === 'attached') { T.remote.delete(data.path); add(data.path); activate(data.path); if (data.state) { const p = data.path; const stillWanted = () => !opening && T.active === p; const again = () => { if (stillWanted()) applyViewState(data.state, stillWanted); }; setTimeout(again, 700); setTimeout(again, 1800); } }
+    else if (data.type === 'attached') { T.remote.delete(data.path); add(data.path); if (data.state) pendingView = { path: data.path, state: data.state, at: Date.now() }; activate(data.path); if (data.state) { const p = data.path; const stillWanted = () => !opening && T.active === p; const again = () => { if (stillWanted()) applyViewState(data.state, stillWanted); }; setTimeout(again, 700); setTimeout(again, 1800); } }
   };
 }
 
@@ -533,7 +545,8 @@ export function initTabs() {
     const opened = S.path;
     setTimeout(() => { if (S.path === opened) dropBlankUntitled(opened); }, 600);
   });
-  // leaving the page with a blank, untouched new song: the file goes away too, so it does not stay in the project
+  // leaving the page with a blank, untouched new song: the file goes away too, so it does not stay in the project.
+  // The page cannot tell a reload from leaving (pagehide is the same, the Navigation API does not report a reload from the browser), so a reload removes the blank song as well: the page that comes back shows the song that was open before.
   window.addEventListener('pagehide', (event) => {
     if (event.persisted || detachedPath()) return;
     try {
