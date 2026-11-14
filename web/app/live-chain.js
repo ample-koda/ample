@@ -4,6 +4,7 @@
 // Advisory like every live preview: nothing is built or written here. @ample:live-chain
 import { liveEffectGraph, decodedInput, fetchTakeAudio, prepareWorklets, decodePreviewBlob } from './studio/preview/audio.js';
 import { api } from './api.js';
+import { bumpRevision, runRenderJob, createCompareGate } from '../lib/chain-render-jobs.mjs';
 import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 import { flat, S, subscribe, subscribeSelection } from './store.js';
@@ -51,7 +52,7 @@ export function chainState() {
   if (!session) return { active: false, items: [], notes: [] };
   const { context, t0, loop } = session;
   return {
-    active: true, target: session.target, comparingBuilt: Boolean(session.builtTake), swaps: session.swaps || 0, notes: session.plan.notes || [], loop,
+    active: true, target: session.target, comparingBuilt: Boolean(session.builtTake), comparePending: Boolean(session.compare?.pending), swaps: session.swaps || 0, notes: session.plan.notes || [], loop,
     latency: blockLatency(),   // seconds of look-ahead in the chain (a limiter)
     latencyReport: latencyReport({ ...contextLatency(), blocks: [...session.built].map(([id, entry]) => ({ id, title: flat().nodes.find((n) => n.id === id)?.title || id, seconds: entry.graph.latency || 0 })) }),
     position: context && loop > 0 ? loopPosition(session, context.currentTime) : 0,
@@ -269,38 +270,38 @@ const hitDrums = (plan, item) => item.tpl === 'drums' && !plan.items.some((other
 async function updateDrumHits(s, item) {
   const tokens = (s.drumTokens ||= new Map()), token = (tokens.get(item.id) || 0) + 1;
   tokens.set(item.id, token);
+  const key = localKey(item);
   try {
     const voicePlan = await drumVoicePlan(item, { paramsOf: effective });
     if (session !== s || token !== tokens.get(item.id)) return;
-    s.drumPlans.set(item.id, voicePlan); s.localKeys.set(item.id, localKey(item));
+    s.drumPlans.set(item.id, voicePlan); s.localKeys.set(item.id, key); s.failedKeys?.delete(item.id);
     s.slots.get(item.id)?.node.set(voicePlan);
-  } catch (error) { if (session === s) toast(error?.message || String(error)); }
+  } catch (error) {
+    // an older update was already discarded when this one started, so when the newest fails the previous pattern keeps playing; it is not marked up to date, so a change retries
+    if (session === s && token === tokens.get(item.id)) { s.localKeys.delete(item.id); (s.failedKeys ||= new Map()).set(item.id, key); toast(error?.message || String(error)); }
+  }
 }
 
 function rerender(s, id) {
   const drums = s.drumPlans && s.plan.items.find((i) => i.id === id && s.drumPlans.has(i.id));
   if (drums) { updateDrumHits(s, drums); return; }
   clearTimeout(s.renders.get(id)?.timer);
-  const entry = { timer: 0 };
+  const entry = { timer: 0 }, ticket = bumpRevision(s.revs ||= new Map(), id);   // the older results of this block are void from now on, also while this render waits for its timer
   s.renders.set(id, entry);
-  const dirty = new Set();
-  entry.timer = setTimeout(async () => {
-    try {
-      for (const item of s.plan.items.filter((i) => i.kind === 'local')) {
-        const stale = item.id === id || item.inputs.some((i) => dirty.has(i.from));
-        if (!stale) continue;
-        dirty.add(item.id);
-        const revs = (s.revs ||= new Map()), rev = (revs.get(item.id) || 0) + 1;
-        revs.set(item.id, rev);
-        const audio = await makeLocal(s, item);
-        if (session !== s || revs.get(item.id) !== rev) return;   // a newer render of this block started: the older result must not replace it
-        s.buffers.set(item.id, toBuffer(s.context, audio));
-        s.localKeys.set(item.id, localKey(item));
-        swap(s, item.id, s.buffers.get(item.id));
-        if (item.tpl === 'normalize') emit();   // the note on the chip says the new gain
-      }
-    } catch (error) { if (session === s) toast(error?.message || String(error)); }
-  }, 150);
+  entry.timer = setTimeout(() => runRenderJob({
+    items: s.plan.items.filter((i) => i.kind === 'local'), id, ticket, revs: s.revs, alive: () => session === s,
+    keyOf: localKey,   // taken before the render: the sound is stored under what it was made for
+    render: (item) => makeLocal(s, item),
+    adopt: (item, audio, key) => {
+      s.buffers.set(item.id, toBuffer(s.context, audio));
+      s.localKeys.set(item.id, key); s.failedKeys?.delete(item.id);
+      swap(s, item.id, s.buffers.get(item.id));
+      if (item.tpl === 'normalize') emit();   // the note on the chip says the new gain
+    },
+    // the newest render failed: the old sound stays, the block is not "up to date" for these values, and the next change of them tries again (not every 40 ms: refresh() skips the failed values)
+    invalidate: (item, key) => { s.localKeys.delete(item.id); (s.failedKeys ||= new Map()).set(item.id, key); },
+    report: (error) => toast(error?.message || String(error)),
+  }), 150);
 }
 
 function swap(s, id, buffer) {
@@ -378,7 +379,7 @@ function refresh(force = false) {
   }
   for (const item of session.plan.items.filter((i) => i.kind === 'local')) {
     const key = localKey(item);
-    if (session.localKeys.get(item.id) !== key) { session.localKeys.set(item.id, key); rerender(session, item.id); }
+    if (session.localKeys.get(item.id) !== key && session.failedKeys?.get(item.id) !== key) { session.localKeys.set(item.id, key); rerender(session, item.id); }
   }
   refreshImpulses(session);
   const anySolo = flat().nodes.some((n) => n.tpl === 'bus' && n.params?.solo === 'on');
@@ -423,8 +424,8 @@ export async function setCompareBuilt(on) {
   const s = session;
   if (!s || s.starting) return null;
   if (!on) {
-    s.compareIntent = (s.compareIntent || 0) + 1;   // cancels a comparison that is still loading
-    if (!s.builtTake) return false;
+    const wasPending = (s.compare ||= createCompareGate()).cancel();   // cancels a comparison that is still loading
+    if (!s.builtTake) { if (wasPending) emit(); return false; }
     fade(s, s.liveGain, 1); fade(s, s.builtTake.gain, 0);
     const old = s.builtTake;
     s.builtTake = null;
@@ -434,12 +435,14 @@ export async function setCompareBuilt(on) {
   }
   const take = takeOf(s.target);
   if (!take) { toast(`Build ${s.target} first: there is no built sound of it to compare with.`); return null; }
-  if (s.builtTake || s.comparePending) return true;   // one comparison source at most
-  const intent = (s.compareIntent = (s.compareIntent || 0) + 1);
-  s.comparePending = true;
+  if (s.builtTake) return true;   // one comparison source at most
+  const gate = (s.compare ||= createCompareGate()), intent = gate.begin();   // supersedes a load that is still pending
+  emit();   // the button shows the pending state (a click on it cancels)
   let buffer;
-  try { buffer = await decodedInput(`chain:${take}`, () => fetchTakeAudio(take)); } finally { if (s.compareIntent === intent) s.comparePending = false; }
-  if (session !== s || s.compareIntent !== intent) return null;
+  try { buffer = await decodedInput(`chain:${take}`, () => fetchTakeAudio(take)); }
+  catch (error) { if (session === s && gate.current(intent)) toast(error?.message || String(error)); return null; }
+  finally { gate.finish(intent); if (session === s) emit(); }
+  if (session !== s || !gate.current(intent)) return null;
   const node = s.context.createBufferSource(), gain = s.context.createGain(), now = s.context.currentTime;
   node.buffer = buffer; node.loop = true; gain.gain.value = 0; node.connect(gain).connect(playbackOutput(s.context));
   // the live chain is late by the look-ahead of its blocks (a limiter); the built sound is delayed by the same amount so the two line up
