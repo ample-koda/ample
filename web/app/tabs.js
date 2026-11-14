@@ -3,6 +3,7 @@
 // already opens (a song, a text or component file); a tab click opens that file through the same events as the Project panel. @ample:tabs
 
 import { api, getToken } from './api.js';
+import { planSaveAll } from '../lib/source-guards.mjs';
 import { S, editSerial, notify, select, subscribe, undoHooks } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
@@ -467,8 +468,13 @@ function closePopup() { T.popup?.remove(); T.popup = null; document.removeEventL
 const CHECKPOINT_KEY = 'ample.saveall.checkpoint';
 /** Save all: a dialog with the number of files, Save all / Save active / Cancel, and a remembered checkbox "make a checkpoint first" (on at the start). */
 export async function saveAll() {
+  // what is typed in the Source editor is applied first: the server cannot know about it yet, so it would say "nothing to save"
+  let typed = null;
+  try { typed = await (await import('./source.js')).flushTypedSource(); } catch { typed = false; }
+  await refreshState();
   const dirty = T.tabs.filter((t) => factsOf(t.path).dirty).map((t) => t.path);
-  if (!dirty.length) { toast('Nothing to save.'); return; }
+  const plan = planSaveAll({ typed, dirty });
+  if (plan.action !== 'ask') { toast(plan.message); return; }
   const remembered = localStorage.getItem(CHECKPOINT_KEY);
   const checkbox = el('input', { type: 'checkbox', id: 'saveall-checkpoint', checked: remembered === null ? true : remembered === '1' });
   const choice = await ask('Save all', `${dirty.length} file${dirty.length === 1 ? ' has' : 's have'} changed: ${dirty.map(baseName).join(', ')}. Save ${dirty.length === 1 ? 'it' : 'them all'}?`,
