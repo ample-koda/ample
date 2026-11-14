@@ -40,6 +40,7 @@ import { LANE_DEFS, laneFraction, laneFromY, laneRamp, laneValueOf } from '../li
 import { knobFactor, rowVolume, scaleVelocity } from '../lib/lite-grid.mjs';
 import { createMetronomeCursor } from '../lib/metronome-cursor.mjs';
 import { SNAPS, TOOLS, autoScrollDelta, clipEndBars, createCommitQueue, dragLoop, gridLevels, hasHiddenData, hitLoop, litePlayRange, nearestStart, openCentre, scrollYForCentre, sliceNote, snapBeats, snapTick, toolForKey, typingPitch } from '../lib/lite-roll-model.mjs';
+import { discardedMessage, onCloseTake, playedCount } from '../lib/jam-close.mjs';
 import { GRID_KEYS, LONG_PRESS_MS, ROLL_KEYS, isLongPress, longPressAction, pinchStart, pinchView } from '../lib/lite-touch.mjs';
 import { adjustRows, clampMove, clipboardText, cloneRows, copyItems, createThrottle, drawRow, duplicateRows, itemsFromText, mergedRows, moveRows, pasteRows, quantizeRows, removeRows, resizeRows, rowIndexAt, sliceRow, soundingPitches, soundingRows, velocityRows } from '../lib/lite-gestures.mjs';
 import { barBeats } from '../lib/meter.mjs';
@@ -1966,6 +1967,12 @@ Press to hear this sound. Right-click a row's cells to delete.`, event);
   if (options.track) lanesCtl.setVisible(true);
   panel.addEventListener('close', () => {
     flushWheel(); saveViewNow();
+    // closing the window is not Stop: a take that is still being recorded is not added to the clip
+    const played = playedCount(rec);
+    if (onCloseTake({ recording: rec.on, played }) === 'discard') {
+      rec.notes = []; rec.open.clear(); rec.waiting = false; rec.on = false;
+      toast(discardedMessage(played));
+    }
     stopPlayback(false); unregisterKeys(); stopMidiState(); stopMidiNotes(); review.stop(); vkb.dispose(); audition.dispose(); stopStore(); resizeObserver.disconnect(); clearTimeout(layoutTimer); cancelAnimationFrame(frame); cancelAnimationFrame(tickFrame); clearInterval(metroTimer); cancelAnimationFrame(autoFrame);
     jamVoice?.stop(); rememberRect(); windowChrome.dispose(); openPanels.delete(blockId); panel.remove(); options.onClose?.();
   });
