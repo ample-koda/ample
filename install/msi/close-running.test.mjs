@@ -1,5 +1,7 @@
-// A guard for the instance-file patterns of CloseRunning.cs (the MSI custom action cannot run outside Windows Installer): the verbatim C# patterns are read from the source
-// and tried, as JavaScript patterns of the same syntax, against the JSON that the instance registry writes (camelCase, indented). Run: node --test install/msi/close-running.test.mjs
+// A guard for the instance-file patterns of CloseRunning.cs (the MSI custom action cannot run outside Windows Installer):
+// the verbatim C# patterns are read from the source and tried, as JavaScript patterns of the same syntax,
+// against the JSON that the instance registry writes (camelCase, indented).
+// Run: node --test install/msi/close-running.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -12,7 +14,9 @@ const pattern = (name) => {
   return new RegExp(m[1].replaceAll('""', '"'), 'i');
 };
 
-const json = JSON.stringify({ schema: 1, projectId: '0198', name: 'song', folder: 'C:\p', pid: 4321, processStart: '2026-11-14T08:00:00Z', port: 5123 }, null, 2);
+const json = JSON.stringify({
+  schema: 1, projectId: '0198', name: 'song', folder: 'C:\p', pid: 4321, processStart: '2026-11-14T08:00:00Z', port: 5123,
+}, null, 2);
 
 test('the port and the pid are read from the instance file the registry writes', () => {
   assert.equal(pattern('portMatch').exec(json)?.[1], '5123');

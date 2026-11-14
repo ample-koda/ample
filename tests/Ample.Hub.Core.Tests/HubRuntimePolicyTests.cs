@@ -2,7 +2,10 @@ using System.Xml.Linq;
 
 namespace Ample.Hub.Core.Tests;
 
-/// <summary>The setup detectors (the MSI and the Tune-up wizard) accept any .NET Desktop Runtime from major 9 on, so the tray hub, which is built for net9.0-windows, has to be allowed to start on a newer major.</summary>
+/// <summary>
+/// The setup detectors (the MSI and the Tune-up wizard) accept any .NET Desktop Runtime from major 9 on,
+/// so the tray hub, which is built for net9.0-windows, has to be allowed to start on a newer major.
+/// </summary>
 public sealed class HubRuntimePolicyTests
 {
     private static string RepoFile(params string[] parts)
