@@ -19,8 +19,8 @@ test('promoting while studio is open with unsaved edits asks first, and Cancel c
 
   const promoting = page.evaluate(() => import('/app/history.js').then((m) => m.promote()));
   await dialog(page, 'Make main');
-  await expect(page.locator('#dlg')).toHaveJSProperty('open', true);
-  await expect(page.locator('#dlg')).toContainText('not saved');
+  // the second dialog is the unsaved-work question of the branch switch (the first one says "not saved yet", not "changes that are not saved")
+  await expect(page.locator('#dlg')).toContainText('changes that are not saved');
   await dialog(page, 'Cancel');
   await promoting;
 
