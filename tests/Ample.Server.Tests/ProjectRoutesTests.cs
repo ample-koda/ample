@@ -787,6 +787,91 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public void Brave_key_source_matches_the_key_a_search_would_use_for_every_combination()
+    {
+        Guid id = Guid.NewGuid();
+        string home = Path.Combine(Path.GetTempPath(), "ample-brave-status-" + Guid.NewGuid().ToString("N"));
+        string perProjectName = "AMPLE_BRAVE_SEARCH_API_KEY_" + id.ToString("N").ToUpperInvariant();
+        string? oldGlobal = Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY");
+        try
+        {
+            foreach (bool project in new[] { false, true })
+            foreach (string? perProject in new string?[] { null, "   ", "synthetic-per-project-marker" })
+            foreach (string? global in new string?[] { null, "", "synthetic-global-marker" })
+            {
+                if (project && !OperatingSystem.IsWindows()) continue; // the key store is DPAPI only
+                AiProjectSecretStore.Clear(home, id);
+                if (project) AiProjectSecretStore.Save(home, id, "synthetic-project-marker");
+                Environment.SetEnvironmentVariable(perProjectName, perProject);
+                Environment.SetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY", global);
+                bool server = !string.IsNullOrWhiteSpace(perProject) || !string.IsNullOrWhiteSpace(global);
+                (bool Project, bool Server, string Source) status = AiService.BraveKeyStatus(home, id);
+                Assert.Equal(project, status.Project);
+                Assert.Equal(server, status.Server);
+                Assert.Equal(project ? "project" : server ? "server" : "none", status.Source);
+                // what the search really uses, with a project key (Windows) or without
+                string? used = AiService.ResolveBraveKey(project ? "synthetic-project-marker" : null, id);
+                Assert.Equal(project ? "synthetic-project-marker" : !string.IsNullOrWhiteSpace(perProject) ? perProject : !string.IsNullOrWhiteSpace(global) ? global : null, used);
+                // after clearing the project key the source is the server key, or none
+                AiProjectSecretStore.Clear(home, id);
+                Assert.Equal(server ? "server" : "none", AiService.BraveKeyStatus(home, id).Source);
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(perProjectName, null);
+            Environment.SetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY", oldGlobal);
+            if (Directory.Exists(home)) Directory.Delete(home, true);
+        }
+    }
+
+    [Fact]
+    public async Task Settings_report_brave_key_presence_as_booleans_and_never_a_key_value()
+    {
+        string perProjectName;
+        using (JsonDocument manifest = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder, ".ample", "project.json"))))
+            perProjectName = "AMPLE_BRAVE_SEARCH_API_KEY_" + manifest.RootElement.GetProperty("id").GetString()!.Replace("-", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+        const string serverMarker = "synthetic-server-brave-marker";
+        const string projectMarker = "synthetic-project-brave-marker";
+        try
+        {
+            Environment.SetEnvironmentVariable(perProjectName, serverMarker);
+            string text = await Text("/api/project/settings");
+            using (JsonDocument doc = JsonDocument.Parse(text))
+            {
+                JsonElement r = doc.RootElement;
+                Assert.False(r.GetProperty("braveSearchProjectKey").GetBoolean());
+                Assert.True(r.GetProperty("braveSearchServerKey").GetBoolean());
+                Assert.True(r.GetProperty("braveSearchKeyConfigured").GetBoolean());
+                Assert.Equal("server", r.GetProperty("braveSearchSource").GetString());
+            }
+
+            Assert.DoesNotContain(serverMarker, text, StringComparison.Ordinal);
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { braveSearchApiKey = projectMarker })).StatusCode);
+                text = await Text("/api/project/settings");
+                using (JsonDocument doc = JsonDocument.Parse(text))
+                {
+                    Assert.True(doc.RootElement.GetProperty("braveSearchProjectKey").GetBoolean());
+                    Assert.True(doc.RootElement.GetProperty("braveSearchServerKey").GetBoolean());
+                    Assert.Equal("project", doc.RootElement.GetProperty("braveSearchSource").GetString());
+                }
+
+                Assert.DoesNotContain(serverMarker, text, StringComparison.Ordinal);
+                Assert.DoesNotContain(projectMarker, text, StringComparison.Ordinal);
+                Assert.Equal(HttpStatusCode.OK, (await Post("/api/project/settings", new { braveSearchApiKey = "", clearBraveSearchApiKey = true })).StatusCode);
+                Assert.Contains("\"braveSearchSource\":\"server\"", await Text("/api/project/settings"), StringComparison.Ordinal);
+            }
+
+            Environment.SetEnvironmentVariable(perProjectName, null);
+            if (Environment.GetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY") is null)
+                Assert.Contains("\"braveSearchSource\":\"none\"", await Text("/api/project/settings"), StringComparison.Ordinal);
+        }
+        finally { Environment.SetEnvironmentVariable(perProjectName, null); }
+    }
+
+    [Fact]
     public async Task Brave_search_key_is_project_scoped_encrypted_and_never_returned()
     {
         if (!OperatingSystem.IsWindows()) return;

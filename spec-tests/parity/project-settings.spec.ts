@@ -109,3 +109,23 @@ test('the default song and voice models are saved with the routes and a wrong mo
   expect(cleared.songModel ?? '').toBe('');
   expect(cleared.voiceModel ?? '').toBe('');
 });
+
+test('the web search form says which Brave key is active and what clearing does', async ({ page }) => {
+  await page.click('#pm [data-tab="search"]');
+  const s = await api('/api/project/settings');
+  const note = page.locator('#pm .ps-row-note');
+  if (!s.braveSearchProjectKey && !s.braveSearchServerKey) await expect(page.locator('#pm')).toContainText('No Brave key is active');
+  if (!s.braveSearchProjectKey && s.braveSearchServerKey) await expect(page.locator('#pm')).toContainText('server-wide key');
+  if (!s.braveSearchProjectKey) {
+    await expect(page.locator('#ps-brave-clear')).toBeDisabled();
+    await expect(page.locator('#pm')).toContainText('There is no project key to clear.');
+  }
+  await expect(page.locator('#ps-brave-key')).toHaveAttribute('aria-label', 'Brave Search API key for this project');
+  await expect(note.first()).toBeVisible();
+  // a typed key and the clear box exclude each other
+  if (s.braveSearchKeyStoreAvailable && s.braveSearchProjectKey) {
+    await page.locator('#ps-brave-clear').check();
+    await page.locator('#ps-brave-key').fill('synthetic-typed-key');
+    await expect(page.locator('#ps-brave-clear')).not.toBeChecked();
+  }
+});
