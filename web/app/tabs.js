@@ -106,6 +106,12 @@ function activate(path, onRefused) {
 
 export function isTabReactivation(request) { return tabOpenOptions.get(request)?.existing === true; }
 
+/** The paths of the open tabs with unsaved changes. The state of the other tabs is polled first, so it is not a few seconds old. */
+export async function dirtyTabPaths() {
+  await refreshState();
+  return T.tabs.filter((tab) => factsOf(tab.path).dirty).map((tab) => tab.path);
+}
+
 let stateGeneration = 0;
 async function refreshState() {
   const mine = ++stateGeneration;
