@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Ample.Audio.Engine;
 using Ample.Audio.IO;
@@ -39,6 +41,12 @@ internal sealed class StubServer : IDisposable
         return JsonDocument.Parse(await client.GetStringAsync(Endpoint + "/requests")).RootElement.Clone();
     }
 
+    public async Task<JsonElement> CancelledAsync()
+    {
+        using HttpClient client = new();
+        return JsonDocument.Parse(await client.GetStringAsync(Endpoint + "/cancelled")).RootElement.Clone();
+    }
+
     public void Dispose()
     {
         if (!process.HasExited)
@@ -71,18 +79,28 @@ public sealed class AceStepTests : IDisposable
 
     private static readonly int[] Bars = [1, 2];
 
-    private static string JobParams(string job, string settings, string seed = "42", string lyrics = "secret words of the song", string voice = "anna")
+    private static string JobParams(
+        string job, string settings, string seed = "42", string lyrics = "secret words of the song", string voice = "anna",
+        double? beatsPerBar = null, int[]? bars = null)
     {
         Directory.CreateDirectory(Path.Combine(job, "in"));
         File.WriteAllText(Path.Combine(job, "in", "lyrics.bin"), lyrics);
-        return JsonSerializer.Serialize(new { jobDir = job, block = new { type = "ai-voice", name = "vox", parameters = new { voice, steps = "6" } }, seed, sampleRate = 8000, samplesPerBar = 4000, firstBar = 1, barCount = 2, activeBars = Bars, inputs = new { lyrics = "in/lyrics.bin" }, settings = JsonDocument.Parse(settings).RootElement });
+        return JsonSerializer.Serialize(new
+        {
+            jobDir = job,
+            block = new { type = "ai-voice", name = "vox", parameters = new { voice, steps = "6" } },
+            seed, sampleRate = 8000, samplesPerBar = 4000, firstBar = 1, barCount = 2, activeBars = bars ?? Bars, beatsPerBar,
+            inputs = new { lyrics = "in/lyrics.bin" },
+            settings = JsonDocument.Parse(settings).RootElement,
+        });
     }
 
-    private async Task<PluginResult> Render(string settings, string seed = "42")
+    private async Task<PluginResult> Render(string settings, string seed = "42", double? beatsPerBar = null, int[]? bars = null)
     {
         string job = Path.Combine(folder, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(job);
-        return await host.RenderAsync(Paths.Find("acestep"), new PluginJob(job, JobParams(job, settings, seed), TimeSpan.FromSeconds(60)));
+        string jobParams = JobParams(job, settings, seed, beatsPerBar: beatsPerBar, bars: bars);
+        return await host.RenderAsync(Paths.Find("acestep"), new PluginJob(job, jobParams, TimeSpan.FromSeconds(60)));
     }
 
     [Fact]
@@ -223,6 +241,84 @@ public sealed class AceStepTests : IDisposable
         Assert.Contains("did not finish within 5 seconds", timeout.Message, StringComparison.Ordinal);
     }
 
+[Theory]
+    [InlineData(2.0, "2", 240)]
+    [InlineData(3.0, "3", 360)]
+    [InlineData(4.0, "4", 480)]
+    public async Task Supported_meters_are_sent_with_a_bpm_from_the_bar_length(double beats, string signature, int bpm)
+    {
+        using StubServer server = await StubServer.StartAsync("ok");
+        await Render(Settings(server.Endpoint, null), beatsPerBar: beats);
+        JsonElement request = (await server.RequestsAsync())[0];
+        Assert.Equal(signature, request.GetProperty("timesignature").GetString());
+        Assert.Equal(bpm, request.GetProperty("bpm").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(3.5)]
+    [InlineData(5.0)]
+    [InlineData(6.0)]
+    public async Task Unsupported_meters_are_refused_before_any_server_request(double beats)
+    {
+        using StubServer server = await StubServer.StartAsync("ok");
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(
+            async () => await Render(Settings(server.Endpoint, null), beatsPerBar: beats));
+        Assert.Contains("2/4, 3/4 and 4/4", ex.Message, StringComparison.Ordinal);
+        Assert.Empty((await server.RequestsAsync()).EnumerateArray());
+    }
+
+    [Fact]
+    public async Task A_gap_between_active_bars_is_refused_but_duplicate_bars_are_not_a_gap()
+    {
+        using StubServer server = await StubServer.StartAsync("ok");
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(
+            async () => await Render(Settings(server.Endpoint, null), bars: [1, 3]));
+        Assert.Contains("gaps between its active bars", ex.Message, StringComparison.Ordinal);
+        Assert.Empty((await server.RequestsAsync()).EnumerateArray());
+
+        await Render(Settings(server.Endpoint, null), bars: [1, 1, 2]);
+        Assert.Equal(1.0, (await server.RequestsAsync())[0].GetProperty("duration").GetDouble(), 3);
+    }
+
+    [Theory]
+    [InlineData("stall:lm", "plan", true)]
+    [InlineData("hangresult:lm", "plan", false)]
+    [InlineData("stall:synth", "synthesis", true)]
+    [InlineData("hangresult:synth", "synthesis", false)]
+    [InlineData("stall:extract", "vocal extraction", true)]
+    [InlineData("hangresult:extract", "vocal extraction", false)]
+    public async Task The_one_deadline_stops_every_server_stage_and_names_it(string mode, string stage, bool jobRuns)
+    {
+        using StubServer server = await StubServer.StartAsync(mode);
+        Stopwatch clock = Stopwatch.StartNew();
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(async () => await Render(Settings(server.Endpoint, 2)));
+        Assert.Contains("did not finish within 2 seconds (stage: " + stage + ")", ex.Message, StringComparison.Ordinal);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20), clock.Elapsed.ToString());
+        if (jobRuns) Assert.Equal(1, (await server.CancelledAsync()).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task A_non_numeric_timeout_falls_back_to_the_default_instead_of_never_expiring()
+    {
+        using StubServer server = await StubServer.StartAsync("ok");
+        string settings = JsonSerializer.Serialize(new { endpoint = server.Endpoint, pollMs = 20, timeoutS = "soon" });
+        PluginResult result = await Render(settings);
+        Assert.Single(result.Outputs);
+    }
+
+    [Theory]
+    [InlineData("no-such-python-for-ample", "was not found")]
+    [InlineData("node", "Demucs failed (exit code")]
+    public async Task Demucs_failures_are_told_apart_and_only_a_missing_module_gets_the_install_hint(string python, string expected)
+    {
+        using StubServer server = await StubServer.StartAsync("ok");
+        string settings = JsonSerializer.Serialize(
+            new { endpoint = server.Endpoint, pollMs = 20, vocalIsolation = "demucs", demucsPython = python });
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(async () => await Render(settings));
+        Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("pip install", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_remote_endpoint_is_refused_unless_it_is_allowed()
     {
@@ -262,6 +358,13 @@ public sealed class AceStepTests : IDisposable
         Assert.Contains("ace-server-lm-synth-job", plan.ToolprintJson, StringComparison.Ordinal);
         using JsonDocument provenance = JsonDocument.Parse(bank.GetTake(vox.TakeId!).MetaJson);
         Assert.Equal(1, provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("synthRequest").GetProperty("guidance_scale").GetInt32());
+        // the provenance names the adapter by plugin.mjs and the file it starts processes with: a change in either shows
+        JsonElement software = provenance.RootElement.GetProperty("vocal").GetProperty("recipe").GetProperty("software");
+        string adapter = software.GetProperty("adapterSha256").GetString()!;
+        string Sha(string file) =>
+            Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(Paths.PluginFolder, "acestep", file))));
+        byte[] both = Encoding.ASCII.GetBytes(Sha("plugin.mjs") + Sha("run-process.mjs"));
+        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(both)), adapter);
         Assert.Contains("templateDefaults", plan.SettingsJson, StringComparison.Ordinal);
         Assert.Contains("pluginSettings", plan.SettingsJson, StringComparison.Ordinal);
         Assert.Equal("cached", (await engine.BuildAsync(doc, new BuildOptions(ExtraRenderers: renderers))).Blocks.Single(b => b.Block == "vox").Status);

@@ -90,3 +90,10 @@ Measured on 2026-10-22 (same server, SFT model, one female reference of 19 s, ow
 Note (2026-10-22): the parameters `reference_noise` (sent as `cover_noise_strength`) and `reference_melody` (`new` kept the codes of the language model plan) were built and measured, then removed because they changed nothing audible on this server revision. They can come back if a newer acestep.cpp makes a cover follow them.
 
 Adapter (LoRA) test, 2026-10-22: the server must be started with `--adapters <folder>` (then `/props` lists the adapters). With the usual Q5_K_M models it fails (`ggml_cuda_cpy: unsupported type combination (q5_K to f32)`, the synthesis job fails); only `acestep-v15-base-BF16.gguf` worked with `acestep-vocals-lora` (strength 1.0 and 0.5). The owner judged the result "not really good", so the adapter is not used; the parameters `adapter` and `adapter_scale` stay available for other adapters.
+
+## Time limit, meter and gaps
+
+- `timeoutS` (default 900; an invalid value also means 900) is one deadline for the whole render: setup calls, planning, synthesis, extraction and Demucs. Every server call, wait and child process is limited by what is left, and the error names the stage (`plan`, `synthesis`, `vocal extraction`, `demucs`). Demucs and the command line tools run as child processes that cancel and the deadline stop.
+- When the build is cancelled or the deadline passes while a server job runs, the plugin sends `DELETE /job?id=...` as a best effort (2xx is logged as "asked to stop", anything else as "could not ask"; the job may still run). This route is not confirmed against ace-server; the stand-in server records it.
+- Meter: only 2, 3 or 4 quarter notes per bar are sent (2/4, 3/4, 4/4); 6/8 arrives as 3 quarter notes and is sent as 3/4. 5/4, 6/4 and 7/8 are refused before any server request. The `bpm` sent is the quarter-note tempo from the bar length.
+- Gaps: ACE-Step makes one continuous region, so a block whose active bars have a hole is refused before any server request. Duplicate bars are not a hole.

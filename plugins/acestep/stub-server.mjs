@@ -1,10 +1,16 @@
-// A stand-in for ace-server, for tests and for trying the plugin without a GPU. It implements POST /lm, POST /synth, GET /props and GET /job.
-// Usage: node stub-server.mjs [mode]; modes: ok, nobase, error500, malformed, neverdone, noaudio, jobfailed. Prints "PORT <n>" when it listens.
+// A stand-in for ace-server, for tests and for trying the plugin without a GPU. It implements POST /lm, POST /synth,
+// GET /props, GET /job and DELETE /job (recorded, see GET /cancelled; the real ace-server route is unconfirmed).
+// Usage: node stub-server.mjs [mode]; modes: ok, nobase, error500, malformed, neverdone, noaudio, jobfailed, nodelete
+// (DELETE answers 404), stall:<lm|synth|extract> (that job stays running), hangresult:<lm|synth|extract> (the result
+// of that job is never answered). Prints "PORT <n>" when it listens.
 import http from 'node:http';
 
 const mode = process.argv[2] || 'ok';
 const requests = [];
 const jobs = new Map();
+const cancelled = [];
+const [baseMode, modeKind] = mode.split(':');
+const kindOf = job => job.request.task_type === 'extract' ? 'extract' : job.kind === 'lm' ? 'lm' : 'synth';
 
 function audio(request) {
   const rate = 24000, seconds = Math.max(0.05, Math.min(request.duration || 1, 30)), n = Math.floor(rate * seconds), buf = Buffer.alloc(44 + n * 4);
@@ -36,12 +42,19 @@ const server = http.createServer((req, res) => {
     });
     return undefined;
   }
+  if (req.method === 'GET' && req.url === '/cancelled') { return send(200, JSON.stringify(cancelled)); }
   if (req.method === 'GET' && req.url === '/requests') { return send(200, JSON.stringify(requests)); }
   const url = new URL(req.url, 'http://127.0.0.1');
+  if (req.method === 'DELETE' && url.pathname === '/job') {
+    if (mode === 'nodelete') { return send(404, '{}'); }
+    cancelled.push(url.searchParams.get('id'));
+    return send(200, '{}');
+  }
   if (req.method === 'GET' && url.pathname === '/job') {
     const job = jobs.get(url.searchParams.get('id'));
     if (!job) { return send(404, '{}'); }
     if (url.searchParams.get('result') === '1') {
+      if (baseMode === 'hangresult' && kindOf(job) === modeKind) { return undefined; }
       if (job.kind === 'lm') { return send(200, JSON.stringify([job.request])); }
       const wav = mode === 'noaudio' ? Buffer.from('--ace-batch-boundary\r\nContent-Type: application/json\r\n\r\n{}\r\n--ace-batch-boundary--\r\n') : Buffer.concat([Buffer.from('--ace-batch-boundary\r\nContent-Type: audio/wav\r\n\r\n'), audio(job.request), Buffer.from('\r\n--ace-batch-boundary--\r\n')]);
       return send(200, wav, 'multipart/mixed; boundary=ace-batch-boundary');
@@ -49,7 +62,8 @@ const server = http.createServer((req, res) => {
 
     job.count++;
     if (mode === 'jobfailed') { return send(200, JSON.stringify({ status: 'failed', error: 'synthetic ACE worker failure detail' })); }
-    return send(200, JSON.stringify(mode === 'neverdone' || job.count < 3 ? { status: 'running', progress: 0.3 } : { status: 'done' }));
+    const hold = mode === 'neverdone' || mode === 'nodelete' || (baseMode === 'stall' && kindOf(job) === modeKind) || job.count < 3;
+    return send(200, JSON.stringify(hold ? { status: 'running', progress: 0.3 } : { status: 'done' }));
   }
   return send(404, '{}');
 });

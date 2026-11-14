@@ -50,6 +50,7 @@ public sealed class FaerPluginRenderer(PluginRenderer local, FaerProfile profile
                 seed = request.Seed.ToString(CultureInfo.InvariantCulture),
                 sampleRate = request.SampleRate,
                 samplesPerBar = request.SamplesPerBar,
+                beatsPerBar = request.BeatsPerBar,
                 firstBar = request.FirstBar,
                 barCount = request.BarCount,
                 activeBars = request.ActiveBars.Order().ToArray(),
