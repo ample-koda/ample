@@ -28,7 +28,7 @@ namespace Ample.Setup
         private readonly Label packsStatus = new Label();
         private readonly Label packsSummary = new Label();
         private readonly List<PackInfo> packs = new List<PackInfo>();
-        private bool packsLoading, packsLoaded;
+        private bool packsLoading, packsLoaded, packsFailed;
         private string packsProblem;
         private readonly ToolTip tips = new ToolTip { AutoPopDelay = 20000 };
 
@@ -92,7 +92,7 @@ namespace Ample.Setup
             packs.Clear();
             foreach (PackInfo info in found) { packs.Add(info); packRows.Controls.Add(PackRow(info)); }
             packRows.ResumeLayout();
-            packsLoaded = packsProblem == null; packsLoading = false;
+            packsLoaded = packsProblem == null; packsFailed = packsProblem != null; packsLoading = false;   // a failed list waits for the next visit of the page: Show(page) below must not start it again at once
             packsStatus.Text = packs.Count == 0 ? (packsProblem != null ? "The list of packs could not be read: " + packsProblem : "This version of AMPLE has no sound packs to offer.") : "Tick the packs to download. Installed packs stay as they are; use Remove on a pack to take it away.";
             UpdatePacksSummary();
             Show(page);

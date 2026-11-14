@@ -246,7 +246,8 @@ namespace Ample.Setup
             }
 
             if (current == healthPage && !healthStarted) { healthStarted = true; _ = RunDoctorAsync(); }
-            if (current == packsPage && !packsLoaded && !packsLoading) { _ = LoadPacksAsync(); }
+            if (current != packsPage) packsFailed = false;   // leaving the page allows a new try the next time it is shown
+            if (current == packsPage && !packsLoaded && !packsLoading && !packsFailed) { _ = LoadPacksAsync(); }
             back.Visible = index > 0 && !finished && current != resultPage;
             next.Text = finished ? "Close" : current == actionsPage ? "Finish" : "Next";
             next.Enabled = (current != resultPage || finished) && !(current == healthPage && healthBusy) && !(current == packsPage && packsLoading);
@@ -311,7 +312,8 @@ namespace Ample.Setup
             if (healthBusy) return;
             healthBusy = true; next.Enabled = false; recheck.Enabled = false;
             healthBar.Visible = true; healthStatus.Text = "Looking at what AMPLE needs on this PC...";
-            Dictionary<string, bool> before = fixBoxes.ToDictionary(b => ((Fix)b.Tag).Key, b => b.Checked, StringComparer.Ordinal);
+            Dictionary<string, bool> before = new Dictionary<string, bool>(StringComparer.Ordinal);
+            foreach (CheckBox b in fixBoxes) before[((Fix)b.Tag).Key] = b.Checked;   // the last one wins when two boxes share a key
             List<Finding> findings = await Task.Run(() => ReadFindings());
             healthRows.SuspendLayout();
             healthRows.Controls.Clear();
@@ -530,9 +532,17 @@ namespace Ample.Setup
                     settings["mainLogin"] = on;
                     string json = new JavaScriptSerializer().Serialize(settings) + "\n";
                     string temporary = HubJson + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                    File.WriteAllText(temporary, json, new UTF8Encoding(false));
-                    if (File.Exists(HubJson)) File.Replace(temporary, HubJson, null);
-                    else File.Move(temporary, HubJson);
+                    try
+                    {
+                        File.WriteAllText(temporary, json, new UTF8Encoding(false));
+                        if (File.Exists(HubJson)) File.Replace(temporary, HubJson, null);
+                        else File.Move(temporary, HubJson);
+                    }
+                    catch (Exception)
+                    {
+                        try { if (File.Exists(temporary)) File.Delete(temporary); } catch (Exception) { /* the next write uses a new name */ }
+                        throw;
+                    }
                 }
                 finally { if (owned) gate.ReleaseMutex(); }
             }

@@ -81,7 +81,7 @@ namespace Ample.Setup
                 }
 
                 process.WaitForExit();
-                if (cancel.IsCancellationRequested) return "Cancelled by you.";
+                if (cancel.IsCancellationRequested && process.ExitCode != 0) return "Cancelled by you.";   // a pack that finished before the Stop arrived is installed
                 return process.ExitCode == 0 ? null : (last ?? "ample stopped with exit code " + process.ExitCode + ".");
             }
         }
