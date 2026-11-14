@@ -15,7 +15,8 @@ import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } f
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
 import { lostAnything, lossText, restoreLost, sequenceLoss } from '../lib/seq-loss.mjs';
 import { V, registerView, setView } from './views.js';
-import { createSaveControl, beforeSave, typedProbe, refreshSaveControls } from './savecontrol.js';
+import { focusKeyOf, findByFocusKey, neighbourKey } from '../lib/focus-restore.mjs';
+import { createSaveControl, beforeSave, onRevert, typedProbe, refreshSaveControls } from './savecontrol.js';
 import { openProjectFilePicker } from './filepicker.js';
 import { playProjectFile, playTransient, stop as stopPlayback } from './player.js';
 import { attachGmPicker } from './gm-picker.js';
@@ -34,6 +35,8 @@ const loadPlayMode = () => { try { return localStorage.getItem('ample.sq.playMod
 const Q = { playMode: loadPlayMode(), blockId: null, embedded: false, path: '', seq: null, snapshot: '', original: '', undo: [], redo: [], pattern: null, clip: -1, barPx: 30, error: '', busy: false, range: null, cursor: 1, repeat: true, live: true, stale: true, builtTake: null, status: '', wroteLive: false, liveBusy: false, liveAgain: false };
 const COLORS = ['#e8505b', '#f2994a', '#f2c94c', '#6fcf97', '#56ccf2', '#7c83fd', '#bb6bd9'];
 const dirty = () => !!Q.seq && formatSeq(Q.seq) !== Q.snapshot;
+/** Differs from the version the editor was opened on (or last saved): staged edits, or text that Play/Build/live-swap already wrote out. */
+const changed = () => !!Q.seq && (formatSeq(Q.seq) !== Q.original || Q.snapshot !== Q.original);
 const colorOf = (index) => COLORS[index % COLORS.length];
 
 /** Opens the workspace for a sequencer block; it asks for a file first when the block has none. */
@@ -100,6 +103,7 @@ export function leaveSequencerDiscarding() {
 
 export function initSequencer() {
   registerView('seq', render);
+  watchLeaving();
   addEventListener('keydown', (event) => {
     if (V.mode !== 'seq' || event.code !== 'Space' || event.ctrlKey || event.metaKey || event.altKey) return;
     const target = event.target;
@@ -123,8 +127,41 @@ export function initSequencer() {
     }
   }, true);
   typedProbe(() => V.mode === 'seq' && dirty());
-  beforeSave(async () => { if (V.mode === 'seq' && dirty()) await writeFile(); });
+  // what is saved is the new baseline Revert goes back to
+  beforeSave(async () => {
+    if (V.mode !== 'seq' || !Q.seq) return;
+    if (dirty()) await writeFile();
+    Q.original = Q.snapshot;
+    Q.wroteLive = false;
+  });
+  onRevert({ can: () => V.mode === 'seq' && changed(), run: revertSequence });
   subscribe(() => { if (V.mode === 'seq' && !Q.busy) { const lanes = $('#sq-lanes'); if (lanes) paintLanes(lanes); } });
+}
+
+/**
+ * Puts back what an earlier Play, Build or live change wrote (the file, or the block in the song)
+ * so the original text is on disk again.
+ */
+async function restoreWritten() {
+  if (Q.snapshot === Q.original && !Q.wroteLive) return;
+  if (Q.embedded) {
+    const line = headerLineOf(Q.blockId);
+    if (line !== undefined) await applyText(withEmbedded(S.doc.text, line, Q.original));
+  } else await api.put('/api/file', { path: Q.path, text: Q.original });
+  Q.snapshot = Q.original; Q.wroteLive = false; refreshInputs().catch(() => {});
+}
+
+/**
+ * Revert in the Sequencer: back to the version the editor was opened on (or last saved),
+ * also after Play or Build wrote the staged text.
+ */
+async function revertSequence() {
+  const parsed = parseSeq(Q.original);
+  if (!parsed.seq) { toast('The saved sequence could not be read.'); return; }
+  await restoreWritten();
+  Q.seq = parsed.seq; Q.undo = []; Q.redo = []; Q.clip = -1; Q.stale = true; Q.error = '';
+  Q.pattern = Q.seq.patterns.some((p) => p.name === Q.pattern) ? Q.pattern : (Q.seq.patterns[0]?.name ?? null);
+  render(); refreshSaveControls(); scheduleLive(); toast('Reverted the sequence to the saved version.');
 }
 
 async function writeFile() {
@@ -220,12 +257,12 @@ function foldBottom() { const bottom = document.querySelector('#bottom'); if (!b
 function unfoldBottom() { if (bottomWasOpen === null) return; const bottom = document.querySelector('#bottom'); if (bottom && bottomWasOpen) { bottom.classList.remove('min'); const toggle = document.querySelector('#b-min'); if (toggle) toggle.textContent = '▾'; } bottomWasOpen = null; }
 async function leave(applyIt) {
   if (applyIt && Q.error) { toast('Fix the file first: ' + Q.error); return; }
-  if (applyIt) { if (dirty()) await writeFile(); } else if (dirty() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }]))) return;
+  const undoChoices = [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }];
+  if (applyIt) {
+    if (dirty()) await writeFile();
+  } else if (changed() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', undoChoices))) return;
   stopLoopPlayer();
-  if (!applyIt && Q.wroteLive) {
-    if (Q.embedded) { const line = headerLineOf(Q.blockId); if (line !== undefined) await applyText(withEmbedded(S.doc.text, line, Q.original)); } else await api.put('/api/file', { path: Q.path, text: Q.original });
-    Q.wroteLive = false; refreshInputs().catch(() => {});
-  }
+  if (!applyIt) await restoreWritten();
   unfoldBottom();
   setView('blocks');
 }
@@ -244,9 +281,32 @@ function placeRack(rack, main) {
   put(rack.querySelector(':scope > p.note'), 3 + cards.length, 1);
   for (const wide of main.querySelectorAll(':scope > :not(#sq-patterns)')) wide.style.gridColumn = '1 / -1';   // the playlist, the lanes and the messages use the whole width
 }
+/**
+ * Set while Tab or a pointer press is moving the focus away (the step of Tab, or 'pointer'):
+ * the change event it fires must not put the focus back on the redrawn control.
+ */
+let leaving = 0;
+function watchLeaving() {
+  const mark = () => { leaving = 'pointer'; setTimeout(() => { leaving = 0; }, 0); };
+  addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    leaving = event.shiftKey ? -1 : 1;
+    addEventListener('keyup', () => { leaving = 0; }, { once: true, capture: true });
+    setTimeout(() => { leaving = 0; }, 1000);
+  }, true);
+  addEventListener('pointerdown', (event) => { if (event.target !== document.activeElement) mark(); }, true);
+}
 function scrollPlaces(root) {
   const places = SCROLLERS.map((selector) => [selector, root.querySelector(selector)?.scrollTop ?? 0, root.querySelector(selector)?.scrollLeft ?? 0]);
-  return { places, self: [root.scrollTop, root.scrollLeft], parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null };
+  const active = document.activeElement;
+  // a change caused by Tab goes on to the next control, one caused by a click elsewhere leaves the focus alone
+  const focusKey = leaving === 'pointer' ? null : leaving ? neighbourKey(root, active, leaving) : focusKeyOf(root, active);
+  return {
+    focusKey,
+    places,
+    self: [root.scrollTop, root.scrollLeft],
+    parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null,
+  };
 }
 function restoreScroll(root, saved) {
   const apply = () => {
@@ -254,6 +314,7 @@ function restoreScroll(root, saved) {
     if (saved.parent && root.parentElement) { root.parentElement.scrollTop = saved.parent[0]; root.parentElement.scrollLeft = saved.parent[1]; }
     for (const [selector, top, left] of saved.places) { const node = root.querySelector(selector); if (node) { node.scrollTop = top; node.scrollLeft = left; } }
   };
+  findByFocusKey(root, saved.focusKey)?.focus({ preventScroll: true });   // the edited clip or step keeps the keyboard
   apply();
   requestAnimationFrame(apply);
 }

@@ -11,6 +11,8 @@ test('the scheduler releases a crossing note at the loop seam and loops to zero 
     createChannelSplitter() { return { connect(node) { return node; }, disconnect() {} }; }
     createChannelMerger() { return { connect(node) { return node; }, disconnect() {} }; }
     createAnalyser() { return { fftSize: 0, connect(node) { return node; }, disconnect() {}, getFloatTimeDomainData() {} }; }
+    // failed on main before this change: the output path now creates a wave shaper
+    createWaveShaper() { return { curve: null, connect(node) { return node; }, disconnect() {} }; }
     createDynamicsCompressor() { return { connect(node) { return node; }, disconnect() {} }; }
     createGain() { return { context: this, connect(node) { return node; }, disconnect() {}, gain: { value: 1, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime: (value, at) => ramps.push({ value, at }) } }; }
   }

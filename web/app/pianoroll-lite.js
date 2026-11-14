@@ -38,7 +38,8 @@ import { velocityColor, shadeHsl } from '../lib/pianoroll-theme.mjs';
 import { arpeggiate, flipPitch, legato, removeOverlaps, reverseTime, scaleTime, staccato } from '../lib/roll-tools.mjs';
 import { LANE_DEFS, laneFraction, laneFromY, laneRamp, laneValueOf } from '../lib/note-lanes.mjs';
 import { knobFactor, rowVolume, scaleVelocity } from '../lib/lite-grid.mjs';
-import { SNAPS, TOOLS, autoScrollDelta, clipEndBars, createCommitQueue, dragLoop, gridLevels, hasHiddenData, hitLoop, litePlayRange, metronomeClicks, nearestStart, openCentre, scrollYForCentre, sliceNote, snapBeats, snapTick, toolForKey, typingPitch } from '../lib/lite-roll-model.mjs';
+import { createMetronomeCursor } from '../lib/metronome-cursor.mjs';
+import { SNAPS, TOOLS, autoScrollDelta, clipEndBars, createCommitQueue, dragLoop, gridLevels, hasHiddenData, hitLoop, litePlayRange, nearestStart, openCentre, scrollYForCentre, sliceNote, snapBeats, snapTick, toolForKey, typingPitch } from '../lib/lite-roll-model.mjs';
 import { GRID_KEYS, LONG_PRESS_MS, ROLL_KEYS, isLongPress, longPressAction, pinchStart, pinchView } from '../lib/lite-touch.mjs';
 import { adjustRows, clampMove, clipboardText, cloneRows, copyItems, createThrottle, drawRow, duplicateRows, itemsFromText, mergedRows, moveRows, pasteRows, quantizeRows, removeRows, resizeRows, rowIndexAt, sliceRow, soundingPitches, soundingRows, velocityRows } from '../lib/lite-gestures.mjs';
 import { barBeats } from '../lib/meter.mjs';
@@ -712,7 +713,8 @@ export function openPianoRollLite(blockId, options = {}) {
   let liveFor = null, liveRevision = -1, liveCache = [], liveMuted = '';
   const mutedSig = () => [...state.muted].sort((a, b) => a - b).join(',');
   const liveRows = () => { if (liveFor !== model || liveRevision !== audition.preview.revision || liveMuted !== mutedSig()) { liveCache = audition.preview.transform(rows().filter((n) => !state.muted.has(n.pitch))); liveFor = model; liveRevision = audition.preview.revision; liveMuted = mutedSig(); } return liveCache; };
-  let starting = false, tickFrame = 0, metroTimer = 0;
+  // metroCursor: knows which beat was scheduled last (by tick, so a stale playhead cannot schedule one twice)
+  let starting = false, tickFrame = 0, metroTimer = 0, metroCursor = null;
   async function togglePlay(selectionOnly) {
     if (state.player || starting) { stopPlayback(false); return; }
     starting = true; state.followPaused = false; liveAudioContext();
@@ -732,7 +734,7 @@ export function openPianoRollLite(blockId, options = {}) {
     playButton.textContent = '❚❚'; toggle(playButton, true);
     const tick = () => { tickFrame = 0; if (!state.player || !panel.isConnected) return; if (state.drag?.kind !== 'seek') state.playhead = state.player.time() / secondsPerTick; follow(); requestDraw(); tickFrame = requestAnimationFrame(tick); };
     tickFrame = requestAnimationFrame(tick);
-    clearInterval(metroTimer);
+    clearInterval(metroTimer); metroCursor = newMetroCursor();
     metroTimer = setInterval(metronomeRound, 80);
   }
   // playing: go on from here (stopping reads the playhead back from the player, so the wanted place is put back before it starts again)
@@ -758,11 +760,18 @@ export function openPianoRollLite(blockId, options = {}) {
   };
   songFrame = requestAnimationFrame(songRun);
 
+  const newMetroCursor = () => createMetronomeCursor({
+    ppq, loopStart: state.player?.range.loopStart ?? 0, loopEnd: state.player?.range.loopEnd ?? 0,
+  });
   function metronomeRound() {
-    if (!state.metronome || !state.player) return;
-    const ctx = liveAudioContext(), range = state.player.range, lookahead = 0.3 / (60 / bpm() / ppq);
-    for (const click of metronomeClicks(state.playhead, lookahead, ppq, range.loopStart, range.loopEnd)) {
-      const at = ctx.currentTime + click.offset * (60 / bpm() / ppq), osc = ctx.createOscillator(), gain = ctx.createGain();
+    if (!state.player) return;
+    // switched off: the next click starts clean (laps passed meanwhile are not counted)
+    if (!state.metronome) { metroCursor = newMetroCursor(); return; }
+    const ctx = liveAudioContext(), secondsPerTick = 60 / bpm() / ppq;
+    // the position is read from the player now (state.playhead is only refreshed per animation frame, up to a frame old)
+    for (const click of metroCursor.round(state.player.time() / secondsPerTick, 0.3 / secondsPerTick)) {
+      const at = ctx.currentTime + click.offset * secondsPerTick;
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
       osc.frequency.value = click.accent ? 1500 : 1000; gain.gain.setValueAtTime(0.0001, at); gain.gain.linearRampToValueAtTime(0.2, at + 0.002); gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.04);
       osc.connect(gain).connect(playbackOutput(ctx)); osc.start(at); osc.stop(at + 0.06);
     }
