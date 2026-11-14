@@ -1226,9 +1226,10 @@ export function openAiTask(id, options = {}) {
     reviewBusy = true;
     foot.querySelectorAll('button').forEach((button) => { button.disabled = true; });
     try {
-      const result = await post(path, data);
+      const result = await post(path, { ...data, activeSong: S.path });
       if (result.accepted) selectedChanges.clear();
-      if (result.songText != null) { if (S.path === result.song) await applyText(result.songText); else if (result.accepted) toast('The song ' + result.song + ' is changed on disk; open it to see the change.'); }
+      if (result.songWritten) toast('The song ' + result.song + ' is changed and saved; open it to see the change.');
+      else if (result.songText != null && S.path === result.song) await applyText(result.songText);
       if (result.accepted) await reloadDoc();
       const continuation = result.continuation || result;
       if (continuation.note) toast(continuation.note);
@@ -1248,8 +1249,9 @@ export function openAiTask(id, options = {}) {
     }
     const accept = async (anyway) => {
       try {
-        const r = await post('/accept', { anyway, include: [...include], moves: [...moveTicks] });
-        if (r.songText != null) { if (S.path === r.song) await applyText(r.songText); else toast(`The song ${r.song} is changed on disk.`); }
+        const r = await post('/accept', { anyway, include: [...include], moves: [...moveTicks], activeSong: S.path });
+        if (r.songWritten) toast(`The song ${r.song} is changed and saved; open it to see the change.`);
+        else if (r.songText != null && S.path === r.song) await applyText(r.songText);
         await reloadDoc();
         shown = '';
         poll();

@@ -222,7 +222,7 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
         }
       }
       let r;
-      try { r = await api.post(`/api/ai/tasks/${task.id}/accept`, {}); } catch (error) {
+      try { r = await api.post(`/api/ai/tasks/${task.id}/accept`, { activeSong: S.path }); } catch (error) {
         // bare metal: the song in the editor already holds what the model made (the live view), so the project no longer matches the base of the proposal and Accept can refuse:
         // the proposed text is then put in the song itself and the proposal is put aside (files other than the song are not carried along in this case)
         if (!lastLive || !proposed) throw error;

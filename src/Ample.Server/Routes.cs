@@ -276,7 +276,17 @@ public static class Routes
 
     private static TxImportRequest TxImportRequestOf(JsonElement b) => new(Str(b, "path"), Opt(b, "mode") ?? "anyway", Opt(b, "targetFolder"), Opt(b, "newFolder"), Opt(b, "projectName"), Opt(b, "songName"), b.TryGetProperty("preferEmbedded", out JsonElement pe) && pe.ValueKind == JsonValueKind.True, b.TryGetProperty("overrides", out JsonElement ov) && ov.ValueKind == JsonValueKind.Object ? ov.EnumerateObject().ToDictionary(x => x.Name, x => x.Value.GetString()!, StringComparer.Ordinal) : null);
 
-    private static Task<JsonObject> AcceptWith(ProjectSession s, string id, JsonElement body, CancellationToken ct) => s.Ai.AcceptAsync(id, body.TryGetProperty("anyway", out JsonElement an) && an.ValueKind == JsonValueKind.True, body.TryGetProperty("include", out JsonElement inc) && inc.ValueKind == JsonValueKind.Array ? [.. inc.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null, ct, body.TryGetProperty("moves", out JsonElement ticked) && ticked.ValueKind == JsonValueKind.Array ? [.. ticked.EnumerateArray().Select(x => x.GetString() ?? string.Empty)] : null);
+    private static Task<JsonObject> AcceptWith(ProjectSession s, string id, JsonElement body, CancellationToken ct)
+    {
+        bool anyway = body.TryGetProperty("anyway", out JsonElement an) && an.ValueKind == JsonValueKind.True;
+        string[]? include = body.TryGetProperty("include", out JsonElement inc) && inc.ValueKind == JsonValueKind.Array
+            ? [.. inc.EnumerateArray().Select(x => x.GetString() ?? string.Empty)]
+            : null;
+        string[]? moves = body.TryGetProperty("moves", out JsonElement ticked) && ticked.ValueKind == JsonValueKind.Array
+            ? [.. ticked.EnumerateArray().Select(x => x.GetString() ?? string.Empty)]
+            : null;
+        return s.Ai.AcceptAsync(id, anyway, include, ct, moves, Opt(body, "activeSong"));
+    }
 
     private static double Num(HttpContext c, string name) => double.TryParse(c.Request.Query[name].ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
 
@@ -2934,7 +2944,9 @@ public static class Routes
             string[] paths = b.TryGetProperty("paths", out JsonElement selected) && selected.ValueKind == JsonValueKind.Array ? [.. selected.EnumerateArray().Select(item => item.GetString() ?? string.Empty)] : [];
             string[] include = b.TryGetProperty("include", out JsonElement offered) && offered.ValueKind == JsonValueKind.Array ? [.. offered.EnumerateArray().Select(item => item.GetString() ?? string.Empty)] : [];
             string[] moves = b.TryGetProperty("moves", out JsonElement ticked) && ticked.ValueKind == JsonValueKind.Array ? [.. ticked.EnumerateArray().Select(item => item.GetString() ?? string.Empty)] : [];
-            return Ok(await s.Ai.AcceptSelectedAndContinueAsync(id, paths, Str(b, "message"), include, c.RequestAborted, moves));
+            string? activeSong = Opt(b, "activeSong");
+            string message = Str(b, "message");
+            return Ok(await s.Ai.AcceptSelectedAndContinueAsync(id, paths, message, include, c.RequestAborted, moves, activeSong));
         });
         add("POST", "/api/ai/tasks/{id}/accept-selected", "ai", "Accepts selected proposal files without starting another Codex turn.", true, s is null ? null : async (string id, HttpContext c) =>
         {
@@ -2942,7 +2954,9 @@ public static class Routes
             string[] paths = b.TryGetProperty("paths", out JsonElement selected) && selected.ValueKind == JsonValueKind.Array ? [.. selected.EnumerateArray().Select(item => item.GetString() ?? string.Empty)] : [];
             string[] include = b.TryGetProperty("include", out JsonElement offered) && offered.ValueKind == JsonValueKind.Array ? [.. offered.EnumerateArray().Select(item => item.GetString() ?? string.Empty)] : [];
             string[] moves = b.TryGetProperty("moves", out JsonElement ticked) && ticked.ValueKind == JsonValueKind.Array ? [.. ticked.EnumerateArray().Select(item => item.GetString() ?? string.Empty)] : [];
-            return Ok(await s.Ai.AcceptSelectedAsync(id, paths, string.Empty, include, false, c.RequestAborted, moves).ConfigureAwait(false));
+            string? activeSong = Opt(b, "activeSong");
+            return Ok(await s.Ai.AcceptSelectedAsync(
+                id, paths, string.Empty, include, false, c.RequestAborted, moves, activeSong).ConfigureAwait(false));
         });
         add("POST", "/api/ai/tasks/{id}/continue", "ai", "Continues only unfinished work using delivered clips and original quantity limits; rejects duplicate running requests.", true, s is null ? null : async (string id, HttpContext c) => Ok(await s.Ai.ContinueRemainingAsync(id, Opt(await Body(c), "message") ?? string.Empty, c.RequestAborted).ConfigureAwait(false)));
         add("POST", "/api/ai/tasks/{id}/rebase", "ai", "Brings a proposal up to date with a project that changed in the meantime, where the changes do not overlap.", true, s is null ? null : async (string id) => Ok(await s.Ai.RebaseAsync(id)));
