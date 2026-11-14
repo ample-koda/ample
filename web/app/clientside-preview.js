@@ -15,6 +15,8 @@ import { clickAudio } from '../lib/clientside-click.mjs';
 import { peqAudio } from '../lib/clientside-peq.mjs';
 import { volumeAudio } from '../lib/clientside-volume.mjs';
 import { normalizeAudio } from '../lib/clientside-normalize.mjs';
+import { trimAudio } from '../lib/clientside-trim.mjs';
+import { CHANGED_MESSAGE, captureOf, changedSince } from '../lib/preview-guard.mjs';
 import { delayAudio } from '../lib/clientside-delay.mjs';
 import { deesserAudio } from '../lib/clientside-deesser.mjs';
 import { vocodeAudio } from '../lib/clientside-vocoder.mjs';
@@ -308,6 +310,7 @@ export async function previewPitchedSampleSet(node, context, signal, range, tota
 export async function buildAndPlayClientPreview() {
   if (running || S.build.running || !S.doc || S.peek || S.doc.diagnostics?.some((item) => item.severity === 'error')) return;
   const initialPath = S.path, initialText = S.doc.text, initialRange = S.range ? { ...S.range } : null;
+  const captured = captureOf(initialPath, initialText, initialRange);
   const graph = flat(), nodes = new Map(graph.nodes.map((node) => [node.id, node])), memo = new Map(), audioCache = new Map();
   for (const link of graph.links) if (link.type === 'any') {
     const from = nodes.get(link.from), to = nodes.get(link.to);
@@ -336,6 +339,8 @@ export async function buildAndPlayClientPreview() {
     plannedTakes = plan?.takes ?? null;
     const planKey = plan ? JSON.stringify([S.path, initialText, plan.signature]) : null;   // without a plan (a range of bars is chosen) nothing is reused
     if (planKey && lastPreview?.key === planKey) {
+      // the status of the builds took a moment: the song or the range may have changed meanwhile, and then the old preview is not what was asked for
+      if (changedSince(captured, S.path, S.doc?.text, S.range)) throw new Error(CHANGED_MESSAGE);
       progress.phase = 'starting playback'; touch();
       await playTransient(lastPreview.blob);
       logProject('client preview', 'preview', 'Played the previous preview again: the song and its takes did not change.');
@@ -465,11 +470,21 @@ export async function buildAndPlayClientPreview() {
         memo.set(key, result);
         return result;
       }
-      if (node.tpl === 'normalize' && (node.params.mode || 'peak') === 'peak') {
+      // the loudness of a part of a song is not the loudness of the song: with a range chosen the loudness mode stays with the build
+      if (node.tpl === 'normalize' && ((node.params.mode || 'peak') === 'peak' || !S.range)) {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
         const result = await normalizeAudio(source, node.params, controller.signal);
+        memo.set(key, result);
+        return result;
+      }
+      // trim decides from the whole recording where the sound starts and ends: with a range chosen it stays with the build
+      if (node.tpl === 'trim' && !S.range) {
+        const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
+        const source = link ? await resolve(link.from, link.outName) : null;
+        if (!source) { memo.set(key, null); return null; }
+        const result = trimAudio(source, node.params).audio;
         memo.set(key, result);
         return result;
       }
@@ -1051,7 +1066,7 @@ export async function buildAndPlayClientPreview() {
     progress.phase = 'mixing down'; touch();
     if (!result?.channels?.[0]?.length) throw new Error('The client preview produced no audio. Check the enabled inputs.');
     controller.signal.throwIfAborted();
-    if (S.path !== initialPath || S.doc?.text !== initialText || JSON.stringify(S.range || null) !== JSON.stringify(initialRange)) throw new Error('The song or preview range changed while audio was preparing. Build the preview again.');
+    if (changedSince(captured, S.path, S.doc?.text, S.range)) throw new Error(CHANGED_MESSAGE);
     progress.phase = 'starting playback'; touch();
     const wav = encodeWav(result);
     if (planKey) lastPreview = { key: planKey, blob: wav };

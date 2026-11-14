@@ -129,3 +129,47 @@ test('a lane of a built sequencer plays its own audio of the take (role), not th
   const mix = planChain({ nodes, links: [link('score', 'vol')], target: 'vol', takeOf: (id) => (id === 'score' ? 'ts' : null) });
   assert.equal(mix.items[0].role, undefined);
 });
+
+test('a Meter between an effect and the master does not interrupt the chain: the plan looks through it (issue 75)', () => {
+  const nodes = [node('click', 'click'), node('eq1', 'eq'), node('m', 'meter'), node('master', 'master')];
+  const links = [link('click', 'eq1'), link('eq1', 'm', 'audio'), link('m', 'master', 'mix')];
+  const plan = planChain({ nodes, links, target: 'master', takeOf: () => undefined });
+  assert.equal(plan.ok, true, plan.reason);
+  assert.deepEqual(plan.items.map((i) => i.id), ['click', 'eq1', 'master']);
+  assert.deepEqual(plan.items.at(-1).inputs, [{ from: 'eq1', lane: 0 }]);
+  assert.deepEqual(plan.sources, ['click']);
+  assert.ok(!plan.items.some((i) => i.id === 'm'), 'the Meter is not an item of the audio graph');
+});
+
+test('the plan is the same with and without the Meter', () => {
+  const base = [node('click', 'click'), node('eq1', 'eq'), node('master', 'master')];
+  const without = planChain({ nodes: base, links: [link('click', 'eq1'), link('eq1', 'master', 'mix')], target: 'master', takeOf: () => undefined });
+  const withMeter = planChain({
+    nodes: [...base, node('m', 'meter')], links: [link('click', 'eq1'), link('eq1', 'm', 'audio'), link('m', 'master', 'mix')], target: 'master', takeOf: () => undefined,
+  });
+  assert.deepEqual(withMeter.items, without.items);
+});
+
+test('two Meters in a row are both looked through, and a Meter after a source needs no take of its own', () => {
+  const nodes = [node('click', 'click'), node('m1', 'meter'), node('m2', 'meter'), node('d', 'delay')];
+  const links = [link('click', 'm1', 'in'), link('m1', 'm2', 'in'), link('m2', 'd')];
+  const plan = planChain({ nodes, links, target: 'd', takeOf: () => undefined });
+  assert.equal(plan.ok, true, plan.reason);
+  assert.deepEqual(plan.items.map((i) => i.id), ['click', 'd']);
+});
+
+test('starting the chain at a Meter starts it at the block in front of the Meter', () => {
+  const nodes = [node('click', 'click'), node('eq1', 'eq'), node('m', 'meter')];
+  const plan = planChain({ nodes, links: [link('click', 'eq1'), link('eq1', 'm', 'audio')], target: 'm', takeOf: () => undefined });
+  assert.equal(plan.ok, true, plan.reason);
+  assert.equal(plan.output, 'eq1');
+  assert.deepEqual(plan.items.map((i) => i.id), ['click', 'eq1']);
+});
+
+test('a local buffer block after a Meter that follows an effect still plays its built take, as it does without the Meter', () => {
+  const nodes = [node('click', 'click'), node('eq1', 'eq'), node('m', 'meter'), node('norm', 'normalize'), node('master', 'master')];
+  const links = [link('click', 'eq1'), link('eq1', 'm', 'audio'), link('m', 'norm', 'in'), link('norm', 'master', 'mix')];
+  const plan = planChain({ nodes, links, target: 'master', takeOf: (id) => (id === 'norm' ? 'tnorm' : undefined) });
+  assert.equal(plan.ok, true, plan.reason);
+  assert.equal(plan.items.find((i) => i.id === 'norm').kind, 'source');
+});

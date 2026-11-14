@@ -19,6 +19,8 @@ export const SUM_TYPES = new Set(['mixer', 'bus', 'send']);   // a send has two 
 export const LOCAL_OPS = new Set(['cut', 'fade', 'shift', 'reverse', 'chop', 'rewind', 'scratch', 'normalize', 'pitch', 'stretch', 'granular', 'denoise', 'trim']);
 /** Buffer blocks with several inputs or none (plan local-preview 2.5): made in the browser from the sounds they work on, or from a file of the project. Splitter is one item per used output (id `splitter:left`). */
 export const LOCAL_BUFFERS = new Set(['click', 'import-audio', 'ambience', 'join', 'crossfade', 'splitter']);
+/** Blocks that pass the sound on unchanged (a Meter measures and reports, its audio out is its audio in): the plan looks through them, so adding one changes nothing of the audio graph. */
+export const PASS_THROUGH = new Set(['meter']);
 /** The id of the block behind a plan id (a splitter output `s:left` is the block `s`). */
 export const baseId = (id) => String(id).split(':')[0];
 /** The five note transforms between a midi-clip and an instrument; they are plain functions of the note list. */
@@ -54,12 +56,33 @@ const laneOf = (name) => { const m = /^in(\d+)$/.exec(name || ''); return m ? Nu
  * Returns { ok: true, items, output, sources } or { ok: false, reason }.
  *  items (dependencies first): { id, kind: 'source' | 'effect' | 'sum', tpl, take?, inputs: [{ from, lane }] } with lane = the mixer lane, or 0 for an effect.
  */
-export function planChain({ nodes, links, target, takeOf }) {
+export function planChain({ nodes, links, target: requested, takeOf }) {
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  if (!byId.has(target)) return { ok: false, reason: 'This block is not on the board.' };
+  if (!byId.has(requested)) return { ok: false, reason: 'This block is not on the board.' };
+  let target = requested;
   const items = [], seen = new Set(), visiting = new Set(), notes = [];
   // what a link carries away from a block: a splitter has two outputs, each its own item
-  const sourceOf = (link) => { const tpl = byId.get(link.from)?.tpl; return tpl === 'splitter' ? `${link.from}:${link.outName === 'right' ? 'right' : 'left'}` : tpl === 'sequencer' ? `${link.from}:${link.outName || 'mix'}` : tpl === 'send' && link.outName === 'send' ? `${link.from}:send` : link.from; };
+  const audioIn0 = (id) => links.filter((link) => link.to === id && link.type === 'audio' && !link.disabled && !link.expression);
+  // a link that comes from a pass-through block is the link that block reads from, followed back until a real block is reached
+  const resolveLink = (link) => {
+    let current = link;
+    for (let guard = 0; guard < 16; guard++) {
+      const from = byId.get(current.from);
+      if (!from || !PASS_THROUGH.has(from.tpl)) return current;
+      const inner = audioIn0(from.id).find((l) => l.inName === 'in' || l.inName === 'audio');
+      if (!inner) return current;
+      current = inner;
+    }
+    return current;
+  };
+  const sourceOf = (raw) => sourceOfDirect(resolveLink(raw));
+  const sourceOfDirect = (link) => {
+    const tpl = byId.get(link.from)?.tpl;
+    if (tpl === 'splitter') return `${link.from}:${link.outName === 'right' ? 'right' : 'left'}`;
+    if (tpl === 'sequencer') return `${link.from}:${link.outName || 'mix'}`;
+    if (tpl === 'send' && link.outName === 'send') return `${link.from}:send`;
+    return link.from;
+  };
   const audioIn = (id) => links.filter((link) => link.to === id && link.type === 'audio' && !link.disabled && !link.expression);
   const BUFFER_KINDS = new Set(['source', 'local']);
   // a block the browser can make itself returns a function that adds it: it answers undefined when done, a text when something upstream is wrong, or null to use the built take
@@ -74,7 +97,7 @@ export function planChain({ nodes, links, target, takeOf }) {
     if (node.tpl === 'join' || node.tpl === 'crossfade' || node.tpl === 'splitter' || node.tpl === 'vocoder') {
       const links = audioIn(id).filter((l) => (node.tpl === 'splitter' ? (l.inName === 'in' || l.inName === 'audio') : node.tpl === 'crossfade' ? l.inName === 'a' || l.inName === 'b' : node.tpl === 'vocoder' ? l.inName === 'modulator' || l.inName === 'carrier' : /^(in|audio)\d+$/.test(l.inName)));
       if (!links.length) return null;
-      if (links.some((l) => { const up = byId.get(l.from); return !up || CHAIN_EFFECTS.has(up.tpl) || SUM_TYPES.has(up.tpl); })) return null;   // after an effect it plays its built take
+      if (links.some((l) => { const up = byId.get(resolveLink(l).from); return !up || CHAIN_EFFECTS.has(up.tpl) || SUM_TYPES.has(up.tpl); })) return null;   // after an effect it plays its built take
       return () => {
         const inputs = [];
         for (const l of links) {
@@ -112,7 +135,7 @@ export function planChain({ nodes, links, target, takeOf }) {
     if (LOCAL_OPS.has(node.tpl)) {
       const link = audioIn(id).find((l) => l.inName === 'in');
       if (!link) return null;
-      const upstream = byId.get(link.from);
+      const upstream = byId.get(resolveLink(link).from);
       if (!upstream || CHAIN_EFFECTS.has(upstream.tpl) || SUM_TYPES.has(upstream.tpl)) return null;   // after an effect it plays its built take
       return () => {
         const problem = visit(sourceOf(link));
@@ -159,6 +182,11 @@ export function planChain({ nodes, links, target, takeOf }) {
     seen.add(id); items.push({ id, kind: effect ? 'effect' : 'sum', tpl: node.tpl, inputs, ...(key ? { key } : {}) });
     return null;
   };
+  // starting the chain at a Meter starts it at what the Meter is fed by
+  if (PASS_THROUGH.has(byId.get(requested).tpl)) {
+    const fed = links.find((l) => l.to === requested && l.type === 'audio' && !l.disabled && !l.expression && (l.inName === 'in' || l.inName === 'audio'));
+    if (fed) target = sourceOf(fed);
+  }
   const problem = visit(target);
   if (problem) return { ok: false, reason: problem };
   return { ok: true, items, output: target, sources: items.filter((item) => item.kind === 'source' || item.kind === 'local').map((item) => item.id), notes };
