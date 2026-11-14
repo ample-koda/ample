@@ -1024,6 +1024,18 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Equal(1, await Saved());
     }
 
+    [Fact]
+    public async Task The_estimate_of_a_cold_build_counts_the_blocks_that_wait_for_a_stale_one_and_says_so()
+    {
+        // nothing is built yet: every block renders, and the master only after the blocks before it (counting the stale blocks alone gives two of the three)
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), "composition \"s\" { ample 1  tempo 120  master-seed 1 }\nmidi-clip c {\n  chords Am\n  bars 1\n}\npiano p pinned@2.0 at 1 for 1 {\n  set felt-piano\n  from c.notes -> notes\n}\nmaster master {\n  channels stereo\n}\n");
+        using JsonDocument cold = JsonDocument.Parse(await Text("/api/build/estimate?path=song.amplet"));
+        Assert.True(cold.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal(3, cold.RootElement.GetProperty("blocks").GetInt32());   // the clip, the piano and the master
+        Assert.True(cold.RootElement.GetProperty("seconds").GetDouble() > 0);
+        Assert.Contains("only render if the block before them changes the sound", cold.RootElement.GetProperty("text").GetString(), StringComparison.Ordinal);
+    }
+
     private async Task<string> Text(string path) => await http.GetStringAsync(path, CancellationToken.None);
 
     private async Task<HttpResponseMessage> Post(string path, object body) => await http.PostAsync(path, Json(body), CancellationToken.None);
