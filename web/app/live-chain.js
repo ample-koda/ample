@@ -97,11 +97,14 @@ const SAFE_KEY = 'ample.live.safeMode';
 export function safeMode() { try { return localStorage.getItem(SAFE_KEY) === 'off' ? 'off' : 'auto'; } catch { return 'auto'; } }
 export function setSafeMode(mode) { try { localStorage.setItem(SAFE_KEY, mode === 'off' ? 'off' : 'auto'); } catch { /* no storage */ } emit(); }
 
+/** Whether a block of the session stops computing while bypassed (today only the worklet reverb). */
+const suspends = (s, id) => Boolean(s.built.get(id)?.graph.suspends);
+
 /** The load of the live chain: { load (0..1+), level, estimated, mode }. Measured by renderCapacity where the browser has it, else estimated from the blocks. */
 export function chainLoad() {
   if (!session) return { load: 0, level: 'ok', estimated: true, mode: safeMode() };
   if (session.measured) return { ...session.cpu.state(), estimated: false, mode: safeMode() };
-  const load = estimateLoad(session.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ tpl: i.tpl, bypassed: session.bypass.has(i.id) })));
+  const load = estimateLoad(session.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ tpl: i.tpl, bypassed: session.bypass.has(i.id) && suspends(session, i.id) })));   // a bypassed block that cannot sleep still costs its full share
   return { load, level: load >= .7 ? 'warn' : 'ok', estimated: true, mode: safeMode() };
 }
 
@@ -112,7 +115,7 @@ export function chainFeedLoad(value, now = performance.now() / 1000) {
   s.measured = true;
   const state = s.cpu.feed(value, now);
   if (state.level === 'bypass' && safeMode() === 'auto') {
-    const item = heaviest(s.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ id: i.id, tpl: i.tpl, bypassed: s.bypass.has(i.id) })));
+    const item = heaviest(s.plan.items.filter((i) => i.kind === 'effect').map((i) => ({ id: i.id, tpl: i.tpl, bypassed: s.bypass.has(i.id) || !suspends(s, i.id) })));   // only a block that stops computing when bypassed (the worklet reverb) relieves the CPU
     if (item) {
       s.bypass.add(item.id); s.cpuBypassed.add(item.id); s.cpu.reset(); refresh(); emit();
       toast(`The computer cannot keep up: ${flat().nodes.find((n) => n.id === item.id)?.title || item.id} is bypassed (CPU). Switch it on again with its button when there is room.`);

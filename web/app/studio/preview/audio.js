@@ -339,7 +339,7 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   dry.gain.value = initial.enabled === 'off' ? 1 : 0; wet.gain.value = initial.enabled === 'off' ? 0 : 1;
   update(initial);
   // oscillators must be stopped, not just disconnected, or they keep running silently on the shared meter context across every later preview
-  return { update, replaceImpulse, keyInput, setKey, loudness, get latency() { return latency; }, dispose: () => { disposers.forEach((value) => value()); oscillators.forEach((value) => value.stop()); nodes.forEach((value) => value.disconnect()); } };
+  return { update, replaceImpulse, suspends: Boolean(suspendHook), keyInput, setKey, loudness, get latency() { return latency; }, dispose: () => { disposers.forEach((value) => value()); oscillators.forEach((value) => value.stop()); nodes.forEach((value) => value.disconnect()); } };
 }
 
 /** Steps (or cycles) per bar of the tremolo: the sync value (1/8 is 8), 16 when sync is off (a gate step is a sixteenth then). */
