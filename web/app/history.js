@@ -56,6 +56,7 @@ async function afterChange() { await Promise.all([loadHistory(), reloadDoc()]); 
  */
 async function pendingWork() {
   const dirtyTabs = await (await import('./tabs.js')).dirtyTabPaths();
+  if (S.doc?.dirty && S.path && !dirtyTabs.includes(S.path)) dirtyTabs.push(S.path);   // the open song, also when it has no tab
   if (S.moduleStack.length && S.moduleDoc?.dirty && S.modulePath && !dirtyTabs.includes(S.modulePath)) dirtyTabs.push(S.modulePath);
   let drafts = [];
   try { drafts = listRecoveryDrafts(localStorage, S.project?.id || ''); } catch { /* storage may be blocked */ }
