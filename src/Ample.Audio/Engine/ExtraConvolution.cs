@@ -56,8 +56,9 @@ internal sealed class ConvolutionRenderer : ExtraEffect
         double mix = Math.Clamp(Num(r, "mix", 30), 0, 100) / 100;
         double level = Dsp.DbToLinear(Num(r, "level", 0));
         int pre = (int)(Math.Clamp(Num(r, "predelay", 0), 0, 500) * rate / 1000);
-        short[] l = Blend(left, Convolve(left, ir, cancellationToken), mix, level, pre);
-        short[] rr = stereo ? Blend(right, Convolve(right, ir, cancellationToken), mix, level, pre) : l;
+        Complex[] filter = PrepareFilter(ir, out int block);   // the impulse spectrum is the same for both channels
+        short[] l = Blend(left, Convolve(left, filter, block, cancellationToken), mix, level, pre);
+        short[] rr = stereo ? Blend(right, Convolve(right, filter, block, cancellationToken), mix, level, pre) : l;
         return Out(Encode(l, rr, rate, stereo));
     }
 
@@ -75,17 +76,22 @@ internal sealed class ConvolutionRenderer : ExtraEffect
     }
 
     /// <summary>Overlap-add FFT convolution; the result has the length of the input (the tail is cut at the end of the block).</summary>
-    private static double[] Convolve(short[] x, double[] ir, CancellationToken token)
+    private static Complex[] PrepareFilter(double[] ir, out int block)
     {
-        int block = Dsp.NextPow2(Math.Max(ir.Length, 4096));
-        int size = block * 2;
-        Complex[] filter = new Complex[size];
+        block = Dsp.NextPow2(Math.Max(ir.Length, 4096));
+        Complex[] filter = new Complex[block * 2];
         for (int i = 0; i < ir.Length; i++)
         {
             filter[i] = ir[i];
         }
 
         Dsp.Fft(filter, false);
+        return filter;
+    }
+
+    private static double[] Convolve(short[] x, Complex[] filter, int block, CancellationToken token)
+    {
+        int size = block * 2;
         double[] y = new double[x.Length];
         Complex[] buffer = new Complex[size];
         for (int start = 0; start < x.Length; start += block)

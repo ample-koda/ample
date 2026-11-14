@@ -408,36 +408,33 @@ addEventListener('pagehide', saveSourceDraft);
 /* ---------- loading ---------- */
 // a load that is overtaken by a newer one (a quick tab or view switch) must not put its text into the state of the newer file
 let loadToken = 0;
-async function loadFile(file) {
+// the load that is under way: a view that is drawn meanwhile waits for it instead of starting a load of its own (which would be the newer one and make this one count as overtaken)
+let loadingNow = null;
+async function loadFile(file, stillWanted) {
+  const run = loadFileNow(file, stillWanted);
+  loadingNow = run;
+  try { return await run; } finally { if (loadingNow === run) loadingNow = null; }
+}
+async function loadFileNow(file, stillWanted) {
   const loadMine = ++loadToken;
-  SE.textFile = null;   // SE.text and SE.orig belong to no file until this load has finished; nothing is written meanwhile
+  const song = file === S.path, module = !!S.modulePath && file === S.modulePath;
+  const saved = module ? (await api.get(`/api/module/source?path=${encodeURIComponent(file)}`)).text : song ? S.doc.text : (await api.get(`/api/file?path=${encodeURIComponent(file)}`)).text;
+  if (loadMine !== loadToken || (stillWanted && !stillWanted())) return false;
+  const drafted = await recoverSourceDraft(file, saved);
+  if (loadMine !== loadToken || (stillWanted && !stillWanted())) return false;
   sourceParseSeq++;
   clearTimeout(sourceParseTimer);
   S.sourceEditMessage = null;
   SE.file = file;
   SE.edit = file !== 'ample.lock';
-  if (isModuleSource()) {
-    const r = await api.get(`/api/module/source?path=${encodeURIComponent(file)}`);
-    const drafted = await recoverSourceDraft(file, r.text);
-    if (loadMine !== loadToken) return;
-    SE.text = drafted;
-    SE.orig = r.text;
-  } else if (isSong()) {
-    const drafted = await recoverSourceDraft(file, S.doc.text);
-    if (loadMine !== loadToken) return;
-    SE.text = drafted;
-    SE.orig = S.doc.text;
-    SE.syncedText = SE.text;
+  SE.text = drafted;
+  SE.orig = saved;
+  if (song) {
+    SE.syncedText = drafted;
     const errorCount = (S.doc.diagnostics || []).filter((diagnostic) => diagnostic.severity === 'error').length;
     if (errorCount) S.sourceEditMessage = `Properties are hidden while the source has ${errorCount} error${errorCount === 1 ? '' : 's'}. Fix the code to sync the block view.`;
-  } else {
-    const r = await api.get(`/api/file?path=${encodeURIComponent(file)}`);
-    const drafted = await recoverSourceDraft(file, r.text);
-    if (loadMine !== loadToken) return;
-    SE.text = drafted;
-    SE.orig = r.text;
-    // an unsaved draft is the working copy of the file too: its tab shows the unsaved mark, and a build that uses the file reads it (this is how the files that Koda changed arrive)
-    if (SE.text !== r.text) api.put('/api/wc', { path: file, text: SE.text }).catch(() => {});
+  } else if (!module && drafted !== saved) {
+    api.put('/api/wc', { path: file, text: drafted }).catch(() => {});
   }
   SE.textFile = file;
   rememberRecentFile(file);
@@ -466,6 +463,7 @@ async function loadFile(file) {
     SE.sentText = SE.text;
     SE.lsp.open(SE.text).catch(() => SE.lsp?.onOffline());
   }
+  return true;
 }
 
 async function files() {
@@ -617,7 +615,8 @@ async function render() {
     $('#se-ta').readOnly = true;
         return;
   }
-  if (!SE.file || (isSong() && SE.loadedFor !== `${S.path}`)) { await loadFile(S.path); SE.loadedFor = S.path; }
+  while (loadingNow) await loadingNow.catch(() => {});   // a file is being opened: draw what it brings, do not load the song over it
+  if (!SE.file || (isSong() && SE.loadedFor !== `${S.path}`)) { if (await loadFile(S.path)) SE.loadedFor = S.path; }
   await files();
   syncPropertiesText();
   refreshSeqDiagnostics();
@@ -1297,19 +1296,27 @@ async function openFileLink(path) {
   render();
 }
 
-export async function openProjectTextFile(path) {
-  SE.files = await api.get('/api/project/files');
-  if (!SE.files.some((file) => file.path === path) || (!isEditableSourceFile(path) && !/\.amplet$/i.test(path))) { toast(`${path} is not an editable text file.`); return; }
-  if (!(await confirmEditorSwitch(path))) return;
-  SE.loadedFor = '';
-  SE.file = null;
-  await loadFile(path);
+export async function openProjectTextFile(path, stillWanted) {
+  const files = await api.get('/api/project/files');
+  if (!stillWanted()) return false;
+  SE.files = files;
+  if (!SE.files.some((file) => file.path === path) || (!isEditableSourceFile(path) && !/\.amplet$/i.test(path))) { toast(`${path} is not an editable text file.`); return false; }
+  if (!(await confirmEditorSwitch(path)) || !stillWanted()) return false;
+  if (!(await loadFile(path, stillWanted))) return false;
   SE.loadedFor = path === S.path ? S.path : '';
   setView('src', true);
   render();
+  return true;
 }
 
 /** Going to a song (its tab, the Project panel): the Source view shows that song again instead of a text file that was open before. */
+/** Before the Source view leaves a text file for a song: unapplied text asks first. False: stay. */
+export async function confirmLeaveTextFile(path) {
+  if (!SE.file || SE.file === S.path || /.amplet$/i.test(SE.file)) return true;
+  SE.text = $('#se-ta')?.value ?? SE.text;
+  return confirmEditorSwitch(path);
+}
+
 export function resetSourceFile() {
   if (SE.file && SE.file !== S.path && !/\.amplet$/i.test(SE.file)) { SE.file = null; SE.loadedFor = ''; if (V.mode === 'src') render(); }   // already looking at Source: it shows the song at once
 }

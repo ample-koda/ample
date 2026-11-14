@@ -2291,10 +2291,10 @@ public static class Routes
             (string text, long version) = s.Texts.Revert(path);
             return await Task.FromResult(Ok(new { path, text, version, dirty = false }));
         });
-        add("GET", "/api/tabs/state", "documents", "The state of open files for the tab row (paths, comma separated): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.", false, s is null ? null : async (HttpContext c) =>
+        add("GET", "/api/tabs/state", "documents", "The state of open files for the tab row (repeated paths parameters): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.", false, s is null ? null : async (HttpContext c) =>
         {
             List<object> items = [];
-            foreach (string raw in c.Request.Query["paths"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(200))
+            foreach (string raw in c.Request.Query["paths"].Select(p => p ?? string.Empty).Where(p => p.Length > 0).Take(200))
             {
                 string path = WorkingPath(raw);
                 bool exists = File.Exists(ProjectPath.Resolve(s.Fs, s.Root, path));

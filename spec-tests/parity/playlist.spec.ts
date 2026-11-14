@@ -411,16 +411,39 @@ test('playlist: the dock lists what the last edit changed, a rubber band picks s
   await page.locator('#b-playlist .pl-edits summary').click();
   await expect(page.locator('#b-playlist .pl-edits pre')).toContainText('+ drums drums at 2 for 16');
   await until(async () => /drums drums at 1 for 16/.test(await text(page)), async () => { await page.locator('#b-playlist .pl-clip[data-key="drums:0"]').focus(); await page.keyboard.press('Home'); });
-  const tracks = await page.locator('#b-playlist .pl-line .pl-track').evaluateAll((els) => els.slice(0, 3).map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.bottom]; }));
-  const [x, yTop] = [tracks[0][0] + 420, tracks[0][1] + 2];
+  // Home updates the document before the Playlist redraw has a visible layout.
+  await expect(drums).toHaveAttribute('title', /bars 1 to 16/);
+  const tracks = page.locator('#b-playlist .pl-line .pl-track');
+  await tracks.nth(2).scrollIntoViewIfNeeded();
+  await tracks.first().scrollIntoViewIfNeeded();
+  const gesture = () => tracks.evaluateAll(([first, , third]) => {
+    const firstClip = first?.querySelector('[data-key="drums:0"]');
+    const lastClip = third?.querySelector('[data-key="piano:0"]');
+    if (!firstClip || !lastClip) return null;
+    const row = first.getBoundingClientRect();
+    const drums = firstClip.getBoundingClientRect();
+    const piano = lastClip.getBoundingClientRect();
+    const start = { x: Math.round(drums.right + 5), y: Math.round((row.top + row.bottom) / 2) };
+    const end = { x: Math.round(piano.left + 5), y: Math.round((piano.top + piano.bottom) / 2) };
+    if (document.elementFromPoint(start.x, start.y) !== first || !lastClip.contains(document.elementFromPoint(end.x, end.y))) return null;
+    return { start, end };
+  });
+  let points: Awaited<ReturnType<typeof gesture>> = null;
+  await expect(async () => {
+    points = await gesture();
+    expect(points, 'visible lasso endpoints on the empty track and the piano clip').not.toBeNull();
+  }).toPass({ timeout: 10_000 });
+  const { start, end } = points!;
   await page.keyboard.down('Shift');
-  await page.mouse.move(x, yTop);
-  await page.mouse.down();
-  await page.mouse.move(x - 400, tracks[2][2] - 2, { steps: 4 });
-  await page.mouse.up();
-  await page.keyboard.up('Shift');
-  await expect(page.locator('#b-playlist .pl-clip.picked').first()).toBeVisible();
-  expect(await page.locator('#b-playlist .pl-clip.picked').count()).toBeGreaterThan(1);
+  try {
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    try { await page.mouse.move(end.x, end.y, { steps: 4 }); } finally { await page.mouse.up(); }
+  } finally {
+    await page.keyboard.up('Shift');
+  }
+  await expect(drums).toHaveClass(/\bpicked\b/);
+  await expect(page.locator('#b-playlist .pl-clip[data-key="piano:0"]')).toHaveClass(/\bpicked\b/);
 });
 
 test('playlist: a clip is copied, cut and pasted as another part of its block', async ({ page }) => {
