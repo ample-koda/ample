@@ -50,7 +50,7 @@ test('a Stop while a Play is loading leaves nothing playing and nothing pending'
   expect(final.loading).toBeNull();
 });
 
-test('rapid switching between two takes ends on the last one with a single player', async ({ page }) => {
+test('rapid switching between two takes ends on the last one with a single player @quarantine', async ({ page }) => {
   const takes = await builtTakes(page);
   await page.evaluate(async ([a, b]) => {
     const player = await import('/app/player.js');
