@@ -8,13 +8,15 @@ import { aiItems } from './ai.js';
 import { $, el, showMenu, toast, ask } from './ui.js';
 import { HEAD, ROW, W, baseWidth, sizes, compatible, fitView, fitPhoneView, fitReadableView, linkPath, nodeHeight, nodeWidth, nodesInRect, portPos, snap, toWorld, zoomAt, align, distribute, bounds } from './geometry.js';
 import { containerView, groupBlocks, ungroup } from './graph.js';
-import { S, bakeDynamicHelpers, blockReadsClock, quiet, recordGroups, saveViewSoon, setPinned, subscribeProgress, build, container, pinUnplaced, current, edit, flat, notify, notifySelection, readOnly, graphBroken, blockProblems, saveGroups, select, undo, redo, enterModule, setModuleLevel, applyText, openDoc, enterMidiVariant } from './store.js';
+import { S, bakeDynamicHelpers, blockReadsClock, quiet, recordGroups, saveViewSoon, setPinned, subscribeProgress, build, container, pinUnplaced, current, edit, editAll, flat, notify, notifySelection, readOnly, graphBroken, blockProblems, saveGroups, select, undo, redo, enterModule, setModuleLevel, applyText, openDoc, enterMidiVariant } from './store.js';
 import { gotoSource, showBlockStatusError } from './panels.js';
 import { componentMenuItems } from './components.js';
 import { registerPlaybackAudio } from './playback-volume.js';
 import { download, drawPeaks, peaksOf, playerState, seekTake, stop, toggle, playLivePreview, updateLivePreview, setAuditionBlock, onPlayer } from './player.js';
 import { liveEffectGraph } from './studio/preview/audio.js';
 import { renderComponentUi } from './component-ui.js';
+import { removalOrder } from '../lib/block-removal.mjs';
+import { isBlockLocked } from '../lib/block-lock.mjs';
 import { liveOptions } from './component-live-ui.js';
 import { chainPreview } from './live-chain.js';
 import { openVariants } from './variants.js';
@@ -627,10 +629,11 @@ function nodeEl(n) {
     const cardTemplate = S.tpl[n.tpl];
     if (cardTemplate?.component && cardTemplate.ui?.card?.length && !n.isGroup && !n.proxy) {
       const values = Object.fromEntries((cardTemplate.parameters || []).map((p) => [p.name, n.params[p.name] ?? p.default]));
+      const locked = () => isBlockLocked(flat().nodes, n.id);
       const laid = renderComponentUi(cardTemplate, values, cardTemplate.ui.card, 'card', {
-        disabled: readOnly(),
-        save: (name, text) => edit([{ type: 'setParameter', block: n.id, name, value: text }]),
-        saveMany: (items) => edit(items.map((i) => ({ type: 'setParameter', block: n.id, name: i.name, value: i.text }))),
+        disabled: readOnly() || locked(),
+        save: (name, text) => (locked() ? Promise.resolve(false) : edit([{ type: 'setParameter', block: n.id, name, value: text }])),
+        saveMany: (items) => (locked() ? Promise.resolve(false) : edit(items.map((i) => ({ type: 'setParameter', block: n.id, name: i.name, value: i.text })))),
         ...liveOptions(cardTemplate, n.id),
       });
       const open = el('button', { type: 'button', className: 'cui-open', textContent: '⤢', title: 'Show all the controls in a window', 'aria-label': `Show the controls of ${n.title}` });
@@ -1076,7 +1079,7 @@ async function completeLink(n, idx, t) {
       const had = flat().links.find((l) => l.to === bound.block && l.inName === bound.input);
       if (had) bops.push({ type: 'disconnect', to: bound.block, input: bound.input });
       bops.push({ type: 'connect', from: n.id, output: n.outs[idx][0], to: bound.block, input: bound.input });
-      if (await edit(bops)) toast(`Connected ${n.title} → ${target.title}`);
+      if (await editAll(bops)) toast(`Connected ${n.title} → ${target.title}`);   // all of it or none: a refused connect keeps the old cable
       return;
     }
     // from an output line of a group to a block outside it: the connection starts at the block inside that the line stands for
@@ -1088,7 +1091,7 @@ async function completeLink(n, idx, t) {
         const gops = pinUnplaced();
         if (flat().links.some((l) => l.to === target.id && l.inp === ti)) gops.push({ type: 'disconnect', to: target.id, input: target.ins[ti][0] });
         gops.push({ type: 'connect', from: inner.id, output: output[0], to: target.id, input: target.ins[ti][0] });
-        if (await edit(gops)) toast(`Connected ${n.title} → ${target.title}`);
+        if (await editAll(gops)) toast(`Connected ${n.title} → ${target.title}`);
         return;
       }
     }
@@ -1097,7 +1100,7 @@ async function completeLink(n, idx, t) {
     const existing = flat().links.find((l) => l.to === target.id && l.inp === ti);
     if (existing) ops.push({ type: 'disconnect', to: target.id, input: target.ins[ti][0] });
     ops.push({ type: 'connect', from: n.id, output: n.outs[idx][0], to: target.id, input: target.ins[ti][0] });
-    if (await edit(ops)) toast(`Connected ${n.title} → ${target.title}`);
+    if (await editAll(ops)) toast(`Connected ${n.title} → ${target.title}`);
   }
 }
 
@@ -1368,10 +1371,10 @@ export async function deleteSelected(force = false) {
   groups.forEach((id) => { S.groups = ungroup(S.groups, id); });
   if (groups.length) saveGroups();
   if (!ids.length) { if (groups.length) notify(); return true; }
-  // Remove blocks that nothing reads first, so a chain can be removed in one go.
-  const order = [...ids].sort((a, b) => (flat().links.some((l) => l.from === a && ids.includes(l.to)) ? -1 : 0) - (flat().links.some((l) => l.from === b && ids.includes(l.to)) ? -1 : 0));
+  // The blocks that read the others go first (the server refuses a block that is still read), so a chain goes in one action in whatever order it was selected.
+  const order = removalOrder(ids, flat().links);
   const cut = force ? flat().links.filter((l) => ids.includes(l.from) && !ids.includes(l.to)).map((l) => ({ type: 'disconnect', to: l.to, input: l.inName })) : [];
-  return edit([...pinUnplaced(order), ...cut, ...order.map((id) => ({ type: 'removeBlock', block: id }))]);   // false when a block was refused: its message must stay
+  return editAll([...pinUnplaced(order), ...cut, ...order.map((id) => ({ type: 'removeBlock', block: id }))]);   // false when a block was refused: its message must stay
 }
 
 /** Copies a block (the menu item Duplicate); a clip with stable random names asks what the copy should do with them. */

@@ -1,6 +1,7 @@
 // Components in the palette: the reusable typed blocks a song can see (its own and the imported ones) become dynamic templates next to the built-in ones.
 // The server (/api/components) knows the versions and seals; this file only turns them into the template shape the palette and the panels already read.
 import { api } from './api.js';
+import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { S, applyText, notify, aliasComponentTakes } from './store.js';
 import { ask, toast } from './ui.js';
 import { cardHeightOf } from './component-ui.js';
@@ -187,13 +188,17 @@ function declaredName(template) {
 }
 
 /** Reads the components of the open song and puts them in S.templates and S.tpl (the old ones are replaced). Returns the issues the server found. */
+const loadGuard = createAuditionGuard(() => S.path);
+
 export async function loadComponents(path) {
+  const current = loadGuard.begin();   // a newer load, or another song opened while this one waits, makes this answer stale
   let listed;
   try {
     listed = await api.get(`/api/components?path=${encodeURIComponent(path)}`);
   } catch {
     listed = { components: [], issues: [] };
   }
+  if (!current()) return S.componentIssues || [];   // it belongs to a song that is not open any more: the palette of this one stays
   const own = listed.components.map(templateOf);
   S.templates = [...S.templates.filter((t) => !t.component), ...own];
   S.tpl = Object.fromEntries(S.templates.map((t) => [t.id, t]));
