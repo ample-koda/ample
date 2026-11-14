@@ -252,6 +252,18 @@ public sealed class HistoryService
         LineInfo source = LineOf(from);
         LineOf(to);
         Quality.QualityService.Enforce(root, bank, clock, "promote");
+        if (CurrentLine == to && await IsDirtyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // the line that is replaced is the one that is open: its files are overwritten below,
+            // so what is not saved yet goes into its history first
+            string message = "automatic checkpoint before promote " + from;
+            await bus.RunWithStartRecordAsync(
+                "history.checkpoint",
+                Json(new { message, line = CurrentLine, auto = true }),
+                async start => await AdvanceAsync(CurrentLine, "auto", message, null, start.Seq, cancellationToken).ConfigureAwait(false),
+                cancellationToken).ConfigureAwait(false);
+        }
+
         NodeInfo? made = null;
         await bus.RunWithStartRecordAsync("history.promote", Json(new { from, to, changes = PreviewPromote(from, to).Count }), async start =>
         {
