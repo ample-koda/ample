@@ -21,3 +21,6 @@ export function setBarBeatsFromText(text) {
 
 /** The sixteenth-note steps of a bar: 16 in 4/4, 12 in 3/4 and 6/8, 20 in 5/4. */
 export const stepsPerBar = () => Math.max(1, Math.round(4 * beats));
+
+/** The length of a bar in milliseconds at a tempo, for the meter of the open song (or the beats given): 2000 for 4/4 at 120, 1500 for 3/4. */
+export const barMilliseconds = (tempo, beatsPerBar = beats) => Math.round((beatsPerBar * 60000) / Math.max(1, Number(tempo) || 120));

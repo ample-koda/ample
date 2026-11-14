@@ -741,7 +741,15 @@ async function shareDemo() {
   }
 
   // your own song (or a demo that you changed): the form of a share
-  openPublish({ snapshot: () => app.store.snapshot(app.project.id), project: app.project, activeSong: () => (app.active && isSong(app.active) ? app.active : null), limits: app.limits, token: getToken, toast });
+  openPublish({
+    snapshot: () => app.store.snapshot(app.project.id),
+    project: app.project,
+    activeSong: () => (app.active && isSong(app.active) ? app.active : null),
+    lastBuilt: () => app.lastBuilt,
+    limits: app.limits,
+    token: getToken,
+    toast,
+  });
 }
 
 /** The window of Share: the link, a Copy to clipboard button, and a visible answer (a green tick when it worked, a red line with what to do when it did not). */

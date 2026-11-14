@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { biquadMagnitude, clamp, compressorOutput, delayTapGain, denormalize, distortionSample, duckGain, equalizerResponse, estimatedRt60, formatValue, interpolateCurve, knobDragValue, normalize, snap, spectrumBins, knobPrecision } from '../studio-math.js';
+import { biquadMagnitude, clamp, compressorOutput, delayTapGain, denormalize, distortionSample, duckGain, equalizerResponse, estimatedRt60, formatValue, interpolateCurve, knobDragValue, normalize, snap, spectrumBins, knobPrecision, releaseInSteps } from '../studio-math.js';
 
 test('linear and logarithmic scales round trip', () => {
   for (const scale of ['linear', 'log']) {
@@ -88,4 +88,19 @@ test('a knob that starts below one can say a fraction, the others keep whole num
   assert.deepEqual(knobPrecision('dB', -24), { step: undefined, commit: 1, display: 0 });
   assert.equal(Number((0.5).toFixed(knobPrecision('ms', 0.1).commit)), 0.5);
   assert.equal(Number((4).toFixed(knobPrecision('ms', 0.1).commit)), 4);
+});
+
+test('a release covers the steps of a bar by the length of the bar (issue 182)', () => {
+  assert.equal(releaseInSteps(125, 120, 4), 1, 'a step is 125 ms in 4/4 at 120');
+  assert.equal(releaseInSteps(160, 120, 4), 1.28);
+  assert.equal(releaseInSteps(160, 60, 4), 0.64, 'a slower tempo makes the steps longer');
+  assert.equal(releaseInSteps(160, 240, 4), 2.56);
+});
+
+test('the same release covers more steps in a shorter bar', () => {
+  assert.ok(releaseInSteps(160, 120, 3) > releaseInSteps(160, 120, 4));
+  assert.equal(releaseInSteps(93.75, 120, 3), 1);
+  assert.equal(releaseInSteps(0, 120, 4), 0);
+  assert.equal(releaseInSteps(-5, 120, 4), 0);
+  assert.equal(releaseInSteps(160, 120, 4, 8), 0.64, 'with 8 steps in the bar');
 });

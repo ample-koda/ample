@@ -144,13 +144,36 @@ public sealed class HistoryService
     public NodeInfo Resolve(string reference)
     {
         ArgumentNullException.ThrowIfNull(reference);
+
+        // line:NAME and tag:NAME say which one is meant when a line and a tag have the same name
+        if (reference.StartsWith("line:", StringComparison.Ordinal))
+        {
+            string name = reference["line:".Length..];
+            LineInfo? named = Lines().FirstOrDefault(l => l.Name == name);
+            return named is not null ? Node(named.Head) : throw new AmpleException("AMP5243", $"'{name}' is not a line.");
+        }
+
+        if (reference.StartsWith("tag:", StringComparison.Ordinal))
+        {
+            string name = reference["tag:".Length..];
+            string? tagged = Run(c => Scalar(c, "SELECT node_id FROM h_tags WHERE name = $n", ("$n", name)) as string);
+            return tagged is not null ? Node(tagged) : throw new AmpleException("AMP5243", $"'{name}' is not a tag.");
+        }
+
         LineInfo? line = Lines().FirstOrDefault(l => l.Name == reference);
+        string? tag = Run(c => Scalar(c, "SELECT node_id FROM h_tags WHERE name = $n", ("$n", reference)) as string);
+        if (line is not null && tag is not null && line.Head != tag)
+        {
+            throw new AmpleException(
+                "AMP5243",
+                $"'{reference}' is both a line and a tag, and they are at different revisions: write line:{reference} or tag:{reference}.");
+        }
+
         if (line is not null)
         {
             return Node(line.Head);
         }
 
-        string? tag = Run(c => Scalar(c, "SELECT node_id FROM h_tags WHERE name = $n", ("$n", reference)) as string);
         if (tag is not null)
         {
             return Node(tag);

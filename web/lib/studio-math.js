@@ -154,3 +154,12 @@ export function knobPrecision(unit, min) {
   if (Number(min) > 0 && Number(min) < 1) return { step: undefined, commit: 2, display: 2 };
   return { step: 1, commit: 0, display: 0 };
 }
+
+/**
+ * How many steps of a pattern a release of `releaseMs` covers: the pattern spreads over one bar, so a step lasts a bar divided by the
+ * number of steps, whatever the tempo and the meter are.
+ */
+export function releaseInSteps(releaseMs, tempo, beatsPerBar, steps = 16) {
+  const stepMs = (beatsPerBar * 60000) / Math.max(1, Number(tempo) || 120) / Math.max(1, steps);
+  return Math.max(0, Number(releaseMs) || 0) / stepMs;
+}

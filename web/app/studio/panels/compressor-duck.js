@@ -1,4 +1,4 @@
-import { clamp, compressorOutput, duckGain } from '../../../lib/studio-math.js';
+import { clamp, compressorOutput, duckGain, releaseInSteps } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
 import { registerStudioPanel } from './registry.js';
@@ -103,7 +103,7 @@ function duckPanel(context) {
     steps.append(button);
   }
   const curve = svg('svg', { viewBox: '0 0 640 130', class: 'studio-duck-curve', role: 'img', 'aria-label': 'Duck gain envelope over one bar' });
-  const releaseSteps = Math.max(1, release / 40), points = [];
+  const releaseSteps = releaseInSteps(release, context.tempo, barBeats()), points = [];   // the steps of the bar, as the engine has them
   for (let index = 0; index <= 160; index++) points.push(`${index ? 'L' : 'M'}${index * 4} ${110 - duckGain(index / 10, pattern, depth, releaseSteps) * 90}`);
   curve.append(svg('path', { d: points.join(' '), class: 'studio-response-line' }));
   const playhead = svg('line', { x1: 0, x2: 0, y1: 4, y2: 126, class: 'studio-duck-playhead', 'aria-hidden': 'true' });

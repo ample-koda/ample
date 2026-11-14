@@ -705,10 +705,14 @@ export function editHistory() {
   return { states, current: S.undo.length };
 }
 
+let editPeekGeneration = 0;   // raised by every new choice and by leaving the preview: an older answer finds it changed and is dropped
+
 export async function enterEditPeek(text, label) {
   if (!S.doc) return false;
   const path = S.moduleStack.length && S.modulePath ? S.modulePath : S.path;
+  const mine = ++editPeekGeneration;
   const doc = await api.post('/api/doc/parse', { text, path });
+  if (mine !== editPeekGeneration) return false;
   const returnState = S.peek?.edit ? S.peek.returnState : peekReturnState();
   S.editPeek = { text, label };
   S.peek = { ref: label, edit: true, returnState };
@@ -1021,6 +1025,7 @@ export async function applyAiBuild(task) {
 }
 
 export async function leavePeek() {
+  editPeekGeneration++;
   if (!S.peek) return;
   const previous = S.peek.returnState;
   S.peek = null;

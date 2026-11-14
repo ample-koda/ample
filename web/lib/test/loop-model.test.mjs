@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { barAt, barOfClick, barSeconds, positionAt, rangeFromDrag, rangeSeconds, untilNextReturn } from '../loop-model.mjs';
+import { barAt, barOfClick, barSeconds, positionAt, rangeFromDrag, rangeSeconds, rangeWhileDragging, stopAtOf, untilNextReturn } from '../loop-model.mjs';
 
 test('a bar lasts four beats of the tempo, and bars and seconds convert both ways', () => {
   assert.equal(barSeconds(120), 2);
@@ -43,4 +43,35 @@ test('a drag on the ruler chooses whole bars, a click does not', () => {
   assert.equal(barOfClick(0, 30), 1);
   assert.equal(barOfClick(75, 30), 3.5);
   assert.equal(barOfClick(-20, 30), 1);
+});
+
+test('a take that does not repeat stops at the end of the chosen stretch (issue 239)', () => {
+  assert.equal(stopAtOf({ start: 8, end: 16 }, false, 100), 16);
+  assert.equal(stopAtOf({ start: 8, end: 16 }, false, 12), 12, 'kept inside the take');
+});
+
+test('with repeating on, or without a stretch, nothing stops the take but its end', () => {
+  assert.equal(stopAtOf({ start: 8, end: 16 }, true, 100), null);
+  assert.equal(stopAtOf(null, false, 100), null);
+  assert.equal(stopAtOf(undefined, false, 100), null);
+  assert.equal(stopAtOf({ start: 8, end: 8 }, false, 100), null);
+});
+
+test('a stretch of almost nothing does not stop the take at once', () => {
+  assert.equal(stopAtOf({ start: 8, end: 8.02 }, false, 100), null);
+  assert.equal(stopAtOf({ start: 8, end: 20 }, false, 8.02), null, 'the take ends right after the start');
+});
+
+test('a drag over the ruler is the dragged bars, and one that returns to its start gives the earlier range back (issue 254)', () => {
+  const prior = { at: 2, bars: 1 };
+  assert.deepEqual(rangeWhileDragging(100, 220, 40, prior), { range: { at: 3, bars: 4 }, dragging: true });
+  assert.deepEqual(rangeWhileDragging(100, 102, 40, prior), { range: prior, dragging: false });
+  assert.deepEqual(rangeWhileDragging(100, 100, 40, null), { range: null, dragging: false });
+});
+
+test('a drag that went far and came back is judged by where the pointer is now, not by where it was', () => {
+  const far = rangeWhileDragging(100, 300, 40, null);
+  assert.equal(far.dragging, true);
+  const back = rangeWhileDragging(100, 101, 40, null);
+  assert.deepEqual(back, { range: null, dragging: false });
 });

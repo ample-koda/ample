@@ -5,6 +5,7 @@ import { registerPlaybackAudio } from './playback-volume.js';
 // from a 10 ms timer, which leaves a gap of a few milliseconds at most. The arithmetic is in web/lib/loop-model.mjs. @ample:loop
 
 import { audioDataId, setExternalPlayer, stop as stopPlayer } from './player.js';
+import { stopAtOf } from '../lib/loop-model.mjs';
 
 const audio = registerPlaybackAudio(new Audio());
 audio.preload = 'auto';
@@ -36,16 +37,24 @@ function tick() {
     if (L.pending) swapNow();
     else audio.currentTime = loop.start;
   } else if (!loop && audio.ended) { L.active = false; clearInterval(L.timer); emit(); }
+  else if (!loop) {
+    // repeating is off: a chosen stretch plays once and stops at its end (Stop and the end of the take stay as they were)
+    const end = stopAtOf(L.loop, L.looping, duration());
+    if (end !== null && audio.currentTime >= end - 0.012) { audio.pause(); L.active = false; clearInterval(L.timer); emit(); }
+  }
 }
 
 async function swapNow() {
   const next = L.pending; L.pending = null;
+  const version = L.version;   // Stop (or another take that starts) raises it: a swap that finds it changed must not bring the sound back
   const loop = effectiveLoop();
   audio.pause();
   await loaded(next.url);
+  if (version !== L.version || !L.active) return;
   L.take = next.take;
   audio.currentTime = loop ? loop.start : 0;
   await audio.play().catch(() => {});
+  if (version !== L.version || !L.active) { audio.pause(); return; }
   emit();
 }
 
