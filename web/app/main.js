@@ -1,5 +1,6 @@
 // Starts the app: token, project, panels, header buttons, event stream. @ample:layout
 
+import { extensionOf, AUDIO_EXTENSIONS, MIDI_EXTENSIONS, SEQUENCE_EXTENSIONS, LYRICS_EXTENSIONS, TEXT_EXTENSIONS } from '../lib/file-types.mjs';
 import { $, showMenu, toast } from './ui.js';
 import { api, connectEvents, initToken } from './api.js';
 import { S, bakeDynamicHelpers, quiet, redo, build, dirty, flat, graphBroken, loadHistory, loadProject, notify, onBlockProgress, onBuildProgress, openDoc, readOnly, refreshInputs, reloadDoc, save, select, stopBuild, subscribe, subscribeSelection, undo, errors } from './store.js';
@@ -15,8 +16,8 @@ import { initArrangement, previewSong, renderArrangement } from './arrangement.j
 import { initPlayLights } from './play-fx.js';
 import { stopTranscription } from './transcription.js';
 import { V, initViews, setView, updateBanner } from './views.js';
-import { initTabs } from './tabs.js';
-import { initSource, openProjectTextFile, resetSourceFile } from './source.js';
+import { initTabs, openedElsewhere, beginTabOpen, isTabReactivation } from './tabs.js';
+import { initSource, openProjectTextFile, resetSourceFile, confirmLeaveTextFile } from './source.js';
 import { initProjectPanel, refreshProjectPanel, revealInProject } from './projectpanel.js';
 import { createSaveControl } from './savecontrol.js';
 import { mountStudioGallery } from './studio/index.js';
@@ -164,24 +165,29 @@ function renderAll() {
   if ($('#pane-struct').style.display !== 'none') renderStructure();
 }
 
-async function openProjectFile(path) {
-  const extension = path.slice(path.lastIndexOf('.')).toLowerCase();
+async function openProjectFile(path, stillWanted) {
+  const extension = extensionOf(path);
   const node = flat().nodes.find((item) => item.params?.file === path);
-  if (['.wav', '.flac', '.mp3', '.ogg', '.m4a', '.aif', '.aiff'].includes(extension)) { await playProjectFile(path); return; }
-  if (['.mid', '.midi'].includes(extension)) {
+  if (AUDIO_EXTENSIONS.includes(extension)) { await playProjectFile(path); return true; }
+  if (MIDI_EXTENSIONS.includes(extension)) {
     const details = await api.get(`/api/midi/info?file=${encodeURIComponent(path)}`);
+    if (!stillWanted()) return false;
     if (node) select(node.id);
     toast(`${details.tracks} MIDI tracks · ${Math.round(60_000_000 / details.microsecondsPerQuarter)} BPM · ${details.bars} bars · ${details.lengthTicks} ticks`);
-    return;
+    return true;
   }
   // a sequence file: the sequencer of the block that uses it, or the text of the file when no block uses it yet
-  if (extension === '.seq' || extension === '.ampleseq') { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) { await openProjectTextFile(path); return; }   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
+  if (SEQUENCE_EXTENSIONS.includes(extension)) { const { getRecoveryDraft } = await import('../lib/recovery-drafts.mjs'); const draft = getRecoveryDraft(localStorage, S.project?.id || '', path); if (draft) return openProjectTextFile(path, stillWanted);   // unsaved text (from Koda, or typed) is shown as text, not hidden behind the sequencer
     // in the Source view a tab of a sequence file shows its text there (switching between the song and its sequence file); elsewhere it opens the sequencer
-    if (node?.tpl === 'sequencer' && V.mode !== 'src') { (await import('./sequencer.js')).openSequencer(node.id); return; } await openProjectTextFile(path); return; }
-  if (['.lyr', '.lrc', '.amplelrc'].includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return; }
-  if (['.lyr', '.lrc', '.amplelrc', '.srt', '.txt', '.chords', '.md', '.csv', '.json', '.amplec'].includes(extension)) { await openProjectTextFile(path); return; }
+    if (node?.tpl === 'sequencer' && V.mode !== 'src') { const { openSequencer } = await import('./sequencer.js'); if (!stillWanted()) return false; openSequencer(node.id); return true; } return openProjectTextFile(path, stillWanted); }
+  if (LYRICS_EXTENSIONS.includes(extension) && node?.tpl === 'lyrics') { await openLyrics(node); return true; }
+  if (TEXT_EXTENSIONS.includes(extension)) return openProjectTextFile(path, stillWanted);
   toast(`${path} is selected in the Project panel; no editor is registered for this file type.`);
+  return false;
 }
+
+/** Every open request (an ample:open or ample:open-file event) gets one answer, ample:open-result { path, ok, request }, so the one who asked keeps or takes back its own request (tabs.js). */
+const answerOpen = (request, ok) => document.dispatchEvent(new CustomEvent('ample:open-result', { detail: { path: request.detail, ok, request } }));
 
 function wire() {
   $('#btn-save').onclick = save;
@@ -232,8 +238,27 @@ function wire() {
   initProjects();
   onPlayer(renderPlaybackState);
   onLiveChange(() => renderPlaybackState());
-  document.addEventListener('ample:open', (e) => { resetSourceFile(); openDoc(e.detail).catch((x) => toast(x.message)); });
-  document.addEventListener('ample:open-file', (e) => openProjectFile(e.detail).catch((x) => toast(x.message)));
+  async function handleOpen(request) {
+    const path = request.detail;
+    if (openedElsewhere(path)) return;
+    const stillWanted = beginTabOpen(request);
+    try {
+      if (request.type === 'ample:open-file') {
+        answerOpen(request, await openProjectFile(path, stillWanted) !== false);
+        return;
+      }
+      if (!(await confirmLeaveTextFile(path)) || !stillWanted()) { answerOpen(request, false); return; }
+      const currentSong = isTabReactivation(request) && path === S.path;
+      const opened = currentSong || await openDoc(path, stillWanted);
+      if (opened && stillWanted()) resetSourceFile();
+      answerOpen(request, opened);
+    } catch (error) {
+      if (stillWanted()) toast(error.message);
+      answerOpen(request, false);
+    }
+  }
+  document.addEventListener('ample:open', handleOpen);
+  document.addEventListener('ample:open-file', handleOpen);
   document.addEventListener('ample:reveal-file', (e) => revealInProject(e.detail));
   $('#lib-q').oninput = renderLib;
   document.addEventListener('ample:components-changed', () => { renderLib(); import('./component-library.js').then((m) => m.refreshComponentLibraryIfOpen()).catch(() => {}); });

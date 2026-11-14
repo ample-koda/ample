@@ -8350,7 +8350,7 @@
         "tags": [
           "documents"
         ],
-        "summary": "The state of open files for the tab row (paths, comma separated): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.",
+        "summary": "The state of open files for the tab row (repeated paths parameters): whether each exists, has unsaved changes, and for a song its errors, warnings and whether the text can be read into blocks.",
         "description": "Read only.",
         "security": [
           {
