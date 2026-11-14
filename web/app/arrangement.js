@@ -78,7 +78,12 @@ export function renderArrangement() {
   const ctl = el('div', { className: 'row', id: 'arr-ctl' });
   ctl.append(el('button', { type: 'button', className: 'arr-info', textContent: 'i', title: 'The arrangement shows the same project as bars on a timeline, with seconds beneath. It is generated from the blocks; the source text remains authoritative. Drag over the ruler to select bars, then preview that range.', 'aria-label': 'About the arrangement' }));
   ctl.append(el('button', { textContent: '−', title: 'Narrower bars', 'aria-label': 'Narrower bars', onclick: () => { bw = Math.max(16, bw - 8); renderArrangement(); } }), el('span', { id: 'arr-bw', textContent: `${bw} px/bar` }), el('button', { textContent: '+', title: 'Wider bars', 'aria-label': 'Wider bars', onclick: () => { bw = Math.min(96, bw + 8); renderArrangement(); } }));
-  if (S.range) ctl.append(el('button', { id: 'arr-preview', className: 'primary', textContent: `▶ preview bars ${S.range.firstBar}-${S.range.firstBar + S.range.bars - 1}`, onclick: () => previewSong(S.range) }), el('button', { textContent: 'clear', onclick: () => { S.range = null; renderArrangement(); } }));
+  const clearRange = () => { S.range = null; renderArrangement(); notify(); };   // the header button of the range goes too (issue 104)
+  if (S.range) {
+    const last = S.range.firstBar + S.range.bars - 1;
+    ctl.append(el('button', { id: 'arr-preview', className: 'primary', textContent: `▶ preview bars ${S.range.firstBar}-${last}`, onclick: () => previewSong(S.range) }),
+      el('button', { textContent: 'clear', onclick: clearRange }));
+  }
   // the master slice: the part of the song that comes out of the master (the last master block of the song)
   const master = nodes.filter((n) => n.tpl === 'master').at(-1);
   const sliceOf = () => { const p = master?.params || {}, from = Number(p.slice_from) || 0, to = Number(p.slice_to) || 0; return from || to ? { from: from || 1, to: to || null } : null; };
@@ -245,7 +250,12 @@ export function renderArrangement() {
       b.onpointermove = (event) => {
         if (!partDrag || partDrag.bar !== b) return;
         const drag = partDrag, delta = Math.round((event.clientX - drag.x) / bw);
-        if (!delta) return;
+        if (!delta) {   // back at the start: nothing is moved, nothing is written (issue 100)
+          drag.changed = false; drag.next = null;
+          b.style.left = `${(drag.part.at - 1) * bw}px`;
+          b.style.width = `${drag.part.length * bw - 2}px`;
+          return;
+        }
         drag.changed = true;
         let next = { ...drag.part };
         if (drag.edge === 'move') next.at = Math.max(1, drag.at + delta);

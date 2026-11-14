@@ -16,6 +16,7 @@ async function uploadOne(file, folder, applyConflict, onProgress) {
   let mode = applyConflict.value || 'refuse';
   let result = await api.uploadProject(file, folder, mode, onProgress);
   if (!result.conflict) return result;
+  if (applyConflict.value === 'refuse') return undefined;   // "Refuse for all" was chosen: the rest of the batch is skipped without asking again
   const applyAll = el('input', { type: 'checkbox', 'aria-label': 'Apply this choice to all uploads' });
   const applyLabel = el('label', {}, [applyAll, document.createTextNode(' Apply this choice to all uploads')]);
   const choice = await ask('File already exists', `${file.name} · existing ${result.sizeBytes} bytes · new ${file.size} bytes`, conflictModes, [applyLabel]);
