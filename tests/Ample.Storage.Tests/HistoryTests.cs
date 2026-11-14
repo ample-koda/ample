@@ -88,6 +88,56 @@ public sealed class HistoryTests
     }
 
     [Fact]
+    public async Task Promote_while_studio_is_open_saves_its_unsaved_edits_into_its_history_first()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        await r.History.GoAsync("studio");
+        Assert.Equal("studio", r.History.CurrentLine);
+        r.Write("song.amplet", "unsaved studio edit");
+        string oldStudio = r.History.LineOf("studio").Head;
+
+        NodeInfo promoted = await r.History.PromoteAsync();
+
+        Assert.Equal("garage v2", r.Read("song.amplet"));
+        NodeInfo saved = r.History.Log("studio").Single(n => n.Kind == "auto");
+        Assert.Equal("unsaved studio edit", (await r.History.PeekAsync(saved.NodeId))["song.amplet"]);
+        Assert.Equal(oldStudio, saved.ParentId);
+        Assert.Equal(saved.NodeId, promoted.ParentId);
+        Assert.Equal(promoted.NodeId, r.History.LineOf("studio").Head);
+    }
+
+    [Fact]
+    public async Task Promote_while_studio_is_open_and_saved_adds_no_extra_checkpoint()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        await r.History.GoAsync("studio");
+
+        await r.History.PromoteAsync();
+
+        Assert.DoesNotContain(r.History.Log("studio"), n => n.Kind == "auto");
+        Assert.Equal("garage v2", r.Read("song.amplet"));
+    }
+
+    [Fact]
+    public async Task Promote_from_another_open_line_leaves_its_unsaved_edits_alone()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        r.Write("song.amplet", "unsaved garage edit");
+
+        await r.History.PromoteAsync();
+
+        Assert.Equal("garage", r.History.CurrentLine);
+        Assert.Equal("unsaved garage edit", r.Read("song.amplet"));
+        Assert.DoesNotContain(r.History.Log("studio"), n => n.Kind == "auto");
+    }
+
+    [Fact]
     public async Task Tags_are_locked_and_changing_them_is_a_dangerous_act_with_a_tombstone()
     {
         using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
