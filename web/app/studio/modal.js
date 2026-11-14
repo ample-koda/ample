@@ -34,6 +34,7 @@ import { badgeSummary } from '../../lib/live-badge-summary.mjs';
 import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectGraph } from './preview/audio.js';
 import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
+import { keepInside } from '../../lib/window-bounds.mjs';
 
 let active = null;   // the window that was used last
 // document + block -> window: several panels can be open at once, as floating windows. The key holds the song and the module,
@@ -389,7 +390,12 @@ function floatWindow(state) {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* storage may be blocked */ }
   const rect = dialog.getBoundingClientRect(), n = Math.max(0, windows.size - 1);
-  const place = (left, top) => { dialog.style.left = `${Math.min(Math.max(0, left), Math.max(0, innerWidth - 140))}px`; dialog.style.top = `${Math.min(Math.max(0, top), Math.max(0, innerHeight - 60))}px`; };
+  // the whole window stays inside the viewport where it fits (a window that was left half outside is brought back when it opens)
+  const place = (left, top) => {
+    const size = dialog.getBoundingClientRect();
+    const spot = keepInside({ left, top, width: size.width, height: size.height }, { width: innerWidth, height: innerHeight });
+    dialog.style.left = `${spot.left}px`; dialog.style.top = `${spot.top}px`;
+  };
   dialog.style.inset = 'auto'; dialog.style.position = 'fixed'; dialog.style.margin = '0';
   place(saved ? saved.left : Math.round((innerWidth - rect.width) / 2 + n * 28), saved ? saved.top : Math.round(Math.max(16, (innerHeight - rect.height) / 2 + n * 28)));
   const header = dialog.querySelector('.studio-dialog-header');

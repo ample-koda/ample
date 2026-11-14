@@ -89,7 +89,7 @@ function chopPanel(context) {
 
   // ---- playing
   const show = (on) => { play.textContent = on ? '■ Stop' : '▶ Play'; play.setAttribute('aria-pressed', String(on)); };
-  const stopLive = () => { try { live.source?.stop(); } catch { /* already stopped */ } live.source = null; clearInterval(live.watch); live.watch = 0; live.show?.(false); };
+  const stopLive = () => { clearTimeout(live.timer); try { live.source?.stop(); } catch { /* already stopped */ } live.source = null; clearInterval(live.watch); live.watch = 0; live.show?.(false); };
   live.stop = stopLive; live.show = show;
   live.say = (text) => { status.textContent = text; }; show(Boolean(live.source));
   const start = async (keep) => {
@@ -99,7 +99,7 @@ function chopPanel(context) {
     live.say('Working…');
     try {
       const sound = await chopAudio(audio, paramsNow(), tempo());
-      if (generation !== live.generation) return;
+      if (generation !== live.generation || !document.querySelector('.studio-chop-panel')) return;   // stopped, or the window was closed while it was worked out
       const ctx = (live.ctx ||= getContext()), buffer = ctx.createBuffer(sound.channels.length, sound.channels[0].length, sound.sampleRate);
       sound.channels.forEach((data, i) => buffer.copyToChannel(data, i));
       const offset = keep && live.source ? (ctx.currentTime - live.startedAt) % buffer.duration : 0;
@@ -116,7 +116,13 @@ function chopPanel(context) {
   };
   play.onclick = () => { if (live.source) { live.generation++; stopLive(); status.textContent = 'Stopped.'; return; } start(false); };
   loopButton.onclick = () => { live.loop = !live.loop; loopButton.setAttribute('aria-pressed', String(live.loop)); loopButton.classList.toggle('on', live.loop); if (live.source) live.source.loop = live.loop; };
-  const change = (key) => (next) => { values[key] = next; refresh(); if (live.source) { clearTimeout(live.timer); live.timer = setTimeout(() => start(true), 200); } };
+  const change = (key) => (next) => {
+    values[key] = next;
+    refresh();
+    if (!live.source) return;
+    clearTimeout(live.timer);
+    live.timer = setTimeout(() => { if (live.source) start(true); }, 200);   // a Stop in between clears it
+  };
 
   // the recording: its take is decoded once and the slices are worked out from it. The takes of the last build reach the page a moment after it has loaded, so the window looks for a few seconds
   const block = sourceBlock();
@@ -129,9 +135,19 @@ function chopPanel(context) {
   else if (S.build.takes?.[block]) load(S.build.takes[block]);
   else {
     info.textContent = 'Build the recording to see its slices.';
-    status.append(' ', el('button', { type: 'button', textContent: 'Build ' + block, onclick: () => build(block).catch((error) => { status.textContent = error.message || String(error); }) }));
-    let tries = 0;
-    const look = setInterval(() => { const take = S.build.takes?.[block]; if (take) { clearInterval(look); status.textContent = 'Press Play to hear it: a knob is heard while it plays.'; load(take); } else if (++tries > 40 || !document.querySelector('.studio-chop-panel')) clearInterval(look); }, 400);
+    let loaded = false;
+    const takeIt = () => {
+      const take = S.build.takes?.[block];
+      if (take && !loaded) { loaded = true; status.textContent = 'Press Play to hear it: a knob is heard while it plays.'; load(take); }
+      return loaded;
+    };
+    status.append(' ', el('button', {
+      type: 'button',
+      textContent: 'Build ' + block,
+      // when the build is done the take is loaded at once, whatever the wait has done
+      onclick: () => build(block).then(takeIt).catch((error) => { status.textContent = error.message || String(error); }),
+    }));
+    const look = setInterval(() => { if (takeIt() || !document.querySelector('.studio-chop-panel')) clearInterval(look); }, 400);;
   }
   requestAnimationFrame(refresh);
   const wave = el('div', { className: 'chop-wave-box' }, [canvas]);

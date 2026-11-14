@@ -4,6 +4,7 @@ import { knob } from '../knob.js';
 import { selector } from '../selector.js';
 import { registerStudioPanel } from './registry.js';
 import { compareAudioBuffers, envelopePath } from '../preview/analysis.js';
+import { delayTimingText } from '../../../lib/delay-timing.mjs';
 
 const ns = 'http://www.w3.org/2000/svg';
 const value = (params, key, fallback) => { const parsed = Number.parseFloat(String(params[key] ?? '').replace(/[a-z %]/gi, '')); return Number.isFinite(parsed) ? parsed : fallback; };
@@ -51,10 +52,10 @@ function delayPanel(context) {
     baseline(root);
     for (let tap = 0; tap < 7; tap++) { const line = svg('line', { x1: 38 + tap * 70, x2: 38 + tap * 70, y1: 110 - delayTapGain(liveFeedback, tap) * 90, y2: 110, class: 'studio-delay-tap' }); tapLines.push(line); root.append(line); }
   });
-  const bpm = Number(context.tempo) || 120, beatMs = 60000 / bpm, quarters = beatMs / time;
-  const timing = el('p', { className: 'note', textContent: `${time} ms · ${quarters >= 1 ? `${quarters.toFixed(2)} quarter notes` : `${(quarters * 2).toFixed(2)} eighth notes`} at ${bpm} BPM` });
+  const sync = () => context.params.sync;
+  const timing = el('p', { className: 'note', textContent: delayTimingText(time, sync(), context.tempo) });
   const updateFeedback = (next) => { liveFeedback = next; tapLines.forEach((line, index) => line.setAttribute('y1', String(110 - delayTapGain(liveFeedback, index) * 90))); };
-  const updateTime = (next) => { const count = beatMs / next; timing.textContent = `${Math.round(next)} ms · ${count >= 1 ? `${count.toFixed(2)} quarter notes` : `${(count * 2).toFixed(2)} eighth notes`} at ${bpm} BPM`; };
+  const updateTime = (next) => { timing.textContent = delayTimingText(next, sync(), context.tempo); };
   return el('section', { className: 'studio-effect-panel studio-delay-panel', 'aria-label': 'Delay controls' }, [graph, controls([
     knobControl(context, params, 'time', 'Time', 1, 2000, 'ms', 'log', 112, updateTime), choice(context, params, 'sync', 'Sync', ['off', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/4t', '1/8t', '1/16t']), knobControl(context, params, 'feedback', 'Feedback', 0, 90, '%', 'linear', 82, updateFeedback), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
   ]), timing]);

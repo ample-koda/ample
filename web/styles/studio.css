@@ -26,7 +26,11 @@
 .studio-effect-plot{display:block;width:min(100%,760px);height:auto;max-height:270px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-m)}.studio-delay-tap{stroke:var(--fx-dyn);stroke-width:8;stroke-linecap:round}.studio-mixer-kind{grid-column:1/-1;margin:0 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
 .studio-bus-panel .studio-mixer-strip{border-top:3px solid var(--fx-dyn,#c18bff)}
 .studio-room-shape{fill:color-mix(in srgb,var(--fx-hot) 16%,var(--panel3));stroke:var(--fx-hot);stroke-width:3}   /* tinted, so the shape of a reverb room, a de-esser band or the stereo image is not a black hole while there is no sound to draw */
-.studio-mixer-strips{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:10px}.studio-mixer-strip{display:grid;justify-items:center;gap:8px;padding:12px 8px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel2)}.studio-mixer-strip input[type=range]{writing-mode:vertical-lr;direction:rtl;height:170px}.studio-mixer-meter{width:12px;height:24px;background:var(--panel3);border:1px solid var(--line);border-radius:6px}
+.studio-mixer-strips{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px}
+@media (max-width:700px){.studio-duck-steps{grid-template-columns:repeat(8,minmax(0,1fr))}.studio-mixer-strips{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}}
+.studio-mixer-strip{display:grid;justify-items:center;gap:8px;padding:12px 8px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel2)}
+.studio-mixer-strip input[type=range]{writing-mode:vertical-lr;direction:rtl;height:170px}
+.studio-mixer-meter{width:12px;height:24px;background:var(--panel3);border:1px solid var(--line);border-radius:6px}
 .studio-advanced-node{flex:none;width:23px;height:21px;padding:0;border-radius:5px;font-size:15px;line-height:1;font-weight:700;color:var(--acc)}.prop-heading{display:flex;align-items:center;gap:6px}.prop-heading-title{min-width:0}.studio-source-props{width:26px;height:23px;padding:0;display:inline-grid;place-items:center;font-size:11px;line-height:1;color:var(--acc)}.studio-advanced-props,.fx-advanced{width:25px;height:23px;padding:0;display:inline-grid;place-items:center;font-size:15px;line-height:1;color:var(--acc)}.prop-heading .studio-advanced-props{margin-left:auto}
 @media(prefers-reduced-motion:reduce){.studio-knob,.studio-knob *{transition:none!important;animation:none!important}}
 
