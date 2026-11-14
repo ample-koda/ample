@@ -23,7 +23,12 @@ export function setView(mode, force = false) {
   wrap.classList.toggle('lymode', mode === 'lyr' || mode === 'plug' || mode === 'pat' || mode === 'seq');
   Object.entries(SHOWN).forEach(([m, sel]) => { $(sel).style.display = mode === m ? 'flex' : 'none'; });
   const buttons = { blocks: '#vs-blocks', src: '#vs-source', lib: '#vs-library', bm: '#vs-branches' };
-  Object.entries(buttons).forEach(([m, sel]) => $(sel).classList.toggle('on', mode === m));
+  $('#vswitch').setAttribute('role', 'group');
+  $('#vswitch').setAttribute('aria-label', 'Workspace');
+  Object.entries(buttons).forEach(([m, sel]) => {
+    $(sel).classList.toggle('on', mode === m);
+    if (mode === m) $(sel).setAttribute('aria-current', 'page'); else $(sel).removeAttribute('aria-current');   // the active workspace is named, not only coloured
+  });
   if (V.renderers[mode]) V.renderers[mode]();
   updateBanner();
   return true;
