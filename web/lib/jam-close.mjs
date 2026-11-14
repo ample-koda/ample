@@ -15,3 +15,24 @@ export const playedCount = ({ notes = [], open = new Map() } = {}) => notes.leng
 
 /** What the person is told. */
 export const discardedMessage = (count) => `The window was closed during the recording, so the ${count} unfinished note${count === 1 ? ' was' : 's were'} not added to the clip.`;
+
+/**
+ * The question asked when the close button is pressed during a recording with played notes.
+ * Values: 'stay' (go on recording), 'finish' (finish the take like the record button, the window stays open),
+ * 'discard' (close, take dropped).
+ */
+export function closeQuestion(count) {
+  const notes = count === 1 ? '1 note' : count + ' notes';
+  return {
+    title: 'What do you want to do with the recording?',
+    body: 'A take is still being recorded: ' + notes + ' played so far. Closing the window now would not keep them.',
+    buttons: [
+      { label: 'Keep recording', value: 'stay', primary: true },
+      { label: 'Finish the take', value: 'finish' },
+      { label: 'Discard and close', value: 'discard' },
+    ],
+  };
+}
+
+/** What the answer does: 'stay' leaves everything as it is, 'finish' finishes the take, 'discard' closes. A closed dialog is 'stay'. */
+export const closeAction = (answer) => (answer === 'finish' || answer === 'discard' ? answer : 'stay');

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { discardedMessage, onCloseTake, playedCount } from '../jam-close.mjs';
+import { closeAction, closeQuestion, discardedMessage, onCloseTake, playedCount } from '../jam-close.mjs';
 
 test('closing the window while a take is recorded and notes were played discards the take (issue 244)', () => {
   assert.equal(onCloseTake({ recording: true, played: 3 }), 'discard');
@@ -34,4 +34,25 @@ test('a take of one held note is discarded too', () => {
 test('the message says how many notes were not added, in singular and plural', () => {
   assert.equal(discardedMessage(1), 'The window was closed during the recording, so the 1 unfinished note was not added to the clip.');
   assert.equal(discardedMessage(4), 'The window was closed during the recording, so the 4 unfinished notes were not added to the clip.');
+});
+
+test('the question offers keep recording, finish the take and discard, and starts with the safe one', () => {
+  const q = closeQuestion(3);
+  assert.equal(q.title, 'What do you want to do with the recording?');
+  assert.deepEqual(q.buttons.map((b) => b.value), ['stay', 'finish', 'discard']);
+  assert.equal(q.buttons.find((b) => b.primary).value, 'stay');
+  assert.match(q.body, /3 notes played so far/);
+});
+
+test('the question says one note in the singular', () => {
+  assert.match(closeQuestion(1).body, /1 note played so far/);
+});
+
+test('only finish and discard act; a closed dialog or an unknown answer leaves the window open', () => {
+  assert.equal(closeAction('finish'), 'finish');
+  assert.equal(closeAction('discard'), 'discard');
+  assert.equal(closeAction('stay'), 'stay');
+  assert.equal(closeAction(undefined), 'stay');
+  assert.equal(closeAction(false), 'stay');
+  assert.equal(closeAction('x'), 'stay');
 });
