@@ -524,6 +524,7 @@ function startAutomation(s) {
 
 function dispose(s) {
   clearInterval(s.controlTimer); clearInterval(s.autoTimer);
+  s.renders?.forEach((entry) => clearTimeout(entry.timer));   // a render that was only scheduled never starts for a stopped chain
   try { if (s.capacity) { s.capacity.onupdate = null; s.capacity.stop(); } } catch { /* gone */ }
   s.sources.forEach((node) => { try { node.stop(); } catch { /* not started */ } });
   if (s.builtTake) { try { s.builtTake.node.stop(); s.builtTake.node.disconnect(); s.builtTake.gain.disconnect(); } catch { /* gone */ } }

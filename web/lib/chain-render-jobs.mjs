@@ -21,6 +21,7 @@ export async function runRenderJob({ items, id, ticket, revs, alive, keyOf, rend
     if (!(item.id === id || item.inputs.some((link) => dirty.has(link.from)))) continue;
     dirty.add(item.id);
     if (item.inputs.some((link) => blocked.has(link.from))) { blocked.add(item.id); continue; }
+    if (!alive()) return;   // stopped or replaced while waiting (timer, an earlier block): nothing more is rendered for a chain that is gone
     const rev = item.id === id ? ticket : bumpRevision(revs, item.id), key = keyOf(item);
     try {
       const audio = await render(item);

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bumpRevision, runRenderJob, createCompareGate } from '../chain-render-jobs.mjs';
@@ -93,4 +94,38 @@ test('A/B gate: a load that fails or is cancelled always ends with nothing pendi
   const two = gate.begin(); gate.finish(two);
   assert.equal(gate.pending, false);
   assert.equal(gate.cancel(), false);
+});
+
+test('a job whose chain is gone before its render starts renders nothing (stop during the 150 ms wait)', async () => {
+  const revs = new Map(), rendered = [];
+  await runRenderJob({ items, id: 'a', ticket: bumpRevision(revs, 'a'), revs, alive: () => false, keyOf: (i) => i.id, render: async (i) => { rendered.push(i.id); return i.id; }, adopt: () => rendered.push('adopt'), invalidate: () => {}, report: () => {} });
+  assert.deepEqual(rendered, []);
+});
+
+test('a chain stopped after the first block rendered does not render the downstream block', async () => {
+  const revs = new Map(), rendered = []; let live = true;
+  await runRenderJob({ items, id: 'a', ticket: bumpRevision(revs, 'a'), revs, alive: () => live, keyOf: (i) => i.id, render: async (i) => { rendered.push(i.id); live = false; return i.id; }, adopt: () => rendered.push('adopt'), invalidate: () => {}, report: () => {} });
+  assert.deepEqual(rendered, ['a']);
+});
+
+test('A feeds B: an edit of B scheduled during the job of A is covered by the job that reaches B (its older ticket is void)', async () => {
+  const h = harness(), aFirst = deferred();
+  h.start('a', (i) => (i.id === 'a' ? aFirst.promise : Promise.resolve('b-from-new-a')));
+  h.start('b', () => Promise.resolve('b-early'));   // B edited meanwhile: renders from the old A, adopted at once
+  await tick();
+  aFirst.resolve('a1'); await h.all();
+  assert.deepEqual(h.log.adopted.map((x) => [x[0], x[1]]), [['b', 'b-early'], ['a', 'a1'], ['b', 'b-from-new-a']]);
+});
+
+test('live-chain.js uses the extracted module: no copy of the ordering logic is left, every render goes through runRenderJob', () => {
+  const src = fs.readFileSync(new URL('../../app/live-chain.js', import.meta.url), 'utf8');
+  assert.ok(src.includes("from '../lib/chain-render-jobs.mjs'"));
+  assert.equal(src.split('runRenderJob(').length - 1, 1);
+  assert.ok(!src.includes('s.dirty') && src.split('drumToken').length === src.split('drumTokens').length);
+  const rerender = src.slice(src.indexOf('function rerender('), src.indexOf('function swap('));
+  assert.ok(rerender.indexOf('bumpRevision(') > -1 && rerender.indexOf('bumpRevision(') < rerender.indexOf('setTimeout('), 'the revision is bumped when scheduled');
+  const cmp = src.slice(src.indexOf('export async function setCompareBuilt'));
+  assert.ok(cmp.indexOf('createCompareGate()') > -1 && cmp.indexOf('gate.begin()') > -1 && cmp.indexOf('gate.finish(intent)') > cmp.indexOf('gate.begin()'));
+  const ui = fs.readFileSync(new URL('../../app/live-chain-ui.js', import.meta.url), 'utf8');
+  assert.ok(ui.includes('setCompareBuilt(!(state.comparingBuilt || state.comparePending))'));
 });
