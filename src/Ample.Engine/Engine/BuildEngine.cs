@@ -420,7 +420,9 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
                         input = ms.ToArray();
                     }
 
-                    if (BlockTiming.IsTimeline(owner) && upstream is not null && !BlockTiming.IsArranged(upstream, doc, []) && spec.Templates[upstream.Type].Outputs.Any(p => p.Name == from.Output && p.Type == "audio")) input = BlockTiming.Place(input, BlockTiming.Origin(upstream, doc, []), range, spb);
+                    bool placed = BlockTiming.IsTimeline(owner) && upstream is not null && !BlockTiming.IsArranged(upstream, doc, [])
+                        && spec.Templates[upstream.Type].Outputs.Any(p => p.Name == from.Output && p.Type == "audio");
+                    if (placed) input = BlockTiming.Place(input, BlockTiming.Origin(upstream!, doc, []), range, spb);
                     inputs[slot] = input;
                 });
             }
@@ -434,7 +436,11 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         if (ReferenceFile(projectRoot, block) is { } voiceSample)
         {
             inputs["reference"] = [];
-            if (!options.PlanOnly) loads.Add(async () => inputs["reference"] = await File.ReadAllBytesAsync(voiceSample, cancellationToken).ConfigureAwait(false));
+            if (!options.PlanOnly)
+            {
+                loads.Add(async () =>
+                    inputs["reference"] = await File.ReadAllBytesAsync(voiceSample, cancellationToken).ConfigureAwait(false));
+            }
         }
 
         List<PlanInput> pinned = [];

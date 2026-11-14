@@ -44,7 +44,9 @@ public class CountingFileSystem : DispatchProxy
     }
 }
 
-/// <summary>What a build that finds everything in the cache reads: nothing, because the audio of the blocks before it is only needed to render.</summary>
+/// <summary>
+/// What a build that finds everything in the cache reads: nothing, because the audio of the blocks before it is only needed to render.
+/// </summary>
 public sealed class OpenCountTests
 {
     [Fact]
