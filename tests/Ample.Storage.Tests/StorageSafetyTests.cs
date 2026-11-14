@@ -495,4 +495,27 @@ public sealed class StorageSafetyTests
         Assert.Equal("edited after", File.ReadAllText(Path.Combine(r.Root, "other.amplet")));
         Assert.Equal("base", File.ReadAllText(Path.Combine(r.Root, "song.amplet")));
     }
+
+    [Fact]
+    public async Task Looking_at_a_revision_whose_content_is_gone_says_so_instead_of_failing_on_a_missing_file()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "base"));
+        await r.History.ForkAsync("experiment");
+        await r.History.GoAsync("experiment");
+        r.Write("song.amplet", "only on experiment");
+        await r.History.CheckpointAsync("experiment work");
+        await r.History.GoAsync("garage");
+        DropLineAct drop = new(r.History, "experiment");
+        await drop.RunAsync(r.Journal, r.Context, "user", drop.Acceptance, "done");
+        CleanupAct cleanup = new(r.History);
+        await cleanup.RunAsync(r.Journal, r.Context, "user", cleanup.Acceptance, "space");
+        Directory.Delete(Path.Combine(r.Root, ".ample", "history-archive"), true);
+        await r.History.RestoreLineAsync("experiment", "oops");
+
+        AmpleException ex = await Assert.ThrowsAsync<AmpleException>(async () => await r.History.PeekAsync("experiment"));
+
+        Assert.Equal("AMP5247", ex.DiagnosticCode);
+        Assert.Contains("song.amplet", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("Bring back", ex.Message, StringComparison.Ordinal);
+    }
 }

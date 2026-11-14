@@ -246,6 +246,16 @@ public sealed class HistoryService
     public async ValueTask<IReadOnlyDictionary<string, string>> PeekAsync(string reference, CancellationToken cancellationToken = default)
     {
         NodeInfo n = Resolve(reference);
+        // content that a clean-up moved to the history archive (or that is gone) cannot be read here: say so, and where it can be brought back (issue 157)
+        string[] missing = [.. n.Files.Where(file => !bank.DataExists(file.Value)).Select(file => file.Key).Order(StringComparer.Ordinal)];
+        if (missing.Length > 0)
+        {
+            throw new AmpleException(
+                "AMP5247",
+                $"The saved content of {missing.Length} file(s) of this revision ({string.Join(", ", missing.Take(3))}{(missing.Length > 3 ? ", ..." : string.Empty)}) is not in the history now: "
+                + "a clean-up moved it to the history archive, or it is gone. Use Bring back in the Branch Manager to restore the branch, then look at it again. Nothing was changed.");
+        }
+
         Dictionary<string, string> texts = [];
         foreach ((string path, string id) in n.Files)
         {
