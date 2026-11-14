@@ -1,15 +1,21 @@
 import { test, expect, Page } from '@playwright/test';
 import { api, freshServer, node, openApp } from '../../web/tests/support';
 
-// Issues #262 and #263: Revert in the Sequencer also works after Play or Build wrote the staged text, and a redraw keeps the keyboard on the same control.
-const SEQ = 'sequencer 1\nchannel lead notes wave=square\nchannel bass notes wave=saw\npattern verse bars=2\n  lead 1:0:1:60:96\n  bass 1:0:2:36:90\nplaylist\n  clip verse track=1 at=1 for=2\n';
+// Issues #262 and #263: Revert in the Sequencer also works after Play or Build wrote the staged text,
+// and a redraw keeps the keyboard on the same control.
+const SEQ = 'sequencer 1\nchannel lead notes wave=square\nchannel bass notes wave=saw\n'
+  + 'pattern verse bars=2\n  lead 1:0:1:60:96\n  bass 1:0:2:36:90\nplaylist\n  clip verse track=1 at=1 for=2\n';
 freshServer({
-  song: 'composition "band" { ample 1  tempo 120  master-seed 3 }\nsequencer sq at 1 for 4 {\n  file sequences/a.seq\n  lanes lane1=lead\n}\n',
+  song: 'composition "band" { ample 1  tempo 120  master-seed 3 }\n'
+    + 'sequencer sq at 1 for 4 {\n  file sequences/a.seq\n  lanes lane1=lead\n}\n',
   files: { 'sequences/a.seq': SEQ },
 });
 
 const seqText = async () => (await api('/api/file?path=sequences/a.seq')).text as string;
-const menuItem = (page: Page, text: string) => page.locator('#menu div', { hasText: text }).filter({ hasNot: page.locator('div', { hasText: text }) }).first();
+const menuItem = (page: Page, text: string) => page
+  .locator('#menu div', { hasText: text })
+  .filter({ hasNot: page.locator('div', { hasText: text }) })
+  .first();
 const dialogButton = (page: Page, name: string) => page.locator('#dlg-btns button', { hasText: name });
 
 test.beforeEach(async ({ page }) => {
@@ -63,5 +69,8 @@ test('Tab after typing a number moves on instead of coming back to the redrawn i
   await field.focus();
   await field.fill('-7');
   await page.keyboard.press('Tab');
-  await expect.poll(() => page.evaluate((t) => { const a = document.activeElement as HTMLElement | null; return !!a && a !== document.body && a.getAttribute('title') !== t; }, title)).toBe(true);
+  await expect.poll(() => page.evaluate((t) => {
+    const a = document.activeElement as HTMLElement | null;
+    return !!a && a !== document.body && a.getAttribute('title') !== t;
+  }, title)).toBe(true);
 });

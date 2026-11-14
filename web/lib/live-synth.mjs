@@ -52,14 +52,16 @@ export function eventsInWindow(rows, { ppq, bpm, from, to, program = 0, channel 
   const secondsPerTick = 60 / bpm / ppq, out = [];
   for (const n of rows) {
     const start = map ? map.secondsAt(n.at / ppq) : n.at * secondsPerTick;
-    const held = sustained && start < from && (n.channel ?? channel) !== 9;   // a note already sounding at the left edge: the rest of it starts there
+    // a note already sounding at the left edge: the rest of it starts there
+    const held = sustained && start < from && (n.channel ?? channel) !== 9;
     if (!held && (start < from || start >= to)) continue;
     const ch = n.channel ?? channel, prog = n.program ?? program;
     const endSeconds = map ? map.secondsAt((n.at + n.length) / ppq) : (n.at + n.length) * secondsPerTick;
     if (held && endSeconds - from < 0.03) continue;   // the rest is shorter than the minimum duration: it would click past its real end
     const duration = Math.max(0.03, endSeconds - (held ? from : start));
     const gain = Math.pow(Math.max(1, Math.min(127, n.velocity)) / 127, 1.4) * 0.45;
-    out.push(ch === 9 ? { ...n, start: held ? from : start, duration, gain, pitch: n.pitch, ...drumFor(n.pitch) } : { ...n, start: held ? from : start, duration, gain, pitch: n.pitch, voice: voiceFor(prog) });
+    const note = { ...n, start: held ? from : start, duration, gain, pitch: n.pitch };
+    out.push(ch === 9 ? { ...note, ...drumFor(n.pitch) } : { ...note, voice: voiceFor(prog) });
   }
   return out;
 }

@@ -7,8 +7,9 @@ const PPQ = 960;
 const LOOKAHEAD_S = 0.3, ROUND_S = 0.08;
 
 /**
- * Replays the Jam: a player clock (seconds), rounds every 80 ms (jittered), a playhead that is only refreshed on a frame tick (`frameHz`, so it is
- * stale between frames) or read fresh, and the panel's maths (`at = now + offset * secondsPerTick`). Returns every scheduled click as { at, accent }.
+ * Replays the Jam: a player clock (seconds), rounds every 80 ms (jittered), a playhead that is only refreshed on a frame tick
+ * (`frameHz`, so it is stale between frames) or read fresh, and the panel's maths (`at = now + offset * secondsPerTick`).
+ * Returns every scheduled click as { at, accent }.
  */
 function replay({ frameHz = 60, bpm = () => 120, seconds = 20, loop = [0, 0], from = 0, stale = false }) {
   const [loopStart, loopEnd] = loop, span = loopEnd > loopStart ? loopEnd - loopStart : 0;
@@ -22,7 +23,9 @@ function replay({ frameHz = 60, bpm = () => 120, seconds = 20, loop = [0, 0], fr
     t = i * ROUND_S + ((i * 7919) % 13) / 1000;      // uneven rounds
     for (; nextFrame <= t; nextFrame += 1 / frameHz) frameHead = posAt(nextFrame);
     const pos = stale ? frameHead : posAt(t), secondsPerTick = 60 / bpm(t) / PPQ;
-    for (const c of cursor.round(pos, LOOKAHEAD_S / secondsPerTick)) scheduled.push({ at: t + c.offset * secondsPerTick, accent: c.accent });
+    for (const c of cursor.round(pos, LOOKAHEAD_S / secondsPerTick)) {
+      scheduled.push({ at: t + c.offset * secondsPerTick, accent: c.accent });
+    }
   }
   return scheduled;
 }
@@ -93,7 +96,12 @@ test('the earlier approach (compare audio times with 10 ms) double-schedules wit
       const t = i * ROUND_S + ((i * 7919) % 13) / 1000;
       for (; nextFrame <= t; nextFrame += 1 / frameHz) head = nextFrame * 2 * PPQ;
       const secondsPerTick = 0.5 / PPQ;
-      for (const c of metronomeClicks(head, 0.3 / secondsPerTick, PPQ)) { const at = t + c.offset * secondsPerTick; if (at <= until + 0.01) continue; until = at; n++; }
+      for (const c of metronomeClicks(head, 0.3 / secondsPerTick, PPQ)) {
+        const at = t + c.offset * secondsPerTick;
+        if (at <= until + 0.01) continue;
+        until = at;
+        n++;
+      }
     }
     return n;
   };

@@ -49,7 +49,8 @@ const ownRevert = () => [...revertHandlers].find((h) => h.can());
 async function revert() {
   const own = ownRevert();
   if (own) {
-    if (!(await ask('Revert changes', 'Throws away every change since the file was saved.', [{ label: 'Revert', value: true, primary: true }, { label: 'Keep', value: false }]))) return;
+    const choices = [{ label: 'Revert', value: true, primary: true }, { label: 'Keep', value: false }];
+    if (!(await ask('Revert changes', 'Throws away every change since the file was saved.', choices))) return;
     await own.run();
     return;
   }

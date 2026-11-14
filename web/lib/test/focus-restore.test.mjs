@@ -2,14 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { focusKeyOf, findByFocusKey, neighbourKey } from '../focus-restore.mjs';
 
-const control = (tagName, attrs = {}, dataset = {}) => ({ tagName, type: attrs.type, id: attrs.id, disabled: attrs.disabled, dataset, getAttribute: (name) => attrs[name] ?? null });
+const control = (tagName, attrs = {}, dataset = {}) => ({
+  tagName, type: attrs.type, id: attrs.id, disabled: attrs.disabled, dataset, getAttribute: (name) => attrs[name] ?? null,
+});
 const rootOf = (list) => ({ contains: (node) => list.includes(node), querySelectorAll: () => list });
 
 test('the focus follows the control when another one appears before it', () => {
   const steps = [0, 1, 2].map((i) => control('INPUT', { type: 'number' }, { step: String(i) }));
   const before = rootOf([control('BUTTON', { id: 'sq-play' }), ...steps]);
   const key = focusKeyOf(before, steps[1]);
-  const after = [control('BUTTON', { id: 'sq-play' }), control('BUTTON', { id: 'sq-new-hint' }), ...[0, 1, 2].map((i) => control('INPUT', { type: 'number' }, { step: String(i) }))];
+  const stepInputs = [0, 1, 2].map((i) => control('INPUT', { type: 'number' }, { step: String(i) }));
+  const after = [control('BUTTON', { id: 'sq-play' }), control('BUTTON', { id: 'sq-new-hint' }), ...stepInputs];
   const found = findByFocusKey(rootOf(after), key);
   assert.equal(found.dataset.step, '1');   // an index would have landed on step 0
 });

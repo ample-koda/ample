@@ -713,7 +713,8 @@ export function openPianoRollLite(blockId, options = {}) {
   let liveFor = null, liveRevision = -1, liveCache = [], liveMuted = '';
   const mutedSig = () => [...state.muted].sort((a, b) => a - b).join(',');
   const liveRows = () => { if (liveFor !== model || liveRevision !== audition.preview.revision || liveMuted !== mutedSig()) { liveCache = audition.preview.transform(rows().filter((n) => !state.muted.has(n.pitch))); liveFor = model; liveRevision = audition.preview.revision; liveMuted = mutedSig(); } return liveCache; };
-  let starting = false, tickFrame = 0, metroTimer = 0, metroCursor = null;   // metroCursor: knows which beat was scheduled last (by tick, so a stale playhead cannot schedule one twice)
+  // metroCursor: knows which beat was scheduled last (by tick, so a stale playhead cannot schedule one twice)
+  let starting = false, tickFrame = 0, metroTimer = 0, metroCursor = null;
   async function togglePlay(selectionOnly) {
     if (state.player || starting) { stopPlayback(false); return; }
     starting = true; state.followPaused = false; liveAudioContext();
@@ -759,10 +760,13 @@ export function openPianoRollLite(blockId, options = {}) {
   };
   songFrame = requestAnimationFrame(songRun);
 
-  const newMetroCursor = () => createMetronomeCursor({ ppq, loopStart: state.player?.range.loopStart ?? 0, loopEnd: state.player?.range.loopEnd ?? 0 });
+  const newMetroCursor = () => createMetronomeCursor({
+    ppq, loopStart: state.player?.range.loopStart ?? 0, loopEnd: state.player?.range.loopEnd ?? 0,
+  });
   function metronomeRound() {
     if (!state.player) return;
-    if (!state.metronome) { metroCursor = newMetroCursor(); return; }   // switched off: the next click starts clean (laps passed meanwhile are not counted)
+    // switched off: the next click starts clean (laps passed meanwhile are not counted)
+    if (!state.metronome) { metroCursor = newMetroCursor(); return; }
     const ctx = liveAudioContext(), secondsPerTick = 60 / bpm() / ppq;
     // the position is read from the player now (state.playhead is only refreshed per animation frame, up to a frame old)
     for (const click of metroCursor.round(state.player.time() / secondsPerTick, 0.3 / secondsPerTick)) {

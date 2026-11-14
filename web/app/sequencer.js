@@ -126,19 +126,34 @@ export function initSequencer() {
     }
   }, true);
   typedProbe(() => V.mode === 'seq' && dirty());
-  beforeSave(async () => { if (V.mode !== 'seq' || !Q.seq) return; if (dirty()) await writeFile(); Q.original = Q.snapshot; Q.wroteLive = false; });   // what is saved is the new baseline Revert goes back to
+  // what is saved is the new baseline Revert goes back to
+  beforeSave(async () => {
+    if (V.mode !== 'seq' || !Q.seq) return;
+    if (dirty()) await writeFile();
+    Q.original = Q.snapshot;
+    Q.wroteLive = false;
+  });
   onRevert({ can: () => V.mode === 'seq' && changed(), run: revertSequence });
   subscribe(() => { if (V.mode === 'seq' && !Q.busy) { const lanes = $('#sq-lanes'); if (lanes) paintLanes(lanes); } });
 }
 
-/** Puts back what an earlier Play, Build or live change wrote (the file, or the block in the song) so the original text is on disk again. */
+/**
+ * Puts back what an earlier Play, Build or live change wrote (the file, or the block in the song)
+ * so the original text is on disk again.
+ */
 async function restoreWritten() {
   if (Q.snapshot === Q.original && !Q.wroteLive) return;
-  if (Q.embedded) { const line = headerLineOf(Q.blockId); if (line !== undefined) await applyText(withEmbedded(S.doc.text, line, Q.original)); } else await api.put('/api/file', { path: Q.path, text: Q.original });
+  if (Q.embedded) {
+    const line = headerLineOf(Q.blockId);
+    if (line !== undefined) await applyText(withEmbedded(S.doc.text, line, Q.original));
+  } else await api.put('/api/file', { path: Q.path, text: Q.original });
   Q.snapshot = Q.original; Q.wroteLive = false; refreshInputs().catch(() => {});
 }
 
-/** Revert in the Sequencer: back to the version the editor was opened on (or last saved), also after Play or Build wrote the staged text. */
+/**
+ * Revert in the Sequencer: back to the version the editor was opened on (or last saved),
+ * also after Play or Build wrote the staged text.
+ */
 async function revertSequence() {
   const parsed = parseSeq(Q.original);
   if (!parsed.seq) { toast('The saved sequence could not be read.'); return; }
@@ -239,7 +254,10 @@ function foldBottom() { const bottom = document.querySelector('#bottom'); if (!b
 function unfoldBottom() { if (bottomWasOpen === null) return; const bottom = document.querySelector('#bottom'); if (bottom && bottomWasOpen) { bottom.classList.remove('min'); const toggle = document.querySelector('#b-min'); if (toggle) toggle.textContent = '▾'; } bottomWasOpen = null; }
 async function leave(applyIt) {
   if (applyIt && Q.error) { toast('Fix the file first: ' + Q.error); return; }
-  if (applyIt) { if (dirty()) await writeFile(); } else if (changed() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }]))) return;
+  const undoChoices = [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }];
+  if (applyIt) {
+    if (dirty()) await writeFile();
+  } else if (changed() && !(await ask('Undo and back', 'Throw away the changes made in this editor?', undoChoices))) return;
   stopLoopPlayer();
   if (!applyIt) await restoreWritten();
   unfoldBottom();
@@ -260,17 +278,32 @@ function placeRack(rack, main) {
   put(rack.querySelector(':scope > p.note'), 3 + cards.length, 1);
   for (const wide of main.querySelectorAll(':scope > :not(#sq-patterns)')) wide.style.gridColumn = '1 / -1';   // the playlist, the lanes and the messages use the whole width
 }
-/** Set while Tab or a pointer press is moving the focus away (the step of Tab, or 'pointer'): the change event it fires must not put the focus back on the redrawn control. */
+/**
+ * Set while Tab or a pointer press is moving the focus away (the step of Tab, or 'pointer'):
+ * the change event it fires must not put the focus back on the redrawn control.
+ */
 let leaving = 0;
 function watchLeaving() {
   const mark = () => { leaving = 'pointer'; setTimeout(() => { leaving = 0; }, 0); };
-  addEventListener('keydown', (event) => { if (event.key === 'Tab') { leaving = event.shiftKey ? -1 : 1; addEventListener('keyup', () => { leaving = 0; }, { once: true, capture: true }); setTimeout(() => { leaving = 0; }, 1000); } }, true);
+  addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    leaving = event.shiftKey ? -1 : 1;
+    addEventListener('keyup', () => { leaving = 0; }, { once: true, capture: true });
+    setTimeout(() => { leaving = 0; }, 1000);
+  }, true);
   addEventListener('pointerdown', (event) => { if (event.target !== document.activeElement) mark(); }, true);
 }
 function scrollPlaces(root) {
   const places = SCROLLERS.map((selector) => [selector, root.querySelector(selector)?.scrollTop ?? 0, root.querySelector(selector)?.scrollLeft ?? 0]);
-  const active = document.activeElement, focusKey = leaving === 'pointer' ? null : leaving ? neighbourKey(root, active, leaving) : focusKeyOf(root, active);   // a change caused by Tab goes on to the next control, one caused by a click elsewhere leaves the focus alone
-  return { focusKey, places, self: [root.scrollTop, root.scrollLeft], parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null };
+  const active = document.activeElement;
+  // a change caused by Tab goes on to the next control, one caused by a click elsewhere leaves the focus alone
+  const focusKey = leaving === 'pointer' ? null : leaving ? neighbourKey(root, active, leaving) : focusKeyOf(root, active);
+  return {
+    focusKey,
+    places,
+    self: [root.scrollTop, root.scrollLeft],
+    parent: root.parentElement ? [root.parentElement.scrollTop, root.parentElement.scrollLeft] : null,
+  };
 }
 function restoreScroll(root, saved) {
   const apply = () => {
