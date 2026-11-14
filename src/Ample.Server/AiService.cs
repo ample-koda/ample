@@ -457,6 +457,12 @@ internal sealed class AiTask
 
     public Dictionary<string, string?> Undo { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// The hash of each file that Accept wrote or brought along, as Accept left it (null: the file was removed):
+    /// Undo refuses to overwrite later work.
+    /// </summary>
+    public Dictionary<string, string?> Written { get; } = new(StringComparer.Ordinal);
+
     public string? SongBefore { get; set; }
 
     public bool Applied { get; set; }
@@ -2046,6 +2052,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
                     task.ContinuationClipLimit = saved.ContinuationClipLimit;
                     task.AcceptedPaths.AddRange(saved.AcceptedPaths ?? []);
+                    foreach ((string path, string? before) in saved.Undo ?? []) task.Undo[path] = before;
+                    foreach ((string path, string? hash) in saved.Written ?? []) task.Written[path] = hash;
+                    task.IncludedPaths.AddRange(saved.IncludedPaths ?? []);
+                    task.SongBefore = saved.SongBefore;
                     task.LogAdded = AppendTaskLog;
                     foreach (AiLog line in sessionStore.SavedLog(session.Id, saved.Id)) task.AddRestored(line);
                     if (interrupted && saved.Status != "interrupted") task.Add("warn", "The server restarted while Codex was working. The temporary proposal was kept; resume this task to continue.");
@@ -5682,6 +5692,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         songText = await ApplyMovesAsync(task, moves, songText, ct).ConfigureAwait(false);
+        RecordWritten(task);
         task.Applied = true;
         task.Status = "accepted";
         RecordHistory(task, "accepted", historyRevision);
@@ -5691,6 +5702,15 @@ Answer in English, whatever language the question is in, unless the user asks fo
         sessionStore.UpdateTask(task);
         s.Events.Publish("files.changed", new { source = "ai" });
         return new JsonObject { ["song"] = task.Request.Song, ["songText"] = songText, ["others"] = new JsonArray([.. task.Changes.Where(c => c.Path != task.Request.Song).Select(c => (JsonNode)c.Path)]), ["invalid"] = invalid };
+    }
+
+    /// <summary>Remembers the files as Accept left them, so that Undo can tell later work from the accepted state.</summary>
+    private void RecordWritten(AiTask task)
+    {
+        foreach (string path in task.Undo.Keys.Concat(task.IncludedPaths))
+        {
+            task.Written.TryAdd(path, AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Root, path)));
+        }
     }
 
     /// <summary>Accepts checked files from a proposal and continues the same Codex thread.</summary>
@@ -5761,6 +5781,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             if (!File.Exists(target)) { Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.Copy(AttachmentFile(offered.Id), target, false); task.IncludedPaths.Add(offered.ProjectPath); }
         }
         songText = await ApplyMovesAsync(task, moves, songText, ct).ConfigureAwait(false);
+        RecordWritten(task);
         task.Changes.RemoveAll(change => selected.Contains(change.Path, StringComparer.Ordinal));
         task.Add("info", "Accepted selected files: " + string.Join(", ", selected) + ". The remaining proposal stays in review; accepting does not start another turn.");
         sessionStore.SaveTask(task);
@@ -5808,6 +5829,26 @@ Answer in English, whatever language the question is in, unless the user asks fo
             throw new AmpleException("AMP5458", "This proposal was not applied.");
         }
 
+        // nothing is touched when the recovery data is gone or when a file was changed after Accept
+        int others = task.Changes.Count(change => change.Path != task.Request.Song);
+        if (AcceptRecovery.RecoveryMissing(task.Applied, task.Undo.Count, task.IncludedPaths.Count, others))
+        {
+            throw new AmpleException(
+                "AMP5459",
+                "The files of this change cannot be put back: the information needed was not kept when AMPLE restarted. "
+                + "Nothing was changed. Use the history of the project (a checkpoint was made before the change) to restore them.");
+        }
+
+        IReadOnlyList<string> changed = AcceptRecovery.ChangedSince(
+            task.Written, path => AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Root, path)));
+        if (changed.Count > 0)
+        {
+            throw new AmpleException(
+                "AMP5459",
+                "These files were changed after the proposal was accepted, so undoing it would overwrite that work: "
+                + string.Join(", ", changed) + ". Nothing was changed. Put them back by hand or restore a checkpoint.");
+        }
+
         await UndoMovesAsync(task, ct).ConfigureAwait(false);
         foreach ((string path, string? before) in task.Undo)
         {
@@ -5837,6 +5878,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         task.IncludedPaths.Clear();
+        task.Written.Clear();
         task.Applied = false;
         task.Status = "ready";
         task.Add("info", "The accepted change was undone.");
