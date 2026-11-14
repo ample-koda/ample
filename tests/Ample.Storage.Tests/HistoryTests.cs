@@ -39,6 +39,47 @@ public sealed class HistoryTests
     }
 
     [Fact]
+    public async Task Checkpoints_include_project_modules_and_going_back_restores_them()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "song"), ("modules/verse.module", "module v1"));
+        string first = r.History.LineOf("garage").Head;
+
+        r.Write("modules/verse.module", "module v2");
+        Assert.True(await r.History.IsDirtyAsync());
+        NodeInfo? moduleOnly = await r.History.CheckpointAsync("module only");
+        Assert.NotNull(moduleOnly);
+        Assert.Equal("module v2", (await r.History.PeekAsync(moduleOnly.NodeId))["modules/verse.module"]);
+
+        r.Write("song.amplet", "song v2");
+        r.Write("modules/verse.module", "module v3");
+        NodeInfo? both = await r.History.CheckpointAsync("song and module");
+        Assert.NotNull(both);
+        IReadOnlyDictionary<string, string> peek = await r.History.PeekAsync(both.NodeId);
+        Assert.Equal("song v2", peek["song.amplet"]);
+        Assert.Equal("module v3", peek["modules/verse.module"]);
+
+        await r.History.ForkAsync("older", first);
+        await r.History.GoAsync("older");
+        Assert.Equal("module v1", r.Read("modules/verse.module"));
+    }
+
+    [Fact]
+    public async Task Going_back_to_a_revision_without_a_module_never_deletes_the_module()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "song"));
+        string first = r.History.LineOf("garage").Head;
+        r.Write("modules/verse.module", "module v1");
+        r.Write("song.amplet", "song v2");
+        await r.History.CheckpointAsync("song and a new module");
+
+        await r.History.ForkAsync("older", first);
+        await r.History.GoAsync("older");
+
+        Assert.Equal("song", r.Read("song.amplet"));
+        Assert.Equal("module v1", r.Read("modules/verse.module"));
+    }
+
+    [Fact]
     public async Task Go_saves_unsaved_work_first_restores_the_target_and_peek_changes_nothing()
     {
         using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "studio text"));
@@ -109,6 +150,56 @@ public sealed class HistoryTests
         Assert.Equal("A1", r.Read("a.txt"));
         Assert.Equal("song", r.Read("song.amplet"));
         Assert.Equal("in the way", File.ReadAllText(Path.Combine(r.Root, "blocked")));
+    }
+
+    [Fact]
+    public async Task Promote_while_studio_is_open_saves_its_unsaved_edits_into_its_history_first()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        await r.History.GoAsync("studio");
+        Assert.Equal("studio", r.History.CurrentLine);
+        r.Write("song.amplet", "unsaved studio edit");
+        string oldStudio = r.History.LineOf("studio").Head;
+
+        NodeInfo promoted = await r.History.PromoteAsync();
+
+        Assert.Equal("garage v2", r.Read("song.amplet"));
+        NodeInfo saved = r.History.Log("studio").Single(n => n.Kind == "auto");
+        Assert.Equal("unsaved studio edit", (await r.History.PeekAsync(saved.NodeId))["song.amplet"]);
+        Assert.Equal(oldStudio, saved.ParentId);
+        Assert.Equal(saved.NodeId, promoted.ParentId);
+        Assert.Equal(promoted.NodeId, r.History.LineOf("studio").Head);
+    }
+
+    [Fact]
+    public async Task Promote_while_studio_is_open_and_saved_adds_no_extra_checkpoint()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        await r.History.GoAsync("studio");
+
+        await r.History.PromoteAsync();
+
+        Assert.DoesNotContain(r.History.Log("studio"), n => n.Kind == "auto");
+        Assert.Equal("garage v2", r.Read("song.amplet"));
+    }
+
+    [Fact]
+    public async Task Promote_from_another_open_line_leaves_its_unsaved_edits_alone()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));
+        r.Write("song.amplet", "garage v2");
+        await r.History.CheckpointAsync("garage work");
+        r.Write("song.amplet", "unsaved garage edit");
+
+        await r.History.PromoteAsync();
+
+        Assert.Equal("garage", r.History.CurrentLine);
+        Assert.Equal("unsaved garage edit", r.Read("song.amplet"));
+        Assert.DoesNotContain(r.History.Log("studio"), n => n.Kind == "auto");
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 // peaks for the waveform come from the server. @ample:preview-playback
 
 import { api, getToken } from './api.js';
+import { eventOrCancel } from '../lib/settle.mjs';
 import { toast } from './ui.js';
 import { playbackOutput } from './playback-volume.js';
 import { getContext } from '../lib/audio-engine.mjs';
@@ -17,6 +18,7 @@ let loadingTake = null;
 let cancelTakeLoad = null;
 let playVersion = 0;
 let pendingPlay = null;
+let cancelTransientLoad = null;   // ends the wait of a preview that is still loading its audio (Stop, or a newer preview)
 let transientUrl = null;
 let loopRegion = null;
 let meterAnalyser = null;
@@ -198,13 +200,13 @@ export async function playTransient(blob) {
   if (transientUrl) URL.revokeObjectURL(transientUrl);   // each local preview re-render makes a new blob; without this the old one leaked every time a slider changed
   transientUrl = URL.createObjectURL(blob);
   current = { takeId: 'audition', dataId: null };
-  await new Promise((resolve, reject) => {
-    const cleanup = () => { audio.removeEventListener('loadedmetadata', loaded); audio.removeEventListener('error', failed); };
-    const loaded = () => { cleanup(); resolve(); }, failed = () => { cleanup(); reject(new Error('The preview audio could not be loaded.')); };
-    audio.addEventListener('loadedmetadata', loaded, { once: true }); audio.addEventListener('error', failed, { once: true });
-    audio.src = transientUrl;
-  });
-  if (version !== loadVersion) return false;
+  const wait = eventOrCancel(audio, ['loadedmetadata'], ['error'], () => new Error('The preview audio could not be loaded.'));
+  cancelTransientLoad = wait.cancel;
+  audio.src = transientUrl;
+  let loaded = false;
+  try { loaded = await wait.promise; } finally { if (cancelTransientLoad === wait.cancel) cancelTransientLoad = null; }
+  // Stop or a newer preview settled the wait: nothing plays, and the caller is told so
+  if (!loaded || version !== loadVersion) return false;
   await prepareMeterAudio();
   if (version !== loadVersion) return false;
   await audio.play();
@@ -245,7 +247,7 @@ export function toggle(takeId) {
 }
 
 export const pause = () => audio.pause();
-export const stop = () => { externals.forEach((player) => player.stop()); clearLivePreview(); playVersion++; pendingPlay = null; loadVersion++; cancelTakeLoad?.(); loadingTake = null; loopRegion = null; audio.loop = false; audio.pause(); audio.removeAttribute('src'); audio.load(); current = null; if (transientUrl) { URL.revokeObjectURL(transientUrl); transientUrl = null; } emit(); };
+export const stop = () => { externals.forEach((player) => player.stop()); clearLivePreview(); playVersion++; pendingPlay = null; loadVersion++; cancelTakeLoad?.(); cancelTransientLoad?.(); loadingTake = null; loopRegion = null; audio.loop = false; audio.pause(); audio.removeAttribute('src'); audio.load(); current = null; if (transientUrl) { URL.revokeObjectURL(transientUrl); transientUrl = null; } emit(); };
 export const seekFraction = (f) => { if (audio.duration) audio.currentTime = Math.max(0, Math.min(1, f)) * audio.duration; };
 export const setLoop = (on) => { loopRegion = null; audio.loop = on; emit(); };
 export const setLoopRegion = (region) => {

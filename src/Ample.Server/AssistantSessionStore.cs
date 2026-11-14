@@ -48,6 +48,10 @@ internal sealed record AssistantTaskSnapshot(
     public int? ContinuationClipLimit { get; init; }
     public bool BrowserAllowedForTask { get; init; }
     public DateTimeOffset? BrowserAccessUntil { get; init; }
+    public Dictionary<string, string?> Undo { get; init; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string?> Written { get; init; } = new(StringComparer.Ordinal);
+    public string[] IncludedPaths { get; init; } = [];
+    public string? SongBefore { get; init; }
 }
 
 /// <summary>Project-local durable records for assistant sessions and the recoverable portion of their Codex tasks.</summary>
@@ -201,7 +205,40 @@ internal sealed class AssistantSessionStore
     public void SaveTask(AiTask task)
     {
         if (task.SessionId is null) return;
-        AssistantTaskSnapshot snapshot = new(task.Id, task.SessionId, task.Request, task.Status, task.Created, task.Identity, task.Mode, task.Workspace, task.ThreadId, task.Summary, task.Error, new(task.Baseline, StringComparer.Ordinal), [.. task.Changes], task.BuildStatus, task.BuildMessage, task.Applied, task.Stale, task.RebaseMessage) { AcceptedPaths = [.. task.AcceptedPaths], OutputSong = task.OutputSong, SkipBuildRequested = task.SkipBuildRequested, SkipBuildReason = task.SkipBuildReason, Archived = task.Archived, Clips = [.. task.ClipsNow()], ContinuationClipLimit = task.ContinuationClipLimit, BrowserAllowedForTask = task.BrowserAllowedForTask, BrowserAccessUntil = task.BrowserAccessUntil };
+        AssistantTaskSnapshot snapshot = new(
+            task.Id,
+            task.SessionId,
+            task.Request,
+            task.Status,
+            task.Created,
+            task.Identity,
+            task.Mode,
+            task.Workspace,
+            task.ThreadId,
+            task.Summary,
+            task.Error,
+            new(task.Baseline, StringComparer.Ordinal),
+            [.. task.Changes],
+            task.BuildStatus,
+            task.BuildMessage,
+            task.Applied,
+            task.Stale,
+            task.RebaseMessage)
+        {
+            AcceptedPaths = [.. task.AcceptedPaths],
+            OutputSong = task.OutputSong,
+            SkipBuildRequested = task.SkipBuildRequested,
+            SkipBuildReason = task.SkipBuildReason,
+            Archived = task.Archived,
+            Clips = [.. task.ClipsNow()],
+            ContinuationClipLimit = task.ContinuationClipLimit,
+            BrowserAllowedForTask = task.BrowserAllowedForTask,
+            BrowserAccessUntil = task.BrowserAccessUntil,
+            Undo = new(task.Undo, StringComparer.Ordinal),
+            Written = new(task.Written, StringComparer.Ordinal),
+            IncludedPaths = [.. task.IncludedPaths],
+            SongBefore = task.SongBefore,
+        };
         lock (gate)
         {
             Directory.CreateDirectory(TaskPath(task.SessionId));

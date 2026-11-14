@@ -457,6 +457,12 @@ internal sealed class AiTask
 
     public Dictionary<string, string?> Undo { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// The hash of each file that Accept wrote or brought along, as Accept left it (null: the file was removed):
+    /// Undo refuses to overwrite later work.
+    /// </summary>
+    public Dictionary<string, string?> Written { get; } = new(StringComparer.Ordinal);
+
     public string? SongBefore { get; set; }
 
     public bool Applied { get; set; }
@@ -2046,6 +2052,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
                     task.ContinuationClipLimit = saved.ContinuationClipLimit;
                     task.AcceptedPaths.AddRange(saved.AcceptedPaths ?? []);
+                    foreach ((string path, string? before) in saved.Undo ?? []) task.Undo[path] = before;
+                    foreach ((string path, string? hash) in saved.Written ?? []) task.Written[path] = hash;
+                    task.IncludedPaths.AddRange(saved.IncludedPaths ?? []);
+                    task.SongBefore = saved.SongBefore;
                     task.LogAdded = AppendTaskLog;
                     foreach (AiLog line in sessionStore.SavedLog(session.Id, saved.Id)) task.AddRestored(line);
                     if (interrupted && saved.Status != "interrupted") task.Add("warn", "The server restarted while Codex was working. The temporary proposal was kept; resume this task to continue.");
@@ -3712,6 +3722,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
         return found;
     }
 
+    /// <summary>The project paths that accepting the proposal removes: what a build or a listen of the proposal must not see.</summary>
+    private static HashSet<string> DeletedPaths(AiTask task) =>
+        [.. task.Changes.Where(c => c.After is null || c.Status == "deleted").Select(c => c.Path)];
+
     private static string StagedSignature(AiTask task, IEnumerable<string> staged) =>
         string.Concat(staged.Select(r => "|" + r + ":" + new FileInfo(Path.Combine(task.ProjectDir, r.Replace('/', Path.DirectorySeparatorChar))).Length));
 
@@ -4116,7 +4130,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 {
                     AddOfferedPlaceholders(task, proposed);
                     AddStagedBinaryFolders(proposed, stagedBinaries);
-                    StageProject(s.Root, root, proposed);
+                    StageProject(s.Root, root, proposed, DeletedPaths(task));
                     CopyOfferedToStage(task, root);
                     CopyStagedBinariesToStage(task, root, stagedBinaries);
                 }
@@ -5085,7 +5099,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 {
                     AddOfferedPlaceholders(task, proposed);
                     AddStagedBinaryFolders(proposed, stagedBinaries);
-                    StageProject(s.Root, root, proposed);
+                    StageProject(s.Root, root, proposed, DeletedPaths(task));
                     CopyOfferedToStage(task, root);
                     CopyStagedBinariesToStage(task, root, stagedBinaries);
                 }
@@ -5273,11 +5287,15 @@ Answer in English, whatever language the question is in, unless the user asks fo
         return output;
     }
 
-    private static void StageProject(string source, string stage, Dictionary<string, string> proposed)
+    internal static void StageProject(
+        string source, string stage, Dictionary<string, string> proposed, HashSet<string>? removed = null)
     {
         StageBudget budget = new();
         HashSet<string> dirs = new(StringComparer.OrdinalIgnoreCase) { string.Empty };
-        foreach (string rel in proposed.Keys)
+
+        // the folder of a file that the proposal deletes is a real folder of the stage (never a link to the project),
+        // and the file is left out of it
+        foreach (string rel in proposed.Keys.Concat(removed ?? new HashSet<string>()))
         {
             for (string d = Path.GetDirectoryName(rel)?.Replace('\\', '/') ?? string.Empty; d.Length > 0; d = Path.GetDirectoryName(d)?.Replace('\\', '/') ?? string.Empty)
             {
@@ -5310,7 +5328,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                         LinkDirectory(target, entry, budget);
                     }
                 }
-                else if (!proposed.ContainsKey(rel))
+                else if (!proposed.ContainsKey(rel) && removed?.Contains(rel) != true)
                 {
                     File.Copy(entry, target, true);
                 }
@@ -5634,54 +5652,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         NodeInfo? checkpoint = await s.History.CheckpointAsync("Before AI change: " + (task.Request.Prompt.Length > 60 ? task.Request.Prompt[..60] + "…" : task.Request.Prompt), ct).ConfigureAwait(false);
         string historyRevision = (checkpoint ?? s.History.Node(s.History.LineOf(s.History.CurrentLine).Head)).NodeId;
-        string? songText = null;
-        foreach (AiChange c in task.Changes)
-        {
-            if (c.Path == task.Request.Song && c.After is not null)
-            {
-                task.SongBefore = c.Before;
-                songText = c.After;
-                continue;
-            }
-
-            string full = ProjectPath.Resolve(s.Root, c.Path);
-            task.Undo[c.Path] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
-            if (c.After is null)
-            {
-                if (File.Exists(full))
-                {
-                    File.Delete(full);
-                }
-            }
-            else
-            {
-                await s.Bus.ExecuteAsync(new WriteFileCommand(c.Path, c.After), ct).ConfigureAwait(false);
-            }
-
-            s.ForgetDoc(c.Path);
-        }
-
-        foreach (OfferedFile o in task.Offered.Where(o => chosen.Contains(o.Id)))
-        {
-            string target = ProjectPath.Resolve(s.Root, o.ProjectPath);
-            if (!File.Exists(target))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                File.Copy(AttachmentFile(o.Id), target, false);
-                task.IncludedPaths.Add(o.ProjectPath);
-            }
-        }
-
-        foreach (string rel in StagedBinaries(task))
-        {
-            string target = ProjectPath.Resolve(s.Root, rel);
-            if (File.Exists(target)) continue;
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(Path.Combine(task.ProjectDir, rel.Replace('/', Path.DirectorySeparatorChar)), target, false);
-            task.IncludedPaths.Add(rel);   // a sample the proposal added (such as a sample of a sample set) comes along with the text changes
-        }
-
-        songText = await ApplyMovesAsync(task, moves, songText, ct).ConfigureAwait(false);
+        string? songText = await WriteAcceptedFilesAsync(task, chosen, moves, ct).ConfigureAwait(false);
+        RecordWritten(task);
         task.Applied = true;
         task.Status = "accepted";
         RecordHistory(task, "accepted", historyRevision);
@@ -5690,7 +5662,120 @@ Answer in English, whatever language the question is in, unless the user asks fo
         sessionStore.SaveTask(task);
         sessionStore.UpdateTask(task);
         s.Events.Publish("files.changed", new { source = "ai" });
-        return new JsonObject { ["song"] = task.Request.Song, ["songText"] = songText, ["others"] = new JsonArray([.. task.Changes.Where(c => c.Path != task.Request.Song).Select(c => (JsonNode)c.Path)]), ["invalid"] = invalid };
+        JsonArray others = new([.. task.Changes.Where(c => c.Path != task.Request.Song).Select(c => (JsonNode)c.Path)]);
+        return new JsonObject { ["song"] = task.Request.Song, ["songText"] = songText, ["others"] = others, ["invalid"] = invalid };
+    }
+
+    /// <summary>
+    /// Writes the files of an accepted proposal. When one of the writes fails, the files that were already written are put back
+    /// (the earlier text, or removed when they were new), so a failed Accept leaves the project as it was.
+    /// </summary>
+    private async Task<string?> WriteAcceptedFilesAsync(AiTask task, string[] chosen, IEnumerable<string>? moves, CancellationToken ct)
+    {
+        try
+        {
+            string? songText = null;
+            foreach (AiChange c in task.Changes)
+            {
+                if (c.Path == task.Request.Song && c.After is not null)
+                {
+                    task.SongBefore = c.Before;
+                    songText = c.After;
+                    continue;
+                }
+
+                string full = ProjectPath.Resolve(s.Root, c.Path);
+                task.Undo[c.Path] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
+                if (c.After is null)
+                {
+                    if (File.Exists(full))
+                    {
+                        File.Delete(full);
+                    }
+                }
+                else
+                {
+                    await s.Bus.ExecuteAsync(new WriteFileCommand(c.Path, c.After), ct).ConfigureAwait(false);
+                }
+
+                s.ForgetDoc(c.Path);
+            }
+
+            foreach (OfferedFile o in task.Offered.Where(o => chosen.Contains(o.Id)))
+            {
+                string target = ProjectPath.Resolve(s.Root, o.ProjectPath);
+                if (!File.Exists(target))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    File.Copy(AttachmentFile(o.Id), target, false);
+                    task.IncludedPaths.Add(o.ProjectPath);
+                }
+            }
+
+            foreach (string rel in StagedBinaries(task))
+            {
+                string target = ProjectPath.Resolve(s.Root, rel);
+                if (File.Exists(target)) continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(Path.Combine(task.ProjectDir, rel.Replace('/', Path.DirectorySeparatorChar)), target, false);
+                // a sample the proposal added (such as a sample of a sample set) comes along with the text changes
+                task.IncludedPaths.Add(rel);
+            }
+
+            songText = await ApplyMovesAsync(task, moves, songText, ct).ConfigureAwait(false);
+            return songText;
+        }
+        catch
+        {
+            await RollbackWrittenAsync(task, CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Puts back the files that Accept wrote (the text they had, or removes them when they were new)
+    /// and the files it brought along.
+    /// </summary>
+    internal async Task RollbackWrittenAsync(AiTask task, CancellationToken ct)
+    {
+        foreach ((string path, string? before) in task.Undo)
+        {
+            string full = ProjectPath.Resolve(s.Root, path);
+            if (before is null)
+            {
+                if (File.Exists(full))
+                {
+                    File.Delete(full);
+                }
+            }
+            else
+            {
+                await s.Bus.ExecuteAsync(new WriteFileCommand(path, before), ct).ConfigureAwait(false);
+            }
+
+            s.ForgetDoc(path);
+        }
+
+        foreach (string path in task.IncludedPaths)
+        {
+            string file = ProjectPath.Resolve(s.Root, path);
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+
+        task.Undo.Clear();
+        task.IncludedPaths.Clear();
+    }
+
+    /// <summary>Remembers the files as Accept left them, so that Undo can tell later work from the accepted state.</summary>
+    private void RecordWritten(AiTask task)
+    {
+        foreach (string path in task.Undo.Keys.Concat(task.IncludedPaths))
+        {
+            task.Written.TryAdd(path, AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Root, path)));
+        }
     }
 
     /// <summary>Accepts checked files from a proposal and continues the same Codex thread.</summary>
@@ -5760,7 +5845,21 @@ Answer in English, whatever language the question is in, unless the user asks fo
             string target = ProjectPath.Resolve(s.Root, offered.ProjectPath);
             if (!File.Exists(target)) { Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.Copy(AttachmentFile(offered.Id), target, false); task.IncludedPaths.Add(offered.ProjectPath); }
         }
+        // the samples that the accepted files use come along (a sample of the proposal is a binary file, not one of the changes)
+        IEnumerable<string> usedTexts = original
+            .Where(change => selected.Contains(change.Path, StringComparer.Ordinal))
+            .Select(change => change.After ?? string.Empty);
+        foreach (string rel in AcceptAssets.RequiredBinaries(StagedBinaries(task), usedTexts))
+        {
+            string target = ProjectPath.Resolve(s.Root, rel);
+            if (File.Exists(target)) continue;
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(Path.Combine(task.ProjectDir, rel.Replace('/', Path.DirectorySeparatorChar)), target, false);
+            task.IncludedPaths.Add(rel);
+        }
+
         songText = await ApplyMovesAsync(task, moves, songText, ct).ConfigureAwait(false);
+        RecordWritten(task);
         task.Changes.RemoveAll(change => selected.Contains(change.Path, StringComparer.Ordinal));
         task.Add("info", "Accepted selected files: " + string.Join(", ", selected) + ". The remaining proposal stays in review; accepting does not start another turn.");
         sessionStore.SaveTask(task);
@@ -5808,35 +5907,29 @@ Answer in English, whatever language the question is in, unless the user asks fo
             throw new AmpleException("AMP5458", "This proposal was not applied.");
         }
 
+        // nothing is touched when the recovery data is gone or when a file was changed after Accept
+        int others = task.Changes.Count(change => change.Path != task.Request.Song);
+        if (AcceptRecovery.RecoveryMissing(task.Applied, task.Undo.Count, task.IncludedPaths.Count, others))
+        {
+            throw new AmpleException(
+                "AMP5459",
+                "The files of this change cannot be put back: the information needed was not kept when AMPLE restarted. "
+                + "Nothing was changed. Use the history of the project (a checkpoint was made before the change) to restore them.");
+        }
+
+        IReadOnlyList<string> changed = AcceptRecovery.ChangedSince(
+            task.Written, path => AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Root, path)));
+        if (changed.Count > 0)
+        {
+            throw new AmpleException(
+                "AMP5459",
+                "These files were changed after the proposal was accepted, so undoing it would overwrite that work: "
+                + string.Join(", ", changed) + ". Nothing was changed. Put them back by hand or restore a checkpoint.");
+        }
+
         await UndoMovesAsync(task, ct).ConfigureAwait(false);
-        foreach ((string path, string? before) in task.Undo)
-        {
-            string full = ProjectPath.Resolve(s.Root, path);
-            if (before is null)
-            {
-                if (File.Exists(full))
-                {
-                    File.Delete(full);
-                }
-            }
-            else
-            {
-                await s.Bus.ExecuteAsync(new WriteFileCommand(path, before), ct).ConfigureAwait(false);
-            }
-
-            s.ForgetDoc(path);
-        }
-
-        foreach (string path in task.IncludedPaths)
-        {
-            string file = ProjectPath.Resolve(s.Root, path);
-            if (File.Exists(file))
-            {
-                File.Delete(file);
-            }
-        }
-
-        task.IncludedPaths.Clear();
+        await RollbackWrittenAsync(task, ct).ConfigureAwait(false);
+        task.Written.Clear();
         task.Applied = false;
         task.Status = "ready";
         task.Add("info", "The accepted change was undone.");

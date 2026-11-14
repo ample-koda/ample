@@ -48,6 +48,22 @@
         <RegistryValue Root="HKCU" Key="Software\AMPLE\msi" Name="menu-settings" Type="integer" Value="1" KeyPath="yes" />
       </Component>
 <?endif?>
+      <!-- The Start menu entry for the studio must not depend on the optional tray hub. Without the hub the entry starts the server for the
+           most recent project and opens the studio through the ample command (it needs neither the tray nor the .NET Desktop Runtime).
+           When the hub is installed, its own entry "AMPLE" (in the Hub feature) is the one that is shown. -->
+<?if $(HasHub) = 1?>
+      <Component Id="StudioCliShortcutComponent" Directory="AmpleMenuFolder" Guid="e1b2c3d4-6a7b-4c8d-9e0f-3c4d5e6f7a81" Condition="NOT &amp;Hub=3">
+        <Shortcut Id="StudioCliShortcut" Name="AMPLE studio" Description="Start AMPLE and open the studio (without the tray hub)" Target="[INSTALLFOLDER]ample.exe" Arguments="open --last" WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveAmpleMenuFolder3" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\AMPLE\msi" Name="menu-studio-cli" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+<?else?>
+      <Component Id="StudioCliShortcutComponent" Directory="AmpleMenuFolder" Guid="e1b2c3d4-6a7b-4c8d-9e0f-3c4d5e6f7a81">
+        <Shortcut Id="StudioCliShortcut" Name="AMPLE studio" Description="Start AMPLE and open the studio (without the tray hub)" Target="[INSTALLFOLDER]ample.exe" Arguments="open --last" WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveAmpleMenuFolder3" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\AMPLE\msi" Name="menu-studio-cli" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+<?endif?>
     </Feature>
 
 <?if $(HasHub) = 1?>
