@@ -2296,8 +2296,10 @@ public static class Routes
         });
         add("POST", "/api/wc/save", "documents", "Writes the working copy of a text file to the file through the command bus (path).", true, s is null ? null : async (HttpContext c) =>
         {
-            string path = WorkingPath(Str(await Body(c), "path"));
-            await s.Texts.SaveAsync(path, c.RequestAborted);
+            JsonElement body = await Body(c);
+            string path = WorkingPath(Str(body, "path"));
+            bool suppress = body.TryGetProperty("suppressCheckpoint", out JsonElement quiet) && quiet.ValueKind == JsonValueKind.True;
+            await s.AutoCheckpoint!.SaveTextAsync(path, "Saved", suppress, c.RequestAborted);
             (string text, string saved, long version, bool dirty) = s.Texts.Get(path);
             return Ok(new { path, version, dirty, saved });
         });
