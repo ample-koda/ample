@@ -3,7 +3,8 @@ import { rememberedSize, resizeGrip } from '../window.js';
 import { snapshotBar } from '../live-snapshots.js';
 import { el } from '../ui.js';
 import { whyNotLive, liveClassOf, hasLocalPreview } from '../../lib/live-class.mjs';
-import { subscribe } from '../store.js';
+import { S, subscribe } from '../store.js';
+import { foreignKeys, windowKey } from '../../lib/studio-window-key.mjs';
 import { knob } from './knob.js';
 import { led } from './led.js';
 import { selector } from './selector.js';
@@ -35,7 +36,10 @@ import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
 
 let active = null;   // the window that was used last
-const windows = new Map();   // block id -> window: several panels can be open at once, as floating windows
+// document + block -> window: several panels can be open at once, as floating windows. The key holds the song and the module,
+// because the same block id exists in other songs and a window must never edit the song that is open now when it was made for another.
+const windows = new Map();
+const keyOf = (block) => windowKey(S.path, S.modulePath, block);
 let topZ = 40, cascade = 0;
 
 function numericValue(value, unit) {
@@ -420,7 +424,8 @@ function autoBuild(state) {
 }
 
 export function openStudioPanel(options) {
-  const existing = windows.get(options.block);
+  const key = keyOf(options.block);
+  const existing = windows.get(key);
   if (existing?.dialog.open) { raise(existing); return existing.dialog; }   // the same block again: its window comes to the front
   const suffix = [...windows.values()].some((w) => w.dialog.open) ? `-${++cascade}` : '';   // the first window keeps the id studio (a window that was just closed is still in the map until its close event has come)
   const dialog = el('dialog', { id: `studio${suffix}`, className: 'studio-dialog studio-floating', 'aria-labelledby': `studio-title${suffix}` });
@@ -485,7 +490,7 @@ export function openStudioPanel(options) {
   if (commitMany) state.commitMany = (values) => { const result = commitMany(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
   state.wrapCommit = (commitEffect) => (name, value) => { const result = commitEffect(name, value); Promise.resolve(result).then(() => scheduleLocalUpdate(name)).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
   state.wrapCommitMany = (commitEffects) => (values) => { const result = commitEffects(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
-  active = state; windows.set(options.block, state); renderBody(state);
+  active = state; windows.set(key, state); renderBody(state);
   renderTransport(state);
   close.onclick = () => dialog.close();
   dialog.onclose = () => {
@@ -496,7 +501,7 @@ export function openStudioPanel(options) {
     const current = true;
     if (current && (state.auditioning || (state.startedPlayback && playerState().take === panel.takeId))) stop();
     if (current && state.loopChanged) { if (state.originalLoopRegion) setLoopRegion(state.originalLoopRegion); else setLoop(state.originalLoop); }
-    dialog.remove(); windows.delete(options.block); if (active === state) active = [...windows.values()].pop() ?? null;
+    dialog.remove(); windows.delete(key); if (active === state) active = [...windows.values()].pop() ?? null;
   };
   dialog.show();
   floatWindow(state); raise(state);
@@ -505,7 +510,14 @@ export function openStudioPanel(options) {
 }
 
 let redrawAfterDrag = false;
-const redraw = () => { for (const w of [...windows.values()]) redrawOne(w); };
+/** A window belongs to the song and module it was opened for: when another one is open, it closes, so it can never edit that one. */
+function closeForeignWindows() {
+  for (const key of foreignKeys(windows.keys(), S.path, S.modulePath)) windows.get(key)?.dialog.close();
+}
+const redraw = () => {
+  closeForeignWindows();
+  for (const w of [...windows.values()]) redrawOne(w);
+};
 const redrawOne = (active) => {
   if (!active.dialog.open) return;
   if (active.type === 'convolution' && active.previewMode === 'live' && active.inputTakeId === panelState(active).takeId) {
