@@ -255,6 +255,25 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .arr-section:hover,.arr-section:focus-visible{background:color-mix(in srgb,var(--section) 60%,var(--panel2));outline:none}
 .arr-section:focus-visible{box-shadow:0 0 0 2px var(--acc)}
 
+/* The Performance workspace (web/app/performance-view.js) */
+#b-performance{display:none;flex-direction:column;gap:6px;min-height:0;overflow:auto;padding:6px}
+#b-performance.on{display:flex}
+.perf-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.perf-q{display:inline-flex;gap:4px;align-items:center;font-size:12px}
+.perf-lanes{display:flex;flex-direction:column;gap:6px}
+.perf-lane{border:1px solid var(--line);border-radius:6px;background:var(--panel2);padding:4px 6px}
+.perf-laneHead{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.perf-laneHead strong{flex:1 1 auto}
+.perf-clips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.perf-cell{display:inline-flex;align-items:stretch}
+.perf-clip{display:inline-flex;flex-direction:column;align-items:flex-start;min-width:110px;padding:6px 10px;border-radius:6px 0 0 6px}
+.perf-clip .perf-state{font-size:11px;opacity:.8}
+.perf-clip[data-status="queued"]{outline:2px dashed var(--acc);outline-offset:-2px}
+.perf-clip[data-status="playing"]{background:color-mix(in srgb,var(--acc) 35%,var(--panel2))}
+.perf-x{border-radius:0 6px 6px 0;padding:0 8px}
+.perf-add{display:flex;gap:6px;align-items:center}
+#b-performance :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+
 /* The Playlist view (web/app/playlist.js) */
 #b-playlist{display:none;flex-direction:column;min-height:0}
 #b-playlist.on{display:flex}

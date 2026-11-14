@@ -69,4 +69,21 @@ export function initHelpMenu() {
       import('./playlist.js').then((m) => m.setPlaylistEnabled(on));
     };
   }
+  if (playlist) {
+    // the Performance switch sits under the Playlist one; it is built here so the menu markup stays as it is
+    const item = el('button', {
+      id: 'btn-performance-view', type: 'button', textContent: 'Performance (beta)',
+      title: 'Turns on the Performance tab: put built blocks on lanes and launch them at the next bar. It changes nothing in the song.',
+    });
+    item.setAttribute('role', 'menuitemcheckbox');
+    item.setAttribute('data-performance-view-state', '');
+    playlist.after(item);
+    const isOn = () => localStorage.getItem('ample.performance.enabled') === '1';
+    const sync = () => document.querySelectorAll('[data-performance-view-state]').forEach((i) => i.setAttribute('aria-checked', String(isOn())));
+    sync();
+    item.onclick = () => {
+      const on = !isOn();
+      import('./performance-view.js').then((m) => { m.setPerformanceOn(on); sync(); });
+    };
+  }
 }

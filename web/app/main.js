@@ -161,6 +161,10 @@ function renderAll() {
   renderArrangement();
   // the Playlist is a view behind a setting: while it is off nothing of it is loaded
   if (localStorage.getItem('ample.playlist.on') === '1') import('./playlist.js').then((m) => { m.syncTab(); m.renderPlaylist(); }).catch((e) => console.error('playlist', e));
+  // the Performance tab is opt-in as well: nothing of it is loaded while the setting is off
+  if (localStorage.getItem('ample.performance.enabled') === '1') {
+    import('./performance-view.js').then((m) => { m.syncTab(); m.render(); }).catch((e) => console.error('performance', e));
+  }
   if (V.mode === 'bm') renderBranchManager();
   if ($('#pane-struct').style.display !== 'none') renderStructure();
 }
