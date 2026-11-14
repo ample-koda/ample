@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { api, dialog, freshServer, openApp } from '../../web/tests/support';
+import { api, dialog, freshServer, openApp, setSrc, srcText } from '../../web/tests/support';
 
 // The Source editor: Save all saves the text that is typed there (#82) and Revert goes back to the saved text (#85).
 freshServer({ files: { 'notes.txt': 'saved text\n' } });
@@ -18,24 +18,24 @@ const openFile = (page: Page, path: string) => page.evaluate((p) => new Promise<
 
 test('Save all writes the text that is typed in the Source editor of a text file', async ({ page }) => {
   await openFile(page, 'notes.txt');
-  await expect(page.locator('#se-ta')).toBeVisible();
-  await page.locator('#se-ta').fill('typed but not applied\n');
+  // the editor is CodeMirror: #se-ta is a stand-in that is read and set with evaluate
+  await expect.poll(() => srcText(page)).toBe('saved text\n');
+  await setSrc(page, 'typed but not applied\n');
   await page.evaluate(() => import('/app/tabs.js').then((m) => m.saveAll()));
   await expect.poll(async () => (await api('/api/file?path=notes.txt')).text).toBe('typed but not applied\n');
 });
 
-test('Revert in the Source editor puts the saved song back, also after Apply, and the song is no longer changed', async ({ page }) => {
+test('Revert in the Source editor puts the saved song back after the typed text reached the working copy', async ({ page }) => {
   await page.click('#vs-source');
-  const ta = page.locator('#se-ta');
-  await expect(ta).toBeVisible();
-  const saved = await ta.inputValue();
-  await ta.fill(`${saved}\n# a line that is applied but not saved\n`);
-  await page.click('#se-apply');
+  await expect.poll(() => srcText(page)).toMatch(/composition/);
+  const saved = await srcText(page);
+  // typing reaches the working copy after a short pause, while the editor still counts it as changed (Revert stays enabled)
+  await setSrc(page, `${saved}\n# a line that is not saved\n`);
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).dirty).toBe(true);
 
   await page.click('#se-revert');
   await dialog(page, 'Revert');
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).dirty).toBe(false);
-  expect(await ta.inputValue()).toBe(saved);
+  await expect.poll(() => srcText(page)).toBe(saved);
   expect((await api('/api/doc?path=song.amplet')).text).toBe(saved);
 });
