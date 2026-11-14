@@ -823,6 +823,13 @@ function showResultNow(kind, subject, result) {
     // once "Let's go" is pressed nothing else of the bubble (not Details, not Not quite, not No, not the switches) may be pressed while the change is being put in the song
     let deciding = false;
     const lock = () => { deciding = true; const node = me.bubble?.node; if (node) { node.inert = true; node.classList.add('deciding'); } document.querySelectorAll('.koda-details').forEach((o) => { o.inert = true; }); };
+    // the controls come back when Accept fails: the draft stays and the person can try again or say no
+    const unlock = () => {
+      deciding = false;
+      const node = me.bubble?.node;
+      if (node) { node.inert = false; node.classList.remove('deciding'); }
+      document.querySelectorAll('.koda-details').forEach((o) => { o.inert = false; });
+    };
     const keep0 = async () => {
       // the song changed since the draft was made: it would overwrite that change
       if (result.baseText !== undefined && result.baseText !== activeText()) { finish(); result.discard?.(); openNote({ kind: 'warn', label: tx('stale.label'), text: tx('stale.text'), emotion: 'confused', buttons: result.asked ? [{ label: tx('stale.again'), primary: true, value: 'again' }, { label: tx('choice.ok'), quiet: true, value: 'ok' }] : [{ label: tx('choice.ok'), primary: true }] }, (v) => { if (v === 'again' && result.asked) askModel(kind, subject, result.asked); else closeBubble(); }); return; }
@@ -831,14 +838,18 @@ function showResultNow(kind, subject, result) {
         const text = chosen();
         finish();
         if (text === base()) { result.discard?.(); openNote({ label: tx('notyet.label'), text: tx('draft.none') }, () => closeBubble()); return; }
-        const done = await result.applyPartial?.(text);
+        let done;
+        try { done = await result.applyPartial?.(text); } catch { done = false; }
         if (done === false) { openNote({ kind: 'error', label: tx('kept.failed.label'), text: tx('kept.failed.text'), emotion: 'sad' }, () => closeBubble()); return; }
         keptBubble(subject, result.taskId);
         return;
       }
+      // the draft is dismissed only when the proposal was really applied
+      let ok;
+      let reason = '';
+      try { ok = await result.apply?.(); } catch (error) { ok = false; reason = error?.message || String(error); }
+      if (ok === false) { unlock(); toast(reason || tx('kept.failed.text'), 'error'); return; }
       finish();
-      const ok = await result.apply?.();
-      if (ok === false) { openNote({ kind: 'error', label: tx('kept.failed.label'), text: tx('kept.failed.text'), emotion: 'sad' }, () => closeBubble()); return; }
       keptBubble(subject, result.taskId);
     };
     const keep = async () => { if (deciding) return; lock(); return keep0(); };

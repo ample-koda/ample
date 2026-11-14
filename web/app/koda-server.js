@@ -6,6 +6,7 @@ import { S, applyText, flat, reloadDoc } from './store.js';
 import { KodaBusy, KodaUnavailable } from './koda-backend.js';
 import { promptOf, splitAnswer, splitCheck, splitLong, splitTitle, subjectName, summaryOf, withoutNoChange } from '../lib/koda-context.mjs';
 import { addedBlocks } from '../lib/koda-draft.mjs';
+import { canKeepAsUnsaved, splitChanges } from '../lib/koda-changes.mjs';
 import { describeChanges } from '../lib/koda-diff.mjs';
 import { glanced } from '../lib/koda-glance.mjs';
 import { variantDrafts } from '../lib/koda-variants.mjs';
@@ -209,9 +210,10 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
     },
     async apply() {
       // the other files Koda changed or made (a score, a component, a note) are not written: each comes into the editor as unsaved text and opens in a tab, so the person looks at it and saves it (Save all) or reverts it
-      const others = task.changes.filter((c) => c.path && c.path !== activePath() && !c.deleted);
-      if (others.length && !others.some((c) => /\.amplet$/i.test(c.path))) {
-        const unsaved = await keepAsUnsaved(task, others);
+      // a proposal that deletes a file is not handled as unsaved text (a deleted file would come in empty): it goes through Accept
+      const split = splitChanges(task.changes, activePath());
+      if (canKeepAsUnsaved(split)) {
+        const unsaved = await keepAsUnsaved(task, split.others);
         if (unsaved) {
           if (proposed && task.changes.some((c) => c.path === activePath())) await applyText(proposed);
           await api.post('/api/ai/tasks/' + task.id + '/reject', {}).catch(() => {});   // the server writes nothing: what Koda made lives in the editor until it is saved
