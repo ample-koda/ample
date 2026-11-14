@@ -88,6 +88,30 @@ public sealed class HistoryTests
     }
 
     [Fact]
+    public async Task A_switch_that_fails_halfway_puts_back_the_files_it_had_changed_and_stays_on_the_old_line()
+    {
+        using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "song"), ("a.txt", "A1"));
+        string first = r.History.LineOf("garage").Head;
+        r.Write("a.txt", "A2");
+        r.Write("blocked/x.txt", "X");
+        await r.History.CheckpointAsync("second state");
+        await r.History.ForkAsync("older", first);
+        await r.History.GoAsync("older");
+        Assert.Equal("A1", r.Read("a.txt"));
+
+        // the folder of a file of the second state is now a file that is not tracked, so writing that file fails
+        Directory.Delete(Path.Combine(r.Root, "blocked"), true);
+        File.WriteAllText(Path.Combine(r.Root, "blocked"), "in the way");
+
+        await Assert.ThrowsAnyAsync<Exception>(async () => await r.History.GoAsync("garage"));
+
+        Assert.Equal("older", r.History.CurrentLine);
+        Assert.Equal("A1", r.Read("a.txt"));
+        Assert.Equal("song", r.Read("song.amplet"));
+        Assert.Equal("in the way", File.ReadAllText(Path.Combine(r.Root, "blocked")));
+    }
+
+    [Fact]
     public async Task Tags_are_locked_and_changing_them_is_a_dangerous_act_with_a_tombstone()
     {
         using HistoryRig r = await HistoryRig.CreateAsync(("song.amplet", "v1"));

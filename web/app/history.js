@@ -3,7 +3,7 @@
 
 import { api } from './api.js';
 import { $, activatable, ask, el, showMenu, toast } from './ui.js';
-import { S, editHistory, enterEditPeek, enterPeek, goLine, leavePeek, loadHistory, notify, reloadDoc, restoreEditPeek, save, saveForCheckpoint, CheckpointDraftConflict, resolveCheckpointDraft } from './store.js';
+import { S, editHistory, enterEditPeek, enterPeek, goLine, leavePeek, loadHistory, notify, reloadDoc, restoreEditPeek, save, saveForCheckpoint, CheckpointDraftConflict, firstCheckpointDraftConflict, resolveCheckpointDraft } from './store.js';
 import { dangerousAct } from './dangerous.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { compareRefs, fmtTime, histModel, lineChain, lineChildren, lineParent, shortId, visibleNodes } from './history-model.js';
@@ -63,6 +63,9 @@ export async function checkpoint() {
   // a recovery copy in this browser that differs from the file stops the checkpoint: the person chooses what happens to it, then the checkpoint goes on
   for (let round = 0; round < 20; round++) {
     try {
+      // every conflict is found and decided before a single file is written: a cancel then changes nothing
+      const found = await firstCheckpointDraftConflict();
+      if (found) throw found;
       await (await import('./source.js')).saveRecoveryDraftsForCheckpoint();
       await saveForCheckpoint();
       const r = await api.post('/api/history/checkpoint', { message: name.value.trim() || 'checkpoint' });

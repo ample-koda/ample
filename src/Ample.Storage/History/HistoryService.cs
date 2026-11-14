@@ -529,22 +529,62 @@ public sealed class HistoryService
             }
         }
 
-        foreach ((string path, string id) in target)
+        // the files are written and deleted one by one: when one fails, the ones that were already changed are put back,
+        // so a failed switch leaves the project as it was and not a mixture of two versions
+        List<(string Path, string? Before)> changed = [];
+        try
         {
-            if (!working.TryGetValue(path, out (string Id, string Text) w) || w.Id != id)
+            foreach ((string path, string id) in target)
             {
-                await using Stream s = bank.OpenData(id);
-                using StreamReader reader = new(s, Encoding.UTF8);
-                await bus.ExecuteAsync(new WriteFileCommand(path, await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false)), cancellationToken).ConfigureAwait(false);
+                if (!working.TryGetValue(path, out (string Id, string Text) w) || w.Id != id)
+                {
+                    await using Stream s = bank.OpenData(id);
+                    using StreamReader reader = new(s, Encoding.UTF8);
+                    changed.Add((path, working.TryGetValue(path, out (string Id, string Text) before) ? before.Text : null));
+                    string text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                    await bus.ExecuteAsync(new WriteFileCommand(path, text), cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            foreach (string path in working.Keys.Where(p => !target.ContainsKey(p)))
+            {
+                changed.Add((path, working[path].Text));
+                await bus.ExecuteAsync(new DeleteFileCommand(path), cancellationToken).ConfigureAwait(false);
             }
         }
-
-        foreach (string path in working.Keys.Where(p => !target.ContainsKey(p)))
+        catch
         {
-            await bus.ExecuteAsync(new DeleteFileCommand(path), cancellationToken).ConfigureAwait(false);
+            await PutBackAsync(changed).ConfigureAwait(false);
+            throw;
         }
 
         _ = context;
+    }
+
+    /// <summary>
+    /// Puts back the files that a failed restore had already changed: the earlier text, or removed when the file was new.
+    /// </summary>
+    private async ValueTask PutBackAsync(List<(string Path, string? Before)> changed)
+    {
+        for (int i = changed.Count - 1; i >= 0; i--)
+        {
+            (string path, string? before) = changed[i];
+            try
+            {
+                if (before is null)
+                {
+                    await bus.ExecuteAsync(new DeleteFileCommand(path), CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    await bus.ExecuteAsync(new WriteFileCommand(path, before), CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or AmpleException)
+            {
+                // best effort: the original error is the one that is reported
+            }
+        }
     }
 
     private SqliteConnection Connect() => TakeDatabase.Open(dbPath);
