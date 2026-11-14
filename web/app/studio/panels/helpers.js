@@ -1,6 +1,7 @@
 // Small building blocks shared by the studio panels of the newer effects (limiter, pan, width, gate, de-esser, modulation, bit crusher).
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
+import { knobPrecision } from '../../../lib/studio-math.js';
 
 const ns = 'http://www.w3.org/2000/svg';
 
@@ -24,10 +25,11 @@ export function control(context, params, name, label, min, max, unit, scale = 'l
     return el('label', { className: 'studio-panel-control' }, [el('span', { textContent: `${label} (automated)` }), input]);
   }
 
+  const precision = knobPrecision(unit, min);
   return el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), knob({
-    label, value: number(params, name, min), min, max, unit, scale, size, step: unit === 'dB' ? undefined : 1, disabled: context.readOnly, learn: learnOf(context, name),
+    label, value: number(params, name, min), min, max, unit, scale, size, step: precision.step, decimals: precision.display, disabled: context.readOnly, learn: learnOf(context, name),
     onPreview: (next) => { context.preview?.(name, next); onPreview?.(next); },
-    onCommit: (next) => context.commit(name, `${Number(next.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}`),
+    onCommit: (next) => context.commit(name, `${Number(next.toFixed(precision.commit))}${unit ? ` ${unit}` : ''}`),
   })]);
 }
 
