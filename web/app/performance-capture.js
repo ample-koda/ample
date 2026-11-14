@@ -1,13 +1,16 @@
-// Capture of performed clip launches as editable Playlist parts (issue 279). Pure and self-contained: the Performance workspace (issue 266) feeds it
+// Capture of performed clip launches as editable Playlist parts (issue 279). Pure and self-contained: the Performance
+// workspace (issue 266) feeds it
 // scheduler-confirmed events and shows the result; nothing here touches the DOM, the store or the audio engine.
 // @ample:performance-capture
 
 /**
  * HOOK for the Performance workspace: create one recorder per Record session (a recorder may be reused: start() begins a fresh take).
  * All positions are beats of the shared tempo map; the recorder measures them from the beat given to start().
- *   rec.start(beat, playing?)              Record pressed. `playing`: [{ clip, lane? }] already audible at that beat; they are captured from beat 0 of the take
+ *   rec.start(beat, playing?)              Record pressed. `playing`: [{ clip, lane? }] already audible at that beat;
+ *                                          they are captured from beat 0 of the take
  *   rec.confirm(kind, clipId, beat, lane?) kind 'start' | 'stop'; call ONLY when the scheduler confirms the (quantized) audible beat.
- *                                          `lane`: a lane plays one clip at a time, so a 'start' in a lane ends the lane's earlier clip at that beat (replacement).
+ *                                          `lane`: a lane plays one clip at a time, so a 'start' in a lane ends the lane's
+ *                                          earlier clip at that beat (replacement).
  *                                          Without a lane every clip is its own lane. Returns true when something was recorded.
  *   rec.cancel(clipId)                     a queued action was cancelled: nothing was stored, so no ghost clip appears
  *   rec.stopAll(beat)                      Stop all: closes every playing clip at that beat, recording goes on
@@ -16,7 +19,12 @@
  */
 export function createRecorder({ beatsPerBar = 4 } = {}) {
   let t0 = null, last = 0; const open = new Map(); let runs = [];
-  const close = (key, at) => { const o = open.get(key); if (!o) return; open.delete(key); if (at > o.from) runs.push({ clip: o.clip, lane: key, from: o.from, to: at }); };
+  const close = (key, at) => {
+    const o = open.get(key);
+    if (!o) return;
+    open.delete(key);
+    if (at > o.from) runs.push({ clip: o.clip, lane: key, from: o.from, to: at });
+  };
   const at = (beat) => { const v = Math.max(last, beat - t0, 0); last = v; return v; };
   return {
     get recording() { return t0 !== null; },
@@ -55,9 +63,11 @@ export function createRecorder({ beatsPerBar = 4 } = {}) {
 
 /**
  * Connects a recorder to the launch engine of web/app/performance.js (createPerformance) without changing the engine.
- * The engine reports no confirmation, so a launch (or a batch stop) is confirmed here once its time has passed (sync(), or any later call): launches that were cancelled,
+ * The engine reports no confirmation, so a launch (or a batch stop) is confirmed here once its time has passed
+ * (sync(), or any later call): launches that were cancelled,
  * taken back (launching what already plays) or replaced while queued never get there.
- * `now` is the engine's clock (seconds). `bpm` must be the engine's tempo (it defaults to engine.bpm); Record starts its own beat 0 at start().
+ * `now` is the engine's clock (seconds). `bpm` must be the engine's tempo (it defaults to engine.bpm); Record
+ * starts its own beat 0 at start().
  * Use the returned object instead of the engine for launch / launchBatch / cancelQueued / stopAll / setTempo while recording.
  */
 export function recordEngine(engine, rec, { now, bpm = engine.bpm ?? 120 }) {
@@ -78,7 +88,8 @@ export function recordEngine(engine, rec, { now, bpm = engine.bpm ?? 120 }) {
     launch(lane, clip) {
       sync();
       const when = engine.launch(lane, clip);
-      if (rec.recording) { if (when === null) starts.delete(lane); else starts.set(lane, { clip, when }); }   // null: it plays already, a queued replacement was taken back
+      // null: it plays already, a queued replacement was taken back
+      if (rec.recording) { if (when === null) starts.delete(lane); else starts.set(lane, { clip, when }); }
       sync();
       return when;
     },
@@ -90,7 +101,8 @@ export function recordEngine(engine, rec, { now, bpm = engine.bpm ?? 120 }) {
       if (rec.recording) for (const b of batch) {
         if (b.action === 'start') {
           const now_ = statusOf(after, b.lane, b.clip);
-          if (statusOf(before, b.lane, b.clip) !== 'playing' && (now_ === 'queued' || now_ === 'playing')) starts.set(b.lane, { clip: b.clip, when: at });
+          const queuedNow = now_ === 'queued' || now_ === 'playing';
+          if (statusOf(before, b.lane, b.clip) !== 'playing' && queuedNow) starts.set(b.lane, { clip: b.clip, when: at });
           else starts.delete(b.lane);
         } else if (b.action === 'stop') {
           starts.delete(b.lane);
@@ -117,7 +129,8 @@ export function recordEngine(engine, rec, { now, bpm = engine.bpm ?? 120 }) {
 
 /**
  * Turn a captured run into Playlist parts per block: { [clipId]: [{ at (1-based bar), length (bars), name: '' }] }.
- * Start and end snap to the NEAREST bar (a launch that is 3.9999 beats in is bar 2, not bar 1), a part is at least one bar, and overlapping parts of one block are merged
+ * Start and end snap to the NEAREST bar (a launch that is 3.9999 beats in is bar 2, not bar 1), a part is at
+ * least one bar, and overlapping parts of one block are merged
  * (a block may not overlap itself in the Playlist).
  */
 export function capturedParts(capture) {
@@ -132,13 +145,19 @@ export function capturedParts(capture) {
   for (const [clip, spans] of byClip) {
     spans.sort((a, b) => a.start - b.start || a.end - b.end);
     const merged = [];
-    for (const s of spans) { const m = merged.at(-1); if (m && s.start < m.end) m.end = Math.max(m.end, s.end); else merged.push({ ...s }); }
+    for (const s of spans) {
+      const m = merged.at(-1);
+      if (m && s.start < m.end) m.end = Math.max(m.end, s.end); else merged.push({ ...s });
+    }
     out[clip] = merged.map((m) => ({ at: m.start + 1, length: m.end - m.start, name: '' }));
   }
   return out;
 }
 
-/** The whole capture as ONE list for editAll (one undo step): a setParts per block. NOTE: setParts replaces the block's parts; saving to a new arrangement or take is for the save step. */
+/**
+ * The whole capture as ONE list for editAll (one undo step): a setParts per block. NOTE: setParts replaces the
+ * block's parts; saving to a new arrangement or take is for the save step.
+ */
 export function capturedOps(capture) {
   return Object.entries(capturedParts(capture)).map(([block, parts]) => ({ type: 'setParts', block, parts }));
 }

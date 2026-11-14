@@ -108,12 +108,18 @@ test('capturedParts never overlaps parts of one block; other beats-per-bar and j
     { clip: 'A', from: NaN, to: 3 },
   ] });
   assert.deepEqual(p.A, [{ at: 1, length: 2, name: '' }, { at: 5, length: 1, name: '' }]);
-  for (const parts of Object.values(p)) for (let i = 1; i < parts.length; i++) assert.ok(parts[i].at >= parts[i - 1].at + parts[i - 1].length);
-  assert.deepEqual(capturedParts(undefined), {}); assert.deepEqual(capturedParts({ runs: [{ clip: 'A', from: 0, to: 4 }] }).A, [{ at: 1, length: 1, name: '' }]);
+  for (const parts of Object.values(p)) {
+    for (let i = 1; i < parts.length; i++) assert.ok(parts[i].at >= parts[i - 1].at + parts[i - 1].length);
+  }
+  assert.deepEqual(capturedParts(undefined), {});
+  assert.deepEqual(capturedParts({ runs: [{ clip: 'A', from: 0, to: 4 }] }).A, [{ at: 1, length: 1, name: '' }]);
 });
 
 test('capturedOps is one list, one setParts per block (one editAll = one undo step)', () => {
-  const ops = capturedOps({ beatsPerBar: 4, runs: [{ clip: 'A', from: 0, to: 4 }, { clip: 'B', from: 4, to: 8 }, { clip: 'A', from: 8, to: 12 }] });
+  const ops = capturedOps({
+    beatsPerBar: 4,
+    runs: [{ clip: 'A', from: 0, to: 4 }, { clip: 'B', from: 4, to: 8 }, { clip: 'A', from: 8, to: 12 }],
+  });
   assert.deepEqual(ops, [
     { type: 'setParts', block: 'A', parts: [{ at: 1, length: 1, name: '' }, { at: 3, length: 1, name: '' }] },
     { type: 'setParts', block: 'B', parts: [{ at: 2, length: 1, name: '' }] },
@@ -121,19 +127,54 @@ test('capturedOps is one list, one setParts per block (one editAll = one undo st
   assert.deepEqual(capturedOps({ runs: [] }), []);
 });
 
-// A stand-in with the interface and behaviour of createPerformance in web/app/performance.js: launch returns the boundary (null when the clip plays and a queued
+// A stand-in with the interface and behaviour of createPerformance in web/app/performance.js: launch returns the
+// boundary (null when the clip plays and a queued
 // replacement is taken back), launchBatch(at, batch), cancelQueued, stopAll, state() moves due launches on. Grid: 2 s = 4 beats at 120 bpm.
 function fakeEngine(clock) {
-  const lanes = new Map(); const lane = (n) => lanes.get(n) || lanes.set(n, { clips: new Set(), playing: null, queued: null, stopAt: null }).get(n);
-  const tick = () => { for (const l of lanes.values()) { if (l.stopAt !== null && l.stopAt <= clock.t) { l.playing = null; l.stopAt = null; } if (l.queued && l.queued.when <= clock.t) { l.playing = l.queued.clip; l.queued = null; l.stopAt = null; } } };
+  const lanes = new Map();
+  const lane = (n) => lanes.get(n) || lanes.set(n, { clips: new Set(), playing: null, queued: null, stopAt: null }).get(n);
+  const tick = () => {
+    for (const l of lanes.values()) {
+      if (l.stopAt !== null && l.stopAt <= clock.t) { l.playing = null; l.stopAt = null; }
+      if (l.queued && l.queued.when <= clock.t) { l.playing = l.queued.clip; l.queued = null; l.stopAt = null; }
+    }
+  };
   return {
     bpm: 120,
-    launch(n, clip) { tick(); const l = lane(n); l.clips.add(clip); if (l.playing === clip) { l.queued = null; return null; } const when = Math.ceil(clock.t / 2) * 2; l.queued = { clip, when }; return when; },
-    launchBatch(at, batch) { tick(); for (const b of batch) { const l = lane(b.lane); if (b.action === 'start') { l.clips.add(b.clip); if (l.playing !== b.clip) l.queued = { clip: b.clip, when: at }; } else if (b.action === 'stop' && l.playing) { l.queued = null; l.stopAt = at; } } return at; },
+    launch(n, clip) {
+      tick();
+      const l = lane(n);
+      l.clips.add(clip);
+      if (l.playing === clip) { l.queued = null; return null; }
+      const when = Math.ceil(clock.t / 2) * 2;
+      l.queued = { clip, when };
+      return when;
+    },
+    launchBatch(at, batch) {
+      tick();
+      for (const b of batch) {
+        const l = lane(b.lane);
+        if (b.action === 'start') {
+          l.clips.add(b.clip);
+          if (l.playing !== b.clip) l.queued = { clip: b.clip, when: at };
+        } else if (b.action === 'stop' && l.playing) {
+          l.queued = null;
+          l.stopAt = at;
+        }
+      }
+      return at;
+    },
     cancelQueued(n) { tick(); const l = lanes.get(n); if (!l?.queued) return false; l.queued = null; return true; },
     stopAll() { for (const l of lanes.values()) { l.queued = null; l.playing = null; l.stopAt = null; } },
     setTempo() {},
-    state() { tick(); const o = {}; for (const [n, l] of lanes) o[n] = [...l.clips].map((id) => ({ id, status: l.playing === id ? 'playing' : l.queued?.clip === id ? 'queued' : 'ready' })); return o; },
+    state() {
+      tick();
+      const o = {};
+      for (const [n, l] of lanes) {
+        o[n] = [...l.clips].map((id) => ({ id, status: l.playing === id ? 'playing' : l.queued?.clip === id ? 'queued' : 'ready' }));
+      }
+      return o;
+    },
   };
 }
 
