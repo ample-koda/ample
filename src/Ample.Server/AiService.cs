@@ -1824,6 +1824,9 @@ Answer in English, whatever language the question is in, unless the user asks fo
     }
 
     /// <summary>The task with this id.</summary>
+    /// <summary>Puts a task under review without a run (the tests of the review actions).</summary>
+    internal void Adopt(AiTask task) => tasks[task.Id] = task;
+
     public AiTask GetTask(string id)
     {
         RestoreSavedTasks();
@@ -5046,16 +5049,22 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
     private static string ProposedText(AiTask task, string path) => task.Changes.FirstOrDefault(c => c.Path == path) is { } c ? (c.After ?? string.Empty) : (task.Baseline.TryGetValue(path, out string? t) ? t ?? string.Empty : string.Empty);
 
-    private Task ValidateAsync(AiTask task)
+    /// <summary>The files of the proposal as it would leave them (added, edited, deleted): what a source check reads instead of the project as it is now (issue 201).</summary>
+    private static Dictionary<string, string?> ProposedFiles(AiTask task) =>
+        task.Changes.GroupBy(c => c.Path, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Last().Status == "deleted" ? null : g.Last().After, StringComparer.Ordinal);
+
+    internal Task ValidateAsync(AiTask task)
     {
+        Dictionary<string, string?> proposedFiles = ProposedFiles(task);
+        Ample.Engine.Modules.ModuleService Checker() => new(s.Root, () => s.Library, s.Manifest.Id.ToString("D")) { Overlay = proposedFiles };
         List<string> found = [];
         task.PolicyViolation = null;
         foreach (AiChange c in task.Changes.Where(c => c.After is not null && c.Path.EndsWith(".amplet", StringComparison.OrdinalIgnoreCase)))
         {
-            AmpleDocument doc = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(c.After!, s.Spec);
+            AmpleDocument doc = Checker().ParseExpanded(c.After!, s.Spec);
             if (task.Baseline.TryGetValue(c.Path, out string? baselineText) && !string.IsNullOrEmpty(baselineText))
             {
-                IReadOnlyList<string> widening = PolicyGuard.Widening(new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(baselineText, s.Spec), doc);
+                IReadOnlyList<string> widening = PolicyGuard.Widening(Checker().ParseExpanded(baselineText, s.Spec), doc);
                 if (widening.Count > 0)
                 {
                     task.PolicyViolation = $"{c.Path}: " + string.Join("; ", widening);
@@ -5072,7 +5081,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         string song = ProposedText(task, task.Request.Song);
         if (!task.Changes.Any(c => c.Path == task.Request.Song) && !string.IsNullOrEmpty(song))
         {
-            AmpleDocument doc = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(song, s.Spec);
+            AmpleDocument doc = Checker().ParseExpanded(song, s.Spec);
             foreach (Diagnostic d in doc.Diagnostics.Where(x => x.Severity == Severity.Error).Take(20))
             {
                 found.Add($"{task.Request.Song}:{d.Line} error {d.Code} {d.Message}");
@@ -5596,8 +5605,32 @@ Answer in English, whatever language the question is in, unless the user asks fo
     public async Task<JsonObject> RebaseAsync(string id)
     {
         AiTask task = GetTask(id);
+        // the review, the preview and the next turn start from the same files: the working copy of the assistant is rebased together with the diff (issue 206)
+        if (task.Status is "running" or "preparing")
+        {
+            throw new AmpleException("AMP5458", "The assistant is still working on this proposal: bring it up to date when it is done.");
+        }
+
+        if (!await task.ReviewGate.WaitAsync(0).ConfigureAwait(false))
+        {
+            throw new AmpleException("AMP5458", "A review action is already running.");
+        }
+
+        try
+        {
+            return await RebaseGatedAsync(task).ConfigureAwait(false);
+        }
+        finally
+        {
+            task.ReviewGate.Release();
+        }
+    }
+
+    private async Task<JsonObject> RebaseGatedAsync(AiTask task)
+    {
         await CheckStaleAsync(task).ConfigureAwait(false);
         List<string> conflicts = [];
+        Dictionary<string, string> rebased = new(StringComparer.Ordinal);
         foreach (string path in task.StaleFiles.ToList())
         {
             AiChange c = task.Changes.First(x => x.Path == path);
@@ -5617,6 +5650,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             }
 
             c.After = merged;
+            rebased[path] = merged;
             task.Baseline[path] = live;
             (int add, int rem) = AiDiff.Count(live, merged);
             c.Added = add;
@@ -5625,6 +5659,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         if (conflicts.Count == 0)
         {
+            await SyncWorkingCopyAsync(task, rebased).ConfigureAwait(false);
             await CheckStaleAsync(task).ConfigureAwait(false);
             await ValidateAsync(task).ConfigureAwait(false);
             task.RebaseMessage = "The proposal was brought up to date with the current project.";
@@ -5638,6 +5673,22 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         return TaskJson(task);
+    }
+
+    /// <summary>Puts the rebased text in the working copy of the assistant, so that a follow-up starts from what the review shows and not from the text before the rebase (issue 206).</summary>
+    internal static async Task SyncWorkingCopyAsync(AiTask task, IReadOnlyDictionary<string, string> rebased)
+    {
+        if (!Directory.Exists(task.ProjectDir))
+        {
+            return;
+        }
+
+        foreach ((string path, string text) in rebased)
+        {
+            string target = ProjectPath.Resolve(task.ProjectDir, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            await File.WriteAllTextAsync(target, text).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Applies an accepted proposal: a checkpoint first, then the files other than the open song are written (journaled), and the new text of the song is returned for the editor, which applies it as one undoable change.</summary>
