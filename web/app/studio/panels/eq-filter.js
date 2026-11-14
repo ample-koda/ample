@@ -4,6 +4,7 @@ import { knob } from '../knob.js';
 import { selector } from '../selector.js';
 import { onPlayer, playerSpectrum } from '../../player.js';
 import { registerStudioPanel } from './registry.js';
+import { control } from './helpers.js';
 
 const svgNs = 'http://www.w3.org/2000/svg';
 const number = (params, name, fallback) => { const value = Number.parseFloat(String(params[name] ?? '').replace(/[a-z ]/gi, '')); return Number.isFinite(value) ? value : fallback; };
@@ -138,10 +139,33 @@ function filterPanel(context) {
   const graph = responseGraph('filter', params, context);
   root.append(graph, el('div', { className: 'studio-filter-controls' }, [
     knob({ learn: context.block ? { block: context.block, name: 'cutoff' } : null, label: 'Cutoff', value: cutoff, min: 20, max: 20000, unit: 'Hz', scale: 'log', size: 112, disabled: context.readOnly, onPreview: (next) => { graph.updateParameter('cutoff', next); context.preview?.('cutoff', next); }, onCommit: (next) => commit(context, 'cutoff', next, 'Hz') }),
+    control(context, params, 'resonance', 'Resonance', 0, 100, '%', 'linear', 112),   // next to the cutoff (issue 172)
     line('Slope', selector({ label: 'Filter slope', value: String(params.slope || '12'), disabled: context.readOnly, choices: ['12', '24', '36', '48'].map((value) => ({ value, label: `${value} dB/oct` })), onCommit: (next) => { graph.updateParameter('slope', next); context.commit('slope', next); } })),
     line('Type', selector({ label: 'Filter type', value: params.type || 'lowpass', disabled: context.readOnly, choices: [{ value: 'lowpass', label: 'Low pass' }, { value: 'highpass', label: 'High pass' }, { value: 'bandpass', label: 'Band pass' }, { value: 'notch', label: 'Notch' }], onCommit: (next) => context.commit('type', next) })),
   ]));
+  root.append(filterLfo(context));
   return root;
+}
+
+/** The LFO of the filter in a section of its own: rate (a note value of the tempo), depth in octaves and shape. Open when the LFO is on. */
+function filterLfo(context) {
+  const params = context.params;
+  const pick = (name, label, values, labels = {}) => line(label, selector({
+    label, value: String(params[name] || values[0]), disabled: context.readOnly,
+    choices: values.map((value) => ({ value, label: labels[value] ?? value })),
+    onCommit: (next) => context.commit(name, next),
+  }));
+  const on = String(params.lfo_rate || 'off').replace(/"/g, '') !== 'off';
+  const section = el('details', { className: 'studio-filter-lfo' }, [
+    el('summary', { textContent: 'LFO: moves the cutoff with the tempo' }),
+    el('div', { className: 'studio-filter-controls' }, [
+      pick('lfo_rate', 'Rate', ['off', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/4t', '1/8t', '1/16t'], { off: 'Off' }),
+      control(context, params, 'lfo_depth', 'Depth', 0, 8, 'oct', 'linear'),
+      pick('lfo_shape', 'Shape', ['sine', 'triangle', 'saw', 'square']),
+    ]),
+  ]);
+  section.open = on;
+  return section;
 }
 
 registerStudioPanel('eq', eqPanel);

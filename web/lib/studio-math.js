@@ -151,6 +151,7 @@ export function peqResponse(frequency, params) {
  */
 export function knobPrecision(unit, min) {
   if (unit === 'dB') return { step: undefined, commit: 1, display: 0 };
+  if (unit === 'oct') return { step: undefined, commit: 1, display: 1 };   // an LFO depth in octaves moves in tenths
   // a knob that starts below one says fractions; from a sixteenth (a beat step of 0.0625) four decimals, otherwise two
   if (Number(min) > 0 && Number(min) < 1) { const decimals = Number(min) < 0.1 ? 4 : 2; return { step: undefined, commit: decimals, display: decimals }; }
   return { step: 1, commit: 0, display: 0 };

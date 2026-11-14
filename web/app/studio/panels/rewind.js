@@ -257,7 +257,15 @@ function rewindPanel(context) {
     };
   }
 
-  const bar = el('div', { className: 'rewind-bar' }, [play, loopButton, abButton, time]);
+  // a visible way to add a rewind: at the place that is playing (or was last chosen); double-clicking the wave still works (issue 179)
+  const addButton = el('button', {
+    type: 'button',
+    textContent: '+ Add rewind here',
+    disabled: context.readOnly,
+    title: 'Add a rewind at the playhead; then drag its flag or edit its numbers below',
+    onclick: () => { if (!context.readOnly) add(here()); },
+  });
+  const bar = el('div', { className: 'rewind-bar' }, [play, loopButton, abButton, addButton, time]);
   root.append(bar, canvas, readout, rows);
   say();
   draw();
