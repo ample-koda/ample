@@ -16,6 +16,7 @@ import { sizes } from './geometry.js';
 import { setBarBeats } from '../lib/meter.mjs';
 import { consumeRecoveryAcceptance, decide, listWorkRecords, parseRecord, removeWorkRecord, workRecord } from '../lib/work-state.mjs';
 import { peekSongs } from '../lib/peek-songs.mjs';
+import { templateForVersion } from '../lib/component-versions.mjs';
 
 export const S = {
   project: null,
@@ -383,6 +384,9 @@ export function setDoc(doc) {
   persistWorkSoon();
   if (componentsChanged && !S.peek) import('./components.js').then((m) => m.loadComponents(doc.path)).catch(() => { /* the palette just has no components */ });
 }
+
+/** The template of a block as its own version shows it: the ports and properties of the version a component instance resolves to (issue 111). */
+export const tplOf = (n) => templateForVersion(S.tpl[n.tpl], n.ver);
 
 /** An audio component instance is built as the blocks "<instance>__<node>"; the instance itself plays with the take of the processor that gives its first output. */
 export function aliasComponentTakes() {

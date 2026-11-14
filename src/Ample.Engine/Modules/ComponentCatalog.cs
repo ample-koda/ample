@@ -51,7 +51,20 @@ public sealed record ComponentMember(string Name, string Type, string? Default, 
 /// <param name="Replacement">What to use instead, or null.</param>
 /// <param name="Migrations">The versions or components an automatic migration leads to.</param>
 /// <param name="Line">The 0-based line of the declaration in its file.</param>
-public sealed record ComponentVersionInfo(string Version, bool Current, bool Prerelease, string Origin, string Seal, string SealReason, string? SignedBy, bool? SignatureValid, string Semantic, string Payload, string? Deprecated, string? Replacement, IReadOnlyList<string> Migrations, int Line);
+public sealed record ComponentVersionInfo(string Version, bool Current, bool Prerelease, string Origin, string Seal, string SealReason, string? SignedBy, bool? SignatureValid, string Semantic, string Payload, string? Deprecated, string? Replacement, IReadOnlyList<string> Migrations, int Line)
+{
+    /// <summary>The inputs of this version: an instance pinned to it shows these, not the ones of the default version (issue 111).</summary>
+    public IReadOnlyList<ComponentMember> Inputs { get; init; } = [];
+
+    /// <summary>The properties of this version.</summary>
+    public IReadOnlyList<ComponentMember> Properties { get; init; } = [];
+
+    /// <summary>The outputs of this version.</summary>
+    public IReadOnlyList<ComponentMember> Outputs { get; init; } = [];
+
+    /// <summary>The card and panel layout of this version.</summary>
+    public ComponentUi Ui { get; init; } = ComponentUi.Empty;
+}
 
 /// <summary>A component with all its visible versions.</summary>
 /// <param name="Path">The exported path.</param>
@@ -191,7 +204,13 @@ public static class ComponentCatalog
             {
                 SealCheck check = ComponentHashing.Check(d, Deps(d));
                 bool? signature = d.Seal is { Signature: not null, Key: not null } s && check.State == SealState.Valid ? Ample.Storage.Security.SigningKeys.Verify(s.Key, Encoding.UTF8.GetBytes(check.Payload), s.Signature) : null;
-                versions.Add(new ComponentVersionInfo(d.Version.ToString(), d.Current, d.Version.IsPrerelease, d.Origin, check.State.ToString().ToLowerInvariant(), check.Reason, d.Seal?.SignedBy, signature, check.Semantic, check.Payload, d.Deprecation?.Message, d.Deprecation?.Replacement, [.. d.Migrations.Select(m => m.To)], d.HeaderLine));
+                versions.Add(new ComponentVersionInfo(d.Version.ToString(), d.Current, d.Version.IsPrerelease, d.Origin, check.State.ToString().ToLowerInvariant(), check.Reason, d.Seal?.SignedBy, signature, check.Semantic, check.Payload, d.Deprecation?.Message, d.Deprecation?.Replacement, [.. d.Migrations.Select(m => m.To)], d.HeaderLine)
+                {
+                    Inputs = [.. d.Inputs.Select(Member)],
+                    Properties = [.. d.Properties.Select(Member)],
+                    Outputs = [.. d.Outputs.Select(Member)],
+                    Ui = ComponentUiReader.Effective(d),
+                });
             }
 
             listings.Add(new ComponentListing(

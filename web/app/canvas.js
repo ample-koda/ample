@@ -8,7 +8,7 @@ import { aiItems } from './ai.js';
 import { $, el, showMenu, toast, ask } from './ui.js';
 import { HEAD, ROW, W, baseWidth, sizes, compatible, fitView, fitPhoneView, fitReadableView, linkPath, nodeHeight, nodeWidth, nodesInRect, portPos, snap, toWorld, zoomAt, align, distribute, bounds } from './geometry.js';
 import { containerView, groupBlocks, ungroup } from './graph.js';
-import { S, bakeDynamicHelpers, blockReadsClock, quiet, recordGroups, saveViewSoon, setPinned, subscribeProgress, build, container, pinUnplaced, current, edit, editAll, flat, notify, notifySelection, readOnly, graphBroken, blockProblems, saveGroups, select, undo, redo, enterModule, setModuleLevel, applyText, openDoc, enterMidiVariant } from './store.js';
+import { S, tplOf, bakeDynamicHelpers, blockReadsClock, quiet, recordGroups, saveViewSoon, setPinned, subscribeProgress, build, container, pinUnplaced, current, edit, editAll, flat, notify, notifySelection, readOnly, graphBroken, blockProblems, saveGroups, select, undo, redo, enterModule, setModuleLevel, applyText, openDoc, enterMidiVariant } from './store.js';
 import { gotoSource, showBlockStatusError } from './panels.js';
 import { componentMenuItems } from './components.js';
 import { registerPlaybackAudio } from './playback-volume.js';
@@ -434,7 +434,7 @@ function nodeEl(n) {
     const selectedInputs = new Map();
     const inputLoads = new Map();
     const effectPanelOptions = (effect) => {
-      const template = S.tpl[effect.tpl];
+      const template = tplOf(effect);
       const getSource = () => flat().links.find((link) => !link.disabled && link.to === effect.id && (link.type === 'audio' || link.type === 'render'));
       const inputKey = () => `${S.path}:${getSource()?.from || ''}`;
       const getTakeId = () => S.build.takes?.[getSource()?.from] || selectedInputs.get(inputKey()) || null;
@@ -446,7 +446,7 @@ function nodeEl(n) {
     };
     const openAdvanced = (event) => {
       event.stopPropagation();
-      const template = S.tpl[n.tpl];
+      const template = tplOf(n);
       const source = flat().links.find((link) => !link.disabled && link.to === n.id && (link.type === 'audio' || link.type === 'render'));
       const audioSource = n.outs.some((port) => port[1] === 'audio');
       const takeId = source ? S.build.takes?.[source.from] : audioSource ? S.build.takes?.[n.id] : null;
@@ -626,7 +626,7 @@ function nodeEl(n) {
     }
     if (n.isGroup && n.expanded) d.append(innerPreview(n));
     // the controls a component puts on its card (the card block of its layout), and the button that opens all of them in a window
-    const cardTemplate = S.tpl[n.tpl];
+    const cardTemplate = tplOf(n);
     if (cardTemplate?.component && cardTemplate.ui?.card?.length && !n.isGroup && !n.proxy) {
       const values = Object.fromEntries((cardTemplate.parameters || []).map((p) => [p.name, n.params[p.name] ?? p.default]));
       const locked = () => isBlockLocked(flat().nodes, n.id);
@@ -870,7 +870,7 @@ function whenVisible(element, run) {
 }
 
 /** The template's own description of a port (a friendly title and a tooltip text), when it has one. */
-const portSpec = (n, pt, side) => (S.tpl[n.tpl]?.[side] || []).find((p) => p.name === pt[0]);
+const portSpec = (n, pt, side) => (tplOf(n)?.[side] || []).find((p) => p.name === pt[0]);
 
 function renderCrumbs() {
   const c = $('#crumbs');

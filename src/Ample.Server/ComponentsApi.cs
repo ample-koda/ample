@@ -43,7 +43,7 @@ internal static class ComponentsApi
                 inputs = c.Inputs,
                 properties = c.Properties,
                 outputs = c.Outputs,
-                versions = c.Versions.Select(v => new { v.Version, v.Current, v.Prerelease, v.Origin, v.Seal, v.SealReason, v.SignedBy, v.SignatureValid, v.Semantic, v.Payload, v.Deprecated, v.Replacement, v.Migrations, v.Line }),
+                versions = c.Versions.Select(v => new { v.Version, v.Current, v.Prerelease, v.Origin, v.Seal, v.SealReason, v.SignedBy, v.SignatureValid, v.Semantic, v.Payload, v.Deprecated, v.Replacement, v.Migrations, v.Line, inputs = v.Inputs, properties = v.Properties, outputs = v.Outputs, ui = v.Ui }),
             }),
             issues = issues.Select(i => new { i.Code, severity = i.Severity.ToString().ToLowerInvariant(), i.Message, line = i.Line }),
             files = Files(s),

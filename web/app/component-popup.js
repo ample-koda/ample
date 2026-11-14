@@ -1,5 +1,5 @@
 // The controls of a component in a window of their own (the layout of the properties panel, with room): opened from the card or the panel, stays in step with the song.
-import { edit, flat, readOnly, S, subscribe } from './store.js';
+import { edit, flat, readOnly, S, subscribe, tplOf } from './store.js';
 import { ask, el } from './ui.js';
 import { renderComponentUi } from './component-ui.js';
 import { liveOptions } from './component-live-ui.js';
@@ -11,7 +11,7 @@ export const popupItems = (ui) => (ui?.panel?.length ? ui.panel : ui?.card || []
 /** Opens the controls of a block that is an instance of a component with a layout. */
 export async function openComponentPopup(blockId) {
   const find = () => flat().nodes.find((x) => x.id === blockId);
-  const template = S.tpl[find()?.tpl];
+  const template = find() ? tplOf(find()) : undefined;
   if (!template?.ui || !popupItems(template.ui).length) return;
   const holder = el('div', { className: 'cui-popup-holder' });
   const draw = () => {

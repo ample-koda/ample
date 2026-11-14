@@ -10,6 +10,25 @@ const compare = (a, b) => b.localeCompare(a, 'en', { numeric: true });
  * @param {string} request the version text of the block header ("", "1.2", "^1.2", "~1.2.3", "v2")
  * @param {string} [defaultVersion] the current version, for no request
  */
+/**
+ * The template of a block: a component instance shows the ports, properties and layout of the version it resolves to, not the ones of the default
+ * version (issue 111). A version carries them as `view`; a template without versions, or a version without a view, stays as it is.
+ * @param {object} template the template of the family (the default version)
+ * @param {string} request the version text of the block header
+ */
+export function templateForVersion(template, request) {
+  if (!template || !template.componentVersions?.length) return template;
+  const picked = pickVersion(template.componentVersions, request, template.version);
+  if (!picked?.view) return template;
+  const cached = viewCache.get(picked);
+  if (cached && cached.base === template) return cached.result;
+  const result = { ...template, ...picked.view, version: picked.version };
+  viewCache.set(picked, { base: template, result });
+  return result;
+}
+
+const viewCache = new WeakMap();
+
 export function pickVersion(versions, request, defaultVersion) {
   const list = versions ?? [];
   const raw = String(request ?? '').replace(/"/g, '').trim();
