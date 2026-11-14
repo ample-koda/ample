@@ -88,6 +88,7 @@ const BARE_TEXT = '\n\nBARE METAL mode (the person chose it for speed and knows 
 async function runTask(subject, text, mode, signal, onGlance, onThought, resume = false) {
   // the server needs the file Koda looks at (path is required): with no song and no module open there is nothing to look at, so say so instead of failing with "The field 'path' is required"
   if (!activePath()) throw new KodaUnavailable('Open a song first: Koda works on the song that is open in the editor.');
+  if (kodaAttachments().busy()) throw new KodaUnavailable('Wait until the attached files are uploaded.');
   let task;
   try {
     task = await api.post('/api/ai/tasks', {
@@ -109,7 +110,8 @@ async function runTask(subject, text, mode, signal, onGlance, onThought, resume 
 async function follow(task, signal, onGlance, onThought, afterMessage = false) {
   // an abort normally cancels the task; a stop of the person (interrupt) only ends the turn, the conversation stays
   const stop = () => { if (interrupted) { interrupted = false; return Promise.resolve(); } return api.post(`/api/ai/tasks/${task.id}/cancel`, {}).catch(() => {}); };
-  signal?.addEventListener('abort', stop, { once: true });
+  if (signal?.aborted) stop();   // the request was abandoned before the task id came back: a listener added now would never be called
+  else signal?.addEventListener('abort', stop, { once: true });
   let seq = 0, thought = '', shown = '';
   // right after a message the task can still say 'ready' for a moment: that is the old turn, not the answer
   let busySeen = !afterMessage, waited = 0;
@@ -245,7 +247,12 @@ export const serverBackend = {
   /** The model or thinking level changed while Koda works: the conversation uses it from its next turn. */
   async applyModel(model, effort) { if (lastTask) await api.post(`/api/ai/tasks/${lastTask}/assistant`, { model: model || '', effort: effort || '' }).catch(() => {}); },
   /** Extra input for the task that is working now (it steers it). */
-  async steer(text) { if (!lastTask) throw new Error('Koda is not working on anything.'); await api.post(`/api/ai/tasks/${lastTask}/message`, { text, attachments: kodaAttachments().take() }); },
+  async steer(text) {
+    if (!lastTask) throw new Error('Koda is not working on anything.');
+    if (kodaAttachments().busy()) throw new Error('Wait until the attached files are uploaded.');
+    await api.post(`/api/ai/tasks/${lastTask}/message`, { text, attachments: kodaAttachments().ids() });
+    kodaAttachments().take();   // it was delivered: only now the files leave the tray (a failed send keeps them for the retry)
+  },
   /** The person stops the turn that works: the conversation is kept and the next question goes on in it. */
   async interrupt() { if (!lastTask) return; interrupted = true; hanging = lastTask; hangSince = Date.now(); hooked = true; await api.post(`/api/ai/tasks/${lastTask}/interrupt`, {}).catch(() => { interrupted = false; }); },
   hangQuick() { return !!hanging && (hooked || Date.now() - hangSince < HANG_QUICK_MS); },
