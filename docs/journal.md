@@ -89,7 +89,7 @@ A policy, shown once in the project settings and the Health panel, adjustable:
 | first 90 days (default) | every entry, and never thinned during the last 7 days |
 | 90 days to 1 year | one snapshot per hour plus every entry of a **group that deleted or replaced something** (their content is kept the longest) |
 | older than 1 year | only what a revision, tag, checkpoint or release refers to, and the deletions' content |
-Also a **size budget** (default 10 GB, adjustable): a warning at 80%, and only then is the oldest detail thinned. The defaults err on the side of keeping too much.
+Also a **size budget** (default 10 GB, adjustable): a warning at 20% (the same threshold in the status and in the compaction result), and only then is the oldest detail thinned. The defaults err on the side of keeping too much.
 - **Takes are pinned by the journal.** A take or baked block that the journal still refers to is not removed by `gc` or `cleanup` until its journal entries expire. That also rescues the variant you liked but did not pick.
 - **Cleaning it up is a dangerous act** when done by hand (`ample journal prune --older-than 14d`): dry run, impact, backup suggestion, typed acceptance, tombstone. The automatic thinning follows the policy and is logged.
 - **Backups and exports:** the journal is only in the `complete` backup profile and never in a partial export by default (it contains deleted content). A restore says whether a journal came along.

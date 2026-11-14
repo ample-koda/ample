@@ -82,7 +82,7 @@ internal static class BlackboxCommands
         compact.SetAction(async (p, t) => await Run(output, p.GetValue(project), true, async (open, journal, bus) =>
         {
             CompactionResult result = await journal.CompactAsync(open.Manifest.Settings.BlackBox, t);
-            output.WriteLine($"compact: {result.Thinned.ToString(CultureInfo.InvariantCulture)} thinned, {result.Deleted.ToString(CultureInfo.InvariantCulture)} summaries removed, {result.TotalBytes.ToString(CultureInfo.InvariantCulture)} bytes used{(result.BudgetWarning ? " (80% of the budget or more)" : string.Empty)}");
+            output.WriteLine($"compact: {result.Thinned.ToString(CultureInfo.InvariantCulture)} thinned, {result.Deleted.ToString(CultureInfo.InvariantCulture)} summaries removed, {result.TotalBytes.ToString(CultureInfo.InvariantCulture)} bytes used{(result.BudgetWarning ? " (20% of the budget or more)" : string.Empty)}");
             return 0;
         }));
 

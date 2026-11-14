@@ -330,6 +330,61 @@ public sealed class BlackBoxTests
     }
 
     [Fact]
+    public async Task Compaction_keeps_a_segment_with_an_unresolved_start_and_recovery_still_finds_it()
+    {
+        InMemoryFileSystem fs = new();
+        FakeClock clock = new(T0.AddDays(-600));
+        using Journal j = await Open(fs, clock, new JournalOptions(SegmentBytes: 1));
+        await j.AppendAsync("user", "cmd.open", "start", "open-1", "{}");
+        clock.Advance(TimeSpan.FromDays(100));
+        for (int i = 0; i < 4; i++)
+        {
+            await j.AppendAsync("user", "test.kind", "ok", "c" + i, "{}");
+            clock.Advance(TimeSpan.FromDays(100));
+        }
+
+        BlackBoxSettings settings = new(10_000_000, 90, 365);
+        CompactionPreview preview = await j.PreviewCompactionAsync(settings, CancellationToken.None);
+        Assert.Equal(1, preview.ProtectedSegments);
+        Assert.True(preview.ProtectedBytes > 0);
+        CompactionResult result = await j.CompactAsync(settings, CancellationToken.None);
+        Assert.Equal(preview.SegmentsToThin, result.Thinned);
+        Assert.Equal(preview.BytesAfter, await JournalRetention.StorageBytesAsync(fs, Root, CancellationToken.None));
+        Assert.True(result.Thinned >= 1);
+        Assert.Contains(await j.FindInterruptedAsync(), c => c.Start.Correlation == "open-1");
+        Assert.Contains(fs.GetFiles(Path.Combine(Root, ".ample", "blackbox")), f => f.EndsWith("0000000001.seg", StringComparison.Ordinal));
+
+        // a resolved command (terminal record in a later segment) does not protect anything and is thinned like the rest
+        await j.AppendAsync("user", "cmd.open", "resolved", "open-1", "{}");
+        await j.AppendAsync("user", "test.kind", "ok", "tail", "{}");
+        CompactionResult again = await j.CompactAsync(settings, CancellationToken.None);
+        Assert.Empty(await j.FindInterruptedAsync());
+        Assert.True(again.Thinned >= 1);
+        Assert.DoesNotContain(fs.GetFiles(Path.Combine(Root, ".ample", "blackbox")), f => f.EndsWith("0000000001.seg", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(10, false)]
+    [InlineData(19, false)]
+    [InlineData(20, true)]
+    [InlineData(50, true)]
+    [InlineData(80, true)]
+    [InlineData(100, true)]
+    public async Task The_warning_threshold_is_one_fifth_of_the_budget_for_status_and_compaction(int percentUsed, bool warns)
+    {
+        InMemoryFileSystem fs = new();
+        using Journal j = await Open(fs);
+        await Add(j, 3);
+        long used = await JournalRetention.StorageBytesAsync(fs, Root, CancellationToken.None);
+        long budget = used * 100 / percentUsed;
+
+        CompactionResult result = await JournalRetention.CompactAsync(fs, Root, T0, new BlackBoxSettings(budget, 90, 365));
+        Assert.Equal(used, result.TotalBytes);
+        Assert.Equal(warns, result.BudgetWarning);
+        Assert.Equal(warns, used >= JournalRetention.WarnAtBytes(budget));
+    }
+
+    [Fact]
     public async Task Retention_thins_old_segments_removes_expired_summaries_and_honours_the_budget()
     {
         InMemoryFileSystem fs = new();

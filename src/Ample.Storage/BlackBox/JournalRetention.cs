@@ -15,7 +15,16 @@ namespace Ample.Storage.BlackBox;
 public sealed record CompactionResult(int Thinned, int Deleted, bool BudgetWarning, long TotalBytes);
 
 /// <summary>The exact impact of an explicit compaction, without changing the archive.</summary>
-public sealed record CompactionPreview(int SegmentsToThin, int RecordsToThin, int SummariesToDelete, long BytesBefore, long BytesAfter, long BudgetBytes, long ThroughSequence);
+/// <param name="SegmentsToThin">Segments that would be replaced by summaries.</param>
+/// <param name="RecordsToThin">Records in those segments.</param>
+/// <param name="SummariesToDelete">Expired summaries that would be removed.</param>
+/// <param name="BytesBefore">Bytes used now.</param>
+/// <param name="BytesAfter">Bytes used after compaction.</param>
+/// <param name="BudgetBytes">The configured budget.</param>
+/// <param name="ThroughSequence">The last record the preview covers.</param>
+/// <param name="ProtectedSegments">Old segments that compaction keeps because they hold a command that started and has no terminal record yet.</param>
+/// <param name="ProtectedBytes">The bytes of those segments.</param>
+public sealed record CompactionPreview(int SegmentsToThin, int RecordsToThin, int SummariesToDelete, long BytesBefore, long BytesAfter, long BudgetBytes, long ThroughSequence, int ProtectedSegments = 0, long ProtectedBytes = 0);
 
 /// <summary>Retention of AMPLE Redux: full detail for a number of days, then one summary line per hour and kind for a year, within a size budget. The newest segment is never thinned. The summaries that replace old segments hold only hours, kinds and counts and are not encrypted; the records themselves are, when the project is encrypted.</summary>
 public static class JournalRetention
@@ -73,7 +82,8 @@ public static class JournalRetention
             string first = (await fs.ReadAllTextAsync(summary, cancellationToken).ConfigureAwait(false)).Split('\n')[0];
             if (!thin.Contains(Path.ChangeExtension(summary, ".seg")) && Expired(first, now, settings)) { after -= FileSize(fs, summary); deleted++; }
         }
-        return new CompactionPreview(thin.Count, records, deleted, await Size(fs, folder, cancellationToken).ConfigureAwait(false), Math.Max(0, after), settings.BudgetBytes, 0);
+        List<string> kept = [.. segments.Take(Math.Max(0, segments.Count - 1)).Where(protectedSegments.Contains)];
+        return new CompactionPreview(thin.Count, records, deleted, await Size(fs, folder, cancellationToken).ConfigureAwait(false), Math.Max(0, after), settings.BudgetBytes, 0, kept.Count, kept.Sum(x => FileSize(fs, x)));
 
         void AddThin(string segment, List<JournalRecord> rows)
         {
