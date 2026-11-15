@@ -31,7 +31,7 @@ import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { rangeFromFields } from '../lib/range-edit.mjs';
 import { scopeText, versionState } from '../lib/seq-scope.mjs';
 import {
-  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
+  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, flattenVariations, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
@@ -781,11 +781,22 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /** Deleting a pattern also removes its variations and every clip that plays them: say so first, and only when there is something besides the pattern itself. */
 async function deleteCurrentPattern(current) {
   const { variations, clips } = deletePatternImpact(Q.seq, current.name);
+  let from = Q.seq;
   if (variations.length || clips) {
-    const text = `Delete '${current.name}'? This also removes ${variations.length} variation${variations.length === 1 ? '' : 's'}${variations.length ? ' (' + variations.join(', ') + ')' : ''} and ${clips} clip${clips === 1 ? '' : 's'} in the playlist. Undo (Ctrl+Z) takes it back.`;
-    if (!(await ask('Delete pattern', text, [{ label: 'Cancel', value: false }, { label: 'Delete', value: true, primary: true }]))) return;
+    const own = Q.seq.clips.filter((c) => c.pattern === current.name).length;
+    const list = variations.length ? ` (${variations.join(', ')})` : '';
+    const text = variations.length
+      ? `Delete '${current.name}'? It has ${plural(variations.length, 'variation')}${list}, and ${plural(clips, 'clip')} in the playlist play it or its variations (${plural(own, 'clip')} play '${current.name}' itself).`
+        + ` "Delete all" removes the pattern, its variations and all ${plural(clips, 'clip')}. "Keep variations" removes only '${current.name}' and its ${plural(own, 'clip')}; the variations stay as patterns of their own with their clips. Undo (Ctrl+Z) takes it back.`
+      : `Delete '${current.name}'? This also removes ${plural(clips, 'clip')} in the playlist. Undo (Ctrl+Z) takes it back.`;
+    const buttons = variations.length
+      ? [{ label: 'Cancel', value: false }, { label: 'Keep variations', value: 'keep' }, { label: 'Delete all', value: true, primary: true }]
+      : [{ label: 'Cancel', value: false }, { label: 'Delete', value: true, primary: true }];
+    const choice = await ask('Delete pattern', text, buttons);
+    if (!choice) return;
+    if (choice === 'keep') from = flattenVariations(Q.seq, current.name);   // the variations stop pointing at the base: only the base and its own clips go
   }
-  const next = deletePattern(Q.seq, current.name);
+  const next = deletePattern(from, current.name);
   Q.pattern = next.patterns[0]?.name ?? null;
   commit(next);
 }

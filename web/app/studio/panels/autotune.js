@@ -152,7 +152,11 @@ function autotunePanel(context) {
   // the fixes in seconds (read at a "rate" of 1000: every sample is a millisecond)
   const read = () => {
     try {
-      return parseFixes(clean(context.params.fixes), 1000, barMilliseconds(tempo)).map((f) => ({ ...f, from: f.from / 1000, to: f.to / 1000 }));
+      return parseFixes(clean(context.params.fixes), 1000, barMilliseconds(tempo)).map((f) => {
+        const fix = { ...f, from: f.from / 1000, to: f.to / 1000, raw: f.raw };
+        fix.orig = { from: fix.from, to: fix.to, note: fix.note, vibrato: fix.vibrato };   // untouched fixes are written back as they were (issue 190)
+        return fix;
+      });
     } catch { return []; }
   };
   const text = () => formatFixes(fixes);

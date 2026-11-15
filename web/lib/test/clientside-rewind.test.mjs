@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRewindEvents, rewindAudio } from '../clientside-rewind.mjs';
+import { keptEvent, parseRewindEvents, rewindAudio } from '../clientside-rewind.mjs';
 
 const RATE = 16000;
 // twelve seconds in which every sample has its own value (as in the C# test), in 16-bit steps scaled to -1..1
@@ -48,4 +48,15 @@ test('a real sample on fx is the scratch, the record start-up runs behind the st
   assert.throws(() => parseRewindEvents('at 6 seconds scratch two', RATE, RATE), /not a time|not known/);
   assert.equal(parseRewindEvents('at 4.5', RATE, RATE)[0].at, 4.5 * RATE);
   assert.deepEqual(parseRewindEvents('at 1s scratch 500ms back -1s', RATE, RATE), [{ at: RATE, scratch: RATE / 2, back: -RATE }]);
+});
+
+test('an event written in bars is read with the bar of the meter and is kept as written until it is edited', () => {
+  const barMs = 1500;   // 3/4 at 120 BPM
+  const [first, second] = parseRewindEvents('at 1bar scratch 500ms back 1bar; at 10s', 1000, barMs);
+  assert.equal(first.at, 1500);
+  assert.equal(first.back, 1500);
+  const orig = { at: first.at, scratch: first.scratch, back: first.back };
+  assert.equal(keptEvent({ ...first, raw: first.raw, orig }), 'at 1bar scratch 500ms back 1bar');
+  assert.equal(keptEvent({ ...first, at: 2000, raw: first.raw, orig }), undefined);   // edited: written again
+  assert.equal(second.raw, 'at 10s');
 });

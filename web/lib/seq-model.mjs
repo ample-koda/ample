@@ -273,6 +273,18 @@ export function deletePatternImpact(seq, name) {
   return { variations: seq.patterns.filter((p) => gone.has(p.name) && p.name !== name).map((p) => p.name), clips: seq.clips.filter((c) => gone.has(c.pattern)).length };
 }
 
+/** Makes the variations of a pattern independent patterns: each keeps the rows it plays now (the rows of its base with its own on top) and no longer points at the base, so the base can go without them (issue 256). */
+export function flattenVariations(seq, name) {
+  const out = copy(seq);
+  for (const p of out.patterns) {
+    if (p.from !== name) continue;
+    p.rows = { ...rowsOf(seq, seq.patterns.find((x) => x.name === p.name)) };
+    delete p.from;
+  }
+
+  return out;
+}
+
 export function deletePattern(seq, name) {
   const out = copy(seq);
   const gone = patternFamily(out, name);

@@ -552,7 +552,7 @@ function nodeEl(n) {
     sourceButton.onpointerdown = (event) => event.stopPropagation();
     sourceButton.onclick = (event) => { event.stopPropagation(); gotoSource(n); };
     const hasGui = hasStudioPanel(n.tpl) || n.tpl === 'convolution';
-    const advanced = el('button', { type: 'button', className: 'studio-advanced-node', textContent: '↗', title: hasGui ? 'Open this block’s studio controls' : 'Show this block’s properties', 'aria-label': 'Advanced' });
+    const advanced = el('button', { type: 'button', className: 'studio-advanced-node', textContent: hasGui ? '↗' : '☰', title: hasGui ? 'Open this block’s advanced editor' : 'Show this block’s properties in the panel on the right', 'aria-label': hasGui ? 'Advanced' : 'Show properties' });   // one name per task (issue 186)
     advanced.onpointerdown = (event) => event.stopPropagation();
     advanced.onclick = hasGui ? openAdvanced : (event) => { event.stopPropagation(); select(n.id); notifySelection(); notify(); const panel = $('#right'); panel.scrollTop = 0; panel.scrollLeft = 0; };
     head.append(advanced, sourceButton);

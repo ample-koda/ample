@@ -128,7 +128,14 @@ export function openPianoRollLite(blockId, options = {}) {
   function setAlt(on) { if (state.altKey === on) return; state.altKey = on; snapSelect.value = on ? 'free' : state.snap; }
   const calls = [];   // the last audition calls, for the DOM specs (panel.mlsDebug)
   const jamVoice = options.instrument ? createJamInstrument(options.instrument) : null;   // a sequencer channel: its soundfont, bank and program sound for real (rendered by this computer's AMPLE server), the sketch voice is for the rest
-  const audition = createNoteAudition({ clipId: node.id, ppq, bpm, onBadge: (badge) => { badgeEl.textContent = badge.label; badgeEl.dataset.approximate = badge.approximate ? '1' : '0'; } });
+  // the transport plays the same voice as the keys: the channel's soundfont, bank and program, and says so when a note falls back to the preview voice (issue 245)
+  let jamFallbackSaid = false;
+  const jamEvent = (ctx, out, event, at) => {
+    if (jamVoice?.schedule(ctx, out, event, at)) return true;
+    if (jamVoice && !jamFallbackSaid) { jamFallbackSaid = true; badgeEl.textContent = 'Jam voice not ready: the preview voice plays'; badgeEl.dataset.approximate = '1'; }
+    return audition.preview.schedule(ctx, out, event, at, bpm());
+  };
+  const audition = createNoteAudition({ clipId: node.id, ppq, bpm, onBadge: (badge) => { badgeEl.textContent = badge.label; badgeEl.dataset.approximate = badge.approximate ? '1' : '0'; badgeEl.title = `${badge.label}. This is the quick dry audition of the instrument only: MIDI transforms after the clip, audio effects and the mix of the song are not included. Play the song to hear the routed result.`; } });
 
   // ---- commits: optimistic model, one serialized queue (decision 28) ----
   const textOf = (m) => { let text = format(m); if (!m.quote && /\s/.test(text.trim())) text = `"${text.trim()}"`; return text.trim() === '' || text.trim() === '""' ? '' : text; };
@@ -624,7 +631,7 @@ export function openPianoRollLite(blockId, options = {}) {
       const secondsPerTick = 60 / bpm() / ppq, list = audition.preview.transform(rows);
       await Promise.race([audition.warmClip(rows), new Promise((resolve) => setTimeout(resolve, 1500))]).catch(() => {});   // a short head start for the real voices
       if (cancelled) return;
-      player = startLive({ rows: () => list, bpm, ppq, instrument, from: 0, loopStart: 0, loop: 0, end: bars * bar * secondsPerTick, renderEvent: (ctx, out, event, at) => audition.preview.schedule(ctx, out, event, at, bpm()), onStop: () => { player = null; if (!cancelled) done(); } });
+      player = startLive({ rows: () => list, bpm, ppq, instrument, from: 0, loopStart: 0, loop: 0, end: bars * bar * secondsPerTick, renderEvent: (ctx, out, event, at) => jamEvent(ctx, out, event, at), onStop: () => { player = null; if (!cancelled) done(); } });
     })();
     return () => { cancelled = true; player?.stop(); };
   }
@@ -743,6 +750,7 @@ export function openPianoRollLite(blockId, options = {}) {
     if (state.player || starting) { stopPlayback(false); return; }
     starting = true; state.followPaused = false; liveAudioContext();
     await audition.preview.prepare();
+    if (jamVoice) { jamFallbackSaid = false; await Promise.race([jamVoice.warm(liveRows()), new Promise((resolve) => setTimeout(resolve, 4000))]).catch(() => {}); }   // the rows of the pattern sound as the keys do
     if (!panel.isConnected || !starting) return;
     starting = false;
     const picked = selectionOnly ? new Set(rows().filter((n) => state.selected.has(n.index)).map((n) => n.index)) : null;
@@ -753,7 +761,7 @@ export function openPianoRollLite(blockId, options = {}) {
     const source = selectionOnly ? () => liveRows().filter((n) => picked.has(n.index)) : liveRows;
     audition.warmClip(source()).catch(() => {});   // the notes the clip really has are rendered ahead (otherwise the sketch voice sounds for the ones not yet rendered)
     state.player = startLive({ rows: source, bpm, ppq, instrument, from: range.from * secondsPerTick, loopStart: range.loopStart * secondsPerTick, loop: range.loopEnd * secondsPerTick, end: range.end * secondsPerTick,
-      renderEvent: (ctx, out, event, at) => audition.preview.schedule(ctx, out, event, at, bpm()), onStop: () => { state.player = null; finishRecording(endTick()); playButton.textContent = '▶'; toggle(playButton, false); clearInterval(metroTimer); requestDraw(); } });
+      renderEvent: (ctx, out, event, at) => jamEvent(ctx, out, event, at), onStop: () => { state.player = null; finishRecording(endTick()); playButton.textContent = '▶'; toggle(playButton, false); clearInterval(metroTimer); requestDraw(); } });
     state.player.sel = !!selectionOnly; state.player.range = range;
     playButton.textContent = '❚❚'; toggle(playButton, true);
     const tick = () => { tickFrame = 0; if (!state.player || !panel.isConnected) return; if (state.drag?.kind !== 'seek') state.playhead = state.player.time() / secondsPerTick; follow(); requestDraw(); tickFrame = requestAnimationFrame(tick); };

@@ -8,7 +8,7 @@ import { el, showMenu } from '../../ui.js';
 import { S } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
 import { onPlayer, playerState, stop as stopSong } from '../../player.js';
-import { parseRewindEvents, rewindAudio } from '../../../lib/clientside-rewind.mjs';
+import { keptEvent, parseRewindEvents, rewindAudio } from '../../../lib/clientside-rewind.mjs';
 import { barBeats, barMilliseconds } from '../../../lib/meter.mjs';
 
 const WIDTH = 640, HEIGHT = 120;
@@ -86,10 +86,14 @@ function rewindPanel(context) {
   const read = () => {
     try {
       const events = String(context.params.events || '').replace(/^"|"$/g, '');
-      return parseRewindEvents(events, 1000, barMilliseconds(tempo)).map((e) => ({ at: e.at / 1000, scratch: e.scratch / 1000, back: e.back / 1000 }));
+      return parseRewindEvents(events, 1000, barMilliseconds(tempo)).map((e) => {
+        const event = { at: e.at / 1000, scratch: e.scratch / 1000, back: e.back / 1000, raw: e.raw };
+        event.orig = { at: event.at, scratch: event.scratch, back: event.back };   // untouched events are written back as they were (issue 183)
+        return event;
+      });
     } catch { return []; }
   };
-  const text = () => events.map(formatEvent).join('; ');
+  const text = () => events.map((e) => keptEvent(e) ?? formatEvent(e)).join('; ');
   const commit = () => {
     context.params.events = text();
     if (context.commitMany) context.commitMany([{ name: 'events', value: text() }]); else context.commit('events', text());
