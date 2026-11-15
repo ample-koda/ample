@@ -40,10 +40,13 @@ export function playbackOutput(context) {
   const pre = context.createGain(), safety = context.createWaveShaper(); pre.gain.value = PRESCALE; safety.curve = safetyCurve(); safety.oversample = 'none';
   input.connect(pre).connect(safety).connect(split); split.connect(l.gain, 0); split.connect(r.gain, 1);
   l.gain.connect(merge, 0, 0); r.gain.connect(merge, 0, 1); merge.connect(context.destination);
-  const chain = { context, input, left: l.gain, right: r.gain, analysers: [l.analyser, r.analyser], buffer: new Float32Array(1024) };
+  const chain = { context, input, safety, left: l.gain, right: r.gain, analysers: [l.analyser, r.analyser], buffer: new Float32Array(1024) };
   outputs.set(context, chain); chains.add(new WeakRef(chain));
   return input;
 }
+/** Where the sound of a context can be listened in on (the recorder of a performance): `sum`, the sum of everything before the safety stage, and
+ * `heard`, what leaves the safety stage (before the listening volume). */
+export function playbackTap(context) { playbackOutput(context); const chain = outputs.get(context); return { sum: chain.input, heard: chain.safety }; }
 /** The peak of the last ~20 ms that left each channel (0..1+), over every audio context that is playing. */
 export function outputLevels() {
   const peaks = [0, 0];

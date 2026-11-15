@@ -102,6 +102,33 @@ export function createPerformance({ now, play, bpm = 120, beatsPerBar = 4, quant
       if (!lanes.has(laneName)) lanes.set(laneName, { clips: new Map(), playing: null, queued: null });
       lanes.get(laneName).clips.set(clip.id, clip);
     },
+    /**
+     * Takes a clip off a lane while the set plays (the live mode): a queued launch of it is taken back and a clip that plays plays out to the end of
+     * the bar, so there is no cut. Returns whether it was there.
+     */
+    removeClip(laneName, clipId) {
+      tick();
+      const l = lanes.get(laneName);
+      if (!l || !l.clips.has(clipId)) return false;
+      if (l.queued?.clipId === clipId) unqueue(l);
+      if (l.playing?.clipId === clipId && l.playing.stopAt === null) { const when = boundary(QUANTIZE.bar); l.playing.handle.stop(when); l.playing.stopAt = when; }
+      l.clips.delete(clipId);
+      return true;
+    },
+    /** Takes a whole lane away while the set plays: every clip of it goes the way removeClip does. */
+    removeLane(laneName) {
+      const l = lanes.get(laneName);
+      if (!l) return false;
+      for (const id of [...l.clips.keys()]) api.removeClip(laneName, id);
+      lanes.delete(laneName);
+      return true;
+    },
+    /** When the clip that plays on a lane started (seconds of the engine clock), or null when it is not playing: for a playhead. */
+    positionOf(laneName, clipId) {
+      tick();
+      const p = lanes.get(laneName)?.playing;
+      return p && p.clipId === clipId ? (p.handle?.startedAt ?? null) : null;
+    },
     /** The grid time of the next bar line (what a scene launches on), whatever the launch quantize is. */
     nextBar() { return boundary(QUANTIZE.bar); },
     /** Queues a clip at the next beat or bar. Returns the time it starts, or null when it already plays and nothing else is queued. */

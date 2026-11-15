@@ -143,7 +143,8 @@ test('a lane bus puts the filter on the path only while it closes the sound, and
   assert.deepEqual(log.filter(([n]) => n !== 'cutoff'), [['gain', 0.5], ['pan', -0.25]]);
   buses.apply(new Map([['Drums', { gain: 1, pan: 0, cutoff: 800 }]]));
   assert.equal(input.connected[0].name, 'filter', 'the filter is on the path while it closes the sound');
-  assert.deepEqual(log.at(-1), ['cutoff', 800]);
+  assert.equal(log.at(-1)[0], 'cutoff');
+  assert.ok(Math.abs(log.at(-1)[1] - 800 * 1.554) < 0.01, 'the corner of the second-order filter sits where the song filter has its -3 dB point');
   buses.apply(new Map([['Drums', { gain: 1, pan: 0, cutoff: null }]]));
   assert.equal(input.connected[0].name, 'pan', 'bypassed again');
   buses.releaseAll();

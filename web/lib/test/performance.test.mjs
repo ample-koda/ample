@@ -171,3 +171,35 @@ test('launchBatch: one timestamp for start, stop and keep; a bad entry changes n
   p.addClip('lead', { id: 'L' }); p.launchBatch(50, [{ lane: 'lead', action: 'start', clip: 'L' }]); // late: starts at once
   assert.equal(log.at(-1).when, 50);
 });
+
+test('a clip can be taken off while the set plays: a queued launch is taken back and a playing clip plays out its bar (live mode)', () => {
+  let t = 0; const stops = [], cancels = [];
+  const play = (clip, when) => ({ clip: clip.id, stop(at) { stops.push([clip.id, at]); }, cancelStop() {}, cancel() { cancels.push(clip.id); } });
+  const perf = createPerformance({ now: () => t, play, bpm: 120, beatsPerBar: 4, startLead: 0 });
+  perf.addClip('A', { id: 'one', label: 'One' }); perf.addClip('A', { id: 'two', label: 'Two' });
+  perf.launch('A', 'one'); t = 2.5;   // one plays from the first bar line
+  assert.equal(perf.state().A.find((c) => c.id === 'one').status, 'playing');
+  assert.equal(perf.removeClip('A', 'one'), true);
+  assert.equal(stops.length, 1, 'it was asked to stop at a bar line, not at once');
+  assert.ok(stops[0][1] > t, 'the end of the bar');
+  assert.deepEqual(perf.state().A.map((c) => c.id), ['two']);
+  perf.launch('A', 'two');
+  assert.equal(perf.removeClip('A', 'two'), true);
+  assert.deepEqual(cancels, ['two'], 'the queued launch was taken back');
+  assert.equal(perf.removeClip('A', 'nothing'), false);
+  assert.equal(perf.removeLane('A'), true);
+  assert.equal(perf.removeLane('A'), false);
+  assert.deepEqual(perf.state(), {});
+});
+
+test('the engine tells when the clip of a lane started, for the playhead of its pad', () => {
+  let t = 0;
+  const play = (clip, when) => ({ clip: clip.id, startedAt: when, stop() {}, cancelStop() {}, cancel() {} });
+  const perf = createPerformance({ now: () => t, play, bpm: 120, beatsPerBar: 4, startLead: 0 });
+  perf.addClip('A', { id: 'one', label: 'One' });
+  assert.equal(perf.positionOf('A', 'one'), null);
+  const when = perf.launch('A', 'one'); t = when + 1;
+  assert.equal(perf.positionOf('A', 'one'), when);
+  assert.equal(perf.positionOf('A', 'nothing'), null);
+  assert.equal(perf.positionOf('B', 'one'), null);
+});
