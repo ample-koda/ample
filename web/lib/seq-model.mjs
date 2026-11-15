@@ -328,6 +328,19 @@ export function toggleStep(seq, pattern, channel, bar, step) {
   return setRow(seq, pattern, channel, formatBars(rows));
 }
 
+/**
+ * The sequence with one pattern only, in the playlist at bar 1 for the length of the pattern and nothing else: what the PAT audition builds, so a pattern is heard alone, also before it is
+ * placed and without the clips that overlap it (issue 238). The other patterns stay, because a variation reads its base. Null when there is no such pattern.
+ */
+export function isolatePattern(seq, name) {
+  const p = seq.patterns.find((x) => x.name === name);
+  if (!p) return null;
+  const out = copy(seq);
+  out.clips = [{ pattern: name, track: 1, at: 1, bars: p.bars }];
+  out.loop = null;
+  return out;
+}
+
 export function addClip(seq, pattern, at, bars, track = 1) {
   const out = copy(seq);
   const p = seq.patterns.find((x) => x.name === pattern);

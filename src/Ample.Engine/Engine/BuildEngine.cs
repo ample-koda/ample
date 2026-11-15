@@ -329,11 +329,20 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
 
         inputBlobs.Clear();
         BuildInputs.Remove(options);
+        if (BuildStages.TryGetValue(options, out StageShare? stages))
+        {
+            stages.Clear();
+            BuildStages.Remove(options);
+        }
         BlockNode? master = blocks.LastOrDefault(b => b.Type == "master") ?? blocks.LastOrDefault(b => spec.Templates[b.Type].Outputs.Any(o => o.Type == "audio"));
         return new BuildReport(report, master is null ? null : results.Get(master.Name)?.TakeId, report.Count(r => r.Status is "cached" or "frozen" or "adopted"), report.Count(r => r.Status is "rendered" or "failed" or "cancelled")) { ElapsedSeconds = Stopwatch.GetElapsedTime(buildStarted).TotalSeconds };
     }
 
     private const long InputBlobBudgetBytes = 256L * 1024 * 1024;
+    private const long StageShareBudgetBytes = 256L * 1024 * 1024;
+
+    // the stages of the render recipes of the build that is running: endpoints that share a source or a prefix of effects render it once (issue 298)
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BuildOptions, StageShare> BuildStages = new();
 
     // the input bytes of the build that is running, by its options: blocks that read the same take at the same time share one read (issue 295)
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BuildOptions, InputBlobs> BuildInputs = new();
@@ -383,7 +392,11 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             }
         }
 
-        if (recipe is not null) renderer = new RenderChainRenderer(renderer, recipe, spec, renderers, (ulong)(doc.Project?.MasterSeed ?? 0), options.Control, ov?.Block, ov?.Seed);
+        if (recipe is not null)
+        {
+            StageShare stageShare = BuildStages.GetValue(options, _ => new StageShare(StageShareBudgetBytes));
+            renderer = new RenderChainRenderer(renderer, recipe, spec, renderers, (ulong)(doc.Project?.MasterSeed ?? 0), options.Control, ov?.Block, ov?.Seed, stageShare);
+        }
         if (template.Inputs.Any(p => p.Name == "render_in") && !block.Froms.Any(f => f.Input is "in" or "render_in" or "region_in")) return new BlockResult(owner.Name, "skipped", null, "AMP5255: the effect has no audio or render input connected, so it is left out of the build.");
 
         if (ov is null && owner.Flags.Contains("bake") && options.Control?.SelectedTake(owner.Name) is string selected)

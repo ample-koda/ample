@@ -24,6 +24,7 @@ namespace Ample.Msi
             string[] parts = session.CustomActionData.ToString().Split('|');
             if (parts.Length < 2) return ActionResult.Success;
             string exe = parts[0], pack = parts[1], home = parts.Length > 2 ? parts[2] : "";
+            string lastError = null;
             try
             {
                 session.Log("AmpleCa: " + exe + " packs install " + pack);
@@ -42,7 +43,7 @@ namespace Ample.Msi
                 int done = 0;
                 using (Process process = Process.Start(start))
                 {
-                    process.ErrorDataReceived += (s, e) => { if (e.Data != null) session.Log("AmpleCa stderr: " + e.Data); };
+                    process.ErrorDataReceived += (s, e) => { if (e.Data != null) { session.Log("AmpleCa stderr: " + e.Data); if (e.Data.Trim().Length > 0) lastError = e.Data.Trim(); } };
                     process.BeginErrorReadLine();
                     string line;
                     while ((line = process.StandardOutput.ReadLine()) != null)
@@ -72,6 +73,7 @@ namespace Ample.Msi
                         {
                             try { process.Kill(); } catch (InvalidOperationException) { }
                             session.Log("AmpleCa: cancelled by the person");
+                            Record(session, pack, "skipped", "cancelled during the install");
                             return ActionResult.UserExit;
                         }
                     }
@@ -79,15 +81,52 @@ namespace Ample.Msi
                     process.WaitForExit();
                     if (done < Ticks) session.Message(InstallMessage.Progress, new Record(2, Ticks - done, 0));
                     session.Log("AmpleCa: ample exited with " + process.ExitCode);
-                    if (process.ExitCode != 0) Say(session, "Could not install " + pack + " (the install goes on; run ample doctor later).");
+                    if (process.ExitCode != 0)
+                    {
+                        Say(session, "Could not install " + pack + " (the install goes on; run ample doctor later).");
+                        Record(session, pack, "failed", lastError ?? ("ample exited with " + process.ExitCode));
+                    }
+                    else
+                    {
+                        Record(session, pack, "installed", "");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 session.Log("AmpleCa: " + ex.Message);   // never fail the install for an optional download
+                Record(session, pack, "failed", ex.Message);
             }
 
             return ActionResult.Success;
+        }
+
+        /// <summary>
+        /// Keeps the result of an optional extra for the person who installs (installed, failed or skipped) in Ample\install-extras.txt of the local application data,
+        /// one line per extra, so the Tune-up can say what is missing and offer to try again. A silent install writes it too; the log has the same words.
+        /// </summary>
+        private static void Record(Session session, string pack, string state, string message)
+        {
+            try
+            {
+                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample");
+                Directory.CreateDirectory(folder);
+                string file = Path.Combine(folder, "install-extras.txt");
+                System.Collections.Generic.List<string> lines = new System.Collections.Generic.List<string>();
+                if (File.Exists(file))
+                {
+                    foreach (string line in File.ReadAllLines(file, Encoding.UTF8)) if (!line.StartsWith(pack + "\t", StringComparison.Ordinal)) lines.Add(line);
+                }
+
+                string clean = (message ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ').Trim();
+                lines.Add(pack + "\t" + state + "\t" + clean);
+                File.WriteAllLines(file, lines, new UTF8Encoding(false));
+                session.Log("AmpleCa: " + pack + " " + state + (clean.Length > 0 ? " (" + clean + ")" : ""));
+            }
+            catch (Exception ex)
+            {
+                session.Log("AmpleCa: the result of " + pack + " could not be kept: " + ex.Message);
+            }
         }
 
         /// <summary>

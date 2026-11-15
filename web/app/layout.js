@@ -74,6 +74,8 @@ export function initLayout() {
   new ResizeObserver(follow).observe(header);
   follow();
   $('#tg-bottom').onclick = () => flip('min');
+  // the block palette only adds blocks: the files of the project have one place, the Project panel (issue 127)
+  $('#open-project-panel').onclick = async () => { const { setBottomTab } = await import('./panels.js'); setBottomTab('project'); };
   $('#b-min').onclick = () => flip('min');
   // full screen: only where the browser allows it (not in Safari on an iPhone)
   const fs = $('#btn-fs');

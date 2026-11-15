@@ -182,3 +182,18 @@ test('a variation can be made independent before its base is deleted: it keeps w
   assert.equal(after.clips.length, 1, "only the clips of the base went");
   assert.equal(after.clips[0].pattern, made.name);
 });
+
+test('a pattern can be isolated: one clip at bar 1 for its own length, whether or not it was placed, with its variations kept readable (issue 238)', async () => {
+  const { isolatePattern, addVariation, addClip: place } = await import('../seq-model.mjs');
+  let { seq } = parseSeq(TEXT);
+  const made = addVariation(seq, 'verse');
+  seq = place(made.seq, 'verse', 5, 2);   // placed twice, with another clip around it
+  const alone = isolatePattern(seq, 'verse');
+  assert.equal(alone.clips.length, 1);
+  assert.deepEqual(alone.clips[0], { pattern: 'verse', track: 1, at: 1, bars: seq.patterns.find((p) => p.name === 'verse').bars });
+  assert.deepEqual(alone.patterns.map((p) => p.name), seq.patterns.map((p) => p.name), 'every pattern stays: a variation reads its base');
+  assert.equal(seq.clips.length > 1, true, 'the original is not changed');
+  const unplaced = isolatePattern(addVariation(parseSeq(TEXT).seq, 'verse').seq, 'verse-b') ?? isolatePattern(made.seq, made.name);
+  assert.equal(unplaced.clips[0].at, 1);
+  assert.equal(isolatePattern(seq, 'nothing'), null);
+});

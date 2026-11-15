@@ -21,5 +21,6 @@
     <Compile Include="../../src/Ample.Setup/LoadGate.cs" Link="Wizard/LoadGate.cs" />
     <Compile Include="../../src/Ample.Setup/PackOutcome.cs" Link="Wizard/PackOutcome.cs" />
     <Compile Include="../../src/Ample.Setup/HubSettingsMerge.cs" Link="Wizard/HubSettingsMerge.cs" />
+    <Compile Include="../../src/Ample.Setup/ExtrasResult.cs" Link="Wizard/ExtrasResult.cs" />
   </ItemGroup>
 </Project>

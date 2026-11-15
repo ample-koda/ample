@@ -109,6 +109,18 @@ namespace Ample.Setup
             }
             else if (packsProblem != null) packsStatus.Text = "The list of packs could not be read: " + packsProblem;
             else packsStatus.Text = "This version of AMPLE has no sound packs to offer.";
+            // what the installer could not fetch is said here, with the way to try again: the packs page is the retry path (issue 318)
+            try
+            {
+                string file = ExtrasResult.PathIn(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+                string last = System.IO.File.Exists(file) ? ExtrasResult.Describe(ExtrasResult.Parse(System.IO.File.ReadAllText(file)), id => packs.Any(p => p.Id == id && p.Installed)) : null;
+                if (last != null) packsStatus.Text = last;
+            }
+            catch (System.IO.IOException)
+            {
+                // the note is only help: a file that cannot be read says nothing
+            }
+
             UpdatePacksSummary();
             Show(page);
         }
