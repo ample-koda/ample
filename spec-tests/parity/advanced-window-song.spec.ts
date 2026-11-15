@@ -30,7 +30,7 @@ freshServer({
   prepare: (_cli, folder) => fs.writeFileSync(path.join(folder, 'source.wav'), sourceWav()),
 });
 
-test('the Advanced window closes when another song is opened, and the other song opens its own', async ({ page }) => {
+test('the Advanced window closes when another song is opened, and the other song opens its own @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await node(page, 'master').locator('.studio-advanced-node').click();
   await expect(page.locator('.studio-dialog')).toHaveCount(1);

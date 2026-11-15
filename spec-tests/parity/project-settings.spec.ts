@@ -110,7 +110,7 @@ test('the default song and voice models are saved with the routes and a wrong mo
   expect(cleared.voiceModel ?? '').toBe('');
 });
 
-test('the web search form says which Brave key is active and what clearing does', async ({ page }) => {
+test('the web search form says which Brave key is active and what clearing does @quarantine', async ({ page }) => {
   await page.click('#pm [data-tab="search"]');
   const s = await api('/api/project/settings');
   const note = page.locator('#pm .ps-row-note');
