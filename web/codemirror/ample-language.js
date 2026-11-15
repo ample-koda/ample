@@ -2,6 +2,7 @@ import { StreamLanguage, HighlightStyle, forceParsing, indentUnit, syntaxHighlig
 import { tags, Tag } from '@lezer/highlight';
 import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
 import { Decoration, EditorView, GutterMarker, gutter, keymap } from '@codemirror/view';
 import tokens from '../../spec/tokens.json';
 import { NOTE_SIGNATURES, NOTE_TYPES } from '../lib/note-catalog.mjs';
@@ -230,7 +231,7 @@ export function createAmpleEditor(host, mirror, initialText) {
   let parseFrame = 0;
   const view = new EditorView({
     state: EditorState.create({ doc: initialText, extensions: [
-      ampleMode, ampleColors, marksField, gutterField, lineGutter(mirror), history(), indentUnit.of('  '), keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
+      ampleMode, ampleColors, marksField, gutterField, lineGutter(mirror), history(), indentUnit.of('  '), keymap.of([indentWithTab, ...searchKeymap, ...defaultKeymap, ...historyKeymap]), search({ top: true }), highlightSelectionMatches(),
       EditorView.updateListener.of(({ docChanged, viewportChanged, selectionSet, view: updatedView }) => {
         if (selectionSet) updatedView.dom.onselectionchange?.();
         if ((!docChanged && !viewportChanged) || syntaxTreeAvailable(updatedView.state, updatedView.viewport.to)) return;
@@ -245,6 +246,17 @@ export function createAmpleEditor(host, mirror, initialText) {
         '.cm-line': { padding: '0' },
         '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--dim)', border: 'none' },   // the base theme of CodeMirror paints the gutter light grey
         '&.cm-focused': { outline: 'none' },
+        // Ctrl+F: the search panel of CodeMirror in the colours of the app
+        '.cm-panels': { backgroundColor: 'var(--panel, var(--bg))', color: 'var(--text)', borderColor: 'var(--border, var(--dim))' },
+        '.cm-panel.cm-search': { padding: '4px 6px', fontSize: '12px', fontFamily: 'system-ui, sans-serif' },
+        '.cm-panel.cm-search input, .cm-panel.cm-search button': { fontSize: '12px', fontFamily: 'inherit', color: 'var(--text)', backgroundColor: 'transparent', border: '1px solid var(--border, var(--dim))', borderRadius: '3px', padding: '1px 5px', margin: '1px 3px 1px 0' },
+        '.cm-panel.cm-search button': { cursor: 'pointer', backgroundImage: 'none' },
+        '.cm-panel.cm-search button:hover': { backgroundColor: 'color-mix(in srgb,var(--acc) 25%,transparent)' },
+        '.cm-panel.cm-search label': { fontSize: '11px', color: 'var(--dim)', marginRight: '6px' },
+        '.cm-panel.cm-search [name=close]': { color: 'var(--dim)', border: 'none' },
+        '.cm-searchMatch': { backgroundColor: 'color-mix(in srgb,var(--acc) 30%,transparent)', outline: '1px solid color-mix(in srgb,var(--acc) 60%,transparent)' },
+        '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'color-mix(in srgb,var(--acc) 65%,transparent)' },
+        '.cm-selectionMatch': { backgroundColor: 'color-mix(in srgb,var(--acc) 18%,transparent)' },
         '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: 'color-mix(in srgb,var(--acc) 35%,transparent)' },
       }),
     ] }), parent: host,
