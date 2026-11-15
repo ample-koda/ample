@@ -56,7 +56,17 @@ internal static class Program
 
         if (args.Contains("--no-tray")) return 0;
         using Mutex mutex = new(true, @"Local\AMPLE-Hub", out bool first);
-        if (!first) return 0;
+        if (!first)
+        {
+            // a hub runs already and owns the tray: ask it to show itself again (its icon may be lost after the taskbar was rebuilt, or hidden), instead of ending without a word
+            try { using EventWaitHandle show = EventWaitHandle.OpenExisting(@"Local\AMPLE-Hub-Show"); show.Set(); }
+            catch (Exception ex) when (ex is WaitHandleCannotBeOpenedException or UnauthorizedAccessException or IOException)
+            {
+                // an older hub has no such signal: nothing more to do
+            }
+
+            return 0;
+        }
         SetStartAtLogin(settings.StartAtLogin);
         Application.Run(new TrayApp(main));
         return 0;
