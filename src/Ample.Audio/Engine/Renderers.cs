@@ -8,6 +8,10 @@ using Ample.Language;
 
 namespace Ample.Audio.Engine;
 
+/// <summary>Where the sound of an input starts in the range that is rendered, when the input is the sound as it was made and not padded to the range: the mixer adds only the frames that overlap (issue 294).</summary>
+/// <param name="OffsetSamples">The sample of the range where the first sample of the input is (negative when the input started before the range).</param>
+public sealed record InputPlacement(long OffsetSamples);
+
 /// <summary>What a renderer is asked to make.</summary>
 /// <param name="Block">The block.</param>
 /// <param name="Template">Its template.</param>
@@ -23,6 +27,9 @@ namespace Ample.Audio.Engine;
 /// <param name="Settings">The settings of this song for the renderer's plugin (name to text as written in the song), or null.</param>
 public sealed record RenderRequest(BlockNode Block, TemplateSpec Template, int SampleRate, int SamplesPerBar, int FirstBar, int BarCount, IReadOnlySet<int> ActiveBars, IReadOnlyDictionary<string, byte[]> Inputs, ulong Seed, string ProjectRoot, Action<ProgressReport>? Report = null, IReadOnlyDictionary<string, string>? Settings = null)
 {
+    /// <summary>Gets the inputs that are not padded to the range but start somewhere in it (input name to place), or null when every input is as long as the range.</summary>
+    public IReadOnlyDictionary<string, InputPlacement>? Placements { get; init; }
+
     /// <summary>Gets the length of a bar in quarter notes: 4 in 4/4 (the default), 3 in 3/4 or 6/8, 5 in 5/4. The beat positions of notes are in quarter notes.</summary>
     public double BeatsPerBar { get; init; } = 4.0;
     /// <summary>Gets the length of a bar in quarter notes as a decimal, for the renderers that count in decimals.</summary>
@@ -1064,6 +1071,14 @@ public static partial class BuiltInRenderers
 
         public string Version => blockType == "bus" ? "1" : "3";
 
+        /// <summary>The positions of the mix that an input covers: where it starts in the range, and the positions it overlaps (all of the input when it is padded to the range already).</summary>
+        private static (int From, int To, long Offset) Overlap(RenderRequest r, int k, int mixLength, int inputLength)
+        {
+            long offset = r.Placements is not null && r.Placements.TryGetValue("in" + k, out InputPlacement? place) ? place.OffsetSamples : 0;
+            long from = Math.Max(0, offset), to = Math.Min(mixLength, offset + inputLength);
+            return to <= from ? (0, 0, offset) : ((int)from, (int)to, offset);
+        }
+
         public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest r, CancellationToken cancellationToken)
         {
             string[] gains = (r.Block.Parameters.FirstOrDefault(p => p.Name == "gains")?.Value ?? "0 0 0 0").Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -1092,13 +1107,20 @@ public static partial class BuiltInRenderers
                     int pan = PanOf(k);
                     int leftScale = pan == 0 ? 32768 : (int)Math.Min(32768, (long)PanTable.LeftGain(pan) * 32768 / PanTable.LeftGain(0));
                     int rightScale = pan == 0 ? 32768 : (int)Math.Min(32768, (long)PanTable.RightGain(pan) * 32768 / PanTable.RightGain(0));
-                    for (int i = 0; i < sum.Length && i < channels.Length; i++) { sum[i] += (long)PanTable.Apply(channels.Left[i], leftScale) * gain / 32768; rightSum[i] += (long)PanTable.Apply(channels.Right[i], rightScale) * gain / 32768; }
+                    (int from, int to, long shift) = Overlap(r, k, sum.Length, channels.Length);
+                    for (int i = from; i < to; i++)
+                    {
+                        int n = (int)(i - shift);
+                        sum[i] += (long)PanTable.Apply(channels.Left[n], leftScale) * gain / 32768;
+                        rightSum[i] += (long)PanTable.Apply(channels.Right[n], rightScale) * gain / 32768;
+                    }
                     continue;
                 }
                 (short[] samples, _) = Wav.Decode(data);
-                for (int i = 0; i < sum.Length && i < samples.Length; i++)
+                (int start, int end, long offset) = Overlap(r, k, sum.Length, samples.Length);
+                for (int i = start; i < end; i++)
                 {
-                    sum[i] += (long)samples[i] * gain / 32768;
+                    sum[i] += (long)samples[(int)(i - offset)] * gain / 32768;
                 }
             }
 

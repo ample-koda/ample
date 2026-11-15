@@ -11,6 +11,7 @@ async function projectDefaults(page) {
 }
 test.beforeEach(async ({ page }) => {
   await openApp(page);
+  await page.locator('#ltabs button[data-l="files"]').click();   // the project files, linked folders and plugins have their own tab
   await expect(page.locator('#plugins .pgear').first()).toBeVisible();
   await page.locator('#plugins .prow', { hasText: 'acestep' }).locator('.pgear').click();
   await expect(page.locator('#pg')).toBeVisible();
@@ -43,6 +44,7 @@ test('apply and back stores the settings in the project and they come back', asy
   expect(stored.style).toBe('warm choir');
   await page.reload();
   await page.waitForSelector('body[data-ready="1"]');
+  await page.locator('#ltabs button[data-l="files"]').click();
   await page.locator('#plugins .prow', { hasText: 'acestep' }).locator('.pgear').click();
   await projectDefaults(page);
   await expect(page.locator('[data-field="pollMs"]')).toHaveValue('500');

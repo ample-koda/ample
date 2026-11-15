@@ -27,16 +27,16 @@ public sealed class InputBlobsTests
     }
 
     [Fact]
-    public async Task Every_reader_gets_its_own_copy_so_one_renderer_cannot_change_what_another_reads()
+    public async Task The_readers_of_one_take_share_the_same_array_and_a_second_read_does_not_load_again()
     {
         InputBlobs blobs = new(1024);
         byte[] first = await blobs.GetAsync("take-a", () => Task.FromResult<byte[]>([1, 2, 3]));
-        first[0] = 99;
 
         byte[] second = await blobs.GetAsync("take-a", () => Task.FromResult<byte[]>([7, 7, 7]));
 
-        Assert.Equal([1, 2, 3], second);   // served from the bytes that were read, unchanged
-        Assert.NotSame(first, second);
+        Assert.Same(first, second);
+        Assert.Equal([1, 2, 3], second);
+        Assert.Equal(1, blobs.LoadsMade);
     }
 
     [Fact]

@@ -301,6 +301,7 @@ function wire() {
       $('#pane-struct').style.display = b.dataset.l === 'struct' ? '' : 'none';
       $('#pane-tpl').style.display = b.dataset.l === 'tpl' ? '' : 'none';
       $('#pane-clib').style.display = b.dataset.l === 'clib' ? '' : 'none';
+      $('#pane-files').style.display = b.dataset.l === 'files' ? '' : 'none';
       document.querySelectorAll('#ltabs button').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
       if (b.dataset.l === 'struct') renderStructure();
       if (b.dataset.l === 'tpl') renderTemplates();

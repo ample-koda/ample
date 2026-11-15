@@ -125,6 +125,29 @@ export function sceneChoice(scene, laneName) {
  * The blocks that can be put on a lane: every block with a built take, by title. `nodes` are { id, title }, `takes` maps a block id
  * to its take id. A block without a take is not offered (there is nothing to play yet).
  */
+/** The id of a lane clip that is one pattern of a Sequencer block, heard alone as a loop (not a built take of the block). */
+export const patternClipId = (block, pattern) => `pattern:${block}:${pattern}`;
+
+/** The block and the pattern of such an id, or null for any other clip id. */
+export function parsePatternClipId(id) {
+  const m = /^pattern:([^:]+):(.+)$/.exec(String(id ?? ''));
+  return m ? { block: m[1], pattern: m[2] } : null;
+}
+
+/**
+ * The patterns of the Sequencer blocks that can go on a lane: one option per pattern, named after its block. `patterns` maps a block id to the names of its patterns.
+ * They need no built take of the block: the pattern is built alone when the performance starts.
+ */
+export function patternOptions(nodes, patterns) {
+  const out = [];
+  for (const node of nodes ?? []) {
+    if (node?.tpl !== 'sequencer') continue;
+    for (const name of patterns?.get(node.id) ?? []) out.push({ id: patternClipId(node.id, name), label: `${clean(node.title) || node.id} · ${name} (pattern)`, pattern: true });
+  }
+
+  return out.sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export function clipOptions(nodes, takes) {
   const seen = new Set();
   const out = [];
@@ -142,7 +165,7 @@ export function pruneLayout(layout, blockIds) {
   const dropped = [];
   const next = copy(layout);
   for (const lane of next.lanes) {
-    lane.clips = lane.clips.filter((c) => { if (alive.has(c.id)) return true; dropped.push({ lane: lane.name, id: c.id }); return false; });
+    lane.clips = lane.clips.filter((c) => { if (alive.has(c.id) || alive.has(parsePatternClipId(c.id)?.block)) return true; dropped.push({ lane: lane.name, id: c.id }); return false; });
   }
   return { layout: cleanScenes(next), dropped };
 }

@@ -35,6 +35,7 @@ test('a proposal can be looked at in the block view, built there, and every buil
   await page.click('#ai-msg-send');
   await expect.poll(async () => { const t = await call(page, 'GET', `/api/ai/tasks/${task.id}`); return t.status === 'ready' && t.build.status === 'ok' ? t.changes[0].added : 0; }, { timeout: 120000 }).toBe(2);
   await expect(page.locator('#ai-accept')).toBeEnabled({ timeout: 60000 });
+  await page.locator('.ai-more > summary').click();
   await page.click('#ai-blockview');
   await expect(page.locator('#ai-peek-bar')).toBeVisible();   // the way back, build, waveform and stop stay in view, also in the code view
   await expect(page.locator('#ai-peek-back')).toBeVisible();
@@ -146,6 +147,7 @@ test('a parsed proposal that remains unbuildable after one repair cannot be acce
   await page.evaluate((id) => import('/app/ai.js').then((m) => m.openAiTask(id)), task.id);
   await expect(page.locator('#ai-accept')).toBeDisabled();
   await expect(page.locator('#ai-accept-anyway')).toBeEnabled();
+  await page.locator('.ai-more > summary').click();
   await page.click('#ai-accept-anyway');
   await expect(page.locator('#ai-anyway')).toBeVisible();
   await expect(page.locator('#ai-anyway')).toContainText('The project does not build with this proposal');

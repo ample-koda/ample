@@ -90,7 +90,17 @@ public sealed record BlockOverride(string Block, ulong? Seed, string? Intent, bo
 /// <param name="TakeId">The take, when there is one.</param>
 /// <param name="Message">Why it was skipped or failed.</param>
 /// <param name="Seconds">Only for a block that rendered: the seconds it really worked (reading its inputs and rendering and storing it), not the time it waited for the scheduler or for its inputs. <c>null</c> for every other block.</param>
-public sealed record BlockResult(string Block, string Status, string? TakeId, string? Message, double? Seconds = null);
+public sealed record BlockResult(string Block, string Status, string? TakeId, string? Message, double? Seconds = null)
+{
+    /// <summary>Of <see cref="Seconds"/>: reading the inputs from the take bank (issue 291).</summary>
+    public double? LoadSeconds { get; init; }
+
+    /// <summary>Of <see cref="Seconds"/>: the renderer and the changes after it.</summary>
+    public double? RenderSeconds { get; init; }
+
+    /// <summary>Of <see cref="Seconds"/>: hashing, packing and writing the take.</summary>
+    public double? StoreSeconds { get; init; }
+}
 
 /// <summary>The outcome of a build.</summary>
 /// <param name="Blocks">Per block, in build order.</param>
@@ -410,6 +420,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         SortedDictionary<string, (string TakeId, string Role)> sources = new(StringComparer.Ordinal);
         FromLine? dropped = null;
         Dictionary<string, byte[]> inputs = [];
+        Dictionary<string, InputPlacement> placements = [];   // inputs of a mixer or bus that are not padded to the range but start in it (issue 294)
         List<Func<Task>> loads = [];   // audio is read only when the block must render: a cache hit resolves from take ids alone
         TimeSpan loading = TimeSpan.Zero;
         foreach (FromLine f in block.Dependencies().Where(f => !f.Disabled))
@@ -457,7 +468,16 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
 
                     bool placed = BlockTiming.IsTimeline(owner) && upstream is not null && !BlockTiming.IsArranged(upstream, doc, [])
                         && spec.Templates[upstream.Type].Outputs.Any(p => p.Name == from.Output && p.Type == "audio");
-                    if (placed) input = BlockTiming.Place(input, BlockTiming.Origin(upstream!, doc, []), range, spb);
+                    if (placed && owner.Type is "mixer" or "bus")
+                    {
+                        // the mixer adds only the frames that overlap its range: no padded copy of the clip, no encode and decode of the silence around it
+                        placements[slot] = new InputPlacement((long)(BlockTiming.Origin(upstream!, doc, []) - range.FirstBar) * spb);
+                    }
+                    else if (placed)
+                    {
+                        input = BlockTiming.Place(input, BlockTiming.Origin(upstream!, doc, []), range, spb);
+                    }
+
                     inputs[slot] = input;
                 });
             }
@@ -710,18 +730,27 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             // the controls that steer parameters of this block become curves of the song for the renderer (it follows them like auto(...))
             (BlockNode renderBlock, IReadOnlyDictionary<string, IReadOnlyList<(long Sample, int Value)>> controlPoints) = ControlBinding.Resolve(block, template, inputs, rate, spb, first, count);
             using IDisposable controls = ControlBinding.Use(controlPoints);
-            RenderRequest request = new(renderBlock, template, rate, spb, first, count, active, inputs, seed, projectRoot, options.Detail is null ? null : tracker.Report, songSettings) { BeatsPerBar = doc.Project?.BeatsPerBar ?? 4.0, AmpleRoot = ampleRoot, ForceRender = ov?.Force == true };
+            RenderRequest request = new(renderBlock, template, rate, spb, first, count, active, inputs, seed, projectRoot, options.Detail is null ? null : tracker.Report, songSettings) { BeatsPerBar = doc.Project?.BeatsPerBar ?? 4.0, AmpleRoot = ampleRoot, ForceRender = ov?.Force == true, Placements = placements.Count > 0 ? placements : null };
             if (moduleMidi is not null) request = request with { MidiPpq = moduleMidi.Ppq, MidiTempoMap = moduleMidi.Tempos, PerformanceEvents = PerformanceEvents(block, moduleMidi, rate, spb, first + BlockTiming.Origin(owner, doc, []) - 1, count) };
             // a pitch bend that comes with the notes (the curve of a midi-clip, the bend of single notes) bends the sound of the block that plays them, whatever instrument it is
+            long renderStart = Stopwatch.GetTimestamp();
             IReadOnlyList<RenderOutput> outputs = ChannelMode.Apply(PitchBend.Apply(ClipControls.Apply(await renderer.RenderAsync(request, cancellationToken).ConfigureAwait(false), request, cancellationToken), request, cancellationToken), channelMode);
             string metadata = JsonSerializer.Serialize(outputs.Where(o => o.MetadataJson is not null).ToDictionary(o => o.Role, o => JsonSerializer.Deserialize<JsonElement>(o.MetadataJson!)));
             // a stream that exposes its buffer (publiclyVisible) lets the takebank see which roles share one buffer
             List<(string Role, Stream Data)> storedOutputs =
                 [.. outputs.Select(o => (o.Role, (Stream)new MemoryStream(o.Data, 0, o.Data.Length, false, true)))];
             if (metadata != "{}" && !outputs.Any(o => o.Role == "render-recipe")) storedOutputs.Add(("render-recipe", new MemoryStream(Encoding.UTF8.GetBytes(metadata))));
+            TimeSpan rendering = Stopwatch.GetElapsedTime(renderStart);
+            long storeStart = Stopwatch.GetTimestamp();
             TakeRecord take = await ticket.CommitAsync(storedOutputs, metadata, cancellationToken).ConfigureAwait(false);
+            TimeSpan storing = Stopwatch.GetElapsedTime(storeStart);
             string? report = owner.Type is "meter" or "trim" && outputs.FirstOrDefault(o => o.Role == "report") is { } measured ? System.Text.Encoding.UTF8.GetString(measured.Data) : null;
-            return new BlockResult(owner.Name, "rendered", take.TakeId, report, (loading + Stopwatch.GetElapsedTime(workStart)).TotalSeconds);
+            return new BlockResult(owner.Name, "rendered", take.TakeId, report, (loading + Stopwatch.GetElapsedTime(workStart)).TotalSeconds)
+            {
+                LoadSeconds = loading.TotalSeconds,
+                RenderSeconds = rendering.TotalSeconds,
+                StoreSeconds = storing.TotalSeconds,
+            };
         }
         catch (OperationCanceledException)
         {

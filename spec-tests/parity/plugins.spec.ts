@@ -11,6 +11,7 @@ test('the valid plugins are found with their kind and the panel lists them; ther
   expect(r.plugins.find((p) => p.id === 'echo').kind).toBe('voice');
   expect(r.plugins.find((p) => p.id === 'analysis-fake').kind).toBe('analysis');
   await openApp(page, { reset: false });
+  await page.locator('#ltabs button[data-l="files"]').click();   // the project files, linked folders and plugins have their own tab
   await expect(page.locator('#plugins .prow', { hasText: 'echo' })).toBeVisible();
 });
 

@@ -242,9 +242,22 @@ export function openPianoRollLite(blockId, options = {}) {
   const consumerTimer = setInterval(() => { if (!panel.isConnected) clearInterval(consumerTimer); else paintConsumers(); }, 1200);
   setTimeout(paintConsumers, 0);
   const badgeEl = el('span', { className: 'mls-badge', role: 'status', title: 'What you hear when you play a single note' });
+  // the quick audition is the instrument alone; the routed one plays the clip through the instrument, its effects and the mix, as the live chain, and says why when a block falls back to its built take (issue 249)
+  const contextButton = el('button', {
+    type: 'button', className: 'mls-context', textContent: 'Hear in the song',
+    title: 'Play this clip through its instrument, the effects after it and the mix of the song (the live chain). A block that has to be built first is named; the quick audition leaves all of that out.',
+    onclick: async () => {
+      const graph = flat();
+      const { resolveRollInstrument } = await import('../lib/roll-instrument.mjs');
+      const route = resolveRollInstrument(graph, node.id, null);
+      const target = graph.nodes.find((n) => n.tpl === 'master')?.id ?? route?.node.id ?? null;
+      if (!target) { toast('Connect this clip to an instrument first: there is nothing after it to hear.'); return; }
+      (await import('./live-chain.js')).startChain(target);
+    },
+  });
   const closeButton = el('button', { type: 'button', className: 'mls-close', textContent: '✕', title: 'Close', 'aria-label': 'Close AMPLE Jam', onclick: () => closeWindow() });
   const menuButton = el('button', { type: 'button', className: 'mls-wbtn mls-menu-btn', textContent: '☰', title: 'Menu', 'aria-label': 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
-  const title = el('div', { className: 'mls-title metal-title' }, [el('span', { className: 'mls-eqbg', 'aria-hidden': 'true' }, Array.from({ length: 46 }, (_, i) => { const bar = el('i'); bar.style.setProperty('--d', (0.7 + ((i * 37) % 11) / 10 * 1.5).toFixed(2)); bar.style.setProperty('--dl', (((i * 13) % 10) / 10).toFixed(2)); return bar; })), jamIcon(), el('strong', { textContent: 'AMPLE Jam' }), el('span', { className: 'mls-clip', textContent: node.title }), badgeEl, menuButton, closeButton]);
+  const title = el('div', { className: 'mls-title metal-title' }, [el('span', { className: 'mls-eqbg', 'aria-hidden': 'true' }, Array.from({ length: 46 }, (_, i) => { const bar = el('i'); bar.style.setProperty('--d', (0.7 + ((i * 37) % 11) / 10 * 1.5).toFixed(2)); bar.style.setProperty('--dl', (((i * 13) % 10) / 10).toFixed(2)); return bar; })), jamIcon(), el('strong', { textContent: 'AMPLE Jam' }), el('span', { className: 'mls-clip', textContent: node.title }), badgeEl, contextButton, menuButton, closeButton]);
   const toolsGroup = el('span', { className: 'mls-tools', role: 'group', 'aria-label': 'Tools' }, [...toolButtons.values()]);
   const toolbar = el('div', { className: 'mls-toolbar', role: 'toolbar', 'aria-label': 'AMPLE Jam tools' }, [el('span', { className: 'mls-tools mls-modes', role: 'group', 'aria-label': 'View' }, [...modeButtons.values()]), rowAdd, toolsGroup, typingButton, octaveDown, octaveLabel, octaveUp, ...(midiButton ? [midiButton] : []), touchButton, recordButton, playButton, selButton, stopButton, metroButton, loopButton, followButton, snapSelect, zoomOut, zoomIn, fitButton]);
   // Record, Play, Stop and Loop stay in reach when the toolbar is scrolled on a phone (issue 259): the style pins them one after the other

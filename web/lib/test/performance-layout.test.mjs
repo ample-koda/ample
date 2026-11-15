@@ -121,3 +121,18 @@ test('a lane has a mode that is kept when the layout is saved and read again, an
   assert.equal(setLaneMode(layout, 'Missing', 'loop').ok, false);
   assert.equal(parseLayout({ lanes: [{ name: 'X', mode: 'banana', clips: [] }] }).lanes[0].mode, 'loop');
 });
+
+test('a pattern of a Sequencer block can be a clip: it is listed by block and pattern and kept while its block is in the song (issue 266)', async () => {
+  const { addClip, addLane, emptyLayout, parsePatternClipId, patternClipId, patternOptions, pruneLayout } = await import('../performance-layout.mjs');
+  const nodes = [{ id: 'drums-seq', tpl: 'sequencer', title: 'Drums' }, { id: 'bass', tpl: 'bass', title: 'Bass' }];
+  const options = patternOptions(nodes, new Map([['drums-seq', ['verse', 'fill']], ['bass', ['not-a-sequencer']]]));
+  assert.deepEqual(options.map((o) => [o.id, o.label]), [['pattern:drums-seq:fill', 'Drums · fill (pattern)'], ['pattern:drums-seq:verse', 'Drums · verse (pattern)']]);
+  assert.deepEqual(parsePatternClipId(patternClipId('drums-seq', 'verse')), { block: 'drums-seq', pattern: 'verse' });
+  assert.equal(parsePatternClipId('drums-seq'), null);
+  let layout = addLane(emptyLayout(), 'Drums').layout;
+  layout = addClip(layout, 'Drums', options[1]).layout;
+  assert.equal(pruneLayout(layout, ['drums-seq']).layout.lanes[0].clips.length, 1);
+  const gone = pruneLayout(layout, ['bass']);
+  assert.equal(gone.layout.lanes[0].clips.length, 0);
+  assert.deepEqual(gone.dropped, [{ lane: 'Drums', id: 'pattern:drums-seq:verse' }]);
+});

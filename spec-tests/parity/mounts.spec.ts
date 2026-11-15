@@ -12,11 +12,13 @@ test('a linked folder shows in the side panel, read-only by default, and an offl
   const r = await api('/api/library/mounts', { method: 'POST', body: { name: 'samples', path: dir, readOnly: true, scope: 'global' } });
   expect(JSON.stringify(r)).toContain('samples');
   await openApp(page, { reset: false });
+  await page.locator('#ltabs button[data-l="files"]').click();   // the project files, linked folders and plugins have their own tab
   const row = page.locator('#mounts .mrow', { hasText: 'samples' });
   await expect(row).toBeVisible();
   await expect(row).toContainText('🔒');
   fs.rmSync(dir, { recursive: true, force: true });
   await page.reload();
   await page.waitForSelector('body[data-ready="1"]');
+  await page.locator('#ltabs button[data-l="files"]').click();
   await expect(page.locator('#mounts .mrow.bad')).toBeVisible();
 });
