@@ -390,19 +390,21 @@ function renderContents(host) {
   const filtered = items.filter(matches);
   const value = (item) => sortCol === 'size' ? item.sizeBytes : sortCol === 'length' ? lengthCache.get(item.path) ?? -1 : sortCol === 'modified' ? item.modified : sortCol === 'usedBy' ? usageCache.get(item.path)?.users?.length ?? -1 : sortCol === 'sha256' ? hashCache.get(item.path)?.sha256 || item.name : item[sortCol] || item.name;
   const compare = (left, right) => { const a = value(left), b = value(right); return (a < b ? -1 : a > b ? 1 : 0) * sortDir; };
-  const visible = [...filtered.filter((item) => !item.isDir).sort(compare), ...filtered.filter((item) => item.isDir).sort(compare)];
-  lastVisible = visible;
-  // a search that looks in the folders below: first what is in the open folder, then one part per folder with a heading (what is drawn; visible stays the list of the items themselves)
-  let display = visible;
-  if (query.trim() && items !== baseItems && visible.length) {
+  const sorted = [...filtered.filter((item) => !item.isDir).sort(compare), ...filtered.filter((item) => item.isDir).sort(compare)];
+  // a search that looks in the folders below: first what is in the open folder, then one part per folder with a heading (what is drawn; sorted stays the list of the items themselves)
+  let display = sorted;
+  if (query.trim() && items !== baseItems && sorted.length) {
     const parentOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
     const groups = new Map();
-    for (const item of visible) { const parent = parentOf(item.path); if (!groups.has(parent)) groups.set(parent, []); groups.get(parent).push(item); }
+    for (const item of sorted) { const parent = parentOf(item.path); if (!groups.has(parent)) groups.set(parent, []); groups.get(parent).push(item); }
     const keys = [...groups.keys()].sort((a, b) => (a === folder ? -1 : b === folder ? 1 : a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })));
     if (keys.length > 1 || keys[0] !== folder) {
       display = keys.flatMap((parent) => [{ head: true, label: parent === folder ? 'In this folder' : parent.slice(folder ? folder.length + 1 : 0) + '/', count: groups.get(parent).length }, ...groups.get(parent)]);
     }
   }
+  // the rows are in the order they are drawn, also with the headings of a search through the folders: Shift selection and the arrow keys follow what is on the screen (issue 97)
+  const visible = display === sorted ? sorted : display.filter((item) => !item.head);
+  lastVisible = visible;
   if (visible.length === 0) {
     host.append(el('p', { className: 'project-panel-empty', textContent: query || filter !== 'all' ? 'No files match the current search and filters.' : 'This folder is empty. Use + to create a folder or upload files.' }));
     if (query.trim() && items === baseItems) host.append(deepLine(host));

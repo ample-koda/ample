@@ -10,6 +10,7 @@ import { initMixerView } from './mixer-view.js';
 import { initBuildProgress } from './build-progress.js';
 import { refreshMounts, renderBottom, renderFiles, renderLib, renderPlugins, renderProps, renderStructure, setBottomTab } from './panels.js';
 import { initLayout } from './layout.js';
+import { initCanvasHint } from './canvas-hint.js';
 import { initHistory, renderBranches, renderDetail, renderEditHistory, renderHistory, renderHistoryHeader } from './history.js';
 import { renderVariants } from './variants.js';
 import { initArrangement, previewSong, renderArrangement } from './arrangement.js';
@@ -322,6 +323,7 @@ async function start() {
   import('./ai.js').then((m) => m.aiStatus()).catch(() => {});
   mountStudioGallery();
   initLayout();
+  initCanvasHint();
   initKoda();
   $('#btn-koda').onclick = () => toggleKoda();
   initKeysDock();
