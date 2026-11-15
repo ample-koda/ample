@@ -3,6 +3,7 @@
 // The song text stays the truth: the plan is made again from the flat graph whenever blocks or links change.
 import { selectPreviewVoice } from './clientside-note-preview.mjs';
 import { sequencePreviewPlan } from './clientside-sequencer.mjs';
+import { renderLinksAsAudio } from './loop-place.mjs';
 
 /** Whether the browser can play the lanes of a sequencer block itself: an inline sequence of plain tone channels (square, saw, triangle), as the build preview. */
 export function sequencerLocal(params = {}) {
@@ -57,6 +58,7 @@ const laneOf = (name) => { if (name === 'body') return 0; if (name === 'region')
  *  items (dependencies first): { id, kind: 'source' | 'effect' | 'sum', tpl, take?, inputs: [{ from, lane }] } with lane = the mixer lane, or 0 for an effect.
  */
 export function planChain({ nodes, links, target: requested, takeOf }) {
+  links = renderLinksAsAudio(nodes, links);   // an effect on the render port of another works on the sound of that one
   const byId = new Map(nodes.map((node) => [node.id, node]));
   if (!byId.has(requested)) return { ok: false, reason: 'This block is not on the board.' };
   let target = requested;

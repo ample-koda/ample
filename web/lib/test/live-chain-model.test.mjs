@@ -242,3 +242,19 @@ test('the plain audio of a loop is still one sound under its own id', () => {
   const plan = planChain({ nodes: [{ id: 'loop', tpl: 'import-audio', params: { file: 'loop.wav' } }, node('eq1', 'eq')], links: [{ from: 'loop', to: 'eq1', type: 'audio', inName: 'in', outName: 'audio' }], target: 'eq1', takeOf });
   assert.deepEqual(plan.items[0], { id: 'loop', kind: 'local', tpl: 'import-audio', inputs: [] });
 });
+
+test('effects chained by their render ports work on one sound: eq -> pan -> bus -> reverb -> master of a chamber song', () => {
+  const nodes = [{ id: 'score', tpl: 'sequencer', params: {} }, node('tone', 'eq'), node('seat', 'pan'), node('ens', 'bus'), node('chamber', 'reverb'), node('master', 'master')];
+  const links = [
+    { from: 'score', to: 'tone', type: 'audio', inName: 'in', outName: 'lane1' },
+    { from: 'tone', to: 'seat', type: 'render', inName: 'render', outName: 'render' },
+    { from: 'seat', to: 'ens', type: 'audio', inName: 'in1', outName: 'audio' },
+    { from: 'ens', to: 'chamber', type: 'audio', inName: 'in', outName: 'audio' },
+    { from: 'chamber', to: 'master', type: 'audio', inName: 'mix', outName: 'audio' },
+  ];
+  const plan = planChain({ nodes, links, target: 'master', takeOf: (id) => (id === 'score' ? 't1' : null) });
+  assert.equal(plan.ok, true, plan.reason);
+  const order = plan.items.map((i) => i.id);
+  assert.ok(order.indexOf('tone') < order.indexOf('seat') && order.indexOf('seat') < order.indexOf('ens'), order.join(' '));
+  assert.deepEqual(plan.items.find((i) => i.id === 'seat').inputs, [{ from: 'tone', lane: 0 }]);
+});

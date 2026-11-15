@@ -7,7 +7,7 @@ import { playTransient } from './player.js';
 import { toast } from './ui.js';
 import { masterAudioBuffer, mixAudioBuffers, sendAudioBuffers } from '../lib/clientside-mix.mjs';
 import { importedPort, placeImportedPorts } from '../lib/clientside-import-audio.mjs';
-import { regionLinksAsAudio, sumSaturated } from '../lib/loop-place.mjs';
+import { regionLinksAsAudio, renderLinksAsAudio, sumSaturated } from '../lib/loop-place.mjs';
 import { crossfadeAudio, cutAudio, fadeAudio, joinAudio, reverseAudio, shiftAudio, splitAudio } from '../lib/clientside-sample-ops.mjs';
 import { panAudio } from '../lib/clientside-pan.mjs';
 import { widthAudio } from '../lib/clientside-width.mjs';
@@ -316,7 +316,7 @@ export async function buildAndPlayClientPreview() {
   if (running || S.build.running || !S.doc || S.peek || S.doc.diagnostics?.some((item) => item.severity === 'error')) return;
   const initialPath = S.path, initialText = S.doc.text, initialRange = S.range ? { ...S.range } : null;
   const captured = captureOf(initialPath, initialText, initialRange);
-  const whole = flat(), graph = { ...whole, links: regionLinksAsAudio(whole.nodes, whole.links) };   // a region into an effect is read as its audio input (issue 79)
+  const whole = flat(), graph = { ...whole, links: regionLinksAsAudio(whole.nodes, renderLinksAsAudio(whole.nodes, whole.links)) };   // a region or a render link into an effect is read as its audio input (issue 79)
   const nodes = new Map(graph.nodes.map((node) => [node.id, node])), memo = new Map(), audioCache = new Map();
   for (const link of graph.links) if (link.type === 'any') {
     const from = nodes.get(link.from), to = nodes.get(link.to);
