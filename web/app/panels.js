@@ -11,7 +11,7 @@ import { $, activatable, el, showMenu, ask, toast } from './ui.js';
 import { withJamIcon } from './window-chrome.js';
 import { S, tplOf, applyText, build, editsDone, current, edit, editAll, flat, notify, readOnly, paramProblem, saveNotes, select, container } from './store.js';
 import { noteAbove, withNoteAbove } from '../lib/block-notes.mjs';
-import { addBlock, alignSelected, deleteSelected, distributeSelected, enter, fit, focusNode, groupSelected, selectAll, toggleFlag, ungroupNode, up } from './canvas.js';
+import { openAdvancedFor, addBlock, alignSelected, deleteSelected, distributeSelected, enter, fit, focusNode, groupSelected, selectAll, toggleFlag, ungroupNode, up } from './canvas.js';
 import { W } from './geometry.js';
 import { renderControls } from './controls.js';
 import { componentRows, sealLabel } from './components.js';
@@ -27,7 +27,6 @@ import { renderDrumGrid, renderStrum } from './stepseq.js';
 import { meter } from './studio/meter.js';
 import { fieldFor, kindOf } from './fields.js';
 import { renderEffectCard } from './effects-ui.js';
-import { openStudioPanel } from './studio/modal.js';
 import { automatable, openAutomationEditor } from './automation-editor.js';
 import { openMidiFileRoll, openRoll } from './roll-views.js';
 import { V } from './views.js';
@@ -145,11 +144,13 @@ export function renderLib() {
     const d = el('details', { open: true });
     d.append(el('summary', { textContent: `${cat} (${items.length})` }));
     items.forEach((t) => {
-      const tip = `${t.description || ''}${t.description ? '\n\n' : ''}Drag on the canvas to add`;
+      const tip = `${t.description || ''}${t.description ? '\n\n' : ''}Drag on the canvas to add\n${t.class} v${t.version}`;
       const it = el('div', { className: 'tplitem fancy-tip', draggable: true, 'data-tpl': t.id, 'data-tip': tip, 'data-preview': libraryPreview(t), tabindex: '0' });
       wirePaletteTip(it);
       it.append(el('button', { type: 'button', className: `tplstar${favs.has(t.id) ? ' on' : ''}`, textContent: '★', title: favs.has(t.id) ? 'Remove from the favourites' : 'Add to the favourites', 'aria-pressed': String(favs.has(t.id)), 'aria-label': `Favourite: ${t.title}`, onclick: (e) => { e.stopPropagation(); writeList('ample.lib.fav', favs.has(t.id) ? [...favs].filter((x) => x !== t.id) : [...favs, t.id]); renderLib(); } }));
-      it.append(el('span', { className: 'tpl-title', textContent: t.title }), el('small', {}, [el('span', { className: `cls ${t.class} tpl-version`, textContent: `${t.class} v${t.version}` })]));
+      it.append(el('span', { className: 'tpl-title', textContent: t.title }));
+      // the ordinary class and version are in the tip and in the template info; only an exception stays visible (issue 128)
+      if (t.class !== 'stable') it.append(el('small', {}, [el('span', { className: `cls ${t.class} tpl-version`, textContent: `${t.class} v${t.version}` })]));
       if (t.component) {
         // the status of the default version at a glance: sealed or not, and deprecated
         const v = t.componentVersions.find((x) => x.version === t.version) || t.componentVersions[0];
@@ -418,15 +419,7 @@ export function renderProps() {
   if (n.tpl === 'master') pad.append(renderMasterMeter());
   if (t?.parameters?.length && !['eq', 'filter', 'distortion', 'delay', 'reverb', 'compressor'].includes(n.tpl)) {
     const advanced = el('button', { type: 'button', className: 'studio-advanced-props', textContent: '↗', disabled: ro, title: 'Open advanced controls', 'aria-label': 'Open advanced controls' });
-    advanced.onclick = () => {
-      const source = flat().links.find((link) => !link.disabled && link.to === n.id && (link.type === 'audio' || link.type === 'render'));
-      const audioSource = n.outs.some((port) => port[1] === 'audio');
-      let selectedTake = null;
-      const getTakeId = () => source ? S.build.takes?.[source.from] || selectedTake : n.tpl === 'convolution' ? null : audioSource ? S.build.takes?.[n.id] : null;
-      const buildInput = source ? async () => { await build(source.from); const take = S.build.takes?.[source.from] || null; if (take) await api.post('/api/control/select', { path: S.path, block: source.from, take }); return take; } : n.tpl !== 'convolution' && audioSource ? async () => { await build(n.id); return S.build.takes?.[n.id] || null; } : null;
-      const convolution = n.tpl === 'convolution' ? { getTakeId, loadInput: source ? async () => { selectedTake = (await api.get(`/api/control/block?path=${encodeURIComponent(S.path)}&block=${encodeURIComponent(source.from)}`)).selected || null; } : null, inputTitle: flat().nodes.find((item) => item.id === source?.from)?.title || source?.from, realPreview: (params, takeId) => api.effectPreview({ path: S.path, block: n.id, takeId: takeId || getTakeId(), fromMs: 0, toMs: 30_000, params }), loadImpulse: (params) => api.effectImpulse({ path: S.path, block: n.id, params }) } : {};
-      openStudioPanel({ type: n.tpl, title: n.title, block: n.id, definitions: t.parameters, getParams: () => flat().nodes.find((item) => item.id === n.id)?.params || n.params, readOnly: ro || locked, takeId: getTakeId(), buildInput, buildLabel: audioSource && !source ? 'Build block' : 'Build and use input', playLabel: audioSource && !source ? 'Play block' : 'Play input', preview: () => {}, commit: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value: String(value) }]), ...convolution, ...(n.tpl === 'master' ? { tempo: S.doc?.project?.tempo || 120, getTakeId, loadInput: source ? async () => { selectedTake = (await api.get(`/api/control/block?path=${encodeURIComponent(S.path)}&block=${encodeURIComponent(source.from)}`)).selected || null; } : null } : {}) });
-    };
+    advanced.onclick = () => openAdvancedFor(n);
     propertiesHeading.append(advanced);
   }
   row('template', el('span', { textContent: t ? t.title : '(unknown type)', title: t?.component ? `${t.title}\nfull name: ${t.id}\nid: ${t.componentId}` : '' }));
@@ -453,7 +446,7 @@ export function renderProps() {
     fixedParams = defaults.fixed;
     for (const key of ['guidance', 'steps', 'shift']) if (!String(n.params[key] ?? '').trim()) params[key] = String(defaults[key]);
   }
-  const effect = renderEffectCard(n.tpl, t?.parameters || [], params, { disabled: ro || locked, readOnly: ro, take: S.build.takes[n.id], block: n.id, build: () => build(n.id), getParams: () => flat().nodes.find((item) => item.id === n.id)?.params || params, setParameter: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value }]) });
+  const effect = renderEffectCard(n.tpl, t?.parameters || [], params, { disabled: ro || locked, readOnly: ro, take: S.build.takes[n.id], block: n.id, openAdvanced: () => openAdvancedFor(n), build: () => build(n.id), getParams: () => flat().nodes.find((item) => item.id === n.id)?.params || params, setParameter: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value }]) });
   if (effect) pad.append(effect);
   if (n.ins.some((p) => p[0] === 'key')) pad.append(sidechainRow(n, ro || locked));
   if (!effect && n.tpl === 'midi') {

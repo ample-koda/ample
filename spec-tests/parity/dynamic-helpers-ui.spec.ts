@@ -1,5 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { api, chooseMenu, freshServer, node, openApp, srcText, state } from '../../web/tests/support';
+
+// "Bake clock values" is an item of the More menu: the main row keeps Build, Play and Stop.
+const bakeItem = (page: Page) => page.getByRole('menuitem', { name: 'Bake clock values…' });
+const openMore = async (page: Page) => { await page.click('#btn-more'); };
 
 // Dynamic helpers in the app (docs/language/14): Jam says when the notes it shows depend on the clock, and after a build
 // "Bake clock values" writes the values the build used into the source: in this song (one undo step) or in a NEW song (this one stays dynamic).
@@ -72,11 +76,13 @@ test('an open roll follows a build: the new clock gives new notes, with the same
 });
 
 test('Bake clock values asks where, bakes helpers, direct clock reads and calls with parameters, and undo takes it back', async ({ page }) => {
-  await expect(page.locator('#btn-bake-dyn')).toBeHidden();
+  await openMore(page);
+  await expect(bakeItem(page)).toBeDisabled();   // nothing built yet
+  await page.keyboard.press('Escape');
   await built(page);
-  const bake = page.locator('#btn-bake-dyn');
-  await expect(bake).toBeVisible();
-  await bake.click();
+  await openMore(page);
+  await expect(bakeItem(page)).toBeEnabled();
+  await bakeItem(page).click();
   await expect(page.locator('#dlg')).toContainText('In a new song');
   await page.locator('#dlg').getByRole('button', { name: 'In this song' }).click();
   await expect.poll(async () => (await state(page)).text).toMatch(/dynamic helper phase\(\) -> Int bake as [0-3] \{/);
@@ -84,7 +90,9 @@ test('Bake clock values asks where, bakes helpers, direct clock reads and calls 
   expect(text).toMatch(/transpose\(bake currentTime\(\)\.second % 4 as [0-3]\)/);   // read the clock directly: baked where it stands
   expect(text).toMatch(/transpose\(bake shiftBy\(2\) as [0-9]+\)/);                   // a call with parameters
   expect(text).toMatch(/dynamic helper shiftBy\(Int base\) -> Int \{/);               // its helper stays dynamic
-  await expect(bake).toBeHidden();
+  await openMore(page);
+  await expect(bakeItem(page)).toBeDisabled();   // baked: nothing left to bake
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await state(page)).text).toMatch(/dynamic helper phase\(\) -> Int \{/);
 });
@@ -122,7 +130,8 @@ test('Bake this call freezes one dynamic call in the source and leaves the helpe
 // last: it opens the new song, so the tests above all start from the dynamic song
 test('Bake clock values can write a new song and leaves the open one dynamic', async ({ page }) => {
   await built(page);
-  await page.locator('#btn-bake-dyn').click();
+  await openMore(page);
+  await bakeItem(page).click();
   await page.locator('#dlg input').fill('p-baked');
   await page.locator('#dlg').getByRole('button', { name: 'In a new song' }).click();
   await expect.poll(async () => (await api('/api/docs')).some((f: string) => f.endsWith('p-baked.amplet'))).toBe(true);

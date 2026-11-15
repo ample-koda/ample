@@ -394,3 +394,5 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .pl-edits pre{margin:2px 0 0;max-height:110px;overflow:auto;white-space:pre-wrap;font-size:11px;background:var(--panel2);padding:4px 6px;border-radius:3px}
 
 .pl-snap{display:inline-flex;align-items:center;gap:4px;font-size:12px}
+.panel-toggles button{display:inline-flex;align-items:center;justify-content:center;padding:3px 7px}
+.panel-toggles button svg{display:block}

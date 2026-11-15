@@ -40,6 +40,9 @@ export function renderHistoryHeader() {
   const line = S.peek ? S.peek.ref : m.h.current;
   lb.textContent = S.peek?.ai ? 'peek: AI proposal' : `${S.peek ? 'peek' : 'on'}: ${S.peek ? shortId(line) : line}`;
   lb.className = `badge ${S.peek ? 'peek' : line === 'studio' ? 'studio' : 'garage'}`;
+  // the revision hash lives in History, not in the action row (issue 126)
+  const studioAt = `The main branch (studio) is at revision ${shortId(m.studioId)}; the full list is in History.`;
+  lb.title = `The branch you are working on. Saving puts a new revision on it. ${studioAt}`;
   $('#b-studio').textContent = `★ studio = ${shortId(m.studioId)}`;
   ban.classList.toggle('show', peeking());
   if (peeking()) {

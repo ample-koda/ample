@@ -118,7 +118,7 @@ function entryRow(entry, file, query) {
   }
   // dragged onto the board it becomes a block there (a component the song does not import yet is imported first)
   head.ondragstart = (event) => {
-    event.dataTransfer.setData('application/x-ample-component', JSON.stringify({ file: file.file, name: entry.name, title: entry.title }));
+    event.dataTransfer.setData('application/x-ample-component', JSON.stringify({ file: file.file, name: entry.name, title: entry.title, imported: !!entry.imported }));
     event.dataTransfer.setData('text/plain', entry.name);
     event.dataTransfer.effectAllowed = 'copy';
   };
@@ -186,7 +186,8 @@ async function placeBlock(entry, alias, place) {
 /** An entry of the library was dropped on the board: a component the song imports becomes a block at once; one it does not import is imported first (the lines are shown, a taken name offers an alias), then the block stands where it was dropped. */
 export async function dropComponent(entry, x, y) {
   if (!S.path) return;
-  if (S.tpl[entry.name]) { const { addBlock } = await import('./canvas.js'); await addBlock(entry.name, x, y); return; }
+  // only the component of this very entry is placed at once; the same name from another file goes through the import, which says so and offers an alias (issue 110)
+  if (entry.imported && S.tpl[entry.name]) { const { addBlock } = await import('./canvas.js'); await addBlock(entry.name, x, y); return; }
   await add(entry, false, '', { x, y });
 }
 
