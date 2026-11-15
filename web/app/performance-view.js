@@ -471,18 +471,18 @@ function clipCell(lane, clip) {
   return el('span', { className: 'perf-cell' }, [button, remove]);
 }
 
-function laneRow(lane, options) {
+function laneRow(lane, options, mix) {
   const choice = el('select', {
-    className: 'perf-pick', disabled: isLocked() || !options.length, 'aria-label': `Add a clip to ${lane.name}`,
+    className: 'perf-pick', disabled: isLocked() || !options.length, 'aria-label': `Add a clip to ${lane.name}`, title: 'Put a built block on this lane',
   }, [
-    el('option', { value: '', textContent: options.length ? 'Add a built block…' : 'Build a block first' }),
+    el('option', { value: '', textContent: options.length ? '+ Add clip' : 'Build a block first' }),
     ...options.map((o) => el('option', { value: o.id, textContent: o.label })),
   ]);
   choice.onchange = () => {
     const option = options.find((o) => o.id === choice.value);
     if (option) applyLayout(addClip(layout, lane.name, option));
   };
-  const mode = el('select', { className: 'perf-mode', 'aria-label': `${lane.name}: how it plays`, disabled: isLocked(), title: isLocked() ? LOCK_HINT : 'A loop plays until it is switched; a one-shot plays once; a momentary sound plays while its pad is held' },
+  const mode = el('select', { className: 'perf-mode', 'aria-label': `${lane.name}: how it plays`, disabled: isLocked(), title: isLocked() ? LOCK_HINT : 'A loop plays until it is switched; a one-shot plays once; a momentary sound lasts as long as the pad is held' },
     LANE_MODES.map((value) => el('option', { value, textContent: { loop: 'Loop', oneshot: 'One-shot', momentary: 'Momentary' }[value], selected: lane.mode === value })));
   mode.onchange = () => applyLayout(setLaneMode(layout, lane.name, mode.value));
   const stopAtBar = el('button', {
@@ -500,8 +500,10 @@ function laneRow(lane, options) {
     onclick: () => { layout = removeLane(layout, lane.name); save(); render(); },
   });
   return el('div', { className: 'perf-lane', role: 'group', 'aria-label': `Lane ${lane.name}` }, [
-    el('div', { className: 'perf-laneHead' }, [el('strong', { textContent: lane.name }), mode, stopAtBar, removeLaneButton]),
+    el('div', { className: 'perf-laneHead' }, [el('strong', { textContent: lane.name, title: lane.name }), mode]),
+    mix.strip(lane.name),
     el('div', { className: 'perf-clips' }, [...lane.clips.map((clip) => clipCell(lane, clip)), choice]),
+    el('div', { className: 'perf-laneActions' }, [stopAtBar, removeLaneButton]),
   ]);
 }
 
@@ -564,6 +566,7 @@ function addLaneForm() {
   }, [name, el('button', { type: 'submit', textContent: 'Add lane', disabled: isLocked() })]);
 }
 
+/** The editor row of a scene: what it does on every lane that loops (the launch button of the scene is in the scene bar). */
 function sceneRow(scene) {
   const picks = layout.lanes.filter((lane) => lane.mode === 'loop').map((lane) => {   // one-shot and momentary lanes are played with their own pads
     const select = el('select', { 'aria-label': `${scene.name}: ${lane.name}`, disabled: isLocked() }, [
@@ -580,13 +583,6 @@ function sceneRow(scene) {
     };
     return select;
   });
-  const launch = el('button', {
-    type: 'button',
-    className: 'perf-scene',
-    textContent: `Scene: ${scene.name}`,
-    title: 'Queue this scene for the next bar: every lane changes together',
-    onclick: () => queueScene(scene.id),
-  });
   const bind = el('button', {
     type: 'button',
     textContent: 'Pad or key…',
@@ -600,19 +596,32 @@ function sceneRow(scene) {
     title: isLocked() ? LOCK_HINT : 'Remove this scene',
     onclick: () => { layout = removeScene(layout, scene.id); save(); render(); },
   });
-  return el('div', { className: 'perf-scene-row', role: 'group', 'aria-label': `Scene ${scene.name}` }, [launch, ...picks, bind, remove]);
+  return el('div', { className: 'perf-scene-row', role: 'group', 'aria-label': `Scene ${scene.name}` }, [el('strong', { className: 'perf-scene-name', textContent: scene.name }), ...picks, bind, remove]);
 }
 
-function scenesSection() {
+/** The scenes as launch buttons, one row: pressing one queues it for the next bar and every lane changes together. */
+function sceneBar() {
+  const pills = layout.scenes.map((scene) => el('button', {
+    type: 'button',
+    className: 'perf-scene',
+    textContent: `Scene: ${scene.name}`,
+    title: 'Queue this scene for the next bar: every lane changes together',
+    onclick: () => queueScene(scene.id),
+  }));
+  return el('section', { className: 'perf-scenebar', 'aria-label': 'Scenes' }, [
+    el('span', { className: 'perf-scenebar-label', textContent: 'Scenes' }),
+    ...(pills.length ? pills : [el('span', { className: 'note', textContent: 'No scenes yet: add one under Edit scenes.' })]),
+    el('span', { className: 'note perf-pending', role: 'status' }),
+  ]);
+}
+
+function scenesEditor() {
   const name = el('input', { type: 'text', maxLength: 32, placeholder: 'Scene name, for example Chorus', 'aria-label': 'New scene name', disabled: isLocked() });
+  const canAdd = layout.lanes.some((lane) => lane.mode === 'loop');
   const form = el('form', { className: 'perf-add', onsubmit: (event) => { event.preventDefault(); applyLayout(addScene(layout, name.value)); } }, [
-    name, el('button', { type: 'submit', textContent: 'Add scene', disabled: isLocked() || !layout.lanes.some((lane) => lane.mode === 'loop'), title: layout.lanes.some((lane) => lane.mode === 'loop') ? '' : 'Add a lane that loops first: scenes switch loops; one-shot and momentary lanes have their own pads' }),
+    name, el('button', { type: 'submit', textContent: 'Add scene', disabled: isLocked() || !canAdd, title: canAdd ? '' : 'Add a lane that loops first: scenes switch the lanes that loop' }),
   ]);
-  return el('section', { className: 'perf-scenes', 'aria-label': 'Scenes' }, [
-    el('h4', { textContent: 'Scenes' }),
-    el('p', { className: 'note perf-pending', role: 'status' }),
-    ...layout.scenes.map(sceneRow), form,
-  ]);
+  return el('details', { className: 'perf-scenes' }, [el('summary', { textContent: 'Edit scenes' }), ...layout.scenes.map(sceneRow), form]);
 }
 
 /** Learn: the next key or pad press is bound to the action (Escape cancels). */
@@ -639,13 +648,14 @@ function padsSection() {
   ]);
 }
 
-/** The temporary mixer of the session: faders and pans heard now, kept in the session, applied to the song only when you say so. */
-/** The mix of the lanes of this session: a gain, a pan, a mute, a solo and a filter per lane, heard at once; Reset goes back to what the layout keeps, Keep writes it into the layout. */
-function laneMixSection() {
+/**
+ * The mix of the lanes of this session (issue 276): a gain, a pan, a filter, a mute and a solo per lane, as a strip inside the row of the lane. It is heard at once and kept for the session; Reset goes back to
+ * what the layout keeps, Keep writes it into the layout. `start()` is called when the rows are on the page: it paints them and follows every change.
+ */
+function laneMixStrips() {
   const names = laneNames();
   const paints = [];
-  const rows = names.map((name) => {
-    const readout = el('output', { className: 'perf-mix-read' });
+  const strip = (name) => {
     const gain = el('input', { type: 'range', min: String(GAIN_DB.min), max: String(GAIN_DB.max), step: '1', 'aria-label': `${name}: gain` });
     const pan = el('input', { type: 'range', min: '-100', max: '100', step: '1', 'aria-label': `${name}: pan` });
     const filter = el('input', { type: 'range', min: '0', max: '1', step: '0.005', 'aria-label': `${name}: filter (low pass, to the right it is open)` });
@@ -656,24 +666,32 @@ function laneMixSection() {
     filter.oninput = () => laneMix.set(name, { cutoff: cutoffAt(Number(filter.value)) });
     mute.onclick = () => laneMix.set(name, { mute: !laneMix.get(name).mute });
     solo.onclick = () => laneMix.set(name, { solo: !laneMix.get(name).solo });
+    const fader = (text, input) => el('label', { className: 'perf-fader' }, [el('span', { textContent: text }), input]);
+    const box = el('div', { className: 'perf-strip', role: 'group', 'aria-label': `Mix of ${name}` }, [fader('Vol', gain), fader('Pan', pan), fader('Filter', filter), el('span', { className: 'perf-ms' }, [mute, solo])]);
     paints.push(() => {
       const m = laneMix.get(name);
       gain.value = String(m.gainDb); pan.value = String(m.pan); filter.value = String(positionOfCutoff(m.cutoff));
       mute.setAttribute('aria-pressed', String(m.mute)); solo.setAttribute('aria-pressed', String(m.solo));
-      readout.textContent = `${m.gainDb} dB · ${m.pan === 0 ? 'C' : m.pan < 0 ? `L${-m.pan}` : `R${m.pan}`} · ${m.cutoff >= CUTOFF.max ? 'filter open' : `${Math.round(m.cutoff)} Hz`}${laneMix.filtersBypassed && m.cutoff < CUTOFF.max ? ' (bypassed)' : ''}`;
+      box.title = `${m.gainDb} dB · ${m.pan === 0 ? 'centre' : m.pan < 0 ? `left ${-m.pan}` : `right ${m.pan}`} · ${m.cutoff >= CUTOFF.max ? 'filter open' : `filter ${Math.round(m.cutoff)} Hz`}${laneMix.filtersBypassed && m.cutoff < CUTOFF.max ? ' (bypassed)' : ''}`;
     });
-    return el('div', { className: 'perf-mix-row', role: 'group', 'aria-label': `Mix of ${name}` }, [el('strong', { textContent: name }), gain, pan, filter, mute, solo, readout]);
-  });
+    return box;
+  };
   const note = el('span', { className: 'note', role: 'status' });
-  const paint = () => { paints.forEach((p) => p()); note.textContent = laneMix.size ? `${laneMix.size} lane${laneMix.size === 1 ? '' : 's'} changed in this session, not kept` : 'The mix the layout keeps'; };
-  let seen = false;
-  const off = laneMix.subscribe(() => { if (note.isConnected) seen = true; else if (seen) { off(); return; } paint(); });
-  paint();
+  const paint = () => { paints.forEach((p) => p()); note.textContent = laneMix.size ? `${laneMix.size} lane${laneMix.size === 1 ? '' : 's'} changed in this session, not kept` : 'the mix the layout keeps'; };
   const reset = el('button', { type: 'button', textContent: 'Reset', title: 'Back to the mix the layout keeps', onclick: () => laneMix.reset() });
   const keep = el('button', { type: 'button', textContent: 'Keep in the layout', title: 'Write this mix into the lanes of the layout; Reset then goes back to it', onclick: () => { layout = setLaneMixes(layout, laneMix.keep(names)); save(); render(); } });
-  return el('details', { className: 'perf-lanemix' }, [el('summary', { textContent: 'Lane mix (this session)' }), el('div', { className: 'perfmix-bar' }, [note, reset, keep]), ...(rows.length ? rows : [el('p', { className: 'note', textContent: 'Add a lane first.' })])]);
+  const toolbar = el('div', { className: 'perfmix-bar' }, [el('strong', { textContent: 'Session mix' }), note, reset, keep]);
+  return {
+    strip,
+    toolbar,
+    start() {
+      paint();
+      const off = laneMix.subscribe(() => { if (!toolbar.isConnected) { off(); return; } paint(); });   // a newer render has its own strips
+    },
+  };
 }
 
+/** The temporary mixer of the session: faders and pans heard now, kept in the session, applied to the song only when you say so. */
 function mixerSection() {
   return el('details', { className: 'perf-mixer' }, [el('summary', { textContent: 'Session mixer' }), performanceMixerPanel()]);
 }
@@ -694,11 +712,13 @@ export function render() {
   }
   const options = [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames), ...chainOptions(flat().nodes)];
   const empty = S.doc ? 'Add a lane, then put built blocks on it.' : 'Open a song to set up its lanes.';
+  const mix = laneMixStrips();
   const lanes = layout.lanes.length
-    ? layout.lanes.map((lane) => laneRow(lane, options.filter((o) => !lane.clips.some((c) => c.id === o.id))))
+    ? layout.lanes.map((lane) => laneRow(lane, options.filter((o) => !lane.clips.some((c) => c.id === o.id)), mix))
     : [el('p', { className: 'note', textContent: empty })];
-  box.replaceChildren(headBar(), el('div', { className: 'perf-lanes' }, lanes), addLaneForm(), scenesSection(), padsSection(), laneMixSection(), mixerSection(), extras.readinessSection(), extras.decksSection(), extras.rehearsalSection());
+  box.replaceChildren(headBar(), sceneBar(), el('div', { className: 'perf-lanes' }, lanes), ...(layout.lanes.length ? [mix.toolbar] : []), addLaneForm(), scenesEditor(), padsSection(), mixerSection(), extras.readinessSection(), extras.decksSection(), extras.rehearsalSection());
   box.setAttribute('aria-label', 'Performance');
+  mix.start();
   if (session) paint();
 }
 
