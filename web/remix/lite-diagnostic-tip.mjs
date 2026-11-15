@@ -1,8 +1,10 @@
-// The text of the tip over a marked place in the editor: what the problem is (the message of the diagnostic), then the help of the language server for the word, when there is some. Pure, so node --test checks it.
+// The text of the tip over a marked place in the editor: what the problem is (the message of the diagnostic), then the help of the language server
+// for the word, when there is some. Pure, so node --test checks it.
 
 const WORD = { error: 'Error', warning: 'Warning', info: 'Note' };
 
-/** The diagnostics ({ line (1-based), col (1-based), endCol (end, 1-based, not included), severity, code, message }) that cover a place of the text ({ line (0-based), character }); a mark is at least one character wide, as it is drawn. */
+/** The diagnostics ({ line (1-based), col (1-based), endCol (end, 1-based, not included), severity, code, message }) that cover a place of the text
+ * ({ line (0-based), character }); a mark is at least one character wide, as it is drawn. */
 export function diagnosticsAt(list, at) {
   return (list ?? []).filter((d) => {
     if ((d.line || 1) - 1 !== at.line) return false;
