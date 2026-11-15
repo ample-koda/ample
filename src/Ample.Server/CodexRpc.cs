@@ -97,7 +97,10 @@ internal sealed class CodexRpc : IAsyncDisposable
         {
             JsonObject message = new()
             {
-                ["jsonrpc"] = "2.0", ["id"] = id, ["method"] = method, ["params"] = parameters ?? new JsonObject(),
+                ["jsonrpc"] = "2.0",
+                ["id"] = id,
+                ["method"] = method,
+                ["params"] = parameters ?? new JsonObject(),
             };
             // A write to a pipe that the child does not read can block the calling thread without honouring a token,
             // so it runs on its own task and the deadline is awaited next to it.

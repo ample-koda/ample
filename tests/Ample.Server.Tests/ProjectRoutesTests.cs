@@ -796,30 +796,30 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         try
         {
             foreach (bool project in new[] { false, true })
-            foreach (string? perProject in new string?[] { null, "   ", "synthetic-per-project-marker" })
-            foreach (string? global in new string?[] { null, "", "synthetic-global-marker" })
-            {
-                if (project && !OperatingSystem.IsWindows()) continue; // the key store is DPAPI only
-                AiProjectSecretStore.Clear(home, id);
-                if (project) AiProjectSecretStore.Save(home, id, "synthetic-project-marker");
-                Environment.SetEnvironmentVariable(perProjectName, perProject);
-                Environment.SetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY", global);
-                bool server = !string.IsNullOrWhiteSpace(perProject) || !string.IsNullOrWhiteSpace(global);
-                (bool Project, bool Server, string Source) status = AiService.BraveKeyStatus(home, id);
-                Assert.Equal(project, status.Project);
-                Assert.Equal(server, status.Server);
-                Assert.Equal(project ? "project" : server ? "server" : "none", status.Source);
-                // what the search really uses, with a project key (Windows) or without
-                string? used = AiService.ResolveBraveKey(project ? "synthetic-project-marker" : null, id);
-                string? expected = null;
-                if (!string.IsNullOrWhiteSpace(global)) expected = global;
-                if (!string.IsNullOrWhiteSpace(perProject)) expected = perProject;
-                if (project) expected = "synthetic-project-marker";
-                Assert.Equal(expected, used);
-                // after clearing the project key the source is the server key, or none
-                AiProjectSecretStore.Clear(home, id);
-                Assert.Equal(server ? "server" : "none", AiService.BraveKeyStatus(home, id).Source);
-            }
+                foreach (string? perProject in new string?[] { null, "   ", "synthetic-per-project-marker" })
+                    foreach (string? global in new string?[] { null, "", "synthetic-global-marker" })
+                    {
+                        if (project && !OperatingSystem.IsWindows()) continue; // the key store is DPAPI only
+                        AiProjectSecretStore.Clear(home, id);
+                        if (project) AiProjectSecretStore.Save(home, id, "synthetic-project-marker");
+                        Environment.SetEnvironmentVariable(perProjectName, perProject);
+                        Environment.SetEnvironmentVariable("AMPLE_BRAVE_SEARCH_API_KEY", global);
+                        bool server = !string.IsNullOrWhiteSpace(perProject) || !string.IsNullOrWhiteSpace(global);
+                        (bool Project, bool Server, string Source) status = AiService.BraveKeyStatus(home, id);
+                        Assert.Equal(project, status.Project);
+                        Assert.Equal(server, status.Server);
+                        Assert.Equal(project ? "project" : server ? "server" : "none", status.Source);
+                        // what the search really uses, with a project key (Windows) or without
+                        string? used = AiService.ResolveBraveKey(project ? "synthetic-project-marker" : null, id);
+                        string? expected = null;
+                        if (!string.IsNullOrWhiteSpace(global)) expected = global;
+                        if (!string.IsNullOrWhiteSpace(perProject)) expected = perProject;
+                        if (project) expected = "synthetic-project-marker";
+                        Assert.Equal(expected, used);
+                        // after clearing the project key the source is the server key, or none
+                        AiProjectSecretStore.Clear(home, id);
+                        Assert.Equal(server ? "server" : "none", AiService.BraveKeyStatus(home, id).Source);
+                    }
         }
         finally
         {

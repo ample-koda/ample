@@ -1893,8 +1893,14 @@ public static class Routes
             (bool Project, bool Server, string Source) braveStatus = AiService.BraveKeyStatus(s.Library.Home, m.Id);
             return Ok(new
             {
-                m.Name, masterSeed = m.MasterSeed, m.Settings.BlackBox, m.Settings.Mounts, m.Settings.DefaultEngine,
-                m.Settings.ProjectPanel, m.Settings.Faer, koda = m.Settings.Koda,
+                m.Name,
+                masterSeed = m.MasterSeed,
+                m.Settings.BlackBox,
+                m.Settings.Mounts,
+                m.Settings.DefaultEngine,
+                m.Settings.ProjectPanel,
+                m.Settings.Faer,
+                koda = m.Settings.Koda,
                 buildParallelism = m.Settings.BuildParallelism,
                 parallelismLimit = Ample.Engine.Engine.BuildParallelism.ServerLimit,
                 cores = Ample.Engine.Engine.BuildParallelism.Cores,

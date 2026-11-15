@@ -5792,8 +5792,11 @@ Answer in English, whatever language the question is in, unless the user asks fo
         JsonArray others = new([.. task.Changes.Where(c => c.Path != task.Request.Song).Select(c => (JsonNode)c.Path)]);
         return new JsonObject
         {
-            ["song"] = task.Request.Song, ["songText"] = songText, ["songWritten"] = songWritten,
-            ["others"] = others, ["invalid"] = invalid,
+            ["song"] = task.Request.Song,
+            ["songText"] = songText,
+            ["songWritten"] = songWritten,
+            ["others"] = others,
+            ["invalid"] = invalid,
         };
     }
 
@@ -6159,7 +6162,10 @@ Answer in English, whatever language the question is in, unless the user asks fo
         JsonArray acceptedPaths = new([.. selected.Select(path => (JsonNode)path)]);
         JsonObject result = new()
         {
-            ["song"] = task.Request.Song, ["songText"] = songText, ["songWritten"] = songWritten, ["accepted"] = acceptedPaths,
+            ["song"] = task.Request.Song,
+            ["songText"] = songText,
+            ["songWritten"] = songWritten,
+            ["accepted"] = acceptedPaths,
         };
         if (continuation) result["continuation"] = ContinueRemainingCore(task, message);
         return result;
