@@ -89,7 +89,13 @@ public sealed class AceStepTests : IDisposable
         {
             jobDir = job,
             block = new { type = "ai-voice", name = "vox", parameters = new { voice, steps = "6" } },
-            seed, sampleRate = 8000, samplesPerBar = 4000, firstBar = 1, barCount = 2, activeBars = bars ?? Bars, beatsPerBar,
+            seed,
+            sampleRate = 8000,
+            samplesPerBar = 4000,
+            firstBar = 1,
+            barCount = 2,
+            activeBars = bars ?? Bars,
+            beatsPerBar,
             inputs = new { lyrics = "in/lyrics.bin" },
             settings = JsonDocument.Parse(settings).RootElement,
         });
@@ -241,7 +247,7 @@ public sealed class AceStepTests : IDisposable
         Assert.Contains("did not finish within 5 seconds", timeout.Message, StringComparison.Ordinal);
     }
 
-[Theory]
+    [Theory]
     [InlineData(2.0, "2", 240)]
     [InlineData(3.0, "3", 360)]
     [InlineData(4.0, "4", 480)]
