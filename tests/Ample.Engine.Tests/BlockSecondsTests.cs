@@ -39,7 +39,7 @@ public sealed class BlockSecondsTests
     public async Task Blocks_that_run_at_once_report_their_own_work_and_not_the_wait_for_a_slow_one()
     {
         using EngineRig r = await EngineRig.CreateAsync();
-        TimeSpan slow = TimeSpan.FromMilliseconds(1500);
+        TimeSpan slow = TimeSpan.FromMilliseconds(4000);
         BuildReport report = await r.Engine.BuildAsync(EngineRig.Parse(EngineRig.Hello), new BuildOptions(Parallelism: 4, ExtraRenderers: [new SleepyRenderer("drums", slow)]));
         BlockResult drums = report.Blocks.Single(b => b.Block == "drums");
         Assert.Equal("rendered", drums.Status);
