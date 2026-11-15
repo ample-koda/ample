@@ -112,6 +112,17 @@ export function regionLinksAsAudio(nodes, links) {
   });
 }
 
+/**
+ * An effect that hangs on the `render` port of another effect (`from eq.render -> render`) works on the sound that effect makes: the build runs the two as one chain from the same source. For the preview
+ * and the live chain that link is the audio input of the second effect, taken from the `audio` output of the first, when the second has no audio input of its own.
+ */
+export function renderLinksAsAudio(nodes, links) {
+  const known = new Set(nodes.map((node) => node.id));
+  const hasInput = (id) => links.some((other) => other.to === id && other.type === 'audio' && (other.inName === 'in' || other.inName === 'audio') && !other.disabled);
+  return links.map((link) => (link.type === 'render' && !link.disabled && known.has(link.from) && known.has(link.to) && !hasInput(link.to)
+    ? { ...link, type: 'audio', inName: 'in', outName: 'audio' } : link));
+}
+
 /** The sounds added together, sample for sample, and cut at full scale like the 16 bit sum of the build (the region merge); a mono sound feeds both sides of a stereo one. */
 export function sumSaturated(parts) {
   const sampleRate = parts[0].sampleRate;

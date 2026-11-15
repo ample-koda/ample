@@ -57,3 +57,15 @@ test('the region merge of the preview adds the parts and cuts at full scale; a r
   const own = regionLinksAsAudio(nodes, [{ from: 'x', to: 'duck', type: 'audio', inName: 'in' }, links[0]]);
   assert.equal(own[1], links[0], 'an effect with an audio input of its own keeps the region link as it is');
 });
+
+test('a render link is the audio input of the effect on it, unless that effect has an audio input of its own (the chamber song)', async () => {
+  const { renderLinksAsAudio } = await import('../loop-place.mjs');
+  const nodes = [{ id: 'tone' }, { id: 'seat' }, { id: 'other' }];
+  const render = { from: 'tone', to: 'seat', type: 'render', inName: 'render', outName: 'render' };
+  const read = renderLinksAsAudio(nodes, [render]);
+  assert.deepEqual([read[0].type, read[0].inName, read[0].outName, read[0].from], ['audio', 'in', 'audio', 'tone']);
+  const own = { from: 'other', to: 'seat', type: 'audio', inName: 'in', outName: 'audio' };
+  assert.equal(renderLinksAsAudio(nodes, [own, render])[1], render, 'an audio input of its own wins');
+  const off = { ...render, disabled: true };
+  assert.equal(renderLinksAsAudio(nodes, [off])[0], off);
+});
