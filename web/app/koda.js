@@ -634,8 +634,9 @@ function doThis(subject) {
   // which song, which mode and which conversation the request goes to are said where it is typed, with a way to start fresh (issue 220)
   const continuing = backend().hanging?.() === true;
   const where = `${tx('do.text', { x: subjectName(subject) })} ${tx('do.where', { song: S.path || '-', mode: tx(`do.mode.${me.risk || 'safe'}`) })} ${tx(continuing ? 'do.thread.same' : 'do.thread.new')}`;
-  const options = continuing ? [{ label: tx('do.thread.fresh'), value: ' fresh' }] : [];
+  const options = continuing ? [{ label: tx('do.thread.fresh'), value: ' fresh' }, { label: tx('do.thread.open'), value: ' open' }] : [];
   const picked = (text) => {
+    if (text === ' open') { openInAssistant(backend().hangingTask?.()); return; }
     if (text === ' fresh') { backend().letGo?.(); closeBubble(); doThis(subject); return; }
     askModel('run', subject, text);
   };

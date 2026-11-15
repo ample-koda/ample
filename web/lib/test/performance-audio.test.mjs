@@ -123,3 +123,37 @@ test('with the launch engine: a queued replacement stops the old clip at the sam
   engine.stopAll();
   assert.equal(r.player.count, 0);
 });
+
+test('a lane bus puts the filter on the path only while it closes the sound, and sets gain and pan from the session mix (issue 276)', async () => {
+  const { createLaneBuses } = await import('../performance-audio.mjs');
+  const log = [];
+  const param = (name) => ({ value: 0, setTargetAtTime(v) { log.push([name, v]); this.value = v; }, cancelScheduledValues() {} });
+  const node = (name, extra = {}) => ({ name, connected: [], connect(n) { this.connected = [n]; }, disconnect() { this.connected = []; }, ...extra });
+  const ctx = {
+    currentTime: 1,
+    createGain: () => node('gain', { gain: param('gain') }),
+    createBiquadFilter: () => node('filter', { frequency: param('cutoff'), type: '' }),
+    createStereoPanner: () => node('pan', { pan: param('pan') }),
+  };
+  const out = node('out');
+  const buses = createLaneBuses({ ctx, output: out });
+  const input = buses.input('Drums');
+  buses.apply(new Map([['Drums', { gain: 0.5, pan: -0.25, cutoff: null }]]));
+  assert.equal(input.connected[0].name, 'pan', 'no filter on the path while it is open');
+  assert.deepEqual(log.filter(([n]) => n !== 'cutoff'), [['gain', 0.5], ['pan', -0.25]]);
+  buses.apply(new Map([['Drums', { gain: 1, pan: 0, cutoff: 800 }]]));
+  assert.equal(input.connected[0].name, 'filter', 'the filter is on the path while it closes the sound');
+  assert.deepEqual(log.at(-1), ['cutoff', 800]);
+  buses.apply(new Map([['Drums', { gain: 1, pan: 0, cutoff: null }]]));
+  assert.equal(input.connected[0].name, 'pan', 'bypassed again');
+  buses.releaseAll();
+  assert.equal(buses.count, 0);
+});
+
+test('the clip player connects a clip to the bus of its lane when it is given one', () => {
+  const calls = [];
+  const ctx = { currentTime: 0, createGain: () => ({ gain: { value: 1, cancelScheduledValues() {}, setValueAtTime() {} }, connect: (n) => calls.push(n), disconnect() {} }), createBufferSource: () => ({ connect() {}, disconnect() {}, start() {}, stop() {} }) };
+  const player = createClipPlayer({ ctx, output: 'room', outputFor: (lane) => `bus:${lane}`, bufferOf: () => ({}) });
+  player.play({ id: 'kick', label: 'kick' }, 1, 'Drums');
+  assert.deepEqual(calls, ['bus:Drums']);
+});

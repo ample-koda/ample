@@ -49,6 +49,9 @@ const masterTake = () => masterTakeOf(S.build.takes || {}, flat().nodes.map((n) 
 const songStatus = () => songState(flat().nodes, S.build.takes || {}, S.build.status || {});
 const transportContext = () => ({ hasDoc: !!S.doc, peek: !!S.peek && !S.peek.ai, errors: S.doc ? S.doc.diagnostics.filter((d) => d.severity === 'error').length : 0, building: !!S.build.running || clientPreviewRunning() });
 
+const PLAY_GLYPH = '<svg class="glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
+const STOP_GLYPH = '<svg class="glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+
 // the one Stop button (cancels a build, otherwise stops the audio), the Play button and the line that says what plays
 function renderPlaybackState(state = playerState()) {
   const button = $('#btn-stop');
@@ -56,7 +59,7 @@ function renderPlaybackState(state = playerState()) {
   const hearing = state.playing || !!state.loading || !!S.aiPlaying || liveActive();   // a live preview of a component is something Stop ends too   // pending playback can be cancelled with Stop too
   const clientBuilding = clientPreviewRunning() && !S.build.running;
   const stopper = stopButton({ building: !!S.build.running || clientPreviewRunning(), playing: hearing });
-  button.textContent = clientBuilding ? '■ Cancel preview' : stopper.label === '■ Stop' ? '■' : stopper.label;
+  if (!clientBuilding && stopper.label === '■ Stop') button.innerHTML = STOP_GLYPH; else button.textContent = clientBuilding ? '■ Cancel preview' : stopper.label;   // the plain Stop is the SVG square (issue 134)
   button.setAttribute('aria-label', clientBuilding ? 'Cancel client preview' : stopper.label.replace('■ ', ''));
   button.title = clientBuilding ? 'Cancel the client-side preview currently being prepared.' : stopper.title;
   button.disabled = stopper.disabled;
@@ -82,7 +85,7 @@ function renderTransport() {
   $('#btn-build').title = `${b.title} (Ctrl+B)`;
   const p = playButton(ctx, state, masterTake());
   const play = $('#btn-preview');
-  play.textContent = p.label === '▶ Play' ? '▶' : p.label;
+  if (p.label === '▶ Play') play.innerHTML = PLAY_GLYPH; else play.textContent = p.label;
   play.setAttribute('aria-label', p.label.replace('▶ ', ''));
   play.title = `${p.title} (Space)`;
   play.disabled = p.disabled;

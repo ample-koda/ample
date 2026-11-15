@@ -7,6 +7,7 @@ import { getContext } from '../../../lib/audio-engine.mjs';
 import { el, showMenu } from '../../ui.js';
 import { S } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
+import { auditionLabel } from './helpers.js';
 import { onPlayer, playerState, stop as stopSong } from '../../player.js';
 import { keptEvent, parseRewindEvents, rewindAudio } from '../../../lib/clientside-rewind.mjs';
 import { barBeats, barMilliseconds } from '../../../lib/meter.mjs';
@@ -269,7 +270,7 @@ function rewindPanel(context) {
     title: 'Add a rewind at the playhead; then drag its flag or edit its numbers below',
     onclick: () => { if (!context.readOnly) add(here()); },
   });
-  const bar = el('div', { className: 'rewind-bar' }, [play, loopButton, abButton, addButton, time]);
+  const bar = el('div', { className: 'rewind-bar' }, [play, auditionLabel('live', 'the rewound sound'), loopButton, abButton, addButton, time]);
   root.append(bar, canvas, readout, rows);
   say();
   draw();

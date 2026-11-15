@@ -11,6 +11,13 @@ export const learnOf = (context, name) => (context.block ? { block: context.bloc
 export const automated = (text) => /^\s*(auto|lfo|env|fadein|fadeout)\(/.test(String(text ?? ''));
 export const svg = (tag, attrs = {}) => { const node = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([name, item]) => node.setAttribute(name, String(item))); return node; };
 export const plot = (label, draw) => { const graph = svg('svg', { viewBox: '0 0 520 220', class: 'studio-effect-plot', role: 'img', 'aria-label': label }); draw(graph); return graph; };
+/** The label next to a Play button that says what is heard, with the same words as the shared transport of the Advanced windows: Dry input, Processed (live) or Rendered effect (issue 187). */
+export const AUDITION_SOURCES = { dry: 'Dry input', live: 'Processed (live)', rendered: 'Rendered effect' };
+export const auditionLabel = (mode, detail = '') => el('span', {
+  className: 'studio-hear-label note', role: 'status', 'data-mode': mode,
+  textContent: `Plays: ${AUDITION_SOURCES[mode] ?? mode}${detail ? ` · ${detail}` : ''}`,
+  title: `What the Play button plays: ${AUDITION_SOURCES[mode] ?? mode}. The build is the truth; this is made in the browser.`,
+});
 export const controls = (items) => el('div', { className: 'studio-eq-controls' }, items);
 export const baseline = (graph, y = 110) => graph.append(svg('line', { x1: 20, x2: 500, y1: y, y2: y, class: 'studio-graph-zero' }));
 

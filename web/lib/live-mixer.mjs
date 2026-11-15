@@ -48,6 +48,16 @@ export function sendGraph(context, lanes) {
  * Builds the mixer into the graph. Returns { lanes: [GainNode inputs], update(params, { anySolo }), setLane(k, { gainDb, pan }), output, dispose }.
  * setLane moves one lane right now (a fader being dragged); update takes all the parameters of the block (after a write to the song).
  */
+/** The region merge (issue 79): the body of a loop and its processed seam add up, and the sum saturates at full scale like the 16 bit sum of the build. Lane 0 is the body, lane 1 the region. */
+export function regionMergeGraph(context) {
+  const nodes = [], make = (node) => { nodes.push(node); return node; };
+  const output = make(context.createGain()), saturate = make(context.createWaveShaper());
+  saturate.curve = Float32Array.of(-1, 1);   // a straight line between the full scales: what lies outside them stays on them
+  saturate.connect(output);
+  const inputs = [0, 1].map(() => { const input = make(context.createGain()); input.channelCount = 2; input.channelCountMode = 'explicit'; input.connect(saturate); return input; });
+  return { lanes: inputs, update() { /* nothing to set: a region merge has no knobs */ }, setLane() {}, output, dispose: () => nodes.forEach((node) => node.disconnect()) };
+}
+
 export function mixerGraph(context, lanes, { bus = false } = {}) {
   const nodes = [], make = (node) => { nodes.push(node); return node; };
   const output = make(context.createGain()), master = make(context.createGain());

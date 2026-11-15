@@ -29,18 +29,22 @@ export function summarizeLoad(samples) {
  * The report of a rehearsal check as lines of text, with the measured result when the device could measure and the estimate (labelled) when it could not.
  * @param {{ supported: boolean, summary?: object, estimate: number, clips: number }} result
  */
-export function describeCheck({ supported, summary, estimate, clips }) {
+export function describeCheck({ supported, summary, estimate, clips, scene = null, bypassable = [] }) {
   const percent = (value) => `${Math.round(clamp01(value) * 100)} %`;
+  const about = scene ? ` (the busiest scene, ${scene})` : '';
+  const protection = bypassable.length
+    ? `If the load stays high during the set, the filters of ${bypassable.join(', ')} are taken off; the header says so while it lasts, and they come back when the load is calm.`
+    : 'No lane has a filter that closes the sound, so there is nothing a fallback has to take away.';
   if (supported && summary?.measured) {
     return [
-      `Measured on this device with ${clips} clip${clips === 1 ? '' : 's'} playing together: peak load ${percent(summary.peak)}, average ${percent(summary.average)} (${summary.level}).`,
+      `Measured on this device with ${clips} clip${clips === 1 ? '' : 's'} playing together${about}: peak load ${percent(summary.peak)}, average ${percent(summary.average)} (${summary.level}).`,
       `The estimate was ${percent(estimate)}; the measured value is the one to trust.`,
-      summary.level === 'comfortable' ? 'There is room: no effect needs to be bypassed.' : 'Little room: take out the heaviest live effect or play fewer clips at once before the set.',
+      summary.level === 'comfortable' ? `There is room. ${protection}` : `Little room: play fewer clips at once or take the filters off before the set. ${protection}`,
     ];
   }
 
   return [
-    `This browser cannot measure the load of the audio thread, so only an estimate is shown: about ${percent(estimate)} for ${clips} clip${clips === 1 ? '' : 's'} playing together (an estimate, not a measurement).`,
-    'Rehearse the set once on this device and listen for dropouts: nothing is bypassed automatically here.',
+    `This browser cannot measure the load of the audio thread, so only an estimate is shown: about ${percent(estimate)} for ${clips} clip${clips === 1 ? '' : 's'} playing together${about} (an estimate, not a measurement).`,
+    `Rehearse the set once on this device and listen for dropouts: without a measurement nothing is taken away automatically. ${protection}`,
   ];
 }

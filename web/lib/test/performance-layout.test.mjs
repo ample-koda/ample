@@ -136,3 +136,29 @@ test('a pattern of a Sequencer block can be a clip: it is listed by block and pa
   assert.equal(gone.layout.lanes[0].clips.length, 0);
   assert.deepEqual(gone.dropped, [{ lane: 'Drums', id: 'pattern:drums-seq:verse' }]);
 });
+
+test('the mix of a lane is kept in the layout and read back; a neutral mix keeps nothing (issue 276)', async () => {
+  const { addLane, emptyLayout, parseLayout, serializeLayout, setLaneMixes } = await import('../performance-layout.mjs');
+  let layout = addLane(addLane(emptyLayout(), 'Drums').layout, 'Bass').layout;
+  layout = setLaneMixes(layout, new Map([['Drums', { gainDb: -6, pan: 20, cutoff: 900, mute: false, solo: false }], ['Bass', { gainDb: 0, pan: 0, cutoff: 20000, mute: false, solo: false }]]));
+  assert.equal(layout.lanes[0].mix.gainDb, -6);
+  assert.equal(layout.lanes[1].mix, undefined);
+  const back = parseLayout(serializeLayout(layout));
+  assert.deepEqual(back.lanes[0].mix, layout.lanes[0].mix);
+  assert.equal(back.lanes[1].mix, undefined);
+  assert.equal(setLaneMixes(back, new Map()).lanes[0].mix, undefined);   // kept as neutral again
+});
+
+test('the live chain of a block can be a lane clip, and stays only while its block is in the song (issue 272)', async () => {
+  const { addClip, addLane, chainClipId, chainOptions, emptyLayout, parseChainClipId, pruneLayout } = await import('../performance-layout.mjs');
+  const nodes = [{ id: 'verb', tpl: 'reverb', title: 'Hall' }, { id: 'mix', tpl: 'mixer', title: 'Mix' }, { id: 'drums', tpl: 'drums', title: 'Beat' }];
+  const options = chainOptions(nodes);
+  assert.deepEqual(options.map((o) => o.id), ['chain:verb', 'chain:mix']);   // a source block is not a chain
+  assert.equal(options[0].label, 'Hall (live chain)');
+  assert.equal(parseChainClipId(chainClipId('verb')), 'verb');
+  assert.equal(parseChainClipId('verb'), null);
+  let layout = addLane(emptyLayout(), 'Fx').layout;
+  layout = addClip(layout, 'Fx', { id: 'chain:verb', label: 'Hall (live chain)' }).layout;
+  assert.equal(pruneLayout(layout, ['verb']).dropped.length, 0);
+  assert.equal(pruneLayout(layout, ['mix']).dropped.length, 1);
+});
