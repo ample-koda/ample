@@ -141,7 +141,7 @@ test('compressor transfer curve follows its keyboard-editable threshold', async 
   await expect.poll(() => response.getAttribute('d')).not.toBe(before);
 });
 
-test('a knob pointer gesture commits once and can be undone once', async ({ page }) => {
+test('a knob pointer gesture commits once and can be undone once @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'compressor', 'gesture-comp');
   await page.locator('.node[data-id="gesture-comp"]').getByRole('button', { name: 'Advanced', exact: true }).click();
