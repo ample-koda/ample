@@ -51,6 +51,17 @@ public sealed class ModelRulesTests
         Assert.DoesNotContain(Parser.Parse(Song, Corpus.Spec).Diagnostics, d => d.Code == "AMP2014");
     }
 
+    [Theory]
+    [InlineData("midi-clip")]
+    [InlineData("drums")]
+    public void A_block_of_a_few_hundred_bars_is_in_range_and_one_of_six_hundred_is_cut(string type)
+    {
+        string Make(int bars) => "composition \"t\" { ample 1  tempo 120  master-seed 1 }\n" + type + " m at 1 for 1 {\n  bars " + bars + "\n}\n";
+        Assert.DoesNotContain(Parser.Parse(Make(144), Corpus.Spec).Diagnostics, x => x.Code == "AMP2021");
+        Assert.DoesNotContain(Parser.Parse(Make(512), Corpus.Spec).Diagnostics, x => x.Code == "AMP2021");
+        Assert.Contains(Parser.Parse(Make(600), Corpus.Spec).Diagnostics, x => x.Code == "AMP2021");
+    }
+
     [Fact]
     public void A_number_outside_its_range_has_a_fix_that_writes_the_nearest_limit()
     {
