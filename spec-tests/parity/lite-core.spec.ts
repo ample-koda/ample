@@ -200,7 +200,8 @@ test('a song builds, the sound is there, and several demos build one after the o
     await expect(page.locator('#lite-output-info')).toContainText('seconds', { timeout: 60000 });
     const duration = await page.evaluate(async () => { const a = document.querySelector('#lite-output') as HTMLAudioElement; for (let i = 0; i < 50 && !(a.duration > 0); i++) await new Promise((r) => setTimeout(r, 100)); return a.duration; });
     expect(duration).toBeGreaterThan(1);
-    expect(await page.evaluate(() => (document.querySelector('#lite-output') as unknown as { ampleBlob?: Blob }).ampleBlob?.type), 'the player plays the mp3, not the wav').toBe('audio/mpeg');
+    // the player asks for the mp3 (a machine without ffmpeg answers with the wav, and then plays that: what is asked is what this checks)
+    expect(await page.evaluate(() => performance.getEntriesByType('resource').some((e) => e.name.includes('format=mp3') && e.name.includes('use=play'))), 'the player asks for the mp3').toBe(true);
     await page.click('#lite-export-btn');   // the sound is in the Export as menu
     await expect(page.locator('#lite-download')).toBeVisible();
     await page.keyboard.press('Escape');
