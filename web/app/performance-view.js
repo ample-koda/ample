@@ -9,7 +9,7 @@ import { $, ask, el, toast } from './ui.js';
 import { api } from './api.js';
 import { formatSeq, isolatePattern, parseSeq } from '../lib/seq-model.mjs';
 import { takeFromReport } from '../lib/build-report-take.mjs';
-import { S, editAll, flat } from './store.js';
+import { S, build, editAll, flat } from './store.js';
 import { getContext } from '../lib/audio-engine.mjs';
 import { takeCache } from '../lib/take-cache.mjs';
 import { barBeats } from '../lib/meter.mjs';
@@ -20,7 +20,7 @@ import { QUANTIZE, createPerformance, performanceEnabled, setPerformanceEnabled 
 import { capturedOps, capturedParts, createRecorder, recordEngine } from './performance-capture.js';
 import { createLaunchScheduler } from './performance-oneshots.js';
 import { createExtras } from './performance-extras.js';
-import { chainClipBuffer, chainPlanOf } from './live-chain.js';
+import { chainClipBuffer, chainMissingSources, chainPlanOf } from './live-chain.js';
 import { createClipPlayer, createLaneBuses } from '../lib/performance-audio.mjs';
 import { CUTOFF, GAIN_DB, createLaneMix, createLoadGuard, cutoffAt, positionOfCutoff } from '../lib/performance-lanemix.mjs';
 import {
@@ -184,14 +184,47 @@ const bufferOfTake = (take) => takeCache.getDecoded(`chain:${take}`, async () =>
 });
 
 /** Starts the session: stops other playback, loads every take on the lanes, then the clock and the launch engine exist. */
+/**
+ * The blocks that have to be built before the clips of the lanes can play: a plain clip needs its own take, a live chain the takes of the sounds it starts from. `{ blocks, names }`: the block ids, and the
+ * clips they are for.
+ */
+function neededBuilds() {
+  const takes = S.build.takes || {};
+  const blocks = new Set(), names = new Set();
+  for (const lane of layout.lanes) for (const c of lane.clips) {
+    if (parsePatternClipId(c.id)) continue;
+    const chain = parseChainClipId(c.id);
+    if (chain) { const missing = chainMissingSources(chain) ?? []; if (missing.length) { missing.forEach((b) => blocks.add(b)); names.add(c.label); } continue; }
+    if (!takes[c.id]) { blocks.add(c.id); names.add(c.label); }
+  }
+
+  return { blocks: [...blocks], names: [...names] };
+}
+
+let buildingNeeded = false;
+/** Builds the blocks the clips need, one after the other (each build is a build of that block and what it needs), and draws the lanes again. */
+async function buildNeeded() {
+  if (buildingNeeded || session) return;
+  const { blocks } = neededBuilds();
+  if (!blocks.length) { toast('Everything the clips need is built.'); return; }
+  buildingNeeded = true; render();
+  try {
+    for (const block of blocks) {
+      if (S.build.running) { toast('A build is already running: wait until it is ready, then try again.'); break; }
+      await build(block);
+    }
+  } finally { buildingNeeded = false; render(); }
+  const left = neededBuilds().blocks;
+  toast(left.length ? `Still not built: ${left.join(', ')}. Look at the build log.` : 'Built what the clips need: they can play now.');
+}
+
 async function enter() {
   if (session || entering) return;
   if (!S.doc) { toast('Open a song first.'); return; }
-  const takes = S.build.takes || {};
   const wanted = layout.lanes.flatMap((lane) => lane.clips.map((c) => ({ lane: lane.name, ...c })));
   if (!wanted.length) { toast('Put at least one clip on a lane first.'); return; }
-  const missing = [...new Set(wanted.filter((c) => !parsePatternClipId(c.id) && !takes[c.id]).map((c) => c.label))];
-  if (missing.length) { toast(`Build first: no take yet for ${missing.join(', ')}.`); return; }
+  const needed = neededBuilds();
+  if (needed.names.length) { toast(`Build first: ${needed.names.join(', ')} ${needed.names.length === 1 ? 'needs' : 'need'} ${needed.blocks.join(', ')} built.`, { label: 'Build what is needed', run: buildNeeded }); return; }
   entering = true;
   render();
   stopPlayer();
@@ -200,7 +233,7 @@ async function enter() {
     const ctx = getContext();
     const resumed = ctx.state !== 'running' ? ctx.resume().catch(() => {}) : null;   // inside the click
     const buffers = new Map();
-    for (const c of wanted) if (!buffers.has(c.id)) buffers.set(c.id, parsePatternClipId(c.id) ? await patternBuffer(c.id) : await bufferOfTake(takes[c.id]));
+    for (const c of wanted) if (!buffers.has(c.id)) buffers.set(c.id, await bufferOfClip(c.id));   // a built take, a pattern made alone or a live chain made from its sources
     if (resumed) await Promise.race([resumed, new Promise((resolve) => setTimeout(resolve, 1500))]);
     const buses = createLaneBuses({ ctx, output: playbackOutput(ctx) });
     const player = createClipPlayer({ ctx, output: playbackOutput(ctx), outputFor: (lane) => buses.input(lane), bufferOf: (clip) => buffers.get(clip.id) });
@@ -521,6 +554,15 @@ function headBar() {
     title: ready ? 'Start a performance session: launch clips at the next bar or beat' : 'Put at least one built block on a lane first',
     onclick: enter,
   });
+  const needed = session ? { blocks: [] } : neededBuilds();
+  const buildButton = needed.blocks.length ? el('button', {
+    type: 'button',
+    className: 'perf-build',
+    textContent: buildingNeeded ? 'Building…' : `Build what is needed (${needed.blocks.length})`,
+    disabled: buildingNeeded,
+    title: `Build ${needed.blocks.join(', ')}: the sounds that ${needed.names.join(', ')} ${needed.names.length === 1 ? 'needs' : 'need'} before ${needed.names.length === 1 ? 'it' : 'they'} can play`,
+    onclick: buildNeeded,
+  }) : null;
   const leaveButton = el('button', { type: 'button', className: 'perf-leave', textContent: 'Leave Performance', onclick: async () => { if (session?.recording) await toggleRecording(); leave(); } });
   const recordButton = el('button', {
     type: 'button',
@@ -545,6 +587,7 @@ function headBar() {
     : 'Lanes and clips stay in this project; the arrangement is not touched.';
   return el('div', { className: 'perf-head' }, [
     session ? leaveButton : enterButton,
+    ...(buildButton ? [buildButton] : []),
     stopButton,
     recordButton,
     el('label', { className: 'perf-q' }, [el('span', { textContent: 'Launch on ' }), grid]),

@@ -79,6 +79,8 @@ details{border-top:1px solid var(--line)}details>summary{cursor:pointer;padding:
 #menu div{padding:5px 10px;border-radius:5px;cursor:pointer}#menu div:hover{background:var(--panel2)}#menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}#menu .danger{color:var(--bad)}#menu .hd{color:var(--dim);font-size:11px;cursor:default}
 #toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--acc);padding:7px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:60}
 #toast.on{opacity:1}
+#toast.has-action.on{pointer-events:auto}
+#toast .toast-action{margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--acc);background:var(--acc);color:#101418;font-weight:600;cursor:pointer}
 dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;max-width:520px}dialog::backdrop{background:var(--backdrop)}
 .prop{display:grid;grid-template-columns:90px 1fr;gap:6px;align-items:center;margin:4px 0}
 .prop label{color:var(--dim);font-size:12px}

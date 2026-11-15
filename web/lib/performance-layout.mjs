@@ -215,6 +215,15 @@ export function pruneLayout(layout, blockIds) {
   return { layout: cleanScenes(next), dropped };
 }
 
+/**
+ * The labels of the clips that cannot play yet because their block has no built take. A pattern of a Sequencer block is built alone when the performance starts and a live chain is made from the takes of the
+ * sounds that lead to it (and says by itself which of those is missing), so neither needs a take of its own block.
+ */
+export function clipsWithoutTake(layout, takes) {
+  const wanted = layout.lanes.flatMap((lane) => lane.clips);
+  return [...new Set(wanted.filter((c) => !parsePatternClipId(c.id) && !parseChainClipId(c.id) && !takes?.[c.id]).map((c) => c.label))];
+}
+
 export const clipCount = (layout) => layout.lanes.reduce((sum, lane) => sum + lane.clips.length, 0);
 
 /** Reads a stored layout (an object or its JSON text); anything wrong gives an empty layout, never an error. */

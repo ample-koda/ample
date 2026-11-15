@@ -376,6 +376,13 @@ export async function chainClipBuffer(target) {
   return toBuffer(context, await renderUpstream(mine, target));
 }
 
+/** The blocks a live chain starts from that have no built take yet (empty when it can play), or null when the chain cannot be planned for another reason. */
+export function chainMissingSources(target) {
+  const plan = planChain({ nodes: flat().nodes.map((n) => ({ id: n.id, tpl: n.tpl, params: n.params })), links: flat().links, target, takeOf: (id) => takeOf(id) || 'unbuilt' });
+  if (!plan.ok) return null;
+  return [...new Set(plan.items.filter((i) => i.kind === 'source' && i.take === 'unbuilt').map((i) => baseId(i.id)))];
+}
+
 /** The plan of the live chain of a block as it is now (for the readiness of a set). */
 export const chainPlanOf = (target) => planNow(target);
 
