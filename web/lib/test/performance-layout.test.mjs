@@ -108,3 +108,16 @@ test('a click launches a ready clip, takes a queued one back and leaves a playin
 test('the status text names the three states and falls back to ready', () => {
   assert.deepEqual(['ready', 'queued', 'playing', 'x'].map(statusText), ['Ready', 'Queued', 'Playing', 'Ready']);
 });
+
+test('a lane has a mode that is kept when the layout is saved and read again, and an unknown mode is a loop', async () => {
+  const { addLane, parseLayout, serializeLayout, setLaneMode, emptyLayout } = await import('../performance-layout.mjs');
+  let layout = addLane(emptyLayout(), 'Drums').layout;
+  assert.equal(layout.lanes[0].mode, 'loop');
+  layout = addLane(layout, 'Accents').layout;
+  layout = setLaneMode(layout, 'Accents', 'oneshot').layout;
+  const back = parseLayout(serializeLayout(layout));
+  assert.deepEqual(back.lanes.map((lane) => lane.mode), ['loop', 'oneshot']);
+  assert.equal(setLaneMode(layout, 'Accents', 'sideways').ok, false);
+  assert.equal(setLaneMode(layout, 'Missing', 'loop').ok, false);
+  assert.equal(parseLayout({ lanes: [{ name: 'X', mode: 'banana', clips: [] }] }).lanes[0].mode, 'loop');
+});

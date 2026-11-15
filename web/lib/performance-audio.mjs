@@ -22,7 +22,7 @@ export function createClipPlayer({ ctx, output, bufferOf, timers = { set: setTim
     if (!buffer) throw new Error(`"${clip?.label ?? clip?.id}" is not loaded yet.`);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.loop = true;
+    source.loop = clip?.loop !== false;   // a clip of an accent lane plays once (issue 280)
     const gain = ctx.createGain();
     gain.gain.value = 1;
     source.connect(gain);
@@ -57,6 +57,7 @@ export function createClipPlayer({ ctx, output, bufferOf, timers = { set: setTim
       cancel() { handle.release(); },
     };
     live.add(handle);
+    if (!source.loop) source.onended = () => { handle.ended = true; handle.release(); };
     return handle;
   }
 
