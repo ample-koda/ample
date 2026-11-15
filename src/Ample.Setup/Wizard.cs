@@ -514,7 +514,8 @@ namespace Ample.Setup
                     {
                         string arguments = doAmple ? (mode == "fresh" ? "--start-main --open-studio" : "--restart-main --open-studio") : string.Empty;
                         Process hubProcess = Process.Start(new ProcessStartInfo(hubPath, arguments) { UseShellExecute = false });
-                        if (hubProcess != null && hubProcess.WaitForExit(2000)) throw new InvalidOperationException("it ended at once (exit code " + hubProcess.ExitCode + ")");
+                        if (hubProcess != null && hubProcess.WaitForExit(2000) && hubProcess.ExitCode != 0) throw new
+                          InvalidOperationException("it ended at once (exit code " + hubProcess.ExitCode + ")");
                         Log("OK  The tray hub is running. Windows may keep its icon in the list behind the little arrow in the taskbar: drag it onto the taskbar to keep it in view"
                           + (doAmple ? ", and it " + (mode == "fresh" ? "starts" : "restarts") + " AMPLE and opens the studio." : "."));
                     }
