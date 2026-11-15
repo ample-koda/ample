@@ -2,7 +2,7 @@
 
 `codemirror-ample.js` is the AMPLE highlighter, bundled with these packages (all MIT licensed, by Marijn Haverbeke and others). Their licence texts follow.
 
-## @codemirror/state 6.7.6, @codemirror/view 6.43.14, @codemirror/language 6.13.1, @codemirror/commands 6.11.1
+## @codemirror/state 6.7.6, @codemirror/view 6.43.14, @codemirror/language 6.13.1, @codemirror/commands 6.11.1, @codemirror/search 6.7.2
 
 ```
 MIT License
