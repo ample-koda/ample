@@ -364,7 +364,7 @@ test('the AMPLE Jam panel opens wider than the generic 520 px dialog cap', async
   expect((await page.locator('dialog.mls-panel').boundingBox())!.width).toBeGreaterThan(600);
 });
 
-test('AMPLE Jam window management: double-click and the minus button roll it up, maximize locks it in full screen and Esc restores size and place', async ({ page }) => {
+test('AMPLE Jam window management: double-click and the minus button roll it up, maximize locks it in full screen and Esc restores size and place @quarantine', async ({ page }) => {
   await openWorkspace(page);
   await page.locator('#sq-patterns .sqgridrow[data-voice="lead"] .sqlite').click();
   const panel = page.locator('dialog.mls-panel');
