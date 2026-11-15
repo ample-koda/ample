@@ -71,7 +71,7 @@ function renderPlaybackState(state = playerState()) {
   const text = playingLabel(state, S.build.takes || {}, masterTake());
   const label = $('#b-playing');
   const shown = text || (S.aiPlaying ? '▶ the AI proposal' : '');
-  label.style.display = shown ? '' : 'none';
+  label.style.visibility = shown ? '' : 'hidden';   // it keeps its room: Stop does not move when the badge appears (issue 132)
   label.textContent = shown;
 }
 

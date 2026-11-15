@@ -408,3 +408,7 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .perf-ready-unavailable{color:var(--bad,#c0392b)}
 .perf-mode{font-size:11px}
 .assistant-koda-filter{margin:4px 0;font-size:12px}
+/* fixed slots in the main row: a changing label or status never moves the buttons around it (issue 132) */
+#btn-build,#btn-stop{min-width:4.6em;text-align:center}
+#b-playing{display:inline-block;width:11em;box-sizing:border-box;text-align:center;white-space:nowrap}
+#btn-save .ico svg,#btn-undo .ico svg,#btn-redo .ico svg{display:inline-block;vertical-align:-3px}

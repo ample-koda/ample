@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { api, freshServer, node, openApp } from '../../web/tests/support';
 
-// GUI flow 2: PAT / SONG next to Play. SONG is what Play always did; PAT repeats the chosen pattern from its first place in the playlist.
+// GUI flow 2: PAT / SONG next to Play. SONG is what Play always did; PAT plays the chosen pattern alone, also before it is placed in the playlist.
 const SEQ = 'sequencer 1\nchannel lead notes wave=square\npattern verse bars=2\n  lead 1:0:1:60:96 1:1:1:64:96\npattern chorus bars=1\n  lead 1:0:1:72:96\nplaylist\n  clip verse track=1 at=1 for=2\n';
 freshServer({
   song: 'composition "band" { ample 1  tempo 120  master-seed 3 }\nsequencer sq at 1 for 4 {\n  file sequences/a.seq\n  lanes lane1=lead\n}\n',
@@ -31,14 +31,15 @@ test('SONG is on to begin with, and the buttons switch and remember the mode', a
 
 test('PAT says what it does in the explanation', async ({ page }) => {
   await page.locator('#sq-mode-pat').click();
-  await expect(page.locator('#sq-hint')).toContainText('PAT: the pattern verse repeats');
+  await expect(page.locator('#sq-hint')).toContainText('PAT: the pattern verse plays alone and repeats');
   await page.locator('#sq-mode-song').click();
   await expect(page.locator('#sq-hint')).toContainText('The whole song repeats');
 });
 
-test('PAT with a pattern that is in no clip of the playlist says where to put it', async ({ page }) => {
+test('PAT plays a pattern that is in no clip of the playlist, alone, without asking to place it first', async ({ page }) => {
   await page.locator('#sq-patterns .sqtab[data-pattern="chorus"]').click();
   await page.locator('#sq-mode-pat').click();
   await page.locator('#sq-play').click();
-  await expect(page.locator('#toast')).toContainText('Put the pattern "chorus" in the playlist first');
+  await expect(page.locator('#sq-stop')).toBeEnabled();   // it is preparing or playing: there is no refusal any more
+  await expect(page.locator('#toast')).not.toContainText('in the playlist first');
 });

@@ -46,7 +46,7 @@ public sealed record RenderChain(BlockNode Source, IReadOnlyList<BlockNode> Effe
     public string Fingerprint() => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', new[] { Source }.Concat(Effects).Select(BuildEngine.Fingerprint)))));
 }
 
-internal sealed class RenderChainRenderer(IBlockRenderer source, RenderChain chain, SpecData spec, IReadOnlyDictionary<string, IBlockRenderer> renderers, ulong masterSeed, IBuildControl? control, string? overrideBlock, ulong? overrideSeed) : IBlockRenderer, IConfigurableRenderer
+internal sealed class RenderChainRenderer(IBlockRenderer source, RenderChain chain, SpecData spec, IReadOnlyDictionary<string, IBlockRenderer> renderers, ulong masterSeed, IBuildControl? control, string? overrideBlock, ulong? overrideSeed, StageShare? share = null) : IBlockRenderer, IConfigurableRenderer
 {
     public string BlockType => source.BlockType;
     public string Id => "builtin.render-chain/" + source.Id;
@@ -69,7 +69,12 @@ internal sealed class RenderChainRenderer(IBlockRenderer source, RenderChain cha
 
     public async ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
     {
-        IReadOnlyList<RenderOutput> outputs = await source.RenderAsync(request, cancellationToken).ConfigureAwait(false);
+        // every stage (the source, then each effect on top of the ones before it) is shared with the other endpoints of the build that ask for exactly the same stage (issue 298)
+        bool sharing = share is not null && StageShare.CanShare(request);
+        string key = sharing ? $"{source.Id}@{source.Version}|{BuildEngine.Fingerprint(request.Block)}|{request.Seed}|{StageShare.RequestKey(request)}" : string.Empty;
+        IReadOnlyList<RenderOutput> outputs = sharing
+            ? await share!.GetAsync(key, () => source.RenderAsync(request, cancellationToken).AsTask()).ConfigureAwait(false)
+            : await source.RenderAsync(request, cancellationToken).ConfigureAwait(false);
         List<JsonElement> metadata = [.. outputs.Where(o => o.MetadataJson is not null).Select(o => JsonSerializer.Deserialize<JsonElement>(o.MetadataJson!))];
         string sourcePort = request.Template.Outputs.First(p => p.Type == "audio").Name;
         byte[] audio = outputs.FirstOrDefault(o => o.Role == sourcePort)?.Data ?? throw new AmpleException("AMP5251", "The render source produced no audio.");
@@ -78,7 +83,16 @@ internal sealed class RenderChainRenderer(IBlockRenderer source, RenderChain cha
             cancellationToken.ThrowIfCancellationRequested();
             TemplateSpec template = spec.Templates[effect.Type];
             ulong seed = SeedFor(effect);
-            outputs = await renderers[effect.Type].RenderAsync(request with { Block = effect, Template = template, Inputs = new Dictionary<string, byte[]> { ["in"] = audio }, Seed = seed }, cancellationToken).ConfigureAwait(false);
+            RenderRequest stage = request with { Block = effect, Template = template, Inputs = new Dictionary<string, byte[]> { ["in"] = audio }, Seed = seed };
+            if (sharing)
+            {
+                key = $"{key}>{renderers[effect.Type].Id}@{renderers[effect.Type].Version}|{BuildEngine.Fingerprint(effect)}|{seed}";
+                outputs = await share!.GetAsync(key, () => renderers[effect.Type].RenderAsync(stage, cancellationToken).AsTask()).ConfigureAwait(false);
+            }
+            else
+            {
+                outputs = await renderers[effect.Type].RenderAsync(stage, cancellationToken).ConfigureAwait(false);
+            }
             metadata.AddRange(outputs.Where(o => o.MetadataJson is not null).Select(o => JsonSerializer.Deserialize<JsonElement>(o.MetadataJson!)));
             string port = template.Outputs.First(p => p.Type == "audio").Name;
             audio = outputs.FirstOrDefault(o => o.Role == port)?.Data ?? throw new AmpleException("AMP5251", "A render effect produced no audio.");

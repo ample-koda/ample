@@ -10,6 +10,8 @@ namespace Ample.Audio.Engine;
 /// </summary>
 internal sealed class ImportAudioRenderer : IBlockRenderer
 {
+    /// <summary>Whether a short excerpt of a WAV file is read without the rest of the file (on by default; the tests turn it off to compare with reading the whole file).</summary>
+    internal bool WindowedReads { get; init; } = true;
     public string BlockType => "import-audio";
 
     public string Id => "builtin.import-audio";
@@ -59,12 +61,13 @@ internal sealed class ImportAudioRenderer : IBlockRenderer
         }
 
         string? path = FileOf(r.ProjectRoot, r.Block) ?? throw new AmpleException("AMP5350", $"The audio file '{value}' is not in the project.");
-        byte[] bytes = AudioFile.ReadWav(path);
+        // only a stretch of the file can be used (start and end in seconds), and it can repeat to fill the block
+        string Param(string name) => r.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value ?? string.Empty;
+        // a short excerpt of a long WAV file reads only its own frames; what is measured from the start of the file (the loop points) is moved by where the excerpt begins (issue 293)
+        (byte[] bytes, int windowStart, bool windowed) = WindowedReads ? AudioFile.ReadWavWindow(path, r.SampleRate, Param("start"), Param("end")) : (AudioFile.ReadWav(path), 0, false);
         int length = r.BarCount * r.SamplesPerBar;
         int startBar = r.Block.Parts.Count > 0 ? r.Block.Parts[0].At : 1;
         long offset = (long)(r.FirstBar - startBar) * r.SamplesPerBar;
-        // only a stretch of the file can be used (start and end in seconds), and it can repeat to fill the block
-        string Param(string name) => r.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value ?? string.Empty;
         bool loop = Param("loop") == "on";
         int fade = Math.Min(AudioCut.SamplesOf(Param("crossfade"), r.SampleRate, r.SamplesPerBar, r.BeatsPerBar) ?? 0, 10 * r.SampleRate);   // with loop on: the join of the repeat is crossfaded (seconds, beats or bars)
         AudioCut.FadeCurve curve = AudioCut.CurveOf(Param("crossfade_curve"));
@@ -72,8 +75,8 @@ internal sealed class ImportAudioRenderer : IBlockRenderer
         (int From, int To) LoopOf((int Start, int End) kept)
         {
             double? a = AudioCut.Seconds(Param("loop_start")), b = AudioCut.Seconds(Param("loop_end"));
-            int from = a is double x ? Math.Clamp((int)Math.Round(x * r.SampleRate) - kept.Start, 0, kept.End - kept.Start) : 0;
-            int to = b is double y && y > 0 ? Math.Clamp((int)Math.Round(y * r.SampleRate) - kept.Start, 0, kept.End - kept.Start) : -1;
+            int from = a is double x ? Math.Clamp((int)Math.Round(x * r.SampleRate) - kept.Start - windowStart, 0, kept.End - kept.Start) : 0;
+            int to = b is double y && y > 0 ? Math.Clamp((int)Math.Round(y * r.SampleRate) - kept.Start - windowStart, 0, kept.End - kept.Start) : -1;
             return (from, to > from ? to : -1);
         }
 
@@ -93,7 +96,7 @@ internal sealed class ImportAudioRenderer : IBlockRenderer
             if (ChannelAudio.IsStereo(bytes) && BitConverter.ToInt32(bytes, 24) == r.SampleRate && BitConverter.ToInt16(bytes, 34) == 16)
             {
                 StereoBuffer source = StereoWav.Decode(bytes).Buffer;
-                (int Start, int End) both = AudioCut.Range(source.Length, r.SampleRate, Param("start"), Param("end"), null, null);
+                (int Start, int End) both = AudioCut.Range(source.Length, r.SampleRate, windowed ? null : Param("start"), windowed ? null : Param("end"), null, null);
                 bool[] joins = new bool[length];
                 short[] left = AudioCut.Place(AudioCut.Take(source.Left, both), offset, length, loop, fade, curve, LoopOf(both).From, LoopOf(both).To, joins);
                 short[] right = AudioCut.Place(AudioCut.Take(source.Right, both), offset, length, loop, fade, curve, LoopOf(both).From, LoopOf(both).To);
@@ -101,7 +104,7 @@ internal sealed class ImportAudioRenderer : IBlockRenderer
             }
 
             short[] mono = SampleSet.ReadWav(bytes, r.SampleRate);
-            (int Start, int End) one = AudioCut.Range(mono.Length, r.SampleRate, Param("start"), Param("end"), null, null);
+            (int Start, int End) one = AudioCut.Range(mono.Length, r.SampleRate, windowed ? null : Param("start"), windowed ? null : Param("end"), null, null);
             bool[] seam = new bool[length];
             return ValueTask.FromResult(Outputs(AudioCut.Place(AudioCut.Take(mono, one), offset, length, loop, fade, curve, LoopOf(one).From, LoopOf(one).To, seam), null, seam, r.SampleRate));
         }

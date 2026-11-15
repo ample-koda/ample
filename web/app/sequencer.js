@@ -31,7 +31,7 @@ import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { rangeFromFields } from '../lib/range-edit.mjs';
 import { scopeText, versionState } from '../lib/seq-scope.mjs';
 import {
-  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, flattenVariations, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
+  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, flattenVariations, isolatePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
@@ -371,7 +371,7 @@ function restoreScroll(root, saved) {
 /** One line that says what the transport does now, and what to do next. */
 function hintText() {
   const playing = loopState().playing;
-  if (Q.playMode === 'pattern' && !Q.range) return `${playing ? '▶ ' : ''}PAT: the pattern ${Q.pattern ?? ''} repeats, from its first place in the playlist. SONG plays the whole song. ${Q.live ? 'A change you make while it plays comes in at the next loop.' : 'Changes are heard the next time you press Play.'} Space plays and stops.`;
+  if (Q.playMode === 'pattern' && !Q.range) return `${playing ? '▶ ' : ''}PAT: the pattern ${Q.pattern ?? ''} plays alone and repeats, also before it is placed in the playlist. SONG plays the whole song with the other clips; a chosen range plays the playlist. ${Q.live ? 'A change you make while it plays comes in at the next loop.' : 'Changes are heard the next time you press Play.'} Space plays and stops.`;
   const range = Q.range ? `bars ${Q.range.at} to ${Q.range.at + Q.range.bars - 1}` : null;
   const where = range ? `The chosen part (${range}) ${Q.repeat ? 'repeats' : 'plays once'}` : `The whole song ${Q.repeat ? 'repeats' : 'plays once'}`;
   const change = Q.live ? 'A change you make while it plays comes in at the next loop.' : 'Changes are heard the next time you press Play.';
@@ -441,7 +441,7 @@ const tempo = () => S.doc?.project?.tempo ?? 120;
 /** The bars that PAT repeats: the first place of the chosen pattern in the playlist (null when it is in no clip). */
 const patternRange = () => { const clip = Q.seq?.clips.find((c) => c.pattern === Q.pattern); return clip ? { at: clip.at, bars: clip.bars } : null; };
 /** The part that repeats: the bars chosen on the ruler, else (in PAT) the chosen pattern, else the whole song. */
-const effectiveRange = () => Q.range || (Q.playMode === 'pattern' ? patternRange() : null);
+const effectiveRange = () => Q.range;   // PAT without a range plays the pattern alone (issue 238), it no longer borrows its first place in the playlist
 const loopSeconds = () => { const range = effectiveRange(); return range ? rangeSeconds(range, tempo(), Infinity) : null; };
 function setPlayMode(mode) {
   if (Q.playMode === mode) return;
@@ -477,10 +477,33 @@ function setPreparing(on) {
   if (stop) { stop.disabled = !(on || loopState().playing); stop.title = on ? 'Cancel: nothing will play' : 'Stop playing'; }
 }
 
+/** PAT: the chosen pattern alone, built as a draft (the song and its files stay as they are) and looped; it needs no place in the playlist and has no other clip in it (issue 238). */
+async function playIsolated() {
+  const alone = isolatePattern(Q.seq, Q.pattern);
+  if (!alone) { toast('Choose a pattern first.'); return; }
+  const pattern = Q.seq.patterns.find((p) => p.name === Q.pattern);
+  const current = playGuard.begin();
+  setPreparing(true);
+  try {
+    setStatus('building the pattern...');
+    const report = await api.post('/api/build', { path: S.path, intent: 'preview', only: Q.blockId, override: { block: Q.blockId, name: 'sequence', value: formatSeq(alone) } });
+    const made = takeFromReport(report, Q.blockId);
+    if (!made.ok) throw new Error(made.message);
+    if (!current()) return;
+    Q.isolated = true;
+    await startLoopPlayer(made.take, { from: 0, loop: rangeSeconds({ at: 1, bars: pattern.bars }, tempo(), Infinity), looping: true });
+    if (!current()) { stopLoopPlayer(); Q.isolated = false; return; }
+    setStatus('');
+  } finally {
+    if (current.latest()) setPreparing(false);
+  }
+}
+
 async function playNow() {
   unlockAudio();
   if (Q.error) { toast('Fix the file first: ' + Q.error); return; }
-  if (Q.playMode === 'pattern' && !effectiveRange()) { toast(`Put the pattern "${Q.pattern ?? ''}" in the playlist first: PAT plays it from its first place there (SONG plays the whole song).`); return; }
+  if (Q.playMode === 'pattern' && !Q.range) { await playIsolated(); return; }
+  Q.isolated = false;
   const current = playGuard.begin();   // Stop, leaving, or a newer Play makes this one stale after each wait
   setPreparing(true);
   try {
@@ -497,7 +520,7 @@ async function playNow() {
   }
 }
 
-async function stopNow() { playGuard.invalidate(); setPreparing(false); stopLoopPlayer(); setStatus(''); }
+async function stopNow() { playGuard.invalidate(); Q.isolated = false; setPreparing(false); stopLoopPlayer(); setStatus(''); }
 
 /** Chooses (or clears) the stretch that repeats; while it plays the change is heard at once. */
 async function chooseRange(range, { play = false } = {}) {
@@ -505,7 +528,7 @@ async function chooseRange(range, { play = false } = {}) {
   if (range) Q.cursor = range.at;
   render();
   if (play) await playNow();
-  else if (loopState().playing) await setLoopRange(loopSeconds(), Q.repeat);
+  else if (loopState().playing) { if (Q.isolated) await playNow(); else await setLoopRange(loopSeconds(), Q.repeat); }   // a chosen range plays the playlist, not the pattern alone
 }
 
 const repeatRange = (range) => { Q.repeat = true; chooseRange(range, { play: true }).catch((e) => toast(e.message || String(e))); };
