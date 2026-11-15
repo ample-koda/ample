@@ -157,3 +157,18 @@ test('the clip player connects a clip to the bus of its lane when it is given on
   player.play({ id: 'kick', label: 'kick' }, 1, 'Drums');
   assert.deepEqual(calls, ['bus:Drums']);
 });
+
+test('the default timers are called as a method of an object: a browser refuses setTimeout with that object as this (Illegal invocation)', () => {
+  const real = { set: globalThis.setTimeout, clear: globalThis.clearTimeout };
+  const strict = (fn) => function (...args) { if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation'); return fn(...args); };
+  globalThis.setTimeout = strict(real.set); globalThis.clearTimeout = strict(real.clear);
+  try {
+    const node = () => ({ connect() {}, disconnect() {}, start() {}, stop() {}, gain: { value: 1, cancelScheduledValues() {}, setValueAtTime() {} } });
+    const ctx = { currentTime: 0, createBufferSource: () => ({ ...node(), buffer: null, loop: false }), createGain: node };
+    const player = createClipPlayer({ ctx, output: node(), bufferOf: () => ({}) });
+    const handle = player.play({ id: 'a', label: 'A' }, 0, 'Lane');
+    handle.stop(5);   // a stop at a later time sets a timer
+    handle.cancelStop();
+    handle.release();
+  } finally { globalThis.setTimeout = real.set; globalThis.clearTimeout = real.clear; }
+});
