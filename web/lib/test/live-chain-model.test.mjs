@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planChain, tunable } from '../live-chain-model.mjs';
+import { changedSources, planChain, tunable, upstreamOf } from '../live-chain-model.mjs';
 
 const node = (id, tpl) => ({ id, tpl, params: {} });
 const link = (from, to, inName = 'in') => ({ from, to, type: 'audio', inName });
@@ -52,11 +52,11 @@ test('built-in drums, a sampler with its notes and buffer operations on a source
   assert.deepEqual(plan.items.map((i) => `${i.id}:${i.kind}`), ['beat:local', 'keys:local', 'rev:local', 'room:effect', 'mix:sum']);
   assert.deepEqual(plan.items[1].midi, { clip: 'clip', transforms: [{ id: 'up', tpl: 'transpose' }] });
   assert.deepEqual(tunable(plan).map((i) => i.id), ['room', 'mix']);
-  // a sample kit, or an operation after an effect, plays the built take instead
+  // a sample kit plays the built take instead; an operation after an effect is made in the browser from the sound before it (issue 73)
   const kit = planChain({ nodes: [{ id: 'beat', tpl: 'drums', params: { kit: 'kit/tape' } }], links: [], target: 'beat', takeOf: () => 't' });
   assert.equal(kit.items[0].kind, 'source');
   const afterEffect = planChain({ nodes: [{ id: 'src', tpl: 'piano', params: {} }, { id: 'e', tpl: 'eq', params: {} }, { id: 'c', tpl: 'cut', params: {} }], links: [link('src', 'e'), link('e', 'c')], target: 'c', takeOf: (id) => (id === 'c' ? 'tc' : 'ts') });
-  assert.deepEqual(afterEffect.items.map((i) => i.kind), ['source']);
+  assert.deepEqual(afterEffect.items.map((i) => `${i.id}:${i.kind}`), ['src:source', 'e:effect', 'c:local']);   // no take of the cut is needed
 });
 
 test('click, join, crossfade and splitter are made in the browser (plan 2.5)', () => {
@@ -71,9 +71,9 @@ test('click, join, crossfade and splitter are made in the browser (plan 2.5)', (
   assert.equal(split.ok, true);
   assert.deepEqual(split.items.filter((i) => i.tpl === 'splitter').map((i) => [i.id, i.base, i.port]).sort(), [['s:left', 's', 'left'], ['s:right', 's', 'right']]);
   assert.deepEqual(planChain({ nodes, links: [link('tick', 'd')], target: 'd', takeOf }).items.map((i) => [i.id, i.kind]), [['tick', 'local'], ['d', 'effect']]);
-  // after an effect these blocks play their built take instead
+  // after an effect these blocks are made from the rendered sound before them, not from a built take
   const after = planChain({ nodes, links: [link('piano', 'd'), link('d', 'j', 'in1'), link('j', 'r')], target: 'r', takeOf: (id) => (id === 'j' ? 'tj' : takes[id]) });
-  assert.deepEqual(after.items.map((i) => [i.id, i.kind]), [['j', 'source'], ['r', 'effect']]);
+  assert.deepEqual(after.items.map((i) => [i.id, i.kind]), [['piano', 'source'], ['d', 'effect'], ['j', 'local'], ['r', 'effect']]);
   assert.match(planChain({ nodes: [node('imp', 'import-audio'), node('d', 'delay')], links: [link('imp', 'd')], target: 'd', takeOf }).reason, /Build imp first/);   // no file: the built take or nothing
 });
 
@@ -166,10 +166,47 @@ test('starting the chain at a Meter starts it at the block in front of the Meter
   assert.deepEqual(plan.items.map((i) => i.id), ['click', 'eq1']);
 });
 
-test('a local buffer block after a Meter that follows an effect still plays its built take, as it does without the Meter', () => {
+test('a local buffer block after a Meter that follows an effect works on the sound of that effect, as it does without the Meter', () => {
   const nodes = [node('click', 'click'), node('eq1', 'eq'), node('m', 'meter'), node('norm', 'normalize'), node('master', 'master')];
   const links = [link('click', 'eq1'), link('eq1', 'm', 'audio'), link('m', 'norm', 'in'), link('norm', 'master', 'mix')];
   const plan = planChain({ nodes, links, target: 'master', takeOf: (id) => (id === 'norm' ? 'tnorm' : undefined) });
   assert.equal(plan.ok, true, plan.reason);
-  assert.equal(plan.items.find((i) => i.id === 'norm').kind, 'source');
+  assert.equal(plan.items.find((i) => i.id === 'norm').kind, 'local');
+});
+
+test('a buffer block after an effect and a mixer names the effects and mixers before it and the sounds at the edge (issue 73)', () => {
+  const nodes = [node('a', 'click'), node('b', 'click'), node('eq1', 'eq'), node('mix', 'mixer'), node('norm', 'normalize'), node('rev', 'reverb'), node('master', 'master')];
+  const links = [link('a', 'eq1'), link('eq1', 'mix', 'in1'), link('b', 'mix', 'in2'), link('mix', 'norm'), link('norm', 'rev'), link('rev', 'master', 'mix')];
+  const plan = planChain({ nodes, links, target: 'master', takeOf: () => null });
+  assert.equal(plan.ok, true, plan.reason);
+  const norm = plan.items.find((i) => i.id === 'norm');
+  assert.equal(norm.kind, 'local');
+  const before = upstreamOf(plan, norm.inputs);
+  assert.deepEqual(before.chain.map((i) => i.id), ['eq1', 'mix']);   // dependencies first
+  assert.deepEqual(before.leaves.sort(), ['a', 'b']);
+  assert.deepEqual(upstreamOf(plan, [{ from: 'a' }]), { chain: [], leaves: ['a'] });   // a source has nothing before it
+});
+
+test('an Autotune without a Melody input is made in the browser, with one it plays its built take (issues 78 and 81)', () => {
+  const nodes = [node('voice', 'import-audio'), node('tune', 'autotune'), node('master', 'master')];
+  nodes[0].params = { file: 'voice.wav' };
+  const links = [link('voice', 'tune'), link('tune', 'master', 'mix')];
+  const free = planChain({ nodes, links, target: 'master', takeOf: () => null });
+  assert.equal(free.ok, true, free.reason);
+  assert.equal(free.items.find((i) => i.id === 'tune').kind, 'local');
+  const melody = { from: 'clip', to: 'tune', type: 'midi', inName: 'target' };
+  const guided = planChain({ nodes: [...nodes, node('clip', 'midi-clip')], links: [...links, melody], target: 'master', takeOf: (id) => (id === 'tune' ? 'tt' : undefined) });
+  assert.equal(guided.items.find((i) => i.id === 'tune').kind, 'source');
+});
+
+test('a rebuilt source is the same graph with another take, so it can be put in without starting the chain again (issue 275)', () => {
+  const nodes = [node('piano', 'piano'), node('eq1', 'eq'), node('rev', 'reverb')];
+  const links = [link('piano', 'eq1'), link('eq1', 'rev')];
+  const first = planChain({ nodes, links, target: 'rev', takeOf: () => 'take-1' });
+  const rebuilt = planChain({ nodes, links, target: 'rev', takeOf: () => 'take-2' });
+  assert.deepEqual(changedSources(first, rebuilt).map((i) => [i.id, i.take]), [['piano', 'take-2']]);
+  assert.deepEqual(changedSources(first, first), []);
+  // another graph (a block was added) is a restart, not an adoption
+  const more = planChain({ nodes: [...nodes, node('d', 'delay')], links: [...links, link('rev', 'd')], target: 'd', takeOf: () => 'take-2' });
+  assert.equal(changedSources(first, more), null);
 });

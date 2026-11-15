@@ -9,6 +9,7 @@ import { clickAudio } from '../lib/clientside-click.mjs';
 import { vocodeAudio } from '../lib/clientside-vocoder.mjs';
 import { silenceAudio, trimAudio } from '../lib/clientside-trim.mjs';
 import { normalizeAudio, normalizeGain } from '../lib/clientside-normalize.mjs';
+import { autotuneAudio } from '../lib/clientside-autotune.mjs';
 import { pitchWorkingSetBytes, processPitchChannels } from '../lib/clientside-pitch.mjs';
 import { processStretchChannels, stretchWorkingSetBytes } from '../lib/clientside-stretch.mjs';
 import { granularWorkingSetBytes, processGranularChannels } from '../lib/clientside-granular.mjs';
@@ -245,6 +246,11 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
     if (item.tpl === 'stretch') { over(stretchWorkingSetBytes(input.channels[0].length, input.channels.length)); return { sampleRate: input.sampleRate, channels: await processStretchChannels(input.channels, input.sampleRate, params, stop) }; }
     if (item.tpl === 'granular') { over(granularWorkingSetBytes(input.channels)); return { sampleRate: input.sampleRate, channels: await processGranularChannels(input.channels, input.sampleRate, params, await effectiveSeed(item.id), stop) }; }
     over(denoiseWorkingSetBytes(input.channels)); return { sampleRate: input.sampleRate, channels: await processDenoiseChannels(input.channels, input.sampleRate, params, stop) };
+  }
+  if (item.tpl === 'autotune') {
+    // the same steps as the song preview (clientside-autotune.mjs); the pitch is found again when the input or a knob changes
+    if (params.enabled === 'off') return input;
+    return autotuneAudio(input, params, { tempo: bpm, beatsPerBar: barBeats() });
   }
   if (item.tpl === 'trim') { const cut = trimAudio(input, params); infos.set(item.id, cut.report.replace(/^trim: /, '').slice(0, 60)); return cut.audio; }
   if (item.tpl === 'pitch') {

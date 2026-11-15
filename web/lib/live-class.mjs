@@ -4,12 +4,12 @@
 // sampled (needs a SoundFont or sample render), server (generation or analysis only the server does), data (shapes other values, no audio), visual (display only).
 // Kept here, not in spec/templates: it describes the browser, not the language.
 
-const live = ['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'chorus', 'convolution', 'tremolo', 'flanger', 'phaser', 'pan', 'width', 'gate', 'limiter', 'deesser'];
+const live = ['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'chorus', 'convolution', 'tremolo', 'flanger', 'phaser', 'pan', 'width', 'gate', 'limiter', 'deesser', 'bitcrusher'];
 const T = {};
 for (const id of live) T[id] = ['live', ''];
 const add = (cls, reason, ids) => { for (const id of ids.split(' ')) T[id] = [cls, reason]; };
 
-add('offline', 'Previews from a browser render when you stop moving; a live version is planned.', 'bitcrusher pitch stretch granular denoise autotune chop vocoder');
+add('offline', 'Previews from a browser render when you stop moving; a live version is planned.', 'pitch stretch granular denoise autotune chop vocoder');
 T['delay-llama'] = ['live', ''];
 add('offline', 'Plays from a render of the built sources; live moves are planned.', 'meter normalize');
 add('buffer', 'An edit of the decoded take; heard after a short re-render, live moves are planned.', 'cut fade shift join crossfade reverse splitter trim silence rewind scratch');

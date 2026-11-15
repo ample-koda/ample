@@ -33,7 +33,7 @@ test('visual and data blocks have a reason that can follow "No audio of its own:
 });
 
 test('the Advanced window previews the same blocks as before the hard-coded set was retired', () => {
-  const before = ['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'convolution', 'denoise', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'master'];
+  const before = ['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'convolution', 'denoise', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'bitcrusher', 'deesser', 'master'];
   assert.deepEqual(Object.keys(LIVE_CLASS).filter(hasLocalPreview).sort(), [...before].sort());
 });
 

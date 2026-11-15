@@ -11,7 +11,7 @@ import { playbackOutput } from './playback-volume.js';
 import { flat, S, subscribe, subscribeSelection } from './store.js';
 import { setExternalPlayer, stop as stopPlayer } from './player.js';
 import { toast } from './ui.js';
-import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId, soloInPlan } from '../lib/live-chain-model.mjs';
+import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId, soloInPlan, upstreamOf, changedSources } from '../lib/live-chain-model.mjs';
 import { mixerGraph, sendGraph } from '../lib/live-mixer.mjs';
 import { getToken } from './api.js';
 import { localInfo, renderLocal, toAudio, toBuffer, drumVoicePlan } from './live-local.js';
@@ -284,6 +284,9 @@ const localKey = (item, s = session) => JSON.stringify([
   effective(item.id, s),
   item.midi ? [effective(item.midi.clip, s), item.midi.transforms.map((t) => effective(t.id, s))] : null,
   item.inputs.map((i) => s?.localKeys.get(i.from) || ''),
+  // the effects and mixers before it: a knob or a bypass there makes the block again (issue 73)
+  s?.plan ? upstreamOf(s.plan, item.inputs).chain.map((u) => [u.id, effective(u.id, s), Boolean(s.bypass?.has(u.id))]) : null,
+  s?.plan ? upstreamOf(s.plan, item.inputs).leaves.map((id) => s.localKeys.get(id) || '') : null,
   S.doc?.project?.tempo,
 ]);
 
@@ -308,15 +311,63 @@ function refreshImpulses(s) {
   }
 }
 
+/**
+ * The sound of the chain up to an effect or a mixer, rendered once (offline, from the start of the loop, after a lead-in so tails and smoothing have settled): what a buffer block that
+ * comes after it works on. The knobs of those blocks are read as they are now (issue 73).
+ */
+async function renderUpstream(s, id) {
+  const { chain, leaves } = upstreamOf(s.plan, [{ from: id }]);
+  const rate = s.context.sampleRate;
+  const seconds = Math.max(0.05, ...leaves.map((leaf) => s.buffers.get(leaf)?.duration || 0));
+  const lead = Math.min(2, seconds), length = Math.max(1, Math.round((seconds + lead) * rate));
+  const offline = new OfflineAudioContext(2, length, rate);
+  await prepareWorklets(offline);
+  const outs = new Map();
+  for (const leaf of leaves) {
+    const buffer = s.buffers.get(leaf);
+    if (!buffer) throw new Error(`${leaf} is not ready yet.`);
+    const out = offline.createGain(), node = offline.createBufferSource();
+    node.buffer = buffer; node.loop = true; node.connect(out);
+    node.start(0, (buffer.duration - (lead % buffer.duration)) % buffer.duration);   // so the render after the lead-in begins at the start of the loop
+    outs.set(leaf, out);
+  }
+
+  for (const item of chain) {
+    const out = offline.createGain();
+    outs.set(item.id, out);
+    if (item.kind === 'effect') {
+      const input = offline.createGain();
+      for (const link of item.inputs) outs.get(link.from)?.connect(input);
+      const params = { ...effective(item.id, s), ...(s.bypass.has(item.id) ? { enabled: 'off' } : {}) };
+      const graph = liveEffectGraph(offline, input, out, item.tpl, params, s.tempo, s.impulses.get(item.id), null);
+      if (item.key && graph.keyInput) { outs.get(item.key)?.connect(graph.keyInput); graph.setKey(true); }
+    } else {
+      const lanes = Math.max(4, ...item.inputs.map((i) => i.lane + 1));
+      const mixer = item.tpl === 'send' ? sendGraph(offline, lanes) : mixerGraph(offline, lanes, { bus: item.tpl === 'bus' });
+      for (const link of item.inputs) outs.get(link.from)?.connect(mixer.lanes[link.lane]);
+      mixer.output.connect(out);
+      mixer.update(effective(item.id, s), { anySolo: false });
+      if (mixer.sendOutput) { const sendOut = offline.createGain(); mixer.sendOutput.connect(sendOut); outs.set(`${item.id}:send`, sendOut); }
+    }
+  }
+
+  const last = outs.get(id);
+  if (!last) throw new Error(`The sound before ${id} could not be made.`);
+  last.connect(offline.destination);
+  const rendered = await offline.startRendering();
+  const skip = Math.round(lead * rate), kept = Math.max(1, rendered.length - skip);
+  return { sampleRate: rate, channels: Array.from({ length: rendered.numberOfChannels }, (_, c) => rendered.getChannelData(c).slice(skip, skip + kept)) };
+}
+
 async function makeLocal(s, item) {
   const inputs = new Map();
-  for (const link of item.inputs) inputs.set(link.from, toAudio(s.buffers.get(link.from)));
+  for (const link of item.inputs) inputs.set(link.from, s.buffers.has(link.from) ? toAudio(s.buffers.get(link.from)) : await renderUpstream(s, link.from));
   return renderLocal(item, { paramsOf: (id) => effective(id, s), inputs, context: s.context });
 }
 
 /** A local block changed: make it again (and what works on it), then swap the new sound in at the same place of the loop with a short crossfade. */
 /** Built-in drums that only feed effects and sums play as single hits; a local block that works on their sound (cut, reverse ...) still needs the rendered loop. */
-const hitDrums = (plan, item) => item.tpl === 'drums' && !plan.items.some((other) => other.kind === 'local' && other.inputs.some((link) => link.from === item.id));
+const hitDrums = (plan, item) => item.tpl === 'drums' && !plan.items.some((other) => other.kind === 'local' && upstreamOf(plan, other.inputs).leaves.includes(item.id));   // also through the effects between them (issue 73)
 /** A knob of the drums: the hits of the new pattern replace the queued ones at once (hits already heard are not rendered again). */
 async function updateDrumHits(s, item) {
   const tokens = (s.drumTokens ||= new Map()), token = (tokens.get(item.id) || 0) + 1;
@@ -624,8 +675,34 @@ setExternalPlayer({ playing: () => Boolean(session) && !session.starting, take: 
   time: () => (session?.context && session.loop > 0 ? loopPosition(session, session.context.currentTime) : 0), duration: () => (session?.loop || 0) });
 
 // the song changed: a different set of blocks or takes builds the graph again (from the start); a changed value is only handed to its block
+/**
+ * Only the takes of some sources are other ones (a layer was rebuilt): their new sound replaces the old one at the same place of the loop, and the chain keeps its clock, its loop and its region.
+ * Returns false when the new sound cannot take the place of the old one (another length): the caller then starts the chain again and says so (issue 275).
+ */
+async function adoptTakes(s, plan, changed) {
+  const fresh = new Map();
+  for (const item of changed) {
+    const buffer = await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role));
+    if (Math.abs(buffer.duration - (s.buffers.get(item.id)?.duration || 0)) > 0.01) return false;
+    fresh.set(item.id, buffer);
+  }
+
+  if (session !== s || s.starting) return true;   // another chain took over meanwhile: nothing to adopt
+  for (const [id, buffer] of fresh) { s.buffers.set(id, buffer); swap(s, id, buffer); }
+  s.plan = plan;
+  s.signature = signatureOf(plan);
+  // the blocks that work on the new sound are made again from it
+  for (const item of plan.items.filter((i) => i.kind === 'local')) {
+    const leaves = upstreamOf(plan, item.inputs).leaves;
+    if (item.inputs.some((link) => fresh.has(link.from)) || leaves.some((id) => fresh.has(id))) s.localKeys.delete(item.id);
+  }
+
+  return true;
+}
+
 subscribe(() => {
   if (!session || session.starting) return;
+  if (session.adopting) return;   // a rebuilt sound is being put in: the next change is looked at when it is in
   const plan = planNow(session.target);
   // a block upstream changed after its sound was built (the editor drops its take): keep playing the old build, say so, and wait for the next build (8.1)
   const lost = session.plan.items.filter((i) => i.kind === 'source' && !takeOf(i.id)).map((i) => i.id);
@@ -639,6 +716,19 @@ subscribe(() => {
   if (!plan.ok) { stopChain(); toast(plan.reason); return; }
   if (session.stale) { session.stale = null; emit(); }
   if (signatureOf(plan) !== session.signature) {
+    const sources = pendingTarget && pendingTarget !== session.target ? null : changedSources(session.plan, plan);
+    if (sources && sources.length) {
+      const current = session;
+      current.adopting = true;
+      adoptTakes(current, plan, sources).then((done) => {
+        current.adopting = false;
+        if (done) { refresh(true); emit(); return; }
+        toast('The rebuilt sound has another length than the one that plays: the chain starts again from the beginning.');
+        startSession(current.target).then((started) => { if (started && session === started) { started.bypass = new Set(current.bypass); refresh(true); emit(); } });
+      }).catch((error) => { current.adopting = false; toast(error?.message || String(error)); });
+      return;
+    }
+
     const target = pendingTarget || session.target, bypass = new Set(session.bypass);
     const wanted = target === session.target ? plan : planNow(target);
     // this song state already failed to start: the old chain plays on, no new try (and no new notice) until the song changes again

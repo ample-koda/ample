@@ -38,7 +38,7 @@ import { granularWorkingSetBytes, parseEffectiveGranularSeed, processGranularCha
 import { convolutionWorkingSetBytes, mapConvolutionImpulse, processConvolutionChannels } from '../lib/clientside-convolution.mjs';
 import { processScratchChannels, scratchWorkingSetBytes } from '../lib/clientside-scratch.mjs';
 import { rewindAudio } from '../lib/clientside-rewind.mjs';
-import { applyCorrections, autotuneSettings, corrections, detectPitch, parseFixes } from '../lib/clientside-autotune.mjs';
+import { autotuneAudio, melodyOf } from '../lib/clientside-autotune.mjs';
 import { clipBendCurve, pitchWorkingSetBytes, processPitchChannels } from '../lib/clientside-pitch.mjs';
 import { bendChannels } from '../lib/clientside-autotune.mjs';
 import { llamaCurve, llamaNotes, llamaSettings, renderLlama } from '../lib/clientside-delay-llama.mjs';
@@ -756,13 +756,18 @@ export async function buildAndPlayClientPreview() {
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
         try {
-          const channels = source.channels.map((c) => Float32Array.from(c));
-          const mono = channels.length > 1 ? channels[0].map((v, i) => (v + channels[1][i]) / 2) : channels[0];
-          const track = detectPitch(mono, source.sampleRate);
-          const tempoMilli = Math.round((Number(S.doc?.project?.tempo) || 92) * 1000), samplesPerBar = Math.floor(barBeats() * 60 * source.sampleRate * 1000 / tempoMilli);
-          const fixes = parseFixes(String(node.params.fixes ?? '').replace(/^"|"$/g, ''), source.sampleRate, samplesPerBar);
-          const { correction } = corrections(track, autotuneSettings(node.params, track), [], fixes);
-          const result = { sampleRate: source.sampleRate, channels: applyCorrections(channels, source.sampleRate, track, correction, String(node.params.method ?? '').replace(/^"|"$/g, '') || 'spectral') };
+          // the Melody input is followed as the build does: its notes decide the target; a source the browser cannot read goes to the server render (issue 78)
+          const tempo = Number(S.doc?.project?.tempo) || 92, beatsPerBar = barBeats();
+          const targetLink = graph.links.find((item) => item.to === id && item.type === 'midi' && item.inName === 'target' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
+          let melody = [];
+          if (targetLink) {
+            const notes = await resolveMidiNotes(nodes.get(targetLink.from));
+            if (!notes) throw new Error('The melody of this Autotune cannot be read in the browser: the server render is used.');
+            const samplesPerBar = Math.floor(beatsPerBar * 60 * source.sampleRate * 1000 / Math.round(tempo * 1000));
+            melody = melodyOf(notes, { firstBar: S.range?.firstBar || 1, samplesPerBar, beatsPerBar });
+          }
+
+          const result = autotuneAudio(source, node.params, { tempo, beatsPerBar, melody });
           for (const port of ['out', 'audio']) memo.set(`${id}:${port}`, result);
           return result;
         } catch (error) {
