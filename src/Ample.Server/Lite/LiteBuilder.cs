@@ -85,9 +85,12 @@ public static partial class LiteBuilder
             log?.Invoke("All blocks are done. Reading the master.", 0.92);
             foreach (BlockResult block in report.Blocks.Where(b => b.Status is "failed" or "cancelled"))
             {
-                // the line of the header of the block in the song (1-based, like every other diagnostic): the list of problems shows it and a click goes there; a block of a component is not in this file, so it has none
+                // the line of the header of the block in the song (1-based, like every other diagnostic): the list of problems shows it and a click
+                // goes there; a block of a component is not in this file, so it has none
                 int line = (doc.Blocks.FirstOrDefault(b => b.Name == block.Block)?.Line + 1) ?? 0;
-                found.Add(new LiteDiagnostic("AMPL920", "error", line, line > 0 ? 1 : 0, Clean($"The block \"{block.Block}\" {block.Status}{(block.Message is null ? string.Empty : ": " + block.Message)}", workspace.Root)));
+                found.Add(new LiteDiagnostic("AMPL920", "error", line, line > 0 ? 1 : 0,
+                  Clean($"The block \"{block.Block}\" {block.Status}{(block.Message is null ? string.Empty : ": " + block.Message)}",
+                  workspace.Root)));
             }
             if (report.MasterTakeId is null || found.Any(d => d.Severity == "error" && d.Code == "AMPL920"))
             {

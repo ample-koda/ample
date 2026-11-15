@@ -272,7 +272,9 @@ async function openFile(path) {
 }
 
 async function openText(path, text) {
-  app.language = createLanguage({ textFiles, onDiagnostics: (list) => { app.serverLive = list; applyLive(); }, onOffline: () => status('Language help is offline (close other Remix tabs and reload the page; sign in again if it keeps happening)'), onOnline: () => status('') });
+  app.language = createLanguage({ textFiles, onDiagnostics: (list) => { app.serverLive = list; applyLive(); },
+    onOffline: () => status('Language help is offline (close other Remix tabs and reload the page; sign in again if it keeps happening)'),
+    onOnline: () => status('') });
   app.editor = await createLiteEditor($('#lite-editor'), {
     text,
     onChange: (value) => { app.texts.set(path, value); queueSave(path, value); app.language.change(value); },
