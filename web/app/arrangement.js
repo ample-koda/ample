@@ -66,6 +66,26 @@ export async function previewSong(range) {
   try { await play(take); } catch (e) { if (!e.toasted) toast(e.message); }
 }
 
+/** A way into the beta Playlist from the Arrangement: whoever looks for track-level editing finds it here (issue 108). */
+function playlistEntry() {
+  const enabled = localStorage.getItem('ample.playlist.on') === '1';
+  return el('button', {
+    type: 'button',
+    id: 'arr-playlist',
+    textContent: enabled ? 'Playlist' : 'Playlist (beta)',
+    title: enabled ? 'Open the Playlist: the song as tracks with their effect chains' : 'Turn on the beta Playlist view: the song as tracks with their effect chains',
+    onclick: async () => {
+      if (!enabled) {
+        try { localStorage.setItem('ample.playlist.on', '1'); } catch { /* storage may be blocked */ }
+        document.querySelectorAll('[data-playlist-view-state]').forEach((item) => item.setAttribute('aria-checked', 'true'));
+        (await import('./playlist.js')).setPlaylistEnabled(true);
+      }
+
+      document.querySelector('#btabs button[data-t="playlist"]')?.click();
+    },
+  });
+}
+
 export function renderArrangement() {
   const box = $('#b-arr');
   if (!box) return;
@@ -77,6 +97,7 @@ export function renderArrangement() {
   const tempo = S.doc && S.doc.project ? S.doc.project.tempo : 120;
   const ctl = el('div', { className: 'row', id: 'arr-ctl' });
   ctl.append(el('button', { type: 'button', className: 'arr-info', textContent: 'i', title: 'The arrangement shows the same project as bars on a timeline, with seconds beneath. It is generated from the blocks; the source text remains authoritative. Drag over the ruler to select bars, then preview that range.', 'aria-label': 'About the arrangement' }));
+  ctl.append(playlistEntry());
   ctl.append(el('button', { textContent: '−', title: 'Narrower bars', 'aria-label': 'Narrower bars', onclick: () => { bw = Math.max(16, bw - 8); renderArrangement(); } }), el('span', { id: 'arr-bw', textContent: `${bw} px/bar` }), el('button', { textContent: '+', title: 'Wider bars', 'aria-label': 'Wider bars', onclick: () => { bw = Math.min(96, bw + 8); renderArrangement(); } }));
   const clearRange = () => { S.range = null; renderArrangement(); notify(); };   // the header button of the range goes too (issue 104)
   if (S.range) {

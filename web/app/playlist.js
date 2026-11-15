@@ -2,6 +2,8 @@
 // master, a routing gutter, lanes and the transport. It reads the parsed song through web/lib/playlist-model.mjs and writes only through the commands every view uses
 // (playlist-actions.js). Switching it off, or never opening it, changes nothing. Plan: plan/playlist-view/. @ample:playlist
 import { $, el, showMenu, toast } from './ui.js';
+import { api } from './api.js';
+import { barsFromStart, songBarAt, takeSecondsOf } from '../lib/take-bars.mjs';
 import { S, activeDoc, enterModule, flat, notify, readOnly, select, setModuleLevel, viewOf, sectionsOf } from './store.js';
 import { statOf, focusNode } from './canvas.js';
 import { gotoSource } from './panels.js';
@@ -73,6 +75,22 @@ const mapStatus = (n) => {
   if (s.cls === 'hit') return 'cache hit';
   return null;
 };
+
+/** The first bar of what a take holds: a take of chosen bars starts there, a take of the song at bar 1 (read once from its record; 1 until then) (issue 101). */
+const takeStarts = new Map();
+function firstBarOf(take) {
+  if (!take) return 1;
+  if (!takeStarts.has(take)) {
+    takeStarts.set(take, 1);
+    api.get(`/api/takes/${encodeURIComponent(take)}`).then((record) => {
+      const first = Number(record.plan?.settings?.firstBar) || 1;
+      takeStarts.set(take, first);
+      if (first !== 1) updatePlayhead(playerState());
+    }).catch(() => {});
+  }
+
+  return takeStarts.get(take);
+}
 
 const masterTake = () => {
   const t = S.build.takes || {};
@@ -279,9 +297,18 @@ function rulerRow(W) {
       last = at(ev);
       const a = Math.min(first, last), b = Math.max(first, last);
       const dur = playerState().duration;
-      if (a === b && !shift) { S.range = null; if (dur) seekFraction(((a - 1) * spb) / dur); else toast('Play the song once to move around in it.'); notify(); return; }
+      const playing = playerState();
+      const at0 = takeSecondsOf(a, spb, firstBarOf(playing.take), dur);   // the time in the take that is playing (null: that bar is not in it)
+      if (a === b && !shift) {
+        S.range = null;
+        if (!dur) toast('Play the song once to move around in it.');
+        else if (at0 === null) toast('That bar is not in the bars that were played. Play the song, or those bars, once.');
+        else seekFraction(at0 / dur);
+        notify();
+        return;
+      }
       S.range = { firstBar: a, bars: b - a + 1 };
-      if (shift && dur) setLoopRegion([((a - 1) * spb) / dur, (b * spb) / dur]);
+      if (shift && dur && at0 !== null) setLoopRegion([at0 / dur, Math.min(1, (at0 + (b - a + 1) * spb) / dur)]);
       notify();
     };
   };
@@ -857,7 +884,7 @@ function pasteHere(fallbackBar) {
 
 function splitHere(clip) {
   const st = playerState();
-  const bar = st.duration && st.take === masterTake() ? Math.floor(st.time / spb) + 1 : (S.range?.firstBar || null);
+  const bar = st.duration && st.take === masterTake() ? songBarAt(st.time, spb, firstBarOf(st.take)) : (S.range?.firstBar || null);
   if (!bar) { toast('Put the playhead or the chosen bars inside the clip, then split.'); return; }
   act.splitClip(clip, bar, songBars);
 }
@@ -1023,10 +1050,10 @@ function updatePlayhead(st) {
   if (!head || !model) return;
   const show = st.take && st.take === masterTake() && st.duration > 0;
   head.style.display = show ? 'block' : 'none';
-  if (show) head.style.left = `${(st.time / spb) * view.bw}px`;
+  if (show) head.style.left = `${barsFromStart(st.time, spb, firstBarOf(st.take)) * view.bw}px`;
   const loop = $('#pl-loop');
   if (loop) {
-    if (st.loopRegion && st.duration) { loop.style.display = 'block'; loop.style.left = `${(st.loopRegion[0] * st.duration / spb) * view.bw}px`; loop.style.width = `${((st.loopRegion[1] - st.loopRegion[0]) * st.duration / spb) * view.bw}px`; } else loop.style.display = 'none';
+    if (st.loopRegion && st.duration) { loop.style.display = 'block'; loop.style.left = `${barsFromStart(st.loopRegion[0] * st.duration, spb, firstBarOf(st.take)) * view.bw}px`; loop.style.width = `${((st.loopRegion[1] - st.loopRegion[0]) * st.duration / spb) * view.bw}px`; } else loop.style.display = 'none';
   }
 }
 

@@ -139,10 +139,21 @@ export async function checkpoint() {
   const name = el('input', { placeholder: 'name (empty = "checkpoint")' });
   const both = el('input', { type: 'checkbox', 'aria-label': 'Also keep the state on disk first' });
   const bothLabel = el('label', {}, [both, document.createTextNode(' Also keep the state on disk first (a checkpoint before the drafts are saved)')]);
-  const about = 'All recoverable source drafts and the current song or module are saved first. AMPLE then makes one checkpoint containing the saved work.';
-  const buttons = [{ label: 'Cancel', value: false }, { label: 'Save all work and checkpoint', value: true, primary: true }];
+  const branch = model()?.h.current || 'the current branch';
+  const about = `Branch: ${branch}. A checkpoint is a revision of the source files on this branch.`
+    + ' "Save all work and checkpoint" first writes the open song and every recoverable source draft, then takes the revision.'
+    + ' "Saved files only" takes the revision of the files as they are on disk now and writes nothing.';
+  const buttons = [{ label: 'Cancel', value: false }, { label: 'Saved files only', value: 'saved' }, { label: 'Save all work and checkpoint', value: true, primary: true }];
   const ok = await ask('Checkpoint', about, buttons, [name, bothLabel]);
   if (!ok) return;
+  if (ok === 'saved') {
+    try {
+      const r = await api.post('/api/history/checkpoint', { message: name.value.trim() || 'checkpoint' });
+      if (r.created) toast('Checkpoint of the saved files taken. Unsaved drafts were not included.'); else await nameExisting(name.value.trim());
+    } catch (e) { toast(e.message); }
+    return;
+  }
+
   // a recovery copy in this browser that differs from the file stops the checkpoint: the person chooses what happens to it, then the checkpoint goes on
   let keptDisk = false;
   for (let round = 0; round < 20; round++) {
@@ -197,7 +208,7 @@ export async function forkFrom(id, andGo) {
   const name = el('input', { placeholder: 'branch name', value: `garage-${S.history.lines.length + 1}` });
   const ok = await ask('Fork a new branch', 'A branch is a path of revisions. The new one starts at this revision; nothing else changes.', [{ label: 'Cancel', value: false }, { label: 'Fork', value: true, primary: true }], [name]);
   if (!ok || !name.value.trim()) return false;
-  if (!(await unsavedChoice())) return false;
+  if (andGo && !(await unsavedChoice())) return false;   // a plain fork leaves the open work alone: only going to the new branch has to deal with it (issue 149)
   try {
     await api.post('/api/history/fork', { name: name.value.trim(), from: id });
     if (andGo) await goLine(name.value.trim()); else await loadHistory();
@@ -560,9 +571,12 @@ export function renderDetail() {
     + 'Audio samples and project settings are not part of it, so going back to it does not bring them back.';
   box.append(kv, el('p', { className: 'note', textContent: scope }));
   const r = el('div', { className: 'row' });
-  r.append(el('button', { textContent: 'Go here', onclick: () => goToNode(n.nodeId) }), el('button', { textContent: 'Look only', onclick: () => enterPeek(n.nodeId) }), el('button', { textContent: 'Compare...', onclick: () => compareDialog(n.nodeId, m.h.current) }));
+  const target = goTargets(m.lines, n.nodeId, m.h.current);
+  const goLabel = target.kind === 'current' ? 'You are on this branch' : target.kind === 'one' ? `Switch to ${target.name}` : target.kind === 'many' ? 'Switch to a branch here...' : 'Create a branch here and switch...';
+  const goTitle = target.kind === 'none' ? 'No branch ends at this revision: a new branch is made from it and you switch to it. Open work is saved or put aside first.' : 'Switch the open work to the branch that ends at this revision. Open work is saved or put aside first.';
+  r.append(el('button', { textContent: goLabel, title: goTitle, disabled: target.kind === 'current', onclick: () => goToNode(n.nodeId) }), el('button', { textContent: 'Look only', title: 'Preview this revision read-only; nothing is changed or switched', onclick: () => enterPeek(n.nodeId) }), el('button', { textContent: 'Compare...', onclick: () => compareDialog(n.nodeId, m.h.current) }));
   const r2 = el('div', { className: 'row' });
-  r2.append(el('button', { textContent: 'Fork...', onclick: () => forkFrom(n.nodeId, false) }), el('button', { textContent: 'Tag...', onclick: () => tagNode(n.nodeId) }));
+  r2.append(el('button', { textContent: 'Create branch from here...', title: 'Make a new branch that starts at this revision. You stay where you are and open work is left alone.', onclick: () => forkFrom(n.nodeId, false) }), el('button', { textContent: 'Tag...', onclick: () => tagNode(n.nodeId) }));
   box.append(r, r2, el('p', { className: 'note', textContent: 'Right-click a revision for more.' }));
 }
 

@@ -36,7 +36,7 @@
   <button id="btn-projects">Projects</button>
   <span id="b-line" class="badge" title="The branch you are working on. Saving puts a new revision on it."></span>
   <span class="hgroup" role="group" aria-label="Save, checkpoint, undo and redo"><button id="btn-save" title="Save (Ctrl+S)">Save</button><span id="b-dirty" class="badge peek" style="display:none" title="The working copy differs from the saved file. Save writes it to the file.">● changed</span><span id="save-ctl-top"></span>
-  <button id="btn-cp" title="Make a checkpoint: a named revision of the saved files that you can come back to later. Nothing else changes.">Checkpoint...</button>
+  <button id="btn-cp" title="Make a checkpoint: a named revision on the branch you work on, that you can come back to later. You choose whether unsaved drafts are saved first or only the saved files are taken.">Checkpoint...</button>
   <button id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo"><span class="ico">↶</span><span class="lab"> Undo</span></button><button id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><span class="ico">↷</span><span class="lab"> Redo</span></button></span>
   <span class="sp"></span>
   <button id="btn-build" class="primary" title="Build (Ctrl+B)">Build</button>
@@ -61,9 +61,9 @@
     <div id="pane-lib">
     <div class="pad"><input id="lib-q" placeholder="Search blocks.."></div>
     <div id="lib"></div>
-    <details open><summary>Project files</summary><div class="pad" id="pfiles"></div></details>
+    <details><summary>Project files (all of them are in the Project panel)</summary><div class="pad" id="pfiles"></div></details>
     <details open><summary>Folders and links</summary><div class="pad" id="mounts"></div></details>
-    <details open><summary>Plugins</summary><div class="pad" id="plugins"></div></details>
+    <details><summary>Plugins</summary><div class="pad" id="plugins"></div></details>
     </div>
     <div id="lgrip" class="grip v" title="Drag to resize"></div>
   </aside>
@@ -81,7 +81,7 @@
     <div id="cv"><div id="world"><svg id="links"></svg></div></div>
     <div id="crumbs"></div>
     <canvas id="mini" width="180" height="110" role="img" aria-label="Canvas minimap showing all blocks and the current viewport"></canvas><div id="band"></div>
-    <div id="zoomctl" aria-label="Canvas navigation"><button id="z-out" aria-label="Zoom out">−</button><span id="z-pct" aria-live="polite">100%</span><button id="z-in" aria-label="Zoom in">+</button><button id="z-map" class="on" aria-pressed="true">Map</button><button id="z-lights" class="on" aria-pressed="true" title="Play lights: while the song plays, the blocks that sound glow and the lines carry the signal">Lights</button><button id="z-fit" title="Fit the view (F)">Fit</button><button id="z-100">1:1</button></div>
+    <div id="zoomctl" aria-label="Canvas navigation"><button id="z-out" aria-label="Zoom out">−</button><span id="z-pct" aria-live="polite">100%</span><button id="z-in" aria-label="Zoom in">+</button><button id="z-help" type="button" aria-label="Canvas gestures" aria-expanded="false" aria-controls="hint" title="Show the gestures of the canvas">?</button><button id="z-map" class="on" aria-pressed="true">Map</button><button id="z-lights" class="on" aria-pressed="true" title="Play lights: while the song plays, the blocks that sound glow and the lines carry the signal">Lights</button><button id="z-fit" title="Fit the view (F)">Fit</button><button id="z-100">1:1</button></div>
     <div id="hint">wheel = zoom · drag background = pan · double-click a block = its source · drag from a dot to connect · right-click for menus</div>
   </div>
   <aside id="right"><div id="rgrip" class="grip v" title="Drag to resize"></div><div id="props"></div></aside>

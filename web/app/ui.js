@@ -43,7 +43,23 @@ export function activatable(node, label) {
 }
 
 let toastTimer = 0;
+const recentMessages = [];   // what the toast said lately, newest last: an explanation that was replaced by the next message can be read again (issue 130)
+
+/** The latest messages of the toast. */
+export const messageHistory = () => recentMessages.map((entry) => ({ ...entry }));
+
+/** Shows the latest messages in a dialog, newest first. */
+export function showRecentMessages() {
+  const list = messageHistory().reverse();
+  const body = list.length
+    ? el('ol', { className: 'toast-history' }, list.map((entry) => el('li', {}, [el('time', { textContent: entry.at.toLocaleTimeString() }), document.createTextNode(` ${entry.text}`)])))
+    : el('p', { className: 'note', textContent: 'No messages yet.' });
+  return ask('Recent messages', 'The last messages of this session, newest first.', [{ label: 'Close', value: true, primary: true }], [body]);
+}
+
 export function toast(msg) {
+  recentMessages.push({ text: String(msg), at: new Date() });
+  if (recentMessages.length > 40) recentMessages.shift();
   const t = $('#toast');
   t.setAttribute('role', 'status'); t.setAttribute('aria-atomic', 'true');
   t.setAttribute('aria-live', /error|failed|could not|cannot|can't/i.test(String(msg)) ? 'assertive' : 'polite');
@@ -54,7 +70,8 @@ export function toast(msg) {
     else { const open = [...document.querySelectorAll('dialog[open]')].pop(); const home = open || document.body; if (t.parentElement !== home) home.append(t); }   // no popover support: ride inside the open dialog so it is not hidden behind it
   } catch { /* the toast stays a plain layer */ }
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('on'), Math.min(14000, 2800 + String(msg).length * 45));   // a long message stays long enough to read
+  const failure = /error|failed|could not|cannot|can't/i.test(String(msg));
+  toastTimer = setTimeout(() => t.classList.remove('on'), Math.min(14000, Math.max(failure ? 8000 : 0, 2800 + String(msg).length * 45)));   // a long message stays long enough to read, a failure a little longer
 }
 
 const menuIconPaths = {

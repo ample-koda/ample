@@ -89,6 +89,7 @@ function initMoreMenu() {
     menuItem('Properties', proxy('#tg-right')),
     menuItem('Panel', proxy('#tg-bottom')),
     menuItem('Hide top bar', proxy('#lip-top')),
+    menuItem('Recent messages…', () => import('./ui.js').then((m) => m.showRecentMessages())),
     menuItem('Playlist view (beta)', () => { const on = localStorage.getItem('ample.playlist.on') !== '1'; try { localStorage.setItem('ample.playlist.on', on ? '1' : '0'); } catch { /* storage may be blocked */ } document.querySelectorAll('[data-playlist-view-state]').forEach((item) => item.setAttribute('aria-checked', String(on))); import('./playlist.js').then((m) => m.setPlaylistEnabled(on)); }, { check: true, state: 'playlist-view' }),
     menuItem('Performance (beta)', () => {
       const on = localStorage.getItem('ample.performance.enabled') !== '1';
