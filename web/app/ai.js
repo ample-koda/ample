@@ -292,9 +292,26 @@ export function openAiPrompt(options) {
     } catch (error) { go.disabled = false; say(error); }
   } });
   prompt.addEventListener('keydown', (event) => { if (event.key === 'Enter' && event.ctrlKey) { event.preventDefault(); go.click(); } });
+  // everything that is not the request itself: what the assistant sees, strict mode, model and effort, usage and the scope. A changed default is named on the closed disclosure (issue 213)
+  const optionsSummary = el('summary', { textContent: 'Options' });
+  const optionsBox = el('details', { className: 'ai-options' }, [optionsSummary]);
+  const refreshOptions = () => {
+    const changed = [];
+    if (contextSelect.value !== 'unsaved') changed.push('saved files only');
+    if (strict.checked) changed.push('strict mode');
+    if (model.value) changed.push(`model ${model.value}`);
+    if (scope.value && scope.value !== scope.options[0]?.value) changed.push(`scope: ${scope.value}`);
+    optionsSummary.textContent = changed.length ? `Options (changed: ${changed.join(', ')})` : 'Options: what the assistant sees, scope, model';
+    if (scope.value === 'selection') optionsBox.open = true;   // the selected lines are shown while that scope is active
+  };
   body.append(
     el('p', { className: 'tx-lead', textContent: `The assistant proposes, AMPLE checks it, you decide: nothing in the project changes until you accept the proposal. ${options.path ? `On ${options.path}${options.contextLabel ? `, starting from ${options.contextLabel}` : options.block ? `, block ${options.block}` : ''}.` : ''}` }),
-    section('What should the assistant see?', contextRow), section('What do you want?', el('div', { className: 'hum-row' }, [earlier]), earlierNote, prompt, el('label', { className: 'tx-opt' }, [strict, el('span', {}, [el('b', { textContent: 'Strict mode' }), el('small', { textContent: 'Off by default: the assistant asks before accessing anything outside this task’s work folder. Turn on to keep the current strict boundary.' })])]), el('label', { className: 'tx-opt ai-model-choice' }, [el('span', {}, [el('b', { textContent: 'Model for this request' }), el('small', { textContent: 'This choice lasts for this request only.' })]), model, effort]), usage, el('div', { className: 'hum-row' }, [hum.button, hum.chips]), el('div', { className: 'hum-row' }, [files.add, offer.add, offer.record, offer.pick, files.pick, files.chips, offer.chips]), el('small', { className: 'tx-hint', textContent: 'Drag a sound onto this window, pick one, or record one: the assistant may use it, and you decide when you accept whether it comes along into the project.' }), el('small', { className: 'tx-hint', textContent: 'Hum or sing the notes you mean: AMPLE finds them (an attempt), you hear and approve them, and the assistant gets the melody and your raw recording.' })), section('Scope', scope, note, ...(selectionPreview ? [selectionPreview] : [])));
+    section('What do you want?', el('div', { className: 'hum-row' }, [earlier]), earlierNote, prompt, el('div', { className: 'hum-row' }, [hum.button, hum.chips]), el('div', { className: 'hum-row' }, [files.add, offer.add, offer.record, offer.pick, files.pick, files.chips, offer.chips]), el('small', { className: 'tx-hint', textContent: 'Drag a sound onto this window, pick one, or record one: the assistant may use it, and you decide when you accept whether it comes along into the project.' }), el('small', { className: 'tx-hint', textContent: 'Hum or sing the notes you mean: AMPLE finds them (an attempt), you hear and approve them, and the assistant gets the melody and your raw recording.' }), ...(selectionPreview ? [selectionPreview] : [])),
+    optionsBox);
+  const optionList = [section('What should the assistant see?', contextRow), el('label', { className: 'tx-opt' }, [strict, el('span', {}, [el('b', { textContent: 'Strict mode' }), el('small', { textContent: 'Off by default: the assistant asks before accessing anything outside this task’s work folder. Turn on to keep the current strict boundary.' })])]), el('label', { className: 'tx-opt ai-model-choice' }, [el('span', {}, [el('b', { textContent: 'Model for this request' }), el('small', { textContent: 'This choice lasts for this request only.' })]), model, effort]), usage, section('Scope', scope, note)];
+  optionsBox.append(...optionList);
+  [contextSelect, strict, model, scope].forEach((control) => control.addEventListener('change', refreshOptions));
+  refreshOptions();
   showSelectionPreview();
   foot.append(go, el('button', { type: 'button', textContent: 'Cancel', onclick: () => box.close() }), el('span', { className: 'note', textContent: 'The assistant works in a temporary copy of the files in scope.' }));
   prompt.focus();
@@ -318,20 +335,25 @@ export async function renderAssistantPanel() {
   } }), el('button', { type: 'button', 'data-icon': '↻', 'aria-label': 'Refresh', textContent: 'Refresh', title: 'Reload the session list', onclick: () => renderAssistantPanel() })]));
   const search = el('input', { type: 'search', className: 'assistant-session-search', placeholder: 'Search conversations...', 'aria-label': 'Search assistant conversations' });
   const list = el('div', { className: 'assistant-session-list', role: 'list' }, [el('p', { className: 'note', textContent: 'Loading sessions...' })]);
-  // the tabs: the chats that are not archived, only those of Koda, only those that are not, and the archived ones (with what can still be resumed)
-  const filters = [['active', 'Active'], ['koda', '♪ Koda'], ['other', 'Not Koda'], ['archived', 'Archived']];
+  // the tabs: the conversations that are not archived and the ones the person archived; Koda is a separate filter beside them (issue 214)
+  const filters = [['active', 'Active'], ['archived', 'Archived']];
   let filter = 'active';
   try { filter = sessionStorage.getItem('ample.assistant.filter') || 'active'; } catch { /* storage can be blocked */ }
+  if (!filters.some(([key]) => key === filter)) filter = 'active';   // an older browser session may still hold a Koda tab
+  let kodaFilter = 'all';
+  try { kodaFilter = sessionStorage.getItem('ample.assistant.koda') || 'all'; } catch { /* storage can be blocked */ }
+  const kodaChoice = el('select', { className: 'assistant-koda-filter', 'aria-label': 'Show conversations', onchange: (event) => { kodaFilter = event.target.value; try { sessionStorage.setItem('ample.assistant.koda', kodaFilter); } catch { /* storage can be blocked */ } apply(); } },
+    [['all', 'All conversations'], ['koda', '♪ Asked through Koda'], ['other', 'Not asked through Koda']].map(([value, text]) => el('option', { value, textContent: text, selected: kodaFilter === value })));
   const tabs = el('div', { className: 'assistant-session-tabs', role: 'tablist' }, filters.map(([key, label]) => el('button', { type: 'button', role: 'tab', 'data-filter': key, className: 'assistant-session-tab', textContent: label, onclick: () => { filter = key; try { sessionStorage.setItem('ample.assistant.filter', key); } catch { /* storage can be blocked */ } apply(); } })));
-  host.append(tabs, search, list);
-  const shows = (card) => (filter === 'archived' ? card.dataset.archived === '1' : card.dataset.archived !== '1' && (filter === 'active' || (filter === 'koda' ? card.dataset.koda === '1' : card.dataset.koda !== '1')));
+  host.append(tabs, kodaChoice, search, list);
+  const shows = (card, tab = filter) => (tab === 'archived' ? card.dataset.archived === '1' : card.dataset.archived !== '1') && (kodaFilter === 'all' || (kodaFilter === 'koda' ? card.dataset.koda === '1' : card.dataset.koda !== '1'));
   const apply = () => {
     const query = search.value.trim().toLowerCase();
     let matches = 0;
     list.querySelectorAll('.assistant-session-card').forEach((card) => { card.hidden = !(shows(card) && card.dataset.search.includes(query)); if (!card.hidden) matches++; });
     const empty = list.querySelector('.assistant-session-empty');
     if (empty) empty.hidden = matches > 0;
-    tabs.querySelectorAll('.assistant-session-tab').forEach((b) => { const on = b.dataset.filter === filter; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); const count = [...list.querySelectorAll('.assistant-session-card')].filter((card) => { const keep = filter; filter = b.dataset.filter; const r = shows(card); filter = keep; return r; }).length; b.dataset.count = String(count); });
+    tabs.querySelectorAll('.assistant-session-tab').forEach((b) => { const on = b.dataset.filter === filter; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); const count = [...list.querySelectorAll('.assistant-session-card')].filter((card) => shows(card, b.dataset.filter)).length; b.dataset.count = String(count); });
   };
   search.oninput = apply;
   try {
@@ -347,13 +369,12 @@ export async function renderAssistantPanel() {
       const ordered = [...(session.tasks || [])].sort((a, b) => new Date(b.updated) - new Date(a.updated));
       const recent = ordered[0];
       const isKoda = (session.tasks || []).some((task) => task.kind === 'koda') || session.title === 'Koda';
-      // archived: the conversation ended (archived, rejected, accepted or failed); it may still be resumable while its thread and working copy are kept
-      // a Koda proposal that was only closed (rejected) stays in Active while it can still be resumed: it is the one the person comes back for
-      const archived = !!recent && (recent.archived || ['cancelled', 'accepted', 'failed'].includes(recent.status) || (recent.status === 'rejected' && !(isKoda && recent.resume === 'can')));
+      // archived only when the person archived the conversation: a request that was accepted, rejected or failed stays in its conversation, which is still there to ask the next question in
+      const archived = !!recent && (recent.archived || recent.status === 'cancelled');
       const resume = recent?.resume === 'can' ? (archived ? 'can be resumed' : 'paused: can be resumed') : archived ? 'ended: cannot be resumed' : '';
       const open = el('button', { type: 'button', className: 'assistant-session' + (isKoda ? ' is-koda' : ''), onclick: () => recent ? openAiTask(recent.id, { sessionId: session.id }) : openAiPrompt({ sessionId: session.id, title: session.title, kind: 'custom', scope: 'project', hint: 'What would you like the assistant to do in this project?' }) }, [
         el('span', { className: 'assistant-session-title' + (isKoda ? ' is-koda' : ''), textContent: (isKoda ? '♪ ' : '') + session.title, title: isKoda ? 'Asked through Koda' : '' }),
-        el('span', { className: 'assistant-session-meta', textContent: recent ? `${recent.status === 'cancelled' ? 'archived' : recent.status} · ${shortText(recent.prompt)}` : 'No requests yet' }),
+        el('span', { className: `assistant-session-meta assistant-status-${recent?.status ?? 'none'}`, 'data-status': recent?.status ?? '', textContent: recent ? `${recent.status === 'cancelled' ? 'archived' : recent.status} · ${shortText(recent.prompt)}` : 'No requests yet' }),
         ...(ordered.length > 1 ? [el('span', { className: 'assistant-session-meta', textContent: 'Started with: ' + shortText(ordered[ordered.length - 1].prompt) })] : []),
         ...(resume ? [el('span', { className: 'assistant-session-resume ' + (recent.resume === 'can' ? 'can' : 'no'), textContent: resume })] : []),
         el('span', { className: 'assistant-session-meta', textContent: `${(session.tasks || []).length} request(s) · updated ${new Date(session.updated).toLocaleString()}` }),
@@ -1331,6 +1352,13 @@ export function openAiTask(id, options = {}) {
       foot.append(el('button', { type: 'button', id: 'ai-continue', className: 'primary', textContent: 'Continue remaining work', disabled: reviewBusy || !t.canMessage, title: 'Finish only missing work in this conversation; do not repeat the original request', onclick: () => reviewAction('/continue', { message: msgInput.value.trim() }) }), el('button', { type: 'button', textContent: 'Close', onclick: () => box.close() }));
       return;
     }
+    // what the buttons will do, beside them: all the files or only the checked ones, and whether another assistant turn follows (issue 215)
+    const fileCount = (t.changes || []).length;
+    const picked = selectedChanges.size;
+    const impact = picked
+      ? `${picked} of ${fileCount} file${fileCount === 1 ? '' : 's'} checked. Accept selected applies only those; “then continue” also starts another assistant turn.`
+      : `Accept applies all ${fileCount} file${fileCount === 1 ? '' : 's'}. Check files under Changes to apply only some; nothing starts another assistant turn unless you choose “then continue”.`;
+    foot.append(el('span', { className: 'note ai-review-impact', id: 'ai-review-impact', role: 'status', textContent: impact }));
     foot.append(
       el('button', { id: 'ai-accept', type: 'button', className: 'primary', textContent: 'Accept', disabled: invalid || checking || t.stale, title: invalid ? 'The proposal has source errors or failed its build' : checking ? 'The proposal is still being checked' : t.stale ? 'The project changed: rebase or regenerate first' : t.build.skipRequested ? 'Accept after source validation without building or rendering' : 'Apply the proposal as one change. Undo (Ctrl+Z)', onclick: () => accept(false) }),
       invalid ? el('button', { id: 'ai-accept-anyway', type: 'button', textContent: 'Accept anyway', title: 'Apply it although the project then does not build right now', disabled: t.stale, onclick: async () => { if (await confirmAnyway(t)) accept(true); } }) : el('span'),

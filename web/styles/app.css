@@ -407,3 +407,4 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .perf-ready-list{margin:4px 0;padding-left:18px;font-size:12px}
 .perf-ready-unavailable{color:var(--bad,#c0392b)}
 .perf-mode{font-size:11px}
+.assistant-koda-filter{margin:4px 0;font-size:12px}
