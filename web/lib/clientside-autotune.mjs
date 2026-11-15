@@ -45,15 +45,24 @@ export function parseFixes(text, rate, samplesPerBar) {
       if (words[i].toLowerCase() !== 'vibrato' || !Number.isFinite(v)) throw new Error(`'${words[i]}' in '${chunk}' is not known: after the note only vibrato 0% to 100% may follow.`);
       vibrato = Math.min(100, Math.max(0, Math.round(v)));
     }
-    out.push({ from, to, note, vibrato });
+    const fix = { from, to, note, vibrato };
+    Object.defineProperty(fix, 'raw', { value: chunk });   // how it was written: bars stay bars when another fix is edited
+    out.push(fix);
   }
   return out.sort((a, b) => a.from - b.from);
 }
 
-/** Writes fixes in seconds ({ from, to, note, vibrato } with from and to in seconds) back to the text of the parameter. */
+/** The text a fix was written with, when it has not been changed since it was read (`orig` holds what it was read as), else undefined. */
+export function keptFix(fix) {
+  const o = fix.orig;
+  if (!o || typeof fix.raw !== 'string') return undefined;
+  return o.from === fix.from && o.to === fix.to && o.note === fix.note && (o.vibrato ?? null) === (fix.vibrato ?? null) ? fix.raw : undefined;
+}
+
+/** Writes fixes in seconds ({ from, to, note, vibrato } with from and to in seconds) back to the text of the parameter. A fix that was not edited keeps its own text. */
 export function formatFixes(fixes) {
   const r = (n) => Math.round(n * 100) / 100;
-  return fixes.slice().sort((a, b) => a.from - b.from).map((f) => `${r(f.from)}s-${r(f.to)}s ${f.note === null ? 'off' : noteName(f.note)}${f.vibrato === null || f.vibrato === undefined ? '' : ` vibrato ${f.vibrato}%`}`).join('; ');
+  return fixes.slice().sort((a, b) => a.from - b.from).map((f) => keptFix(f) ?? `${r(f.from)}s-${r(f.to)}s ${f.note === null ? 'off' : noteName(f.note)}${f.vibrato === null || f.vibrato === undefined ? '' : ` vibrato ${f.vibrato}%`}`).join('; ');
 }
 
 // the period at the full rate: only lags close to the coarse one are tried, the lowest difference wins (with a parabola through it)

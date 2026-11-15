@@ -26,9 +26,18 @@ export function parseRewindEvents(text, rate, samplesPerBar) {
     }
     if (at === null || at < 0) throw new Error(`'${chunk}' has no 'at' (a time from the start of the block).`);
     if (scratch < 0 || scratch > 30 * rate) throw new Error(`The scratch of '${chunk}' must last 0 to 30 seconds.`);
-    events.push({ at, scratch, back });
+    const event = { at, scratch, back };
+    Object.defineProperty(event, 'raw', { value: chunk });   // how it was written: bars stay bars when another event is edited
+    events.push(event);
   }
   return events.sort((a, b) => a.at - b.at);
+}
+
+/** The text an event was written with, when it has not been changed since it was read (`orig` holds what it was read as), else undefined. */
+export function keptEvent(event) {
+  const o = event.orig;
+  if (!o || typeof event.raw !== 'string') return undefined;
+  return o.at === event.at && o.scratch === event.scratch && o.back === event.back ? event.raw : undefined;
 }
 
 // how far the record has turned after u (0..1) of a start-up of n samples; the motor gets going fast and then settles, the straight one rises evenly

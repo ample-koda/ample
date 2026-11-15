@@ -352,13 +352,21 @@ function renderTransport(state) {
     catch (error) { state.auditioning = false; status.textContent = error.message; }
     finally { rendered.disabled = !canRenderedPreview(panel); }
   };
-  // an effect without a live model: the main Play button plays the input take (it stayed greyed out while the status said "Ready to play")
+  // an effect without a live model: the main button plays the rendered effect when that can be rendered, else the input, and its label says which (issue 174)
+  let mainMode = 'live';
   if (effectControls && !localAvailable && panel.takeId) {
+    mainMode = renderedAvailable ? 'rendered' : 'input';
     local.disabled = false;
-    local.title = 'Play the input of this block';
-    local.setAttribute('aria-label', 'Play the input of this block');
-    local.onclick = inputPlay.onclick;
+    if (mainMode === 'rendered') {
+      local.title = 'Play this effect rendered on its input; Compare / render has the plain input';
+      local.onclick = () => { if (state.previewMode === 'rendered' && playerState().playing) { stop(); state.previewMode = null; state.auditioning = false; return; } rendered.onclick(); };
+    } else {
+      local.title = 'Play the input of this block';
+      local.onclick = inputPlay.onclick;
+    }
   }
+
+  const mainName = mainMode === 'rendered' ? 'Play the rendered effect' : mainMode === 'input' ? 'Play the input of this block' : panel.type === 'denoise' ? 'Client-side denoise preview' : 'Live local preview';
   if (effectControls) {
     const more = el('details', { className: 'studio-preview-more' });
     const chain = el('button', { type: 'button', textContent: 'Live chain', 'aria-label': 'Live chain from the built sources to this block', title: 'Loop the built sounds that lead to this block through every effect and mixer on the way, live: tune several blocks while it plays and bypass them one by one' });
@@ -382,8 +390,9 @@ function renderTransport(state) {
   } else footer.append(inputPlay, loop, scrubHost, levelMeter, status);
   const syncScrub = (player) => {
     levelMeter.setMeterValue(player.level, player.peak);
-    local.textContent = state.previewMode === 'live' && player.playing ? '■ Stop' : panel.type === 'denoise' ? '▶ Preview' : '▶ Play';
-    local.setAttribute('aria-label', panel.type === 'denoise' ? 'Client-side denoise preview' : 'Live local preview');
+    const stopsHere = (mainMode === 'live' && state.previewMode === 'live' && player.playing) || (mainMode === 'rendered' && state.previewMode === 'rendered' && player.playing);
+    local.textContent = stopsHere ? '■ Stop' : panel.type === 'denoise' && mainMode === 'live' ? '▶ Preview' : '▶ Play';
+    local.setAttribute('aria-label', mainName);
     if (!state.scrub || (player.take !== panel.takeId && player.take !== 'audition')) return;
     if (player.duration > 0) state.scrub.setScrubPosition(player.time / player.duration);
   };

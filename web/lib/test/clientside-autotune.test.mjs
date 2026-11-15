@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, keyScale, noteName, noteNumber, noteRuns, parseFixes } from '../clientside-autotune.mjs';
+import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, keptFix, keyScale, noteName, noteNumber, noteRuns, parseFixes } from '../clientside-autotune.mjs';
 
 const RATE = 16000;
 const tone = (hz, seconds = 3) => Float32Array.from({ length: Math.floor(seconds * RATE) }, (_, i) => {
@@ -92,4 +92,19 @@ test('the bend of a clip and of its notes is read like the engine reads it', asy
   const wheel = clipBendCurve({ bend: 'auto(1:0, 2:100)' }, RATE, 120, 1, 32000);
   assert.ok(Math.abs(wheel[16000] - 1) < 0.01);
   assert.equal(clipBendCurve({ notes: '1:0:2:60:100' }, RATE, 120, 1, 100), null);
+});
+
+test('editing one fix leaves the others as they were written, bars included (3/4 at 120)', () => {
+  const barMs = 1500;   // 3/4 at 120 BPM
+  const read = parseFixes('1bar-2bars E4; 7.9s-8.4s G4 vibrato 20%', 1000, barMs).map((f) => {
+    const fix = { ...f, from: f.from / 1000, to: f.to / 1000, raw: f.raw };
+    fix.orig = { from: fix.from, to: fix.to, note: fix.note, vibrato: fix.vibrato };
+    return fix;
+  });
+  assert.equal(read[0].from, 1.5);   // a bar is 1.5 s in 3/4, not 2 s
+  assert.equal(read[0].to, 3);
+  assert.equal(formatFixes(read), '1bar-2bars E4; 7.9s-8.4s G4 vibrato 20%');   // nothing changed: nothing rewritten
+  read[1] = { ...read[1], to: 8.6 };
+  assert.equal(formatFixes(read), '1bar-2bars E4; 7.9s-8.6s G4 vibrato 20%');   // only the edited one is in seconds
+  assert.equal(keptFix({ from: 1, to: 2, note: 60, vibrato: null }), undefined);   // a fix that was never read has no text of its own
 });

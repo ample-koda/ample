@@ -60,5 +60,27 @@ export function createJamInstrument(instrument) {
     };
     if (ready) start(); else timer = setTimeout(start, delay);
   }
-  return { play, stop };
+  /** Renders the sounds of a pattern ahead (each pitch, and the drum kit hits), so the transport can play the same voice as the keys (issue 245). Resolves when they are there or could not be made. */
+  async function warm(rows) {
+    const jobs = new Map();
+    for (const n of rows) {
+      const drum = n.channel === 9;
+      if (!jobs.has(keyOf(n.pitch, drum))) jobs.set(keyOf(n.pitch, drum), load(n.pitch, drum).catch(() => null));
+    }
+
+    await Promise.all(jobs.values());
+  }
+  /** Plays one event of the transport with this voice at a time of the audio clock. False when its sound is not there (the caller then says that another voice plays). */
+  function schedule(ctx, out, event, at) {
+    const buffer = buffers.get(keyOf(event.pitch, event.channel === 9));
+    if (!buffer) return false;
+    const source = ctx.createBufferSource(), gain = ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.value = Math.min(1, 0.9 * (Number(event.gain) > 0 ? Number(event.gain) / 0.45 : 1));
+    source.connect(gain).connect(out);
+    source.start(at);
+    source.stop(at + Math.max(0.05, Number(event.duration) || 0.05) + 0.1);
+    return true;
+  }
+  return { play, stop, warm, schedule };
 }

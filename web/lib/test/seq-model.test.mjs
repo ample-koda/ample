@@ -166,3 +166,19 @@ test('editing one lane keeps `all` in the other lanes, also when a channel is re
   assert.equal(formatLanes(lanesWithout(parseLanesRaw(text), 'hat')), 'lane1=all');
   // a lane that mixes `all` with names is `all`
   assert.deepEqual(parseLanesRaw('lane1=kick+all'), { 1: ['all'] });});
+
+test('a variation can be made independent before its base is deleted: it keeps what it plays and its clips', async () => {
+  const { addVariation, flattenVariations, rowsOf } = await import('../seq-model.mjs');
+  let { seq } = parseSeq(TEXT);
+  const made = addVariation(seq, 'verse');
+  seq = addClip(made.seq, made.name, 2, 5, 2);
+  const before = rowsOf(seq, seq.patterns.find((p) => p.name === made.name));
+  const flat = flattenVariations(seq, 'verse');
+  const variation = flat.patterns.find((p) => p.name === made.name);
+  assert.equal(variation.from, undefined, 'it no longer points at the base');
+  assert.deepEqual(rowsOf(flat, variation), before, 'it plays what it played');
+  const after = deletePattern(flat, 'verse');
+  assert.deepEqual(after.patterns.map((p) => p.name), [made.name]);
+  assert.equal(after.clips.length, 1, "only the clips of the base went");
+  assert.equal(after.clips[0].pattern, made.name);
+});

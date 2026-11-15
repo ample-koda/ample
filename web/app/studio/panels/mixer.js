@@ -17,9 +17,9 @@ function mixerPanel(context) {
     range.onchange = () => { gains[index] = range.value; context.commit('gains', gains.join(' ')); };
     const panValue = (pans[index] || 'c').toLowerCase() === 'l' ? -100 : (pans[index] || 'c').toLowerCase() === 'r' ? 100 : 0;
     const pan = knob({ label: `Input ${index + 1} pan`, value: panValue, min: -100, max: 100, step: 100, disabled: context.readOnly, format: (next) => next < 0 ? 'Left' : next > 0 ? 'Right' : 'Centre', onCommit: (next) => { pans[index] = next < 0 ? 'l' : next > 0 ? 'r' : 'c'; context.commit('pan', pans.join(' ')); } });
-    strips.append(el('div', { className: 'studio-mixer-strip' }, [el('strong', { textContent: `Input ${index + 1}` }), range, readout, pan, el('span', { className: 'studio-mixer-meter', role: 'img', 'aria-label': 'Meter available during audio preview' })]));
+    strips.append(el('div', { className: 'studio-mixer-strip' }, [el('strong', { textContent: `Input ${index + 1}` }), range, readout, pan]));   // no meter until a level is measured (issue 194)
   }
-  root.append(strips, el('p', { className: 'note', textContent: 'Each fader and pan edit is journaled. Live channel meters appear when preview analysis is connected.' }));
+  root.append(strips, el('p', { className: 'note', textContent: 'Each fader and pan edit is journaled.' }));
   return root;
 }
 
