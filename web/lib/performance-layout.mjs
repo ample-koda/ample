@@ -14,7 +14,10 @@ export const emptyLayout = () => ({ version: LAYOUT_VERSION, lanes: [], scenes: 
 
 const clean = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
-const copyLane = (lane) => ({ name: lane.name, clips: lane.clips.map((c) => ({ ...c })) });
+/** What a lane plays: a bed that loops until it is switched, accents that play once, or sounds that last as long as a pad is held (issue 280). */
+export const LANE_MODES = ['loop', 'oneshot', 'momentary'];
+export const normalizeLaneMode = (mode) => (LANE_MODES.includes(mode) ? mode : 'loop');
+const copyLane = (lane) => ({ name: lane.name, mode: normalizeLaneMode(lane.mode), clips: lane.clips.map((c) => ({ ...c })) });
 const copyScene = (scene) => ({ id: scene.id, name: scene.name, lanes: scene.lanes.map((entry) => ({ ...entry })) });
 const copy = (layout) => ({ version: LAYOUT_VERSION, lanes: layout.lanes.map(copyLane), scenes: (layout.scenes ?? []).map(copyScene) });
 
@@ -37,7 +40,16 @@ export function addLane(layout, rawName) {
   if (layout.lanes.some((lane) => sameName(lane.name, name))) return { ok: false, reason: `There is a lane named "${name}" already.` };
   if (layout.lanes.length >= MAX_LANES) return { ok: false, reason: `A performance has at most ${MAX_LANES} lanes.` };
   const next = copy(layout);
-  next.lanes.push({ name, clips: [] });
+  next.lanes.push({ name, mode: 'loop', clips: [] });
+  return { ok: true, layout: next };
+}
+
+/** Sets how a lane plays its clips. An accent lane (one-shot or momentary) does not replace the bed that loops in another lane. */
+export function setLaneMode(layout, name, mode) {
+  if (!layout.lanes.some((lane) => lane.name === name)) return { ok: false, reason: `There is no lane named "${name}".` };
+  if (!LANE_MODES.includes(mode)) return { ok: false, reason: 'A lane plays as a loop, a one-shot or a momentary sound.' };
+  const next = copy(layout);
+  next.lanes.find((lane) => lane.name === name).mode = mode;
   return { ok: true, layout: next };
 }
 
@@ -147,6 +159,7 @@ export function parseLayout(value) {
     const added = addLane(layout, lane?.name);
     if (!added.ok) continue;
     layout = added.layout;
+    layout.lanes.find((l) => l.name === clean(lane.name)).mode = normalizeLaneMode(lane.mode);
     for (const clip of Array.isArray(lane.clips) ? lane.clips : []) {
       const withClip = addClip(layout, clean(lane.name), clip);
       if (withClip.ok) layout = withClip.layout;

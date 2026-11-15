@@ -400,3 +400,10 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .toast-history time{color:var(--dim)}
 .autotune-row{flex-wrap:wrap;justify-content:flex-start}
 .autotune-field{width:5.5em}
+.perf-record.on{background:var(--bad,#c0392b);color:#fff}
+.perf-deck{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:4px 0}
+.perf-xfade{display:flex;gap:6px;align-items:center;padding:4px 0}
+.perf-load{font-size:11px;color:var(--dim)}
+.perf-ready-list{margin:4px 0;padding-left:18px;font-size:12px}
+.perf-ready-unavailable{color:var(--bad,#c0392b)}
+.perf-mode{font-size:11px}
