@@ -899,6 +899,7 @@ export async function build(only, range, intent, forceRender) {
     report = await api.post('/api/build', body, buildAbortController.signal);
     if (report.clockAt) { S.build.clockAt = report.clockAt; S.build.clockPath = S.path; }   // the clock the build read: what the roll and the preview show must be made with the same one
     appendBuildLog(`Build done: ${report.hits ?? report.Hits} cached, ${report.misses ?? report.Misses} rendered.`);
+    if (report.timings) appendBuildLog(report.timings);   // where the time went, also for a build that only read the cache (issue 291)
     if (report.builtWithErrors) {
       const left = (report.skippedBlocks || []).map((b) => `${b.block ?? b.Block} (${b.code ?? b.Code}, line ${b.line ?? b.Line})`).join(', ');
       appendBuildLog(`ATTENTION: built WITH ERRORS. Left out of this build: ${left}. Fix the red blocks and build again.`);

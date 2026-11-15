@@ -132,6 +132,7 @@ internal static class BuildCommands
                 output.WriteLine($"{r.Status,-9} {r.Block}{(r.Message is null ? string.Empty : "  " + r.Message)}");
             }
 
+            output.WriteLine(BuildTimings.Summarize(report).Describe());
             output.WriteLine($"build: {report.Hits.ToString(CultureInfo.InvariantCulture)} from cache, {report.Misses.ToString(CultureInfo.InvariantCulture)} rendered, {report.Blocks.Count(b => b.Status == "skipped").ToString(CultureInfo.InvariantCulture)} skipped");
             if (report.Blocks.Any(b => b.Status is "failed" or "cancelled"))
             {

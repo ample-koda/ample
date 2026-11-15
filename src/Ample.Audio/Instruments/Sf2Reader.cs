@@ -147,7 +147,11 @@ internal sealed class Sf2Bank
 
     private short[] Decode(int sampleIndex)
     {
-        if (_decoded.TryGetValue(sampleIndex, out short[]? known)) return known;
+        lock (_decoded)
+        {
+            if (_decoded.TryGetValue(sampleIndex, out short[]? known)) return known;
+        }
+
         Sf2Sample s = Samples[sampleIndex];
         if (s.ByteEnd <= s.ByteStart || s.ByteEnd > _smplLength || s.ByteEnd - s.ByteStart > 64 * 1024 * 1024) throw new Sf2FormatException("AMP5311: compressed sample range outside the data chunk");
         byte[] bytes = new byte[s.ByteEnd - s.ByteStart];
@@ -159,7 +163,11 @@ internal sealed class Sf2Bank
 
         short[] data = Ample.Audio.IO.OggVorbis.Decode(bytes, 64 * 1024 * 1024) ?? throw new Sf2FormatException("AMP5311: a compressed (SF3) sample is not a readable Ogg Vorbis stream, or too long");
 
-        _decoded[sampleIndex] = data;
+        lock (_decoded)
+        {
+            _decoded[sampleIndex] = data;   // a bank shared by blocks that render at the same time: the cache of decoded samples is guarded
+        }
+
         return data;
     }
 
@@ -215,6 +223,36 @@ internal static class Sf2Reader
         Sf2Bank bank = Read(() => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read));
         bank.SourcePath = path;
         return bank;
+    }
+
+    private const int MaxSharedBanks = 4;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, long Length, long Ticks), Lazy<Sf2Bank>> Shared = new();
+
+    /// <summary>
+    /// Reads a SoundFont once for all the blocks of a build (and the next one) that use the same, unchanged file: the headers are parsed one time and shared, simultaneous loads wait for the first.
+    /// The key is the file and its size and time, so a replaced file is read again. At most a few banks are kept (issue 292).
+    /// </summary>
+    public static Sf2Bank ReadShared(string path)
+    {
+        FileInfo info = new(path);
+        if (!info.Exists) return Read(path);   // says the usual thing
+        (string, long, long) key = (info.FullName, info.Length, info.LastWriteTimeUtc.Ticks);
+        Lazy<Sf2Bank> entry = Shared.GetOrAdd(key, _ => new Lazy<Sf2Bank>(() => Read(path), LazyThreadSafetyMode.ExecutionAndPublication));
+        try
+        {
+            Sf2Bank bank = entry.Value;
+            foreach ((string, long, long) other in Shared.Keys.Where(k => k != key).Take(Math.Max(0, Shared.Count - MaxSharedBanks)).ToList())
+            {
+                Shared.TryRemove(other, out _);
+            }
+
+            return bank;
+        }
+        catch
+        {
+            Shared.TryRemove(key, out _);   // a failed read is not kept
+            throw;
+        }
     }
 
     /// <summary>Reads from a bytes array (tests, embedded fonts).</summary>
