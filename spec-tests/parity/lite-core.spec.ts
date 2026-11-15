@@ -153,6 +153,45 @@ test('after file the files of the project are offered, and a marked problem expl
   await expect(page.locator('.lite-tip.lite-tip-error')).toContainText('is not in the project');
 });
 
+test('a missing file with one similar name in the project has a quick fix: in the tip, in the right click menu and from a double click on the problem', async ({ page }) => {
+  await fresh(page);
+  await useDemo(page, 'hello-melody');
+  const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(32)]);
+  await page.setInputFiles('#lite-upload', [{ name: 'my kick.wav', mimeType: 'audio/wav', buffer: wav }]);
+  await expect(page.locator('#lite-tree .lite-row[data-path="samples/my kick.wav"]')).toBeVisible();
+  await page.locator('#lite-tree .lite-row[data-path="song.amplet"]').click();
+  const NL = String.fromCharCode(10);
+  const block = (name: string, file: string) => `${NL}import-audio ${name} at 1 for 1 {${NL}file "${file}"${NL}}${NL}`;
+  const text = page.locator('#lite-editor .cm-content');
+  // 1. the tip of the mark has the button
+  await typeAtEnd(page, block('a', 'my-kick.wav'));
+  const markA = page.locator('#lite-editor .lite-diag-error', { hasText: 'my-kick.wav' }).first();
+  await expect(markA).toBeVisible();
+  await markA.hover();
+  const fix = page.locator('.lite-tip .lite-tip-fix');
+  await expect(fix).toHaveText('Use "samples/my kick.wav" instead');
+  await fix.click();
+  await expect(text).toContainText('file "samples/my kick.wav"');
+  // 2. the right mouse button on a mark
+  await typeAtEnd(page, block('b', 'my_kick.wav'));
+  await page.locator('#lite-editor .lite-diag-error', { hasText: 'my_kick.wav' }).first().click({ button: 'right' });
+  await page.locator('.lite-fixmenu button', { hasText: 'samples/my kick.wav' }).click();
+  await expect(text).not.toContainText('my_kick.wav');
+  // 3. a double click on the problem in the list puts it in focus with its tip open
+  await typeAtEnd(page, block('c', 'mykick.wav'));
+  const problem = page.locator('#lite-problems li.error', { hasText: 'mykick.wav' }).first();
+  await expect(problem).toBeVisible();
+  await problem.dblclick();
+  await expect(page.locator('.lite-tip .lite-tip-fix')).toHaveText('Use "samples/my kick.wav" instead');
+  await page.locator('.lite-tip .lite-tip-fix').click();
+  await expect(text).not.toContainText('mykick.wav');
+  // a name that is near no file has no quick fix
+  await typeAtEnd(page, block('d', 'bestaat.niet.wav'));
+  await page.locator('#lite-editor .lite-diag-error', { hasText: 'bestaat.niet.wav' }).first().hover();
+  await expect(page.locator('.lite-tip.lite-tip-error')).toContainText('is not in the project');
+  await expect(page.locator('.lite-tip .lite-tip-fix')).toHaveCount(0);
+});
+
 test('a song builds, the sound is there, and several demos build one after the other', async ({ page }) => {
   await fresh(page);
   for (const id of ['hello-melody', 'chords-bass']) {

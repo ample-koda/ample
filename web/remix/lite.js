@@ -392,7 +392,8 @@ function renderProblems() {
     li.className = d.severity;
     li.textContent = describe(d);
     // a click goes to the line (of the file that is open: a problem of another file has no line here)
-    if (d.line > 0 && d.here !== false && (!d.file || d.file === app.active)) { li.onclick = () => app.editor?.goto(d.line, d.col); li.ondblclick = li.onclick; li.title = 'Go to this line'; }
+    if (d.line > 0 && d.here !== false && (!d.file || d.file === app.active)) { li.onclick = () => app.editor?.goto(d.line, d.col);
+      li.ondblclick = () => app.editor?.showProblem(d); li.title = 'Click: go to this line. Double click: show it with its quick fix'; }
     list.append(li);
   }
   if (hidden.length) {

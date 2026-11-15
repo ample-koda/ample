@@ -45,6 +45,14 @@ button:disabled, .button[aria-disabled="true"] { opacity: .45; cursor: default; 
 .lite-diag-error { text-decoration: underline wavy #f07178; text-underline-offset: 3px; }
 .lite-tip-error { border-left: 3px solid #f07178; }
 .lite-tip-warning { border-left: 3px solid #f5c542; }
+.lite-tip-live { pointer-events: auto; }
+.lite-tip-fix { display: block; margin-top: 7px; padding: 3px 9px; font: inherit; font-weight: 600; color: var(--text); background: var(--accent-soft,
+  rgba(79, 168, 255, .18)); border: 1px solid var(--accent, #4fa8ff); border-radius: var(--r-s); cursor: pointer; }
+.lite-tip-fix:hover { background: var(--accent, #4fa8ff); color: #05070c; }
+.lite-fixmenu { position: absolute; z-index: 30; min-width: 180px; padding: 4px; background: var(--panel2); border: 1px solid var(--line-strong);
+  border-radius: var(--r-s); box-shadow: var(--shadow-2); }
+.lite-fixmenu button { display: block; width: 100%; padding: 5px 9px; text-align: left; font: inherit; color: var(--text); background: none; border: 0; border-radius: var(--r-s); cursor: pointer; }
+.lite-fixmenu button:hover { background: var(--accent-soft, rgba(79, 168, 255, .18)); }
 .lite-diag-warning { text-decoration: underline wavy #f5c542; text-underline-offset: 3px; }
 .lite-diag-info { text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
 .ag-error { color: #f07178; } .ag-warning { color: #f5c542; } .ag-info { color: var(--acc); }

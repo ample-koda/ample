@@ -36,6 +36,7 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   let tip = null;
   let completionTimer = 0;
   let hoverTimer = 0;
+  let overTip = false, pinned = false;   // the pointer is on a tip that has a button / a tip that was opened on a problem stays until the next click or Escape
   let diagnostics = [];   // what setDiagnostics marked: the tip over a mark says what it is
 
   // a change of the text from any cause (typing, paste, undo, drop) is seen by comparing the document, so nothing depends on which event the browser sends
@@ -47,7 +48,7 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   }, 160);
 
   const closePopup = () => { popup?.remove(); popup = null; };
-  const hideTip = () => { tip?.remove(); tip = null; };
+  const hideTip = () => { tip?.remove(); tip = null; overTip = false; };
 
   function place(element, coords) {
     const box = host.getBoundingClientRect();
@@ -152,8 +153,77 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   // and selecting text on a touch screen brings no keyboard and closes the suggestions
   const guard = installKeyboardGuard(view, closePopup);
 
+  /** The quick fix of a diagnostic, applied to the text as one change: the marked stretch is replaced by `fix.text`. */
+  function applyFix(d) {
+    const from = offsetAt(view, { line: d.line - 1, character: d.col - 1 }), to = offsetAt(view, { line: d.line - 1, character: (d.endCol || d.col) - 1 });
+    view.dispatch({ changes: { from, to, insert: d.fix.text }, userEvent: 'input.fix', scrollIntoView: true });
+    hideTip(); closeFixMenu();
+    view.focus();
+  }
+
+  /** The tip at a place (left and top in the page): what is wrong, the help of the language server, and a button for each quick fix. A tip with a fix stays while the pointer is on it. */
+  function showTip(left, top, hits, markdown) {
+    hideTip();
+    if (!markdown && !hits.length) return;
+    tip = document.createElement('div');
+    tip.className = tipClass(hits);
+    const body = document.createElement('div');
+    body.textContent = tipText(hits, markdown);
+    tip.append(body);
+    const fixes = hits.filter((d) => d.fix);
+    for (const d of fixes) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'lite-tip-fix';
+      button.textContent = d.fix.label;
+      button.onmousedown = (event) => event.preventDefault();   // the caret stays where it is
+      button.onclick = () => applyFix(d);
+      tip.append(button);
+    }
+
+    if (fixes.length) { tip.classList.add('lite-tip-live'); tip.onmouseenter = () => { overTip = true; }; tip.onmouseleave = () => { overTip = false; if (!pinned) hideTip(); }; }
+    host.append(tip);
+    const box = host.getBoundingClientRect();
+    tip.style.left = `${Math.max(4, Math.min(left - box.left, box.width - 340))}px`;
+    tip.style.top = `${top - box.top}px`;
+  }
+
+  /** The menu of the right mouse button over a marked place that has a quick fix: one entry for each fix. A place without a fix keeps the menu of the browser. */
+  let fixMenu = null;
+  const closeFixMenu = () => { fixMenu?.remove(); fixMenu = null; };
+  view.dom.addEventListener('contextmenu', (event) => {
+    const offset = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (offset === null || readOnly) return;
+    const fixes = diagnosticsAt(diagnostics, position(view, offset)).filter((d) => d.fix);
+    if (!fixes.length) return;
+    event.preventDefault();
+    closeFixMenu(); hideTip();
+    fixMenu = document.createElement('div');
+    fixMenu.className = 'lite-fixmenu';
+    fixMenu.setAttribute('role', 'menu');
+    for (const d of fixes) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = d.fix.label;
+      item.onclick = () => applyFix(d);
+      fixMenu.append(item);
+    }
+
+    host.append(fixMenu);
+    const box = host.getBoundingClientRect();
+    fixMenu.style.left = `${Math.max(4, Math.min(event.clientX - box.left, box.width - 240))}px`;
+    fixMenu.style.top = `${event.clientY - box.top}px`;
+    const away = (e) => { if (!fixMenu?.contains(e.target)) { closeFixMenu(); document.removeEventListener('pointerdown', away, true); } };
+    setTimeout(() => document.addEventListener('pointerdown', away, true), 0);
+  });
+  view.dom.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeFixMenu(); pinned = false; hideTip(); } });
+  // a click or a key in the text lets go of a tip that was opened on a problem
+  view.dom.addEventListener('pointerdown', () => { if (pinned) { pinned = false; hideTip(); } });
+
   view.dom.addEventListener('mousemove', (event) => {
     clearTimeout(hoverTimer);
+    if (pinned) return;
     const { clientX: x, clientY: y } = event;
     hoverTimer = setTimeout(async () => {
       const offset = view.posAtCoords({ x, y });
@@ -161,18 +231,11 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
       const at = position(view, offset);
       const hits = diagnosticsAt(diagnostics, at);   // a marked place says what is wrong, before the help of the language server
       const markdown = hover ? await hover(at).catch(() => null) : null;
-      hideTip();
-      if (!markdown && !hits.length) return;
-      tip = document.createElement('div');
-      tip.className = tipClass(hits);
-      tip.textContent = tipText(hits, markdown);
-      host.append(tip);
-      const box = host.getBoundingClientRect();
-      tip.style.left = `${Math.max(4, Math.min(x - box.left, box.width - 340))}px`;
-      tip.style.top = `${y - box.top + 18}px`;
+      if (overTip || pinned) return;
+      showTip(x, y + 18, hits, markdown);
     }, 380);
   });
-  view.dom.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); hideTip(); });
+  view.dom.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); setTimeout(() => { if (!overTip && !pinned) hideTip(); }, 220); });
   view.dom.addEventListener('click', async (event) => {
     if (!(event.ctrlKey || event.metaKey) || !definition) return;
     const offset = view.posAtCoords({ x: event.clientX, y: event.clientY });
@@ -202,6 +265,17 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
       }
       mirror.setMarks(marks);
       mirror.setGutter({ marks: gutter, notes: [] });
+    },
+    /** Puts a problem in focus: the caret goes to it and its tip opens (with the quick fix, when there is one) and stays until the next click or Escape. */
+    showProblem(d) {
+      this.goto(d.line, d.col);
+      const at = { line: d.line - 1, character: Math.max(0, (d.col || 1) - 1) };
+      const here = diagnosticsAt(diagnostics, at);
+      const hits = here.length ? here : [d];
+      const coords = view.coordsAtPos(offsetAt(view, at));
+      if (!coords) return;
+      pinned = true; overTip = false;
+      showTip(coords.left, coords.bottom + 6, hits, null);
     },
     /** Puts the caret at a place and shows it (1-based line, 1-based column). */
     goto(line, col = 1) {
