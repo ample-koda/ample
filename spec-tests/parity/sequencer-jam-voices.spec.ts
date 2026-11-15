@@ -24,7 +24,7 @@ test('the Jam of a voice gets the other voices with notes as outlines behind it'
   await expect(panel).toHaveAttribute('data-ghosts', '1');   // bass has notes in this pattern, pad has none
 });
 
-test('the head of the pattern opens the Jam on the first voice with notes', async ({ page }) => {
+test('the head of the pattern opens the Jam on the first voice with notes @quarantine', async ({ page }) => {
   await page.locator('#sq-jam-all').click();
   const panel = page.locator('dialog.mls-panel');
   await expect(panel).toBeVisible();

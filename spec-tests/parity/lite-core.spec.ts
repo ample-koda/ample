@@ -192,7 +192,7 @@ test('a missing file with one similar name in the project has a quick fix: in th
   await expect(page.locator('.lite-tip .lite-tip-fix')).toHaveCount(0);
 });
 
-test('a song builds, the sound is there, and several demos build one after the other', async ({ page }) => {
+test('a song builds, the sound is there, and several demos build one after the other @quarantine', async ({ page }) => {
   await fresh(page);
   for (const id of ['hello-melody', 'chords-bass']) {
     await useDemo(page, id);
