@@ -631,7 +631,7 @@ function followUp(subject, ...said) {
   return (question) => askModel('explain', { ...subject, said: context }, question);
 }
 function doThis(subject) {
-  setBubble('choice', choiceBubble({ title: tx('do.title'), text: tx('do.text', { x: subjectName(subject) }), options: [], placeholder: tx('do.placeholder'), submit: tx('do.submit') }, (text) => askModel('run', subject, text), () => closeBubble()), 'asking');
+  setBubble('choice', choiceBubble({ title: tx('do.title'), text: `${tx('do.text', { x: subjectName(subject) })} ${tx('do.where', { song: S.path || '-', mode: tx(`do.mode.${me.risk || 'safe'}`) })}`, options: [], placeholder: tx('do.placeholder'), submit: tx('do.submit') }, (text) => askModel('run', subject, text), () => closeBubble()), 'asking');
 }
 /** The buttons after something was done: thanks, and (when the backend can) "hang around", so the next question goes on in the same conversation. */
 /** After a draft was kept: thanks, or one more question that goes with what was just done. */

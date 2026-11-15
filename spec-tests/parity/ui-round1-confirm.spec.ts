@@ -33,7 +33,7 @@ test('AI: rejecting a proposal and deleting a conversation both ask first', asyn
 
   // conversation delete: Cancel keeps the card, Delete removes it
   await bottomTab(page, 'assistant');
-  await page.getByRole('tab', { name: /Archived/ }).click();   // a rejected proposal's conversation is archived
+  // a rejected proposal stays in its conversation, which is still under Active (only archiving by hand moves it)
   const cards = page.locator('#b-assistant .assistant-session-card');
   await expect(cards).toHaveCount(1);
   await page.locator('#b-assistant .assistant-session-action.danger').first().click();
