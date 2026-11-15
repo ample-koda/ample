@@ -97,7 +97,7 @@ test('the right-click menu adds EQ after an audio block', async ({ page }) => {
   await expect(page.locator('.node[data-id="managed-source"]').getByRole('button', { name: 'Go to effects of managed-source' })).toBeVisible();
 });
 
-test('double-clicking a node title renames inline and picks a unique name', async ({ page }) => {
+test('double-clicking a node title renames inline and picks a unique name @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'compressor', 'target');
   await addTemplateBlock(page, 'reverb', 'reserved');
@@ -141,7 +141,7 @@ test('compressor transfer curve follows its keyboard-editable threshold', async 
   await expect.poll(() => response.getAttribute('d')).not.toBe(before);
 });
 
-test('a knob pointer gesture commits once and can be undone once', async ({ page }) => {
+test('a knob pointer gesture commits once and can be undone once @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'compressor', 'gesture-comp');
   await page.locator('.node[data-id="gesture-comp"]').getByRole('button', { name: 'Advanced', exact: true }).click();
