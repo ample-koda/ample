@@ -194,6 +194,8 @@ test('a missing file with one similar name in the project has a quick fix: in th
 
 test('a song builds, the sound is there, and several demos build one after the other', async ({ page }) => {
   await fresh(page);
+  const asked: string[] = [];
+  page.on('request', (request) => asked.push(request.url()));   // what the page asks the server for
   for (const id of ['hello-melody', 'chords-bass']) {
     await useDemo(page, id);
     await page.click('#lite-build');
@@ -201,7 +203,7 @@ test('a song builds, the sound is there, and several demos build one after the o
     const duration = await page.evaluate(async () => { const a = document.querySelector('#lite-output') as HTMLAudioElement; for (let i = 0; i < 50 && !(a.duration > 0); i++) await new Promise((r) => setTimeout(r, 100)); return a.duration; });
     expect(duration).toBeGreaterThan(1);
     // the player asks for the mp3 (a machine without ffmpeg answers with the wav, and then plays that: what is asked is what this checks)
-    expect(await page.evaluate(() => performance.getEntriesByType('resource').some((e) => e.name.includes('format=mp3') && e.name.includes('use=play'))), 'the player asks for the mp3').toBe(true);
+    expect(asked.some((url) => url.includes('format=mp3') && url.includes('use=play')), 'the player asks for the mp3').toBe(true);
     await page.click('#lite-export-btn');   // the sound is in the Export as menu
     await expect(page.locator('#lite-download')).toBeVisible();
     await page.keyboard.press('Escape');
