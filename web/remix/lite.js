@@ -572,6 +572,7 @@ function dropOutput() {
 /** Asks the server for the last build as MP3 or FLAC (encoded there, counted per client, queued) and saves it. A refusal says how long to wait. */
 async function downloadEncoded(format) {
   if (!app.outputId) { toast('Build a song first.', 'error'); return; }
+  if (format === 'mp3' && app.playFormat === 'mp3' && app.playBlob) { saveBlob(app.playBlob, `${app.outputName ?? 'lite'}.mp3`); return; }   // what is playing is that mp3: no new encode
   const button = $(`#lite-download-${format}`), label = button.innerHTML;
   button.disabled = true;
   button.innerHTML = '<b>' + format.toUpperCase() + '</b><small>encoding...</small>';
@@ -599,11 +600,34 @@ async function downloadEncoded(format) {
   button.textContent = label;
 }
 
+/** Saves a blob as a file with this name. */
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/** The sound of a build for the player: the mp3 (small, so it starts sooner); the wav only when the server cannot encode it just now. */
+async function fetchPlayable(outputId) {
+  const headers = { 'X-Ample-Token': getToken() };
+  const mp3 = await fetch(`/api/remix/output/${outputId}?format=mp3&use=play`, { headers });
+  if (signInEnded(mp3)) throw new Error('Your sign-in has ended.');
+  if (mp3.ok) return { blob: await mp3.blob(), format: 'mp3' };
+  if (mp3.status === 404) throw new Error('This build is no longer kept on the server (ten minutes): build again.');
+  const wav = await fetch(`/api/remix/output/${outputId}`, { headers });
+  if (signInEnded(wav)) throw new Error('Your sign-in has ended.');
+  if (!wav.ok) throw new Error('The sound could not be fetched.');
+  return { blob: await wav.blob(), format: 'wav' };
+}
+
 async function playOutput(result, entry) {
-  const response = await fetch(`/api/remix/output/${result.outputId}`, { headers: { 'X-Ample-Token': getToken() } });
-  if (signInEnded(response)) throw new Error('Your sign-in has ended.');
-  if (!response.ok) throw new Error('The sound could not be fetched.');
-  const blob = await response.blob();
+  const { blob, format } = await fetchPlayable(result.outputId);
+  app.playBlob = blob; app.playFormat = format;
   app.outputId = result.outputId;
   app.builtRev = app.builtFrom?.rev ?? app.rev;
   app.builtProject = app.builtFrom?.project ?? app.project?.id;
@@ -616,8 +640,18 @@ async function playOutput(result, entry) {
   audio.ampleBlob = blob;   // the player draws the waveform from it (a fetch of the blob URL is not allowed by the page's connect-src)
   audio.src = app.outputUrl;
   const link = $('#lite-download');
-  link.href = app.outputUrl;
+  // the wav is fetched when it is asked for: the player plays the mp3
+  link.href = format === 'wav' ? app.outputUrl : '#';
   link.download = `${entry.replace(/\.amplet$/, '').split('/').pop()}.wav`;
+  link.onclick = format === 'wav' ? null : async (event) => {
+    event.preventDefault();
+    try {
+      const response = await fetch(`/api/remix/output/${result.outputId}`, { headers: { 'X-Ample-Token': getToken() } });
+      if (signInEnded(response)) return;
+      if (!response.ok) throw new Error(response.status === 404 ? 'This build is no longer kept on the server (ten minutes): build again to download it.' : 'The WAV could not be fetched.');
+      saveBlob(await response.blob(), link.download);
+    } catch (error) { toast(errorText(error), 'error'); }
+  };
   link.hidden = false;
   link.removeAttribute('aria-disabled');
   $('#lite-output-info').textContent = `${entry}: ${result.audioSeconds} seconds, built in ${result.seconds} seconds.`;
