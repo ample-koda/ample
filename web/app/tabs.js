@@ -4,7 +4,7 @@
 
 import { api, getToken } from './api.js';
 import { planSaveAll } from '../lib/source-guards.mjs';
-import { S, editSerial, notify, select, subscribe, undoHooks } from './store.js';
+import { S, editSerial, forgetWork, notify, select, subscribe, undoHooks } from './store.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
 import { createRecentFilesToggle, recentFilePaths } from './recent-files.js';
 import { isOpenable } from '../lib/file-types.mjs';
@@ -225,7 +225,9 @@ async function closeTabNow(path, tab) {
         if (kindOf(path) === 'song') await api.post(choice === 'save' ? '/api/doc/save' : '/api/doc/revert', { path });
         else await api.post(choice === 'save' ? '/api/wc/save' : '/api/wc/revert', { path });
         // Discard clears the copy of this browser as well, or the next open would bring the discarded text back (issue 83)
-        if (choice !== 'save') { try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable */ } }
+        if (choice !== 'save') { try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch {
+          /* storage can be unavailable
+          */ } forgetWork(path, { block: true }); document.dispatchEvent(new CustomEvent('ample:discarded', { detail: { path } })); }
       } catch (error) { toast(error.message || String(error)); return; }
     }
   }
@@ -261,7 +263,9 @@ function tabMenu(x, y, path) {
   else {
     if (!mobile && !detachedPath()) items.push({ label: 'Open in a window', fn: () => detach(path) });
     items.push({ label: 'Save', fn: async () => { try { if (isUntitled(path)) { await placeUntitled(path); refreshState(); return; } await api.post(kindOf(path) === 'song' ? '/api/doc/save' : '/api/wc/save', { path }); refreshState(); } catch (e) { toast(e.message || String(e)); } } },
-      { label: 'Revert', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/revert' : '/api/wc/revert', { path }); try { removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable */ } refreshState(); if (path === S.path) document.dispatchEvent(new CustomEvent('ample:open', { detail: path })); } catch (e) { toast(e.message || String(e)); } } });
+      { label: 'Revert', fn: async () => { try { await api.post(kindOf(path) === 'song' ? '/api/doc/revert' : '/api/wc/revert', { path }); try {
+        removeRecoveryDraft(localStorage, S.project?.id || '', path); } catch { /* storage can be unavailable
+        */ } forgetWork(path); refreshState(); if (path === S.path) document.dispatchEvent(new CustomEvent('ample:open', { detail: path })); } catch (e) { toast(e.message || String(e)); } } });
   }
   items.push({ label: 'Close', fn: () => closeTab(path) }, { label: 'Close others', fn: async () => { for (const t of [...T.tabs]) if (t.path !== path && !T.remote.has(t.path)) await closeTab(t.path); } },
     { label: 'Close saved', fn: async () => { for (const t of [...T.tabs]) if (!factsOf(t.path).dirty && t.path !== path && !T.remote.has(t.path)) await closeTab(t.path); } },
