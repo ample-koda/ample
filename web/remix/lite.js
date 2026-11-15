@@ -279,6 +279,7 @@ async function openText(path, text) {
     text,
     onChange: (value) => { app.texts.set(path, value); queueSave(path, value); app.language.change(value); },
     complete: (position, current) => app.language.complete(position, current),
+    files: () => app.files,
     hover: (position) => app.language.hover(position),
     definition: async (position) => rollTarget(position) ?? await app.language.definition(position),
     onOpenTarget: async (target) => {

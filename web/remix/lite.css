@@ -43,6 +43,8 @@ button:disabled, .button[aria-disabled="true"] { opacity: .45; cursor: default; 
 .lite-complete-row.on { background: color-mix(in srgb, var(--acc) 30%, transparent); }
 .lite-tip { position: absolute; z-index: 20; max-width: 340px; padding: 6px 9px; background: var(--panel2); border: 1px solid var(--line-strong); border-radius: var(--r-s); box-shadow: var(--shadow-2); font-size: 12px; white-space: pre-wrap; pointer-events: none; }
 .lite-diag-error { text-decoration: underline wavy #f07178; text-underline-offset: 3px; }
+.lite-tip-error { border-left: 3px solid #f07178; }
+.lite-tip-warning { border-left: 3px solid #f5c542; }
 .lite-diag-warning { text-decoration: underline wavy #f5c542; text-underline-offset: 3px; }
 .lite-diag-info { text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
 .ag-error { color: #f07178; } .ag-warning { color: #f5c542; } .ag-info { color: var(--acc); }

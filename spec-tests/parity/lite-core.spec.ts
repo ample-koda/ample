@@ -131,6 +131,28 @@ test('a sample can be uploaded, stays after a reload, and a wrong file is refuse
   await expect(page.locator('#lite-binary audio')).toBeVisible();
 });
 
+test('after file the files of the project are offered, and a marked problem explains itself when the pointer rests on it', async ({ page }) => {
+  await fresh(page);
+  await useDemo(page, 'hello-melody');
+  const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(32)]);
+  await page.setInputFiles('#lite-upload', [{ name: 'my kick.wav', mimeType: 'audio/wav', buffer: wav }]);
+  await expect(page.locator('#lite-tree .lite-row[data-path="samples/my kick.wav"]')).toBeVisible();
+  await page.locator('#lite-tree .lite-row[data-path="song.amplet"]').click();
+  const NL = String.fromCharCode(10);
+  await typeAtEnd(page, `${NL}import-audio hit at 1 for 1 {${NL}file "`);
+  const row = page.locator('.lite-complete .lite-complete-row', { hasText: 'samples/my kick.wav' });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('sound file');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#lite-editor .cm-content')).toContainText('file "samples/my kick.wav"');
+  // a name that is not there: the problem is marked, and its tip says why
+  await typeAtEnd(page, `${NL}import-audio gone at 2 for 1 {${NL}file "bestaat.niet.wav"${NL}}${NL}`);
+  const mark = page.locator('#lite-editor .lite-diag-error', { hasText: 'bestaat.niet.wav' }).first();
+  await expect(mark).toBeVisible();
+  await mark.hover();
+  await expect(page.locator('.lite-tip.lite-tip-error')).toContainText('is not in the project');
+});
+
 test('a song builds, the sound is there, and several demos build one after the other', async ({ page }) => {
   await fresh(page);
   for (const id of ['hello-melody', 'chords-bass']) {

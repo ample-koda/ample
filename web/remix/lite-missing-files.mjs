@@ -35,3 +35,35 @@ export function missingFileDiagnostics(text, paths) {
   }
   return out;
 }
+
+/**
+ * Whether the caret is on the value of a `file` line, and where that value starts. `before` is the text of the line up to the caret and `after` the text after it.
+ * Returns { from (column, 0-based, where the typed value starts), prefix (what is typed of it), open (it starts with a quote), closed (the closing quote is there already) } or null.
+ */
+export function fileValueContext(before, after = '') {
+  const t = before.trimStart(), indent = before.length - t.length;
+  if (!t.startsWith('file') || !(t[4] === ' ' || t[4] === String.fromCharCode(9))) return null;
+  const rest = t.slice(4), value = rest.trimStart(), from = indent + 4 + (rest.length - value.length);
+  if (value.startsWith('"')) {
+    const inner = value.slice(1);
+    return inner.includes('"') ? null : { from: from + 1, prefix: inner, open: true, closed: after.startsWith('"') };
+  }
+  if (value.includes('"') || value.includes('#')) return null;
+  return { from, prefix: value, open: false, closed: false };
+}
+
+const SOUND = ['wav', 'flac', 'mp3', 'ogg', 'aif', 'aiff', 'sf2'];
+const kindOf = (path) => { const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase(); return SOUND.includes(ext) ? 0 : 1; };
+
+/**
+ * The files of the project to offer for a `file` value: the sound files first, then the others, never a song; each as { label, detail }. `paths` are the paths of the project.
+ * What is typed is matched anywhere in the path, so a folder or a part of a name finds it.
+ */
+export function fileChoices(paths, prefix = '') {
+  const lower = String(prefix).toLowerCase();
+  return paths
+    .filter((p) => !/[.]amplet$/i.test(p) && p.toLowerCase().includes(lower))
+    .map((p) => ({ label: p, detail: kindOf(p) === 0 ? 'sound file' : 'file', rank: kindOf(p) }))
+    .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label))
+    .map(({ label, detail }) => ({ label, detail }));
+}
