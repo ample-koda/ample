@@ -35,8 +35,26 @@ import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectG
 import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
 import { keepInside } from '../../lib/window-bounds.mjs';
+import { previewOwnership } from '../../lib/preview-owner.mjs';
 
 let active = null;   // the window that was used last
+const previewOwner = previewOwnership();   // the window whose preview is playing: only it seeks, updates, loops or stops (issue 161)
+
+/** A window that starts a preview takes it over; the window that had it goes back to idle and says so. */
+function claimPreview(state) {
+  const previous = previewOwner.claim(state);
+  if (!previous || !previous.dialog.open) return;
+  clearTimeout(previous.localRefreshTimer);
+  previous.denoiseAbort?.abort();
+  previous.denoiseAbort = null;
+  previous.localGeneration++;
+  previous.auditioning = false;
+  previous.startedPlayback = false;
+  previous.previewMode = null;
+  previous.localPreviewActive = false;
+  if (previous.status) previous.status.textContent = 'The preview moved to another window.';
+  renderTransport(previous);
+}
 // document + block -> window: several panels can be open at once, as floating windows. The key holds the song and the module,
 // because the same block id exists in other songs and a window must never edit the song that is open now when it was made for another.
 const windows = new Map();
@@ -193,6 +211,7 @@ async function playLocalPreview(state, params, preservePosition) {
   const cache = cachedTakeInput(state, panel);
   const [audio, impulse] = await Promise.all([cache.blob, panel.type === 'convolution' ? panel.loadImpulse(params).then(decodePreviewBlob) : null]);
   if (generation !== state.localGeneration || !state.dialog.open) return;
+  claimPreview(state);
   state.auditioning = true;
   if (panel.type === 'master') {
     state.status.textContent = 'Preparing master preview on this device…';
@@ -251,6 +270,7 @@ async function playRenderedPreview(state, params, preservePosition) {
   state.status.textContent = `Rendering ${panel.title} on input from ${panel.inputTitle || 'the upstream block'}…`;
   const audio = await panel.realPreview(params, panel.takeId);
   if (generation !== state.localGeneration || !state.dialog.open) return;
+  claimPreview(state);
   state.auditioning = true;
   const previous = playerState();   // captured after the render, not before: the previous preview kept playing during it
   applyPreviewLoop(state);
@@ -298,7 +318,9 @@ function renderTransport(state) {
         state.buildCancelled = false;
         const cancel = el('button', { type: 'button', className: 'studio-cancel-build', textContent: 'Cancel', title: 'Stop waiting for the build', onclick: () => { state.buildCancelled = true; cancel.remove(); status.textContent = 'Cancelled. Press Build to use the input when it is ready.'; buildInput.disabled = false; } });
         status.after(cancel);
-        try { const take = await panel.buildInput(); if (state.buildCancelled) return; cancel.remove(); state.takeId = take || state.takeId; renderBody(state); renderTransport(state); }
+        const opening = state.autoBuilding === true;   // the build that starts when the window opens only builds: it never selects the take of the project (issue 192)
+        state.autoBuilding = false;
+        try { const take = await panel.buildInput({ select: !opening, stillWanted: () => !state.buildCancelled && state.dialog.open }); if (state.buildCancelled) return; cancel.remove(); state.takeId = take || state.takeId; renderBody(state); renderTransport(state); }
         catch (error) { cancel.remove(); if (state.buildCancelled) return; status.textContent = error.message; buildInput.disabled = false; }
       };
       if (!effectControls) footer.append(inputPlay); footer.append(buildInput, status);
@@ -314,7 +336,7 @@ function renderTransport(state) {
   const scrubHost = el('span', { className: 'studio-scrub-placeholder', textContent: 'Loading waveform…', 'aria-live': 'polite' });
   const loop = el('button', { type: 'button', textContent: '↻ Loop', title: 'Repeat the preview sample; Shift-drag the waveform to choose a loop range', 'aria-pressed': String(state.previewLoop), className: state.previewLoop ? 'on' : '' });
   loop.onclick = () => { state.previewLoop = !state.previewLoop; state.loopChanged = true; if (!state.previewLoop) state.previewLoopRegion = null; applyPreviewLoop(state); state.scrub?.setScrubLoop(state.previewLoopRegion); loop.setAttribute('aria-pressed', String(state.previewLoop)); loop.classList.toggle('on', state.previewLoop); };
-  inputPlay.onclick = () => { clearTimeout(state.localRefreshTimer); state.denoiseAbort?.abort(); state.denoiseAbort = null; state.localGeneration++; state.previewMode = null; state.localPreviewActive = false; if (playerState().playing && playerState().take === panel.takeId) { stop(); return; } applyPreviewLoop(state); state.startedPlayback = true; play(panel.takeId).catch((error) => { status.textContent = error.message; }); };
+  inputPlay.onclick = () => { clearTimeout(state.localRefreshTimer); state.denoiseAbort?.abort(); state.denoiseAbort = null; state.localGeneration++; state.previewMode = null; state.localPreviewActive = false; if (playerState().playing && playerState().take === panel.takeId) { stop(); return; } applyPreviewLoop(state); claimPreview(state); state.startedPlayback = true; play(panel.takeId).catch((error) => { status.textContent = error.message; }); };
   local.onclick = async () => {
     if (state.previewMode === 'live' && playerState().playing) { state.denoiseAbort?.abort(); state.denoiseAbort = null; stop(); state.previewMode = null; state.auditioning = false; status.textContent = statusText; return; }
     local.disabled = true; state.localPreviewActive = true; state.previewMode = 'live';
@@ -426,6 +448,7 @@ function autoBuild(state) {
   const button = state.footer.querySelector('.studio-build-input');
   if (!button || button.disabled) return;
   state.autoBuilt = true;
+  state.autoBuilding = true;
   button.click();
 }
 
@@ -505,7 +528,9 @@ export function openStudioPanel(options) {
     body.querySelectorAll('.studio-eq-panel, .studio-live-panel').forEach((panel) => panel.dispose?.());
     state.unsubscribePlayer?.();
     const current = true;
-    if (current && (state.auditioning || (state.startedPlayback && playerState().take === panel.takeId))) stop();
+    const owns = previewOwner.owns(state);   // a window that does not own the preview never stops it (issue 161)
+    previewOwner.release(state);
+    if (owns && (state.auditioning || (state.startedPlayback && playerState().take === panel.takeId))) stop();
     if (current && state.loopChanged) { if (state.originalLoopRegion) setLoopRegion(state.originalLoopRegion); else setLoop(state.originalLoop); }
     dialog.remove(); windows.delete(key); if (active === state) active = [...windows.values()].pop() ?? null;
   };
@@ -532,7 +557,7 @@ const redrawOne = (active) => {
   }
   if (active.inputTakeId !== panelState(active).takeId) {
     clearTimeout(active.localRefreshTimer); active.localGeneration++;
-    if (active.auditioning) stop();
+    if (active.auditioning && previewOwner.owns(active)) stop();
     active.previewMode = null; active.localPreviewActive = false; active.auditioning = false; active.takeInputCache = null;
   }
   if (active.signature === signatureOf(active)) { // nothing the panel shows has changed (a source that settles a moment later is looked at once more)

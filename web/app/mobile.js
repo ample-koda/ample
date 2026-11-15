@@ -82,6 +82,7 @@ function initMoreMenu() {
     menuItem('Checkpoint...', proxy('#btn-cp')),
     menuItem('Loop', proxy('#btn-loop'), { check: true }),
     menuItem('Play preview', proxy('#btn-build-play-preview')),
+    menuItem('Bake clock values…', proxy('#btn-bake-dyn')),
     menuItem('Volume...', openVolume),
     heading('View'),
     menuItem('Block library', proxy('#tg-left')),

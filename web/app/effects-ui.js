@@ -68,7 +68,7 @@ export function renderEffectCard(type, definitions, values, options) {
     } catch (error) { toast(error.message); }
   };
   const advanced = el('button', { type: 'button', className: 'fx-advanced', textContent: '↗', 'aria-label': 'Open advanced controls', title: 'Open advanced controls' });
-  advanced.onclick = () => openStudioPanel({ type, title: type, block: options.block, definitions, getParams: options.getParams, readOnly: options.disabled, preview: () => {}, commit: options.setParameter });
+  advanced.onclick = () => options.openAdvanced ? options.openAdvanced() : openStudioPanel({ type, title: type, block: options.block, definitions, getParams: options.getParams, readOnly: options.disabled, preview: () => {}, commit: options.setParameter });
   head.append(el('strong', { textContent: type.toUpperCase() }), el('span', { className: 'sp' }), advanced, bypass, play);
   card.append(head, visual(model));
   const grid = el('div', { className: 'fx-controls' });

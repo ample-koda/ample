@@ -365,6 +365,41 @@ function loadSizes() {
 }
 const saveSizes = () => { try { localStorage.setItem(sizesKey(), JSON.stringify(sizes)); } catch { /* storage may be blocked */ } saveViewSoon(); };
 
+const selectedInputs = new Map();
+const inputLoads = new Map();
+const effectPanelOptions = (effect) => {
+  const template = tplOf(effect);
+  const getSource = () => flat().links.find((link) => !link.disabled && link.to === effect.id && (link.type === 'audio' || link.type === 'render'));
+  const inputKey = () => `${S.path}:${getSource()?.from || ''}`;
+  const getTakeId = () => S.build.takes?.[getSource()?.from] || selectedInputs.get(inputKey()) || null;
+  const loadInput = async () => { const source = getSource(); if (!source) return null; const key = inputKey(), request = {}; inputLoads.set(key, request); const control = await api.get(`/api/control/block?path=${encodeURIComponent(S.path)}&block=${encodeURIComponent(source.from)}`); if (inputLoads.get(key) === request) selectedInputs.set(key, control.selected || null); return getTakeId(); };
+  const getInputTitle = () => { const source = getSource(); return flat().nodes.find((node) => node.id === source?.from)?.title || source?.from || 'audio input'; };
+  const buildAndSelectInput = async (how = {}) => {
+      const source = getSource();
+      if (!source) return null;
+      await build(source.from);
+      const takeId = S.build.takes?.[source.from] || null;
+      // opening a window or cancelling its wait never chooses the take the project uses: only an explicit build does (issue 192)
+      if (!takeId || how.select === false || how.stillWanted?.() === false) return takeId;
+      await api.post('/api/control/select', { path: S.path, block: source.from, take: takeId });
+      inputLoads.delete(inputKey());
+      selectedInputs.set(inputKey(), takeId);
+      return takeId;
+    };
+  const renderInput = getSource()?.type === 'render';
+  return { type: effect.tpl, title: effect.title, block: effect.id, inputTitle: getInputTitle(), definitions: template?.parameters || [], getParams: () => current().nodes.find((item) => item.id === effect.id)?.params || effect.params, readOnly: readOnly() || effect.flags.includes('lock'), takeId: getTakeId(), getTakeId, loadInput, buildLabel: renderInput ? 'Build and use source variant' : 'Build and use input', playLabel: 'Play input', buildInput: getSource() ? buildAndSelectInput : null, realPreview: (params, inputTakeId) => { const source = getSource(); const takeId = inputTakeId || getTakeId(); if (!source || !takeId) throw new Error('Build and select the upstream input before previewing this effect.'); return api.effectPreview({ path: S.path, block: effect.id, takeId, fromMs: 0, toMs: 30_000, params }); }, loadImpulse: (params) => api.effectImpulse({ path: S.path, block: effect.id, params }), preview: (name, value) => chainPreview(effect.id, name, value), commit: (name, value) => edit([{ type: 'setParameter', block: effect.id, name, value: String(value) }]), commitMany: (values) => edit(values.map(({ name, value }) => ({ type: 'setParameter', block: effect.id, name, value: String(value) }))) };
+};
+/** Opens the advanced window of a block: every entry point (the card, the properties, the effect card) opens the same window with the same input, build and preview (issue 160). */
+export function openAdvancedFor(n) {
+  const template = tplOf(n);
+  const source = flat().links.find((link) => !link.disabled && link.to === n.id && (link.type === 'audio' || link.type === 'render'));
+  const audioSource = n.outs.some((port) => port[1] === 'audio');
+  const takeId = source ? S.build.takes?.[source.from] : audioSource ? S.build.takes?.[n.id] : null;
+  const buildInput = source ? async (how = {}) => { await build(source.from); const take = S.build.takes?.[source.from] || null; if (take && how.select !== false && how.stillWanted?.() !== false) await api.post('/api/control/select', { path: S.path, block: source.from, take }); return take; } : audioSource ? async () => { await build(n.id); return S.build.takes?.[n.id] || null; } : null;
+  const options = { type: n.tpl, title: n.title, block: n.id, definitions: template?.parameters || [], getParams: () => current().nodes.find((item) => item.id === n.id)?.params || n.params, readOnly: readOnly() || n.flags.includes('lock'), takeId, buildInput, buildLabel: audioSource && !source ? 'Build block' : 'Build and use input', playLabel: audioSource && !source ? 'Play block' : 'Play input', realPreview: null, preview: () => {}, commit: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value: String(value) }]), commitMany: (values) => edit(values.map(({ name, value }) => ({ type: 'setParameter', block: n.id, name, value: String(value) }))) };
+  openStudioPanel({ ...options, ...(['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'denoise', 'chorus', 'normalize', 'tremolo', 'granular', 'reverse', 'rewind', 'autotune', 'convolution', 'master'].includes(n.tpl) ? effectPanelOptions(n) : {}), ...(n.tpl === 'master' ? { realPreview: null, tempo: S.doc?.project?.tempo || 120 } : {}), ...(n.tpl === 'autotune' ? { melody: flat().links.some((link) => !link.disabled && link.to === n.id && link.inName === 'target') } : {}) });
+}
+
 function nodeEl(n) {
   loadSizes();
   const resizeMark = resizing.has(n.id) ? ' resizing' : '';
@@ -431,28 +466,9 @@ function nodeEl(n) {
   }
   if (!n.proxy) head.append(el('span', { className: `cls ${n.cls}`, textContent: n.ver ? `v${n.ver}` : n.cls, title: `${n.cls}${n.ver ? ` v${n.ver}` : ''}` }));
   if (!n.proxy) {
-    const selectedInputs = new Map();
-    const inputLoads = new Map();
-    const effectPanelOptions = (effect) => {
-      const template = tplOf(effect);
-      const getSource = () => flat().links.find((link) => !link.disabled && link.to === effect.id && (link.type === 'audio' || link.type === 'render'));
-      const inputKey = () => `${S.path}:${getSource()?.from || ''}`;
-      const getTakeId = () => S.build.takes?.[getSource()?.from] || selectedInputs.get(inputKey()) || null;
-      const loadInput = async () => { const source = getSource(); if (!source) return null; const key = inputKey(), request = {}; inputLoads.set(key, request); const control = await api.get(`/api/control/block?path=${encodeURIComponent(S.path)}&block=${encodeURIComponent(source.from)}`); if (inputLoads.get(key) === request) selectedInputs.set(key, control.selected || null); return getTakeId(); };
-      const getInputTitle = () => { const source = getSource(); return flat().nodes.find((node) => node.id === source?.from)?.title || source?.from || 'audio input'; };
-      const buildAndSelectInput = async () => { const source = getSource(); if (!source) return null; await build(source.from); const takeId = S.build.takes?.[source.from] || null; if (!takeId) return null; await api.post('/api/control/select', { path: S.path, block: source.from, take: takeId }); inputLoads.delete(inputKey()); selectedInputs.set(inputKey(), takeId); return takeId; };
-      const renderInput = getSource()?.type === 'render';
-      return { type: effect.tpl, title: effect.title, block: effect.id, inputTitle: getInputTitle(), definitions: template?.parameters || [], getParams: () => current().nodes.find((item) => item.id === effect.id)?.params || effect.params, readOnly: readOnly() || effect.flags.includes('lock'), takeId: getTakeId(), getTakeId, loadInput, buildLabel: renderInput ? 'Build and use source variant' : 'Build and use input', playLabel: 'Play input', buildInput: getSource() ? buildAndSelectInput : null, realPreview: (params, inputTakeId) => { const source = getSource(); const takeId = inputTakeId || getTakeId(); if (!source || !takeId) throw new Error('Build and select the upstream input before previewing this effect.'); return api.effectPreview({ path: S.path, block: effect.id, takeId, fromMs: 0, toMs: 30_000, params }); }, loadImpulse: (params) => api.effectImpulse({ path: S.path, block: effect.id, params }), preview: (name, value) => chainPreview(effect.id, name, value), commit: (name, value) => edit([{ type: 'setParameter', block: effect.id, name, value: String(value) }]), commitMany: (values) => edit(values.map(({ name, value }) => ({ type: 'setParameter', block: effect.id, name, value: String(value) }))) };
-    };
     const openAdvanced = (event) => {
       event.stopPropagation();
-      const template = tplOf(n);
-      const source = flat().links.find((link) => !link.disabled && link.to === n.id && (link.type === 'audio' || link.type === 'render'));
-      const audioSource = n.outs.some((port) => port[1] === 'audio');
-      const takeId = source ? S.build.takes?.[source.from] : audioSource ? S.build.takes?.[n.id] : null;
-      const buildInput = source ? async () => { await build(source.from); const take = S.build.takes?.[source.from] || null; if (take) await api.post('/api/control/select', { path: S.path, block: source.from, take }); return take; } : audioSource ? async () => { await build(n.id); return S.build.takes?.[n.id] || null; } : null;
-      const options = { type: n.tpl, title: n.title, block: n.id, definitions: template?.parameters || [], getParams: () => current().nodes.find((item) => item.id === n.id)?.params || n.params, readOnly: readOnly() || n.flags.includes('lock'), takeId, buildInput, buildLabel: audioSource && !source ? 'Build block' : 'Build and use input', playLabel: audioSource && !source ? 'Play block' : 'Play input', realPreview: null, preview: () => {}, commit: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value: String(value) }]), commitMany: (values) => edit(values.map(({ name, value }) => ({ type: 'setParameter', block: n.id, name, value: String(value) }))) };
-      openStudioPanel({ ...options, ...(['eq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'denoise', 'chorus', 'normalize', 'tremolo', 'granular', 'reverse', 'rewind', 'autotune', 'convolution', 'master'].includes(n.tpl) ? effectPanelOptions(n) : {}), ...(n.tpl === 'master' ? { realPreview: null, tempo: S.doc?.project?.tempo || 120 } : {}), ...(n.tpl === 'autotune' ? { melody: flat().links.some((link) => !link.disabled && link.to === n.id && link.inName === 'target') } : {}) });
+      openAdvancedFor(n);
     };
     if (!n.proxy && n.outs.some((port) => port[1] === 'audio')) {
       const effects = [...(n.renderChain || []), ...(n.effectChain || [])].filter((effect, index, all) => all.findIndex((entry) => entry.id === effect.id) === index);
@@ -1825,7 +1841,7 @@ export function initCanvas() {
     if (component) {
       // an entry of the component library: a block (the import is written first when the song does not have it yet)
       const p = point(e.clientX, e.clientY);
-      import('./component-library.js').then((m) => m.dropComponent({ ...JSON.parse(component), imported: !!S.tpl[JSON.parse(component).name] }, p.x - W / 2, p.y - 14)).catch((error) => toast(error.message || String(error)));
+      import('./component-library.js').then((m) => m.dropComponent({ ...JSON.parse(component), imported: JSON.parse(component).imported ?? !!S.tpl[JSON.parse(component).name] }, p.x - W / 2, p.y - 14)).catch((error) => toast(error.message || String(error)));
       return;
     }
     const id = e.dataTransfer.getData('text/plain');

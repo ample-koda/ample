@@ -3,6 +3,9 @@
 import { $ } from './ui.js';
 import { resizedByKey } from '../lib/keyboard-resize.mjs';
 
+/** A panel toggle is on or off for the eye (the class) and for assistive technology (aria-pressed). */
+const setOn = (selector, on) => { const button = $(selector); button.classList.toggle('on', on); button.setAttribute('aria-pressed', String(on)); };
+
 const KEY = 'ample.layout';
 
 function load() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } }
@@ -24,9 +27,9 @@ export function initLayout() {
     $('#lip-top').textContent = saved.noH ? '▾' : '▴';
     $('#lip-top').setAttribute('aria-expanded', String(!saved.noH));
     const drawers = matchMedia('(max-width:900px)').matches;   // a narrow screen: the button says whether the drawer is open
-    $('#tg-left').classList.toggle('on', drawers ? work.classList.contains('dr-L') : !saved.noL);
-    $('#tg-right').classList.toggle('on', drawers ? work.classList.contains('dr-R') : !saved.noR);
-    $('#tg-bottom').classList.toggle('on', !saved.min);
+    setOn('#tg-left', drawers ? work.classList.contains('dr-L') : !saved.noL);
+    setOn('#tg-right', drawers ? work.classList.contains('dr-R') : !saved.noR);
+    setOn('#tg-bottom', !saved.min);
     $('#b-min').textContent = saved.min ? '▴' : '▾';
     $('#lip-left').textContent = saved.noL ? '▸' : '◂';
     $('#lip-left').setAttribute('aria-expanded', String(drawers ? work.classList.contains('dr-L') : !saved.noL));
@@ -48,8 +51,8 @@ export function initLayout() {
     work.classList.remove('dr-L', 'dr-R');
     if (!open) work.classList.add(name);
     const l = work.classList.contains('dr-L'), r = work.classList.contains('dr-R');
-    $('#tg-left').classList.toggle('on', l);
-    $('#tg-right').classList.toggle('on', r);
+    setOn('#tg-left', l);
+    setOn('#tg-right', r);
     $('#lip-left').setAttribute('aria-expanded', String(l));
     $('#lip-right').setAttribute('aria-expanded', String(r));
     back.hidden = !(l || r);
