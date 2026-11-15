@@ -106,6 +106,17 @@ test('the language tooling: an error is marked and listed, and completion offers
   await expect(page.locator('.lite-complete .lite-complete-row', { hasText: 'synth' }).first()).toBeVisible();
 });
 
+test('a file that the project does not have is marked in the editor at once, before any build', async ({ page }) => {
+  await fresh(page);
+  await useDemo(page, 'hello-melody');
+  await expect(page.locator('#lite-problem-count')).toHaveText('none');
+  const NL = String.fromCharCode(10);
+  await typeAtEnd(page, `${NL}import-audio gone at 1 for 1 {${NL}file "bestaat.niet.wav"${NL}}${NL}`);
+  await expect(page.locator('#lite-problems li.error', { hasText: 'bestaat.niet.wav' }).first()).toBeVisible();
+  await expect(page.locator('#lite-editor .lite-diag-error').first()).toBeVisible();
+  await expect(page.locator('#lite-problems li.error', { hasText: 'bestaat.niet.wav' }).first()).toContainText('line ');   // the list says where
+});
+
 test('a sample can be uploaded, stays after a reload, and a wrong file is refused', async ({ page }) => {
   await fresh(page);
   await useDemo(page, 'hello-melody');
