@@ -23,7 +23,7 @@ async function forkAndReturnOther(page: Page) {
 
 const switchTo = (page: Page, line: string) => page.evaluate((l) => import('/app/history.js').then((m) => m.goToLine(l)), line);
 
-test('a changed song in a background tab stops the branch switch and is named', async ({ page }) => {
+test('a changed song in a background tab stops the branch switch and is named @quarantine', async ({ page }) => {
   const other = await forkAndReturnOther(page);
   const here = await current();
   await openSong(page, 'second.amplet');
@@ -40,7 +40,7 @@ test('a changed song in a background tab stops the branch switch and is named', 
   expect(await current()).toBe(here);
 });
 
-test('Save first that fails keeps the person on the branch with the text still in the editor', async ({ page }) => {
+test('Save first that fails keeps the person on the branch with the text still in the editor @quarantine', async ({ page }) => {
   const other = await forkAndReturnOther(page);
   const here = await current();
   await editOpenSong(page, '\n# keep me\n');

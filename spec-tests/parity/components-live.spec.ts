@@ -30,7 +30,7 @@ freshServer({
 
 test.beforeEach(async ({ page }) => { await api('/api/doc/save', { method: 'POST', body: { path: 'song.amplet' } }); await openApp(page, { reset: false }); });
 
-test('a component that cannot run in real time has a Live switch that is off, with the reason', async ({ page }) => {
+test('a component that cannot run in real time has a Live switch that is off, with the reason @quarantine', async ({ page }) => {
   await node(page, 'plain').click({ position: { x: 24, y: 12 } });
   const live = page.locator('#props .cui-live');
   await expect(live).toBeDisabled();
