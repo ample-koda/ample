@@ -37,7 +37,9 @@ export function knob(options) {
     line.setAttribute('x2', String(50 + Math.cos(angle) * 42)); line.setAttribute('y2', String(50 + Math.sin(angle) * 42)); ticks.append(line);
   }
   svg.append(ticks);
-  const readout = el('span', { className: 'studio-knob-value', textContent: '' });
+  // the value is a visible field to click or press Enter on, not a gesture to find: it types the value in place (issue 188)
+  const readout = el('button', { type: 'button', className: 'studio-knob-value', textContent: '', title: 'Click to type a value', 'aria-label': `Edit ${options.label} value`, disabled: Boolean(options.disabled) });
+  readout.onclick = () => { if (!options.disabled) enterValue(); };
   const root = el('div', { className: `studio-knob studio-knob-${options.sizeName || 'm'}` }, [svg, el('span', { className: 'studio-knob-label', textContent: options.label }), readout]);
   const point = (angle, radius) => [50 + Math.cos(angle * Math.PI / 180) * radius, 50 + Math.sin(angle * Math.PI / 180) * radius];
   const path = (from, to) => { const [x1, y1] = point(from, 30); const [x2, y2] = point(to, 30); return `M${x1} ${y1} A30 30 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2}`; };
@@ -111,13 +113,21 @@ export function knob(options) {
   // typing a value: a small numeric field in place of the readout (Enter on the knob or a right-click); Enter applies, Esc or leaving cancels
   const enterValue = () => {
     if (options.disabled || root.querySelector('.studio-knob-entry')) return;
-    const input = el('input', { type: 'text', inputMode: 'decimal', className: 'studio-knob-entry', value: String(value), 'aria-label': `${options.label} value` });
+    const input = el('input', { type: 'text', inputMode: 'decimal', className: 'studio-knob-entry', value: String(value), 'aria-label': `${options.label} value`, title: `A number from ${options.min} to ${options.max}${options.unit ? ' ' + options.unit : ''}` });
     let done = false;
     const finish = (apply) => {
       if (done) return; done = true;
       const text = input.value.trim();
+      if (apply && (text === '' || !Number.isFinite(Number(text)))) {
+        // a value that is not a number stays open and says so, instead of closing without a word
+        done = false;
+        input.classList.add('invalid'); input.setAttribute('aria-invalid', 'true');
+        input.title = `'${text}' is not a number. Type a number from ${options.min} to ${options.max}${options.unit ? ' ' + options.unit : ''}, or press Escape to keep ${String(value)}.`;
+        return;
+      }
+
       input.replaceWith(readout);
-      if (apply && text !== '' && Number.isFinite(Number(text))) { preview(Number(text)); commit(); }
+      if (apply) { preview(Number(text)); commit(); }
       svg.focus({ preventScroll: true });
     };
     input.onkeydown = (event) => { event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); finish(true); } else if (event.key === 'Escape') { event.preventDefault(); finish(false); } };

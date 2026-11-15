@@ -5,7 +5,7 @@ import { registerStudioPanel } from './registry.js';
 function masterPanel(context) {
   const params = { limiter: '-1 dB', target: '-14 LUFS', ...context.params };
   let ceiling = number(params, 'limiter', -1), target = number(params, 'target', -14), levels = null;
-  const curve = transferCurve('Master limiter ceiling', (input) => Math.min(input, ceiling));
+  const curve = transferCurve('Master limiter ceiling', (input) => Math.min(input, ceiling), { reference: () => ({ db: ceiling, label: 'ceiling' }) });
   const input = el('output', { className: 'note', textContent: 'Input: play the local preview to measure.' });
   const output = el('output', { className: 'note', textContent: 'Output: not measured yet.' });
   const comparison = el('output', { className: 'note', textContent: 'Target is a loudness reference; it does not change gain.' });

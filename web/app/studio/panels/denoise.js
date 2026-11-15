@@ -4,6 +4,8 @@
 import { el } from '../../ui.js';
 import { registerStudioPanel } from './registry.js';
 import { fitRegion } from '../../../lib/denoise-region.mjs';
+import { liveAudioContext } from '../../live-play.js';
+import { playbackOutput } from '../../playback-volume.js';
 
 const WIDTH = 640, HEIGHT = 110;
 
@@ -14,7 +16,7 @@ function number(value, fallback) {
 
 function denoisePanel(context) {
   const root = el('section', { className: 'studio-effect-panel studio-denoise-panel', 'aria-label': 'Denoise' });
-  const canvas = el('canvas', { width: WIDTH, height: HEIGHT, className: 'denoise-wave', role: 'img', 'aria-label': 'Waveform of the input: drag over the stretch that holds only noise' });
+  const canvas = el('canvas', { width: WIDTH, height: HEIGHT, className: 'denoise-wave', role: 'img', 'aria-label': 'Waveform of the input: drag over the stretch that holds only noise, or type its start and end in the fields below' });
   const readout = el('output', { className: 'denoise-readout' });
   let duration = 0;
   let peaks = null;
@@ -22,7 +24,13 @@ function denoisePanel(context) {
   let length = number(context.params.learn, 0.5);
   const learnsFromStart = () => (context.params.noise || 'auto') === 'start';
 
+  // the stretch can be typed too: start and end in seconds, validated like the drag, and played back to check it holds only noise (issue 178)
+  let sourceBuffer = null;
+  const startField = el('input', { type: 'number', min: '0', step: '0.1', className: 'denoise-field', 'aria-label': 'Noise start in seconds', disabled: context.readOnly });
+  const endField = el('input', { type: 'number', min: '0', step: '0.1', className: 'denoise-field', 'aria-label': 'Noise end in seconds', disabled: context.readOnly });
+  const syncFields = () => { startField.value = learnsFromStart() ? String(from) : ''; endField.value = learnsFromStart() ? String(Math.round((from + length) * 10) / 10) : ''; };
   const say = () => {
+    syncFields();
     readout.textContent = learnsFromStart() ? `Noise: ${from.toFixed(1)} s to ${(from + length).toFixed(1)} s` : 'Noise: found by itself (the quietest moments). Drag over a pause to choose it yourself.';
   };
 
@@ -56,6 +64,7 @@ function denoisePanel(context) {
   Promise.resolve(context.inputBuffer?.()).then((buffer) => {
     if (!buffer) { say(); return; }
     duration = buffer.duration;
+    sourceBuffer = buffer;
     const data = buffer.getChannelData(0);
     const step = Math.max(1, Math.floor(data.length / WIDTH));
     peaks = new Float32Array(WIDTH);
@@ -106,11 +115,39 @@ function denoisePanel(context) {
     return el('label', { className: 'denoise-slider' }, [`${label} `, input, ' ', value]);
   };
 
+  const applyFields = () => {
+    const a = Number(startField.value), b = Number(endField.value);
+    if (startField.value === '' || endField.value === '' || !Number.isFinite(a) || !Number.isFinite(b)) { readout.textContent = 'Type the start and the end of the noise in seconds.'; return; }
+    if (b <= a) { readout.textContent = 'The end of the noise must come after its start.'; return; }
+    const fit = fitRegion(a, b - a, duration);
+    from = fit.from; length = fit.length;
+    context.params.noise = 'start'; context.params.learn_from = String(from); context.params.learn = String(length);
+    say(); draw();
+    commit([{ name: 'noise', value: 'start' }, { name: 'learn_from', value: String(from) }, { name: 'learn', value: String(length) }]);
+  };
+  startField.onchange = applyFields;
+  endField.onchange = applyFields;
+  let playing = null;
+  const listen = el('button', { type: 'button', textContent: 'Listen to the noise', title: 'Play only the chosen stretch, to check that it holds nothing but noise' });
+  listen.onclick = () => {
+    if (playing) { playing.stop(); return; }
+    if (!sourceBuffer) { readout.textContent = 'Build the input first: there is no sound to listen to yet.'; return; }
+    if (!learnsFromStart()) { readout.textContent = 'Choose a stretch first (drag on the waveform or type its start and end).'; return; }
+    const ctx = liveAudioContext(), source = ctx.createBufferSource();
+    source.buffer = sourceBuffer;
+    source.connect(playbackOutput(ctx));
+    source.onended = () => { playing = null; listen.textContent = 'Listen to the noise'; };
+    playing = source;
+    listen.textContent = 'Stop';
+    source.start(0, from, length);
+  };
+  const fieldsRow = el('div', { className: 'denoise-fields' }, [el('label', {}, ['Noise from ', startField, ' s']), el('label', {}, [' to ', endField, ' s']), listen]);
+
   const automatic = el('button', { type: 'button', textContent: 'Find the noise by itself', disabled: context.readOnly, onclick: () => { context.params.noise = 'auto'; say(); draw(); commit([{ name: 'noise', value: 'auto' }]); } });
 
   // "optimize" is an execution-policy parameter (spec/templates/denoise.json marks it affectsOutput:false): every value renders byte-identical
   // audio, so it is shown apart from the musical controls above rather than as another sound knob (see ExtraDenoise.cs for the policy itself).
-  const execution = el('div', { className: 'denoise-execution' }, [el('span', { className: 'note' }, ['Execution (never changes the sound):'])]);
+  const execution = el('details', { className: 'denoise-execution' }, [el('summary', { className: 'note', textContent: 'Execution (never changes the sound):' })]);   // a compact secondary setting, closed until it is wanted (issue 178)
   const optimizeButtons = [
     ['auto', 'Optimize: auto', 'AMPLE picks speed or memory by itself, based on how big the noise-floor scan of a long sound would get (default).'],
     ['speed', 'Optimize: speed', 'Faster on long sounds: keeps the noise-floor scan in memory instead of redoing it while cleaning. Same result either way.'],
@@ -127,7 +164,7 @@ function denoisePanel(context) {
   execution.append(...optimizeButtons);
   syncOptimize();
 
-  root.append(canvas, readout, slider('reduction', 'Reduction', 0, 40, 12, 'dB'), slider('sensitivity', 'Sensitivity', 0, 100, 50, '%'), automatic, execution);
+  root.append(canvas, readout, fieldsRow, slider('reduction', 'Reduction', 0, 40, 12, 'dB'), slider('sensitivity', 'Sensitivity', 0, 100, 50, '%'), automatic, execution);
   say();
   draw();
   return root;

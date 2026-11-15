@@ -61,6 +61,7 @@ test('denoise "optimize" is shown apart from the sound controls and writes its c
   await node(page, 'clean').getByRole('button', { name: 'Advanced', exact: true }).evaluate((b: HTMLElement) => b.click());
   const dialog = page.locator('#studio[open]');
   await expect(dialog.getByText('Execution (never changes the sound):')).toBeVisible();
+  await dialog.getByText('Execution (never changes the sound):').click();   // a closed secondary setting
   const speed = dialog.getByRole('button', { name: 'Optimize: speed' });
   await expect(speed).toBeVisible();
   await speed.click();

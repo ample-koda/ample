@@ -59,3 +59,18 @@
 /* 0.1.18 review: snapshots on one or two lines (snap-compact) */
 .snapshot-bar{flex-wrap:wrap;gap:4px 6px;padding:4px 8px;margin-top:8px;font-size:12px}.snapshot-bar button,.snapshot-bar select,.snapshot-bar input{padding:1px 6px;min-height:0}.snapshot-bar .snap-morph{min-width:100px}
 .snapshot-bar select{width:auto;min-width:0;max-width:4.5em;flex:none}.snapshot-bar .snap-morph{flex:1 1 90px;min-width:90px}
+.studio-knob-value{background:none;border:0;padding:0;cursor:text;border-bottom:1px dotted var(--dim)}
+.studio-knob-value:disabled{cursor:default;border-bottom-color:transparent}
+.studio-knob-entry.invalid{outline:2px solid var(--bad,#c0392b)}
+.studio-axis{font:9px ui-monospace,Consolas,monospace;fill:var(--dim)}
+.studio-axis-name{font-style:italic}
+.studio-grid{stroke:var(--line);stroke-width:1;opacity:.5}
+.studio-reference{stroke:var(--acc);stroke-width:1.5}
+.studio-strip{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:6px 4px}
+.studio-strip-track{position:relative;padding-bottom:16px;min-width:180px}
+.studio-strip-range{width:100%}
+.studio-strip-marks{position:absolute;left:0;right:0;bottom:0;height:14px;font-size:10px;color:var(--dim)}
+.studio-strip-marks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.studio-strip-value{font:600 11px ui-monospace,Consolas,monospace;min-width:6em;text-align:right}
+.denoise-fields{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 0}
+.denoise-field{width:5em}

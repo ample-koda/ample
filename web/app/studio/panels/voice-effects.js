@@ -6,7 +6,7 @@ import { registerStudioPanel } from './registry.js';
 function gatePanel(context) {
   const params = context.params;
   let threshold = number(params, 'threshold', -50);
-  const graph = transferCurve('Gate input and output level curve', (input) => (input < threshold ? -60 : input));
+  const graph = transferCurve('Gate input and output level curve', (input) => (input < threshold ? -80 : input), { floor: -80, reference: () => ({ db: threshold, label: 'threshold' }) });   // the threshold goes down to -80 dB: so does the plot
   return el('section', { className: 'studio-effect-panel studio-gate-panel', 'aria-label': 'Gate controls' }, [graph, controls([
     control(context, params, 'threshold', 'Threshold', -80, 0, 'dB', 'linear', 112, (next) => { threshold = next; graph.redraw(); }),
     control(context, params, 'attack', 'Attack', 1, 200, 'ms', 'log'),
