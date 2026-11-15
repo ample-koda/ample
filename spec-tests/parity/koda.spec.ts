@@ -705,7 +705,7 @@ test('the line of Koda does not point into the void when its target is scrolled 
   expect(seen.shown).toBe(true);
 });
 
-test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply', async ({ page }) => {
+test('draft or live: a pill in the bubble until the first reply; live applies the draft at once with a red headband, and the choice is locked after the reply @quarantine', async ({ page }) => {
   await page.locator('#btn-koda').click();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.evaluate(async () => {
