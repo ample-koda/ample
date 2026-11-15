@@ -8,7 +8,9 @@ import { control } from './helpers.js';
 
 const svgNs = 'http://www.w3.org/2000/svg';
 const number = (params, name, fallback) => { const value = Number.parseFloat(String(params[name] ?? '').replace(/[a-z ]/gi, '')); return Number.isFinite(value) ? value : fallback; };
-const line = (label, control) => el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), control]);
+const line = (label, control) => (control.classList?.contains('studio-knob')
+  ? el('div', { className: 'studio-panel-control' }, [control])   // a knob draws its own name and its value is a button: not inside a label (issue 188)
+  : el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), control]));
 const commit = (context, name, value, unit) => context.commit(name, `${Number(value.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}`);
 const commitBatch = (context, values) => {
   const changes = values.map(([name, value, unit]) => ({ name, value: `${Number(value.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}` }));

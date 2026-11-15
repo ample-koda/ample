@@ -26,23 +26,58 @@ export function control(context, params, name, label, min, max, unit, scale = 'l
   }
 
   const precision = knobPrecision(unit, min);
-  return el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), knob({
+  return el('div', { className: 'studio-panel-control' }, [knob({   // the knob draws its own name: no second label outside it (issue 188)
     label, value: number(params, name, min), min, max, unit, scale, size, step: precision.step, decimals: precision.display, disabled: context.readOnly, learn: learnOf(context, name),
     onPreview: (next) => { context.preview?.(name, next); onPreview?.(next); },
     onCommit: (next) => context.commit(name, `${Number(next.toFixed(precision.commit))}${unit ? ` ${unit}` : ''}`),
   })]);
 }
 
-/** A transfer curve: input level on the x axis, output level on the y axis, both in dB from -60 to 0. */
-export function transferCurve(label, outputDb) {
+/**
+ * A transfer curve: input level on the x axis, output level on the y axis, both in dB from `floor` (-60 unless the range of the control goes lower) to 0, with tick values, axis names
+ * and, when `reference` is given, a marked line at the value that the control sets (the threshold or the ceiling) (issue 189).
+ * @param {string} label the name of the plot for assistive technology
+ * @param {(input: number) => number} outputDb the output level for an input level
+ * @param {{ floor?: number, reference?: () => ({ db: number, label: string } | null) }} [options]
+ */
+export function transferCurve(label, outputDb, { floor = -60, reference = null } = {}) {
+  const span = -floor;
+  const x = (db) => 20 + ((db - floor) / span) * 480;
+  const y = (db) => 200 - ((db - floor) / span) * 180;
   return plot(label, (root) => {
     baseline(root, 190);
     root.append(svg('line', { x1: 20, x2: 500, y1: 200, y2: 20, class: 'studio-graph-zero', 'stroke-dasharray': '4 4' }));
+    for (const db of [0, -10, -20, -40, -60, -80].filter((value) => value >= floor)) {
+      root.append(svg('line', { x1: x(db), x2: x(db), y1: 20, y2: 200, class: 'studio-grid' }), svg('line', { x1: 20, x2: 500, y1: y(db), y2: y(db), class: 'studio-grid' }));
+      const below = svg('text', { x: x(db), y: 212, class: 'studio-axis', 'text-anchor': 'middle' }); below.textContent = String(db);
+      const left = svg('text', { x: 16, y: y(db) + 3, class: 'studio-axis', 'text-anchor': 'end' }); left.textContent = String(db);
+      root.append(below, left);
+    }
+
+    const xName = svg('text', { x: 500, y: 218, class: 'studio-axis studio-axis-name', 'text-anchor': 'end' }); xName.textContent = 'input dB';
+    const yName = svg('text', { x: 24, y: 14, class: 'studio-axis studio-axis-name' }); yName.textContent = 'output dB';
+    root.append(xName, yName);
+    const mark = svg('line', { class: 'studio-reference', 'stroke-dasharray': '3 3' });
+    const markName = svg('text', { class: 'studio-axis studio-axis-name', 'text-anchor': 'start' });
+    root.append(mark, markName);
     const line = svg('path', { class: 'studio-response-line' });
     const draw = () => {
       const d = [];
-      for (let i = 0; i <= 60; i++) { const input = -60 + i; const out = Math.max(-60, Math.min(0, outputDb(input))); d.push(`${i ? 'L' : 'M'}${20 + (i / 60) * 480} ${200 - ((out + 60) / 60) * 180}`); }
+      for (let i = 0; i <= span; i++) {
+        const input = floor + i;
+        const out = Math.max(floor, Math.min(0, outputDb(input)));
+        d.push(`${i ? 'L' : 'M'}${x(input)} ${y(out)}`);
+      }
+
       line.setAttribute('d', d.join(' '));
+      const ref = reference?.();
+      const shown = ref && ref.db >= floor && ref.db <= 0;
+      mark.style.display = markName.style.display = shown ? '' : 'none';
+      if (shown) {
+        mark.setAttribute('x1', String(x(ref.db))); mark.setAttribute('x2', String(x(ref.db))); mark.setAttribute('y1', '20'); mark.setAttribute('y2', '200');
+        markName.setAttribute('x', String(Math.min(x(ref.db) + 4, 440))); markName.setAttribute('y', '32');
+        markName.textContent = `${ref.label} ${Math.round(ref.db * 10) / 10} dB`;
+      }
     };
     draw(); root.append(line); root.redraw = draw;
   });
