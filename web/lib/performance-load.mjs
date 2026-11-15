@@ -29,6 +29,22 @@ export function summarizeLoad(samples) {
  * The report of a rehearsal check as lines of text, with the measured result when the device could measure and the estimate (labelled) when it could not.
  * @param {{ supported: boolean, summary?: object, estimate: number, clips: number }} result
  */
+/**
+ * A promise that gives up: when `promise` does not settle within `ms` the result is an error that says what took too long. The work behind it is not stopped (a browser cannot stop it), but the person gets
+ * a message and the screen is free again instead of waiting for ever.
+ */
+export function withTimeout(promise, ms, what) {
+  let timer;
+  const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)} s and was given up.`)), ms); });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
+/** The order in which the clips of a set are made ready: built takes first (quick), patterns next, live chains last (they are rendered and can take long), so that the progress starts at once. */
+export function loadOrder(ids) {
+  const rank = (id) => (String(id).startsWith('chain:') ? 2 : String(id).startsWith('pattern:') ? 1 : 0);
+  return [...new Set(ids)].map((id, index) => ({ id, index })).sort((a, b) => rank(a.id) - rank(b.id) || a.index - b.index).map((entry) => entry.id);
+}
+
 export function describeCheck({ supported, summary, estimate, clips, scene = null, bypassable = [] }) {
   const percent = (value) => `${Math.round(clamp01(value) * 100)} %`;
   const about = scene ? ` (the busiest scene, ${scene})` : '';

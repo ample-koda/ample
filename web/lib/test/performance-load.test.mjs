@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { describeCheck, estimateLoad, levelOf, summarizeLoad } from '../performance-load.mjs';
+import { describeCheck, estimateLoad, levelOf, loadOrder, summarizeLoad, withTimeout } from '../performance-load.mjs';
 
 test('the level words follow the peak load', () => {
   assert.equal(levelOf(0.2), 'comfortable');
@@ -34,4 +34,14 @@ test('a device that measures gets the measured result, one that cannot gets a la
   const guessed = describeCheck({ supported: false, estimate: 0.12, clips: 1 });
   assert.match(guessed[0], /cannot measure/);
   assert.match(guessed[0], /an estimate, not a measurement/);
+});
+
+test('a promise that does not settle gives up with a message that says what took long, and one that does is left alone (issue 272)', async () => {
+  await assert.rejects(withTimeout(new Promise(() => {}), 20, 'the clip Hall'), (error) => error.message.includes('the clip Hall') && error.message.includes('took longer than 0 s') && error.message.includes('given up'));
+  assert.equal(await withTimeout(Promise.resolve(7), 1000, 'x'), 7);
+  await assert.rejects(withTimeout(Promise.reject(new Error('no take')), 1000, 'x'), /no take/);
+});
+
+test('plain takes are made ready first, then patterns, then live chains, each once', () => {
+  assert.deepEqual(loadOrder(['chain:a', 'kick', 'pattern:s:A', 'kick', 'snare', 'chain:b']), ['kick', 'snare', 'pattern:s:A', 'chain:a', 'chain:b']);
 });

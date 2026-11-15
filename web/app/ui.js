@@ -57,13 +57,21 @@ export function showRecentMessages() {
   return ask('Recent messages', 'The last messages of this session, newest first.', [{ label: 'Close', value: true, primary: true }], [body]);
 }
 
-export function toast(msg) {
+/** A message for a few seconds. With `action` ({ label, run }) it has a button that does the thing the message asks for, and stays a little longer. */
+export function toast(msg, action = null) {
   recentMessages.push({ text: String(msg), at: new Date() });
   if (recentMessages.length > 40) recentMessages.shift();
   const t = $('#toast');
   t.setAttribute('role', 'status'); t.setAttribute('aria-atomic', 'true');
   t.setAttribute('aria-live', /error|failed|could not|cannot|can't/i.test(String(msg)) ? 'assertive' : 'polite');
   t.textContent = msg;
+  t.classList.toggle('has-action', Boolean(action));
+  if (action) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'toast-action'; button.textContent = action.label;
+    button.onclick = () => { t.classList.remove('on'); clearTimeout(toastTimer); action.run(); };
+    t.append(' ', button);
+  }
   t.classList.add('on');
   try {
     if (t.hidePopover && t.hasAttribute('popover')) { t.hidePopover(); t.showPopover(); }
@@ -71,7 +79,7 @@ export function toast(msg) {
   } catch { /* the toast stays a plain layer */ }
   clearTimeout(toastTimer);
   const failure = /error|failed|could not|cannot|can't/i.test(String(msg));
-  toastTimer = setTimeout(() => t.classList.remove('on'), Math.min(14000, Math.max(failure ? 8000 : 0, 2800 + String(msg).length * 45)));   // a long message stays long enough to read, a failure a little longer
+  toastTimer = setTimeout(() => t.classList.remove('on'), Math.min(14000, Math.max(failure || action ? 8000 : 0, 2800 + String(msg).length * 45)));   // a long message stays long enough to read, a failure a little longer
 }
 
 const menuIconPaths = {

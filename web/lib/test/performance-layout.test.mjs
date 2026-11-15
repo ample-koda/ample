@@ -162,3 +162,12 @@ test('the live chain of a block can be a lane clip, and stays only while its blo
   assert.equal(pruneLayout(layout, ['verb']).dropped.length, 0);
   assert.equal(pruneLayout(layout, ['mix']).dropped.length, 1);
 });
+
+test('only a plain clip needs a built take of its own block: patterns and live chains are made when the performance starts (issue 272)', async () => {
+  const { addClip, addLane, clipsWithoutTake, emptyLayout } = await import('../performance-layout.mjs');
+  let layout = addLane(emptyLayout(), 'Mix').layout;
+  for (const clip of [{ id: 'kick', label: 'Kick' }, { id: 'snare', label: 'Snare' }, { id: 'chain:verb', label: 'Hall (live chain)' }, { id: 'pattern:seq:A', label: 'Seq A (pattern)' }]) layout = addClip(layout, 'Mix', clip).layout;
+  assert.deepEqual(clipsWithoutTake(layout, { kick: 't1' }), ['Snare']);
+  assert.deepEqual(clipsWithoutTake(layout, { kick: 't1', snare: 't2' }), []);
+  assert.deepEqual(clipsWithoutTake(layout, undefined), ['Kick', 'Snare']);
+});
