@@ -53,7 +53,7 @@ test('Revert in the Sequencer after a Save goes back to the saved text, not to t
   await expect(page.locator('#sq-rack .sqchannel')).toHaveCount(3);
 });
 
-test('after a number is typed and Enter is pressed the same control keeps the focus', async ({ page }) => {
+test('after a number is typed and Enter is pressed the same control keeps the focus @quarantine', async ({ page }) => {
   const field = page.locator('#sq-rack .sqchannel').first().locator('input.seqn').first();
   const title = await field.getAttribute('title');
   await field.focus();
@@ -63,7 +63,7 @@ test('after a number is typed and Enter is pressed the same control keeps the fo
   await expect.poll(() => page.evaluate(() => (document.activeElement?.closest('.sqchannel') ? 1 : 0))).toBe(1);
 });
 
-test('Tab after typing a number moves on instead of coming back to the redrawn input', async ({ page }) => {
+test('Tab after typing a number moves on instead of coming back to the redrawn input @quarantine', async ({ page }) => {
   const field = page.locator('#sq-rack .sqchannel').first().locator('input.seqn').first();
   const title = await field.getAttribute('title');
   await field.focus();

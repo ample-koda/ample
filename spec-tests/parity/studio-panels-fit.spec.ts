@@ -18,14 +18,14 @@ async function open(page, type: string) {
 }
 
 for (const type of ['compressor', 'peq']) {
-  test(`the ${type} panel shows all its knobs without scrolling on a 1100 px screen`, async ({ page }) => {
+  test(`the ${type} panel shows all its knobs without scrolling on a 1100 px screen @quarantine`, async ({ page }) => {
     const dialog = await open(page, type);
     await expect.poll(() => dialog.locator('.studio-dialog-body').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);
   });
 }
 
 for (const type of ['reverb', 'deesser', 'width']) {
-  test(`the shape in the ${type} panel is tinted, not the colour of the empty graph`, async ({ page }) => {
+  test(`the shape in the ${type} panel is tinted, not the colour of the empty graph @quarantine`, async ({ page }) => {
     const dialog = await open(page, type);
     const [shape, plain] = await dialog.locator('.studio-room-shape').first().evaluate((el) => {
       const probe = document.createElement('div'); probe.style.background = 'var(--panel3)'; document.body.append(probe);

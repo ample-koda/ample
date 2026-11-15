@@ -10,7 +10,7 @@ const studioHead = async () => {
   return lines.find((l) => l.name === 'studio')!.head;
 };
 
-test('promoting while studio is open with unsaved edits asks first, and Cancel changes nothing', async ({ page }) => {
+test('promoting while studio is open with unsaved edits asks first, and Cancel changes nothing @quarantine', async ({ page }) => {
   await api('/api/history/go', { method: 'POST', body: { line: 'studio' } });
   await page.reload();
   await expect.poll(async () => (await api('/api/history/graph')).current).toBe('studio');

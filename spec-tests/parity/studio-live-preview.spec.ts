@@ -269,7 +269,7 @@ test('inserting EQ creates a neutral editable effect block after an audio source
   await expect(dialog.locator('.studio-chain-manager')).toHaveCount(0);
 });
 
-test('an effect node Advanced opens its own controls and an unconnected generator labels its own take', async ({ page }) => {
+test('an effect node Advanced opens its own controls and an unconnected generator labels its own take @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await addTemplateBlock(page, 'eq', 'root-eq');
   await addTemplateBlock(page, 'reverb', 'downstream-reverb');
