@@ -111,37 +111,81 @@ public sealed partial class Takebank
 
             string hex = Convert.ToHexStringLower(hash.GetHashAndReset());
             string dataId = "sha256:" + hex;
-            string target = WritePath(dataId);
-            if (fs.FileExists(DataPath(dataId)))
+            bool exists = fs.FileExists(DataPath(dataId));
+            if (!exists && size >= TakeCodec.MinimumLength && StorageSettings.Load(root).Intermediates == "compressed")
             {
+                temp = Compress(temp);
+            }
+
+            PublishData(temp, dataId, size, exists);
+            return dataId;
+        }
+        catch
+        {
+            TryDelete(temp);
+            throw;
+        }
+    }
+
+    /// <summary>Puts a finished temp file in its place under the data id (or drops it when the content is already there) and records the blob.</summary>
+    private void PublishData(string temp, string dataId, long size, bool exists)
+    {
+        string target = WritePath(dataId);
+        if (exists)
+        {
+            TryDelete(temp);
+        }
+        else
+        {
+            fs.CreateDirectory(Path.GetDirectoryName(target)!);
+            try
+            {
+                fs.Move(temp, target, overwrite: false);
+            }
+            catch (IOException) when (fs.FileExists(target))
+            {
+                // Another writer stored the same content first; content addressing makes that harmless.
                 TryDelete(temp);
             }
-            else
+
+            fs.FlushDirectory(Path.GetDirectoryName(target)!);
+        }
+
+        Run(c =>
+        {
+            Exec(c, null, "INSERT OR IGNORE INTO data (data_id, size, created_at, quarantined) VALUES ($id, $size, $at, 0)", ("$id", dataId), ("$size", size), ("$at", Now()));
+            Exec(c, null, "UPDATE data SET removed = 0 WHERE data_id = $id", ("$id", dataId));
+        });
+    }
+
+    /// <summary>
+    /// Stores a buffer that is in memory already, by content, with the same id as the stream path. A blob that is there is not written again, and under compressed storage a new WAV is packed
+    /// straight into its one durable temp file: no plain copy is written and read back first (issue 297).
+    /// </summary>
+    public async ValueTask<string> PutBufferAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+        cancellationToken.ThrowIfCancellationRequested();
+        string dataId = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(data.Span));
+        bool exists = fs.FileExists(DataPath(dataId));
+        string temp = Ample("tmp", Guid.NewGuid().ToString("N") + AtomicFile.TempSuffix);
+        try
+        {
+            if (!exists)
             {
-                if (size >= TakeCodec.MinimumLength && StorageSettings.Load(root).Intermediates == "compressed")
+                bool pack = data.Length >= TakeCodec.MinimumLength && StorageSettings.Load(root).Intermediates == "compressed" && TakeCodec.IsWav(data.Span);
+                await using Stream output = fs.CreateDurableWriteStream(temp);
+                if (pack)
                 {
-                    temp = Compress(temp);
+                    TakeCodec.Encode(data.Span, output);
                 }
-
-                fs.CreateDirectory(Path.GetDirectoryName(target)!);
-                try
+                else
                 {
-                    fs.Move(temp, target, overwrite: false);
+                    await output.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                 }
-                catch (IOException) when (fs.FileExists(target))
-                {
-                    // Another writer stored the same content first; content addressing makes that harmless.
-                    TryDelete(temp);
-                }
-
-                fs.FlushDirectory(Path.GetDirectoryName(target)!);
             }
 
-            Run(c =>
-            {
-                Exec(c, null, "INSERT OR IGNORE INTO data (data_id, size, created_at, quarantined) VALUES ($id, $size, $at, 0)", ("$id", dataId), ("$size", size), ("$at", Now()));
-                Exec(c, null, "UPDATE data SET removed = 0 WHERE data_id = $id", ("$id", dataId));
-            });
+            PublishData(temp, dataId, data.Length, exists);
             return dataId;
         }
         catch
@@ -601,7 +645,7 @@ public sealed partial class Takebank
                     continue;
                 }
 
-                string id = await PutDataAsync(data, cancellationToken).ConfigureAwait(false);
+                string id = await PutBufferAsync(new ReadOnlyMemory<byte>(array, seg.Offset, seg.Count), cancellationToken).ConfigureAwait(false);   // the buffer is hashed and written once, packed directly when storage is compressed (issue 297)
                 stored.Add((array, seg.Offset, seg.Count, id));
                 refs.Add(new TakeDataRef(role, id));
                 continue;

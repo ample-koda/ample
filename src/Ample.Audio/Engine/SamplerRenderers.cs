@@ -175,7 +175,7 @@ internal static class SampledInstruments
             List<string> warnings = [];
             try
             {
-                bank = Sf2Reader.Read(full);
+                bank = Sf2Reader.ReadShared(full);   // the same file for every GM part of the build is parsed once (issue 292)
                 if (!bank.Presets.Any(preset => preset.Bank == presetBank && preset.Program == presetProgram))
                 {
                     if (channel == 9 && bank.Presets.Any(preset => preset.Bank == 128 && preset.Program == 0)) (presetBank, presetProgram) = (128, 0);

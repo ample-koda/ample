@@ -3146,11 +3146,11 @@ public static class Routes
                 StorageApi.RecordBuild(s, parsed, report, clock.Elapsed.TotalSeconds);
                 s.LastBuildAt[Str(b, "path")] = parsed.ParsedAt;
                 s.PreviewBuilds[Str(b, "path")] = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0;
-                events!.Publish("build.done", new { report.Hits, report.Misses, report.MasterTakeId, buildId });
+                events!.Publish("build.done", new { report.Hits, report.Misses, report.MasterTakeId, buildId, elapsed = report.ElapsedSeconds });
             }
 
             object[] skippedReport = [.. skippedBlocks.Select(x => (object)new { block = x.Block, status = "skipped", message = $"has an error and was left out of this build: {x.Code} {x.Message} (line {x.Line})" })];
-            return Ok(new { report.Hits, report.Misses, report.MasterTakeId, blocks = report.Blocks.Cast<object>().Concat(skippedReport).ToArray(), builtWithErrors = skippedBlocks.Count > 0, unsavedInputs = s.Texts.DirtyWithHashes().Select(x => new { path = x.Path, x.Sha256 }), previewTake = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0, skippedBlocks = skippedBlocks.Select(x => new { x.Block, x.Code, x.Message, x.Line }), clockAt = parsed.ParsedAt.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) });
+            return Ok(new { report.Hits, report.Misses, report.MasterTakeId, elapsed = report.ElapsedSeconds, timings = BuildTimings.Summarize(report).Describe(), blocks = report.Blocks.Cast<object>().Concat(skippedReport).ToArray(), builtWithErrors = skippedBlocks.Count > 0, unsavedInputs = s.Texts.DirtyWithHashes().Select(x => new { path = x.Path, x.Sha256 }), previewTake = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0, skippedBlocks = skippedBlocks.Select(x => new { x.Block, x.Code, x.Message, x.Line }), clockAt = parsed.ParsedAt.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) });
         });
         add("POST", "/api/build/text", "build", "Builds song text that is not a file of the project (the source of a template, to listen to it) as a draft: nothing is changed or announced. only builds up to one block and gives its take.", true, s is null ? null : async (HttpContext c) =>
         {

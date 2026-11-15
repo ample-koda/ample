@@ -97,7 +97,11 @@ public sealed record BlockResult(string Block, string Status, string? TakeId, st
 /// <param name="MasterTakeId">The take of the master block (or the last audio block), if built.</param>
 /// <param name="Hits">Blocks served from the cache.</param>
 /// <param name="Misses">Blocks that had to be rendered.</param>
-public sealed record BuildReport(IReadOnlyList<BlockResult> Blocks, string? MasterTakeId, int Hits, int Misses);
+public sealed record BuildReport(IReadOnlyList<BlockResult> Blocks, string? MasterTakeId, int Hits, int Misses)
+{
+    /// <summary>The wall time of the build from the start of <c>BuildAsync</c> to its report, also for a build that only read the cache (issue 291).</summary>
+    public double ElapsedSeconds { get; init; }
+}
 
 /// <summary>Builds a song: orders the blocks by their connections, and for each block either finds the take of an identical plan (cache hit) or stores the plan first (the Always rule), renders and commits a take. The cache key is the plan id, which includes the source of the block, the takes of its inputs, its seeds, the renderer and its settings, so changing one block re-renders it and what depends on it, and nothing else.</summary>
 public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, string projectRoot, string? ampleRoot, Takebank? readOnlyCache)
@@ -234,6 +238,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         ArgumentNullException.ThrowIfNull(doc);
         options ??= new BuildOptions();
         bool preview = options.Intent == "preview";
+        long buildStarted = Stopwatch.GetTimestamp();
         int rate = preview ? PreviewRate : FullRate;
         double tempo = doc.Project?.Tempo ?? 92;
         long tempoMilli = (long)(tempo * 1000 + 0.5);
@@ -252,6 +257,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         BarRange range = options.Range ?? new BarRange(1, songBars);
         int spb = FixedAudio.SamplesPerBar(rate, tempoMilli, doc.Project?.MeterNumerator ?? 4, doc.Project?.MeterDenominator ?? 4);
         ConcurrentDictionaryLike results = new();
+        InputBlobs inputBlobs = BuildInputs.GetValue(options, _ => new InputBlobs(InputBlobBudgetBytes));
         List<BlockResult> report = [];
         using SemaphoreSlim gate = new(BuildParallelism.Effective(options.Parallelism, BuildParallelism.OfProject(projectRoot)));
         foreach (BlockNode queued in levels.SelectMany(l => l))
@@ -321,9 +327,16 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             report.Add(await running[block.Name].ConfigureAwait(false));
         }
 
+        inputBlobs.Clear();
+        BuildInputs.Remove(options);
         BlockNode? master = blocks.LastOrDefault(b => b.Type == "master") ?? blocks.LastOrDefault(b => spec.Templates[b.Type].Outputs.Any(o => o.Type == "audio"));
-        return new BuildReport(report, master is null ? null : results.Get(master.Name)?.TakeId, report.Count(r => r.Status is "cached" or "frozen" or "adopted"), report.Count(r => r.Status is "rendered" or "failed" or "cancelled"));
+        return new BuildReport(report, master is null ? null : results.Get(master.Name)?.TakeId, report.Count(r => r.Status is "cached" or "frozen" or "adopted"), report.Count(r => r.Status is "rendered" or "failed" or "cancelled")) { ElapsedSeconds = Stopwatch.GetElapsedTime(buildStarted).TotalSeconds };
     }
+
+    private const long InputBlobBudgetBytes = 256L * 1024 * 1024;
+
+    // the input bytes of the build that is running, by its options: blocks that read the same take at the same time share one read (issue 295)
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BuildOptions, InputBlobs> BuildInputs = new();
 
     private async Task<BlockResult> BuildBlockAsync(BlockNode block, AmpleDocument doc, Dictionary<string, IBlockRenderer> renderers, ConcurrentDictionaryLike results, bool preview, int rate, int spb, BarRange range, int songBars, long tempoMilli, IReadOnlyDictionary<string, ModuleMidiSource> midiModules, string intent, BuildOptions options, CancellationToken cancellationToken)
     {
@@ -421,13 +434,13 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
                 FromLine from = f;
                 loads.Add(async () =>
                 {
-                    byte[] input;
-                    await using (Stream s = bank.OpenData(dataId))
+                    byte[] input = await BuildInputs.GetValue(options, _ => new InputBlobs(InputBlobBudgetBytes)).GetAsync(dataId, async () =>
                     {
+                        await using Stream s = bank.OpenData(dataId);
                         using MemoryStream ms = new();
                         await s.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-                        input = ms.ToArray();
-                    }
+                        return ms.ToArray();
+                    }).ConfigureAwait(false);
 
                     bool placed = BlockTiming.IsTimeline(owner) && upstream is not null && !BlockTiming.IsArranged(upstream, doc, [])
                         && spec.Templates[upstream.Type].Outputs.Any(p => p.Name == from.Output && p.Type == "audio");

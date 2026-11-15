@@ -398,3 +398,5 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 .panel-toggles button svg{display:block}
 .toast-history{margin:0;padding-left:18px;max-height:50vh;overflow:auto}
 .toast-history time{color:var(--dim)}
+.autotune-row{flex-wrap:wrap;justify-content:flex-start}
+.autotune-field{width:5.5em}

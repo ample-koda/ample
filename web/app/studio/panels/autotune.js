@@ -12,7 +12,7 @@ import { S } from '../../store.js';
 import { barMilliseconds } from '../../../lib/meter.mjs';
 import { registerStudioPanel } from './registry.js';
 import { onPlayer, stop as stopSong } from '../../player.js';
-import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, mergeRuns, noteName, noteRuns, parseFixes } from '../../../lib/clientside-autotune.mjs';
+import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, mergeRuns, noteName, noteNumber, noteRuns, parseFixes } from '../../../lib/clientside-autotune.mjs';
 import { knob } from '../knob.js';
 import { selector } from '../selector.js';
 
@@ -262,11 +262,42 @@ function autotunePanel(context) {
     time.textContent = `${clock(at)} / ${clock(duration)}`;
   }
 
+  // the fixes as fields: start, end, note and vibrato can be typed, and a fix can be added at the playhead, without dragging on the canvas (issue 191)
+  const changeFix = (index, patch) => {
+    const next = { ...fixes[index], ...patch };
+    if (!Number.isFinite(next.from) || !Number.isFinite(next.to) || next.from < 0) throw new Error('A fix needs a start and an end in seconds.');
+    if (next.to <= next.from) throw new Error('The end of a fix must come after its start.');
+    fixes[index] = next;
+    commit();
+  };
+  const fixField = (label, value, onSet, attributes = {}) => {
+    const input = el('input', { type: 'text', value: String(value), 'aria-label': label, title: label, disabled: context.readOnly, className: 'autotune-field', ...attributes });
+    input.onchange = () => { try { onSet(input.value.trim()); readout.textContent = ''; } catch (error) { readout.textContent = error.message; input.value = String(value); } };
+    return input;
+  };
   const rowsFor = () => {
+    const add = el('button', { type: 'button', textContent: 'Add fix at the playhead', title: 'Add a fix that starts at the playhead; set its end, note and vibrato in the fields', disabled: context.readOnly || !duration, onclick: () => {
+      const at = Math.min(Math.max(0, scrubTo ?? here()), Math.max(0, duration - 0.1));
+      const run = runs.find((r) => r.from <= at && at < r.to);
+      fixes.push({ from: round(at), to: round(Math.min(duration, at + 0.5)), note: run ? run.note : 60, vibrato: null });
+      commit();
+    } });
     rows.replaceChildren(...fixes.map((f, index) => el('div', { className: 'autotune-row' }, [
-      `${round(f.from)}–${round(f.to)} s → ${f.note === null ? 'left alone' : noteName(f.note)}${f.vibrato === null || f.vibrato === undefined ? '' : ` · vibrato ${f.vibrato}%`} `,
+      el('span', { textContent: `Fix ${index + 1}` }),
+      fixField(`Fix ${index + 1} start in seconds`, round(f.from), (v) => changeFix(index, { from: Number(v) })),
+      fixField(`Fix ${index + 1} end in seconds`, round(f.to), (v) => changeFix(index, { to: Number(v) })),
+      fixField(`Fix ${index + 1} target note (such as E4, or off to leave it alone)`, f.note === null ? 'off' : noteName(f.note), (v) => {
+        const note = v.toLowerCase() === 'off' ? null : noteNumber(v);
+        if (note === undefined || (note === null && v.toLowerCase() !== 'off')) throw new Error(`'${v}' is not a note: write a name and an octave, such as E4 or F#3, or off.`);
+        changeFix(index, { note });
+      }),
+      fixField(`Fix ${index + 1} vibrato in percent (empty keeps the sound as it is)`, f.vibrato === null || f.vibrato === undefined ? '' : f.vibrato, (v) => {
+        const vibrato = v === '' ? null : Math.round(Number(v.replace(/%$/, '')));
+        if (vibrato !== null && (!Number.isFinite(vibrato) || vibrato < 0 || vibrato > 100)) throw new Error('Vibrato is a percentage from 0 to 100, or empty.');
+        changeFix(index, { vibrato });
+      }),
       el('button', { type: 'button', textContent: '×', title: 'Remove this fix', 'aria-label': `Remove fix ${index + 1}`, disabled: context.readOnly, onclick: () => { fixes.splice(index, 1); commit(); } }),
-    ])));
+    ])), add);
   };
 
   Promise.resolve(context.inputBuffer?.()).then(async (buffer) => {
