@@ -649,46 +649,73 @@ async function offerToKeep(capture, kept) {
 
 /** The clips as WAV files in the project, the song that plays them, and the song opened. */
 async function saveSetAsSong(model, kept, name, mix = new Map(), options = {}) {
-  try {
-    toast('Saving the performance…');
-    const dir = `${name}-clips`;
-    await api.createProjectFolder(dir).catch(() => {});   // it may be there already
-    const files = new Map(), used = new Set();
-    for (const id of new Set(model.runs.map((r) => r.clip))) {
-      const buffer = kept.buffers.get(id);
-      if (!buffer) continue;
-      let stem = slug(kept.labels.get(id) ?? id, 'clip'), n = 2;
-      while (used.has(stem)) stem = `${slug(kept.labels.get(id) ?? id, 'clip')}-${n++}`;
-      used.add(stem);
-      const result = await api.uploadProject(new File([encodeWav(buffer)], `${stem}.wav`, { type: 'audio/wav' }), dir, 'rename', () => {});
-      files.set(id, result?.path ?? `${dir}/${stem}.wav`);
-      logProject('performance', 'ok', `saved ${stem}.wav`);
-    }
+  const dir = `${name}-clips`;
+  // the files that are saved and where they go: the song names them before they are there, so that it exists even when the saving of the clips is
+  // interrupted (a tab that runs out of memory, a lost connection)
+  const planned = [], used = new Set();
+  for (const id of new Set(model.runs.map((r) => r.clip))) {
+    const buffer = kept.buffers.get(id);
+    if (!buffer) continue;
+    const base = slug(kept.labels.get(id) ?? id, 'clip');
+    let stem = base, n = 2;
+    while (used.has(stem)) stem = `${base}-${n++}`;
+    used.add(stem);
+    planned.push({ id, label: stem, name: `${stem}.wav`, path: `${dir}/${stem}.wav`, make: () => encodeWav(buffer) });
+  }
 
-    let heardFile = '';
-    if (options.keepHeard && kept.heard?.chunks.length) {
-      const saved = await api.uploadProject(new File([heardWav(kept.heard)], `${name}-heard.wav`, { type: 'audio/wav' }), dir, 'rename', () => {});
-      heardFile = saved?.path ?? `${dir}/${name}-heard.wav`;
-      logProject('performance', 'ok', `saved what you heard as ${heardFile}`);
-    }
-
+  const heardFile = options.keepHeard && kept.heard?.chunks.length ? `${dir}/${name}-heard.wav` : '';
+  if (heardFile) planned.push({ id: null, label: 'what you heard', name: `${name}-heard.wav`, path: heardFile, make: () => heardWav(kept.heard) });
+  const files = new Map(planned.filter((p) => p.id !== null).map((p) => [p.id, p.path]));
+  const mb = (bytes) => `${Math.max(1, Math.round(bytes / 1048576))} MB`;
+  /** A problem is shown in a window that stays (a toast is gone in a few seconds and the performance cannot be played again): what is saved, and a way to try again. */
+  const again = (what, error, saved) => {
+    logProject('performance', 'failed', `${what}: ${error.message || error}`);
+    return ask('The performance is not saved completely', `${what}: ${error.message || error}${NL}${NL}${saved}`, [{ label: 'Try again', value: true,
+      primary: true }, { label: 'Stop', value: false }]);
+  };
+  let songPath = '';
+  // 1. the song, first
+  while (!songPath) {
+    try {
+      toast('Saving the performance…');
     const text = songText({ title: name, source: (S.path || '').replace(/^.*\//, '').replace(/\.amplet$/, ''), when: stamp().replace('.', ':'),
       tempo: S.doc?.project?.tempo || 120, model, files, mix, heardFile });
-    // a song is made from a copy of the open one (a valid song with its own history) and then given the text of the set
-    const made = await api.post('/api/doc/save-as', { path: S.path, name });
-    const doc = await api.get(`/api/doc?path=${encodeURIComponent(made.path)}`);
-    await api.put('/api/doc', { path: made.path, text, baseVersion: doc.version });
-    await api.post('/api/doc/save', { path: made.path });
-    toast(`Saved the performance as ${made.path}.`);
-    logProject('performance', 'ok', `saved the performance as ${made.path}`);
-    document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
-    await compareWithHeard(made.path, model, kept).catch((error) => { logProject('performance', 'failed',
+      // a song is made from a copy of the open one (a valid song with its own history) and then given the text of the set
+      const made = await api.post('/api/doc/save-as', { path: S.path, name });
+      const doc = await api.get(`/api/doc?path=${encodeURIComponent(made.path)}`);
+      await api.put('/api/doc', { path: made.path, text, baseVersion: doc.version });
+      await api.post('/api/doc/save', { path: made.path });
+      songPath = made.path;
+      logProject('performance', 'ok', `saved the song ${songPath}; the clips follow`);
+    } catch (error) {
+      if (!(await again('The song could not be made', error, 'Nothing is saved yet.'))) return;
+    }
+  }
+
+  // 2. the clips, one after the other (a big set is more than a hundred megabytes: this takes a minute, the progress is shown)
+  await api.createProjectFolder(dir).catch(() => {});   // it may be there already
+  for (let k = 0; k < planned.length;) {
+    const item = planned[k];
+    try {
+      const blob = item.make();
+      toast(`Saving the performance: ${item.label} (${k + 1} of ${planned.length}, ${mb(blob.size)})…`);
+      await api.uploadProject(new File([blob], item.name, { type: 'audio/wav' }), dir, 'overwrite', () => {});
+      logProject('performance', 'ok', `saved ${item.name}`);
+      k++;
+    } catch (error) {
+      if (!(await again(`The file ${item.name} could not be saved`, error, `The song ${songPath} is saved; ${k} of ${planned.length} files are.`))) {
+        toast(`The song ${songPath} is saved, but not all of its files: it plays what is there.`);
+        return;
+      }
+    }
+  }
+
+  toast(`Saved the performance as ${songPath}.`);
+  logProject('performance', 'ok', `saved the performance as ${songPath}`);
+  document.dispatchEvent(new CustomEvent('ample:open', { detail: songPath }));
+  await compareWithHeard(songPath, model, kept).catch((error) => { logProject('performance', 'failed',
       `the comparison with what you heard failed: ${error.message || error}`);
       toast(`The saved song could not be compared with what you heard: ${error.message || error}`); });
-  } catch (error) {
-    logProject('performance', 'failed', error.message || String(error));
-    toast(`The performance could not be saved: ${error.message || error}`);
-  }
 }
 
 /**
