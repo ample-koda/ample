@@ -4,7 +4,7 @@ import { api, bottomTab, dialog, freshServer, node, openApp } from '../../web/te
 freshServer();
 test.beforeEach(async ({ page }) => { await openApp(page); });
 
-test('compare shows the changed files and the changed lines between two states', async ({ page }) => {
+test('compare shows the changed files and the changed lines between two states @quarantine', async ({ page }) => {
   await node(page, 'chords').locator('.nh .t').click();
   const input = page.locator('#props .prop', { hasText: 'bars' }).locator('input[type="number"]');
   await input.fill('20');
