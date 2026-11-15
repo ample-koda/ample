@@ -19,6 +19,8 @@ internal sealed class TrayApp : ApplicationContext
     private readonly Control ui = new();
     // the installer asks a running hub to quit by setting this event (it cannot close a window: the hub has none); the timer sees it within a few seconds
     private readonly EventWaitHandle exitSignal = new(false, EventResetMode.AutoReset, @"Local\AMPLE-Hub-Exit");
+    // a second start of the hub sets this event: the icon is made again and a short note says where it is
+    private readonly EventWaitHandle showSignal = new(false, EventResetMode.AutoReset, @"Local\AMPLE-Hub-Show");
 
     internal TrayApp(MainInstance main)
     {
@@ -27,9 +29,22 @@ internal sealed class TrayApp : ApplicationContext
         icon = new NotifyIcon { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application, Visible = true, Text = "AMPLE", ContextMenuStrip = menu };
         icon.DoubleClick += (_, _) => OpenMain();
         menu.Opening += (_, _) => Rebuild();
-        timer.Tick += async (_, _) => { if (exitSignal.WaitOne(0)) { ExitThread(); return; } await RefreshAsync(); };
+        timer.Tick += async (_, _) =>
+        {
+            if (exitSignal.WaitOne(0)) { ExitThread(); return; }
+            if (showSignal.WaitOne(0)) ShowAgain();
+            await RefreshAsync();
+        };
         timer.Start();
         _ = RefreshAsync();
+    }
+
+    /// <summary>The icon is made again (it can be lost when the taskbar is rebuilt) and a note says where it is: Windows may keep a new icon in the list behind the little arrow.</summary>
+    private void ShowAgain()
+    {
+        icon.Visible = false;
+        icon.Visible = true;
+        icon.ShowBalloonTip(5000, "AMPLE", "The AMPLE tray hub is running. Its icon is here or behind the little arrow in the taskbar: drag it onto the taskbar to keep it in view.", ToolTipIcon.Info);
     }
 
     protected override void Dispose(bool disposing)
@@ -41,6 +56,7 @@ internal sealed class TrayApp : ApplicationContext
             timer.Dispose();
             ui.Dispose();
             exitSignal.Dispose();
+            showSignal.Dispose();
             icon.Visible = false;
             icon.Dispose();
             menu.Dispose();
