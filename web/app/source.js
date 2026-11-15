@@ -33,6 +33,7 @@ import { liveMarks } from '../lib/build-errors.mjs';
 import { beforeSave, createSaveControl, refreshSaveControls, typedProbe } from './savecontrol.js';
 import { resolveTypedConflict } from './typed-conflict.js';
 import { seqDiagnostics } from '../lib/seq-diagnostics.mjs';
+import { missingFileDiagnostics, toLspDiagnostic } from '../lib/file-refs.mjs';
 import { getRecoveryDraft, listRecoveryDrafts, removeRecoveryDraft, saveRecoveryDraft } from '../lib/recovery-drafts.mjs';
 import { wordRangeBefore } from '../lib/word-range.mjs';
 import { consumeRecoveryAcceptance } from '../lib/work-state.mjs';
@@ -469,6 +470,7 @@ async function loadFileNow(file, stillWanted) {
 
 async function files() {
   try { SE.files = await api.get('/api/project/files'); } catch { SE.files = []; }
+  if (isSong() && $('#se-ta')) showDiagnostics();   // which files there are decides which file lines are marked
 }
 
 /* ---------- building the view ---------- */
@@ -812,6 +814,18 @@ function showErrTip(mark, lineIndex) {
       el('button', { textContent: 'Copy message', onclick: () => navigator.clipboard.writeText(message).then(() => toast('Error copied.')) }),
       ...(mark.hint ? [el('span', { className: 'et-hint', textContent: mark.hint })] : []),   // only a hint that says something (not "fix the line and the mark goes")
     ]));
+  // a file that the project does not have: the near file (just one) as a quick fix, and the file browser
+  const fileProblems = (mark.diags || []).filter((d) => d.code === 'AMPL925');
+  if (fileProblems.length && !readOnly()) {
+    const foot = tip.querySelector('.et-foot');
+    for (const d of fileProblems) {
+      foot.prepend(el('button', {
+        className: 'et-fix', textContent: 'Pick a file…', title: 'Choose the file in the file browser',
+        onclick: async () => { hideErrTip(); const chosen = await openProjectFilePicker('', [], 'file'); if (chosen) applyEdits([{ range: d.range, newText: `"${chosen}"` }]); },
+      }));
+      if (d.data?.fix) foot.prepend(el('button', { className: 'et-fix', textContent: d.data.fix.label, onclick: () => { applyEdits([{ range: d.range, newText: d.data.fix.text }]); hideErrTip(); } }));
+    }
+  }
   // the fixes the server offers for this line, and the actions of a note bake: one click each, applied as one edit
   if (mark.diags && SE.lsp) {
     const foot = tip.querySelector('.et-foot'), shown = tip;
@@ -1477,10 +1491,18 @@ async function revert() {
 const ignoredThisSession = new Set();
 const lineKey = (d) => `${S.path}|${typeof d.code === 'object' ? d.code?.value : d.code}|${(lines(SE.text)[d.range.start.line] || '').trim()}`;
 
+/** The files that the song names and the project does not have, found in the text and not after a build: errors like those of the server, with the near file as a quick fix (web/lib/file-refs.mjs). */
+function fileDiagnostics() {
+  if (!isSong() || !SE.files?.length) return [];
+  const text = $('#se-ta') ? $('#se-ta').value : SE.text;
+  return missingFileDiagnostics(text, projectPaths()).map(toLspDiagnostic);
+}
+
 /** The diagnostics of the server minus the warnings and notes that were ignored for this session (an error is never hidden). */
 function showDiagnostics() {
   const all = SE.allDiags || [];
   SE.diags = ignoredThisSession.size ? all.filter((d) => d.severity === 1 || !ignoredThisSession.has(lineKey(d))) : all;
+  SE.diags = [...SE.diags, ...fileDiagnostics()];
   if (isSong()) { S.songDiagnostics = SE.diags; notify(); }
   const back = $('#se-unignore');
   if (back) { back.style.display = ignoredThisSession.size ? '' : 'none'; back.textContent = `Show ignored (${ignoredThisSession.size})`; }
@@ -1792,7 +1814,9 @@ function sourceCompletions(text, line, before, ch) {
       const items = (folder ? [...dirs] : SE.files.map((file) => file.path).filter((path) => accepted.includes(kindOf(path)?.ext[0])))
         .filter((path) => path.toLowerCase().includes(query.toLowerCase())).slice(0, 40)
         .map((path) => ({ label: path, insertText: openingQuote ? `${path}"` : formatValue(path), detail: folder ? 'Project sample folder' : 'Project file' }));
-      return { kind: 'files', word: query, from: ch - query.length, allowEmpty: true, items };
+      // the first entry opens the file browser of the project (the chosen file is written in quotes)
+      const pick = readOnly() ? [] : [{ label: 'Pick a file…', detail: 'open the file browser', pick: { accept: accepted || [], folder, quoted: openingQuote } }];
+      return { kind: 'files', word: query, from: ch - query.length, allowEmpty: true, items: [...pick, ...items] };
     }
   }
   if (!/^\s*channel\s+/i.test(before)) return null;
@@ -1881,9 +1905,25 @@ function moveComp(d) { SE.comp.idx = (SE.comp.idx + d + SE.comp.items.length) % 
 
 function closeComp() { SE.comp = null; SE.compNoFocus = false; const c = $('#se-comp'); if (c) c.style.display = 'none'; }
 
+/** The entry "Pick a file..." of a list of files: the file browser of the project opens and what is chosen is written where the typed part of the name was. */
+async function pickFromBrowser(it) {
+  const { from, line } = SE.comp, ta = $('#se-ta'), keepOff = SE.compNoFocus;
+  closeComp();
+  const chosen = await openProjectFilePicker('', it.pick.accept, it.pick.folder ? 'folder' : 'file');
+  if (chosen) {
+    const ls = lines(ta.value);
+    let start = 0;
+    for (let i = 0; i < line; i++) start += ls[i].length + 1;
+    ta.setRangeText(it.pick.quoted ? `${chosen}"` : formatValue(chosen), start + from, Math.max(ta.selectionStart, start + from), 'end');
+  }
+  if (!keepOff) ta.focus();
+  if (chosen) ta.oninput();
+}
+
 function pickComp() {
   if (!SE.comp) return;
   const it = SE.comp.items[SE.comp.idx];
+  if (it.pick) { pickFromBrowser(it); return; }
   const ta = $('#se-ta');
   let text = it.insertText || it.label;
   if (it.insertTextFormat === 2) text = text.replace(/\$\{\d+:([^}]*)\}/g, '$1').replace(/\$0/g, '').replace(/\\([$}\\])/g, '$1');

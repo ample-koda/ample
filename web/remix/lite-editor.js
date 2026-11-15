@@ -17,11 +17,14 @@ const offsetAt = (view, { line, character }) => { const l = view.state.doc.line(
 
 /**
  * Makes an editor in `host`.
- * Callbacks: onChange(text), complete({line, character}, text) -> [{label, detail, insert?}], hover({line, character}) -> markdown|null, definition({line, character}) -> {path?, line, character}|null, openAt(target).
+ * Callbacks: onChange(text), complete({line, character}, text) -> [{label, detail, insert?}], files() -> [{ path }] (the files of the project,
+ * offered after `file`), hover({line, character}) -> markdown|null, definition({line, character}) -> {path?, line, character}|null, openAt(target).
  */
 import { installKeyboardGuard, installTouchMenu } from '../app/editor-touch-menu.js';
+import { diagnosticsAt, tipClass, tipText } from './lite-diagnostic-tip.mjs';
+import { fileChoices, fileValueContext } from './lite-missing-files.mjs';
 
-export async function createLiteEditor(host, { text = '', readOnly = false, onChange = () => {}, complete = null, hover = null, definition = null, onOpenTarget = () => {} } = {}) {
+export async function createLiteEditor(host, { text = '', readOnly = false, onChange = () => {}, complete = null, hover = null, definition = null, files = () => [], onOpenTarget = () => {} } = {}) {
   const { createAmpleEditor } = await loadBundle();
   host.textContent = '';
   const mirror = {};
@@ -33,6 +36,8 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   let tip = null;
   let completionTimer = 0;
   let hoverTimer = 0;
+  let overTip = false, pinned = false;   // the pointer is on a tip that has a button / a tip that was opened on a problem stays until the next click or Escape
+  let diagnostics = [];   // what setDiagnostics marked: the tip over a mark says what it is
 
   // a change of the text from any cause (typing, paste, undo, drop) is seen by comparing the document, so nothing depends on which event the browser sends
   const watch = setInterval(() => {
@@ -43,7 +48,7 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   }, 160);
 
   const closePopup = () => { popup?.remove(); popup = null; };
-  const hideTip = () => { tip?.remove(); tip = null; };
+  const hideTip = () => { tip?.remove(); tip = null; overTip = false; };
 
   function place(element, coords) {
     const box = host.getBoundingClientRect();
@@ -60,12 +65,21 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
     return { from, to: head, prefix: view.state.doc.sliceString(from, head) };
   }
 
+  /** The value of a `file` line at the caret (see fileValueContext), with the offset where it starts, or null. */
+  function fileContext() {
+    const head = view.state.selection.main.head, line = view.state.doc.lineAt(head);
+    const ctx = fileValueContext(line.text.slice(0, head - line.from), line.text.slice(head - line.from));
+    return ctx ? { ...ctx, from: line.from + ctx.from } : null;
+  }
+
   async function showCompletion(manual) {
     if (!complete) return;
-    const { from, prefix } = wordBefore();
-    if (!manual && prefix.length < 1) { closePopup(); return; }
+    const file = fileContext();
+    const { from, prefix } = file ?? wordBefore();
+    if (!manual && !file && prefix.length < 1) { closePopup(); return; }
     const head = view.state.selection.main.head;
-    const items = (await complete(position(view, head), view.state.doc.toString())) ?? [];
+    // after `file` the project's files are offered (a path is not a word: the language server does not know the files of the project)
+    const items = file ? fileChoices(files().map((f) => f.path), prefix) : ((await complete(position(view, head), view.state.doc.toString())) ?? []);
     const lower = prefix.toLowerCase();
     const shown = items.filter((i) => i.label.toLowerCase().includes(lower)).sort((a, b) => Number(b.label.toLowerCase().startsWith(lower)) - Number(a.label.toLowerCase().startsWith(lower))).slice(0, 40);
     if (view.state.selection.main.head !== head || shown.length === 0 || (shown.length === 1 && shown[0].label === prefix)) { closePopup(); return; }
@@ -91,7 +105,8 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
     const paint = () => rows.forEach((row, index) => { row.classList.toggle('on', index === active); row.setAttribute('aria-selected', String(index === active)); if (index === active) row.scrollIntoView({ block: 'nearest' }); });
     const choose = (index) => {
       const item = shown[index];
-      const insert = plain(item.insert ?? item.label);
+      // a file goes in quotes: the opening one when it is not typed yet, the closing one when it is not there
+      const insert = file ? (file.open ? item.label + (file.closed ? '' : '"') : `"${item.label}"`) : plain(item.insert ?? item.label);
       view.dispatch({ changes: { from, to: view.state.selection.main.head, insert }, selection: { anchor: from + insert.length }, userEvent: 'input.complete' });
       closePopup();
       if (hadFocus) view.focus();
@@ -113,7 +128,7 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
     if (!complete || readOnly) return;
     const head = view.state.selection.main.head;
     const before = head > 0 ? view.state.doc.sliceString(head - 1, head) : '';
-    if (!manual && !WORD.test(before)) { closePopup(); return; }
+    if (!manual && !WORD.test(before) && !fileContext()) { closePopup(); return; }
     completionTimer = setTimeout(() => showCompletion(manual).catch(closePopup), manual ? 0 : 140);
   }
 
@@ -138,26 +153,89 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   // and selecting text on a touch screen brings no keyboard and closes the suggestions
   const guard = installKeyboardGuard(view, closePopup);
 
+  /** The quick fix of a diagnostic, applied to the text as one change: the marked stretch is replaced by `fix.text`. */
+  function applyFix(d) {
+    const from = offsetAt(view, { line: d.line - 1, character: d.col - 1 }), to = offsetAt(view, { line: d.line - 1, character: (d.endCol || d.col) - 1 });
+    view.dispatch({ changes: { from, to, insert: d.fix.text }, userEvent: 'input.fix', scrollIntoView: true });
+    hideTip(); closeFixMenu();
+    view.focus();
+  }
+
+  /** The tip at a place (left and top in the page): what is wrong, the help of the language server, and a button for each quick fix. A tip with a fix stays while the pointer is on it. */
+  function showTip(left, top, hits, markdown) {
+    hideTip();
+    if (!markdown && !hits.length) return;
+    tip = document.createElement('div');
+    tip.className = tipClass(hits);
+    const body = document.createElement('div');
+    body.textContent = tipText(hits, markdown);
+    tip.append(body);
+    const fixes = hits.filter((d) => d.fix);
+    for (const d of fixes) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'lite-tip-fix';
+      button.textContent = d.fix.label;
+      button.onmousedown = (event) => event.preventDefault();   // the caret stays where it is
+      button.onclick = () => applyFix(d);
+      tip.append(button);
+    }
+
+    if (fixes.length) { tip.classList.add('lite-tip-live'); tip.onmouseenter = () => { overTip = true; }; tip.onmouseleave = () => { overTip = false; if (!pinned) hideTip(); }; }
+    host.append(tip);
+    const box = host.getBoundingClientRect();
+    tip.style.left = `${Math.max(4, Math.min(left - box.left, box.width - 340))}px`;
+    tip.style.top = `${top - box.top}px`;
+  }
+
+  /** The menu of the right mouse button over a marked place that has a quick fix: one entry for each fix. A place without a fix keeps the menu of the browser. */
+  let fixMenu = null;
+  const closeFixMenu = () => { fixMenu?.remove(); fixMenu = null; };
+  view.dom.addEventListener('contextmenu', (event) => {
+    const offset = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (offset === null || readOnly) return;
+    const fixes = diagnosticsAt(diagnostics, position(view, offset)).filter((d) => d.fix);
+    if (!fixes.length) return;
+    event.preventDefault();
+    closeFixMenu(); hideTip();
+    fixMenu = document.createElement('div');
+    fixMenu.className = 'lite-fixmenu';
+    fixMenu.setAttribute('role', 'menu');
+    for (const d of fixes) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = d.fix.label;
+      item.onclick = () => applyFix(d);
+      fixMenu.append(item);
+    }
+
+    host.append(fixMenu);
+    const box = host.getBoundingClientRect();
+    fixMenu.style.left = `${Math.max(4, Math.min(event.clientX - box.left, box.width - 240))}px`;
+    fixMenu.style.top = `${event.clientY - box.top}px`;
+    const away = (e) => { if (!fixMenu?.contains(e.target)) { closeFixMenu(); document.removeEventListener('pointerdown', away, true); } };
+    setTimeout(() => document.addEventListener('pointerdown', away, true), 0);
+  });
+  view.dom.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeFixMenu(); pinned = false; hideTip(); } });
+  // a click or a key in the text lets go of a tip that was opened on a problem
+  view.dom.addEventListener('pointerdown', () => { if (pinned) { pinned = false; hideTip(); } });
+
   view.dom.addEventListener('mousemove', (event) => {
     clearTimeout(hoverTimer);
-    if (!hover) return;
+    if (pinned) return;
     const { clientX: x, clientY: y } = event;
     hoverTimer = setTimeout(async () => {
       const offset = view.posAtCoords({ x, y });
       if (offset === null) { hideTip(); return; }
-      const markdown = await hover(position(view, offset)).catch(() => null);
-      hideTip();
-      if (!markdown) return;
-      tip = document.createElement('div');
-      tip.className = 'lite-tip';
-      tip.textContent = markdown.replace(/[`*_]/g, '').trim();
-      host.append(tip);
-      const box = host.getBoundingClientRect();
-      tip.style.left = `${Math.max(4, Math.min(x - box.left, box.width - 340))}px`;
-      tip.style.top = `${y - box.top + 18}px`;
+      const at = position(view, offset);
+      const hits = diagnosticsAt(diagnostics, at);   // a marked place says what is wrong, before the help of the language server
+      const markdown = hover ? await hover(at).catch(() => null) : null;
+      if (overTip || pinned) return;
+      showTip(x, y + 18, hits, markdown);
     }, 380);
   });
-  view.dom.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); hideTip(); });
+  view.dom.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); setTimeout(() => { if (!overTip && !pinned) hideTip(); }, 220); });
   view.dom.addEventListener('click', async (event) => {
     if (!(event.ctrlKey || event.metaKey) || !definition) return;
     const offset = view.posAtCoords({ x: event.clientX, y: event.clientY });
@@ -173,6 +251,7 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
     complete: () => scheduleCompletion(true),
     /** Underlines and gutter marks for a list of {line (1-based), col (1-based), endCol, severity}. */
     setDiagnostics(list) {
+      diagnostics = list;
       const doc = view.state.doc;
       const marks = [];
       const gutter = {};
@@ -186,6 +265,17 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
       }
       mirror.setMarks(marks);
       mirror.setGutter({ marks: gutter, notes: [] });
+    },
+    /** Puts a problem in focus: the caret goes to it and its tip opens (with the quick fix, when there is one) and stays until the next click or Escape. */
+    showProblem(d) {
+      this.goto(d.line, d.col);
+      const at = { line: d.line - 1, character: Math.max(0, (d.col || 1) - 1) };
+      const here = diagnosticsAt(diagnostics, at);
+      const hits = here.length ? here : [d];
+      const coords = view.coordsAtPos(offsetAt(view, at));
+      if (!coords) return;
+      pinned = true; overTip = false;
+      showTip(coords.left, coords.bottom + 6, hits, null);
     },
     /** Puts the caret at a place and shows it (1-based line, 1-based column). */
     goto(line, col = 1) {

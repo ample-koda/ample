@@ -3,6 +3,7 @@
 
 import { initToken, getToken } from '../app/api.js';
 import { buildForm, sendSummary, sizeText, withHashes, checkBuild, describe, neededFiles, pickEntry } from './lite-build.mjs';
+import { missingFileDiagnostics } from './lite-missing-files.mjs';
 import { CATEGORIES, demoFiles, entryOf, filterDemos, isUnchangedDemo, loadCatalog, shareUrl, sharedDemoId } from './lite-demos.mjs';
 import { createLiteEditor } from './lite-editor.js';
 import { createRoll } from './lite-roll.js';
@@ -155,8 +156,18 @@ function renderTree() {
   walk(treeOf(app.files.map((f) => f.path)), '', 0);
 }
 
+/** The marks of the open song: what the language server says, and the files the song names that the project does not have (found in the text at once, not after a build). */
+function applyLive() {
+  const text = app.texts.get(app.active) ?? '';
+  const missing = /[.]amplet$/i.test(app.active || '') ? missingFileDiagnostics(text, app.files.map((f) => f.path)) : [];
+  app.live = [...(app.serverLive ?? []), ...missing];
+  renderProblems();
+  app.editor?.setDiagnostics(app.live);
+}
+
 async function refreshFiles() {
   app.files = app.project ? await app.store.listFiles(app.project.id) : [];
+  applyLive();   // an upload or a delete changes which files are there
   renderTree();
   await refreshUsage();
 }
@@ -231,7 +242,7 @@ function closeEditor() {
   $('#lite-editor').hidden = false;
   $('#lite-binary').hidden = true;
   if (app.binaryUrl) { URL.revokeObjectURL(app.binaryUrl); app.binaryUrl = ''; }
-  app.live = [];
+  app.live = []; app.serverLive = [];
   renderProblems();
 }
 
@@ -261,11 +272,14 @@ async function openFile(path) {
 }
 
 async function openText(path, text) {
-  app.language = createLanguage({ textFiles, onDiagnostics: (list) => { app.live = list; renderProblems(); app.editor?.setDiagnostics(list); }, onOffline: () => status('Language help is offline (close other Remix tabs and reload the page; sign in again if it keeps happening)'), onOnline: () => status('') });
+  app.language = createLanguage({ textFiles, onDiagnostics: (list) => { app.serverLive = list; applyLive(); },
+    onOffline: () => status('Language help is offline (close other Remix tabs and reload the page; sign in again if it keeps happening)'),
+    onOnline: () => status('') });
   app.editor = await createLiteEditor($('#lite-editor'), {
     text,
     onChange: (value) => { app.texts.set(path, value); queueSave(path, value); app.language.change(value); },
     complete: (position, current) => app.language.complete(position, current),
+    files: () => app.files,
     hover: (position) => app.language.hover(position),
     definition: async (position) => rollTarget(position) ?? await app.language.definition(position),
     onOpenTarget: async (target) => {
@@ -370,14 +384,16 @@ const HIDDEN_WHY = 'sealing is for components that are shared and trusted; Remix
 function renderProblems() {
   const list = $('#lite-problems');
   list.textContent = '';
-  const all = [...app.live.map((d) => ({ ...d, here: true })), ...app.built.filter((d) => d.line === 0 || (!app.live.length && d.file === app.active))];
+  const all = [...app.live.map((d) => ({ ...d, here: true })), ...app.built.filter((d) => d.line === 0 || d.code === 'AMPL920' || (!app.live.length && d.file === app.active))];
   const hidden = all.filter((d) => d.code === HIDDEN_CODE);
   const items = all.filter((d) => d.code !== HIDDEN_CODE);
   for (const d of items.slice(0, 100)) {
     const li = document.createElement('li');
     li.className = d.severity;
     li.textContent = describe(d);
-    if (d.line > 0 && d.here !== false) li.onclick = () => app.editor?.goto(d.line, d.col);
+    // a click goes to the line (of the file that is open: a problem of another file has no line here)
+    if (d.line > 0 && d.here !== false && (!d.file || d.file === app.active)) { li.onclick = () => app.editor?.goto(d.line, d.col);
+      li.ondblclick = () => app.editor?.showProblem(d); li.title = 'Click: go to this line. Double click: show it with its quick fix'; }
     list.append(li);
   }
   if (hidden.length) {

@@ -218,6 +218,26 @@ public sealed class LiteTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task A_block_that_fails_to_build_says_the_line_of_its_header_so_the_list_of_problems_can_go_there()
+    {
+        const string Missing = """
+            composition "t" { ample 1  tempo 120  master-seed 1 }
+
+            import-audio clip at 1 for 1 {
+              file "missing/Kick.wav"
+            }
+            """;
+        using HttpResponseMessage response = await http.PostAsync("/api/remix/build", Form("song.amplet", Text("song.amplet", Missing)));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(result.GetProperty("ok").GetBoolean());
+        JsonElement failed = result.GetProperty("diagnostics").EnumerateArray().First(d => d.GetProperty("code").GetString() == "AMPL920");
+        Assert.Equal(3, failed.GetProperty("line").GetInt32());   // the line of "import-audio clip", counted from 1
+        Assert.Equal(1, failed.GetProperty("col").GetInt32());
+        Assert.Contains("\"clip\"", failed.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_song_with_an_error_gives_diagnostics_without_paths_and_leaves_no_workspace()
     {
         using HttpResponseMessage response = await http.PostAsync("/api/remix/build", Form("song.amplet", Text("song.amplet", Song.Replace("synth s", "synthh s", StringComparison.Ordinal))));
