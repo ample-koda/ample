@@ -152,7 +152,7 @@ public static class LiteApi
             }
         });
 
-        // the audio of a build: wav as it is (the page plays it), mp3 or flac encoded on demand (counted, queued, cached for a few minutes)
+        // the audio of a build: the page plays the mp3 (use=play: counted like a build, not like a download; queued, cached for a few minutes), wav as it is, or mp3 or flac for a download (counted, queued, cached)
         app.MapGet("/api/remix/output/{id}", async (HttpContext context, string id) =>
         {
             string format = (context.Request.Query["format"].FirstOrDefault() ?? "wav").ToLowerInvariant();
@@ -160,10 +160,12 @@ public static class LiteApi
             byte[]? wav = outputs.Get(id);
             if (wav is null) return Results.NotFound();
             if (format == "wav") return Results.File(wav, "audio/wav", "lite.wav");
+            bool play = format == "mp3" && string.Equals(context.Request.Query["use"].FirstOrDefault(), "play", StringComparison.OrdinalIgnoreCase);
             try
             {
                 IReadOnlyList<string> keys = LiteClient.Keys(context);
-                governor.Spend("download", keys, lim.DownloadsPerMinute, lim.DownloadsPerHour);
+                if (play) governor.Spend("play", keys, lim.BuildsPerMinute, lim.BuildsPerHour);   // listening goes with building, not with downloading
+                else governor.Spend("download", keys, lim.DownloadsPerMinute, lim.DownloadsPerHour);
                 byte[]? encoded = outputs.GetVariant(id, format);
                 if (encoded is null)
                 {
@@ -172,7 +174,7 @@ public static class LiteApi
                     outputs.PutVariant(id, format, encoded, lim);
                 }
 
-                governor.SpendBytes(keys, encoded.LongLength);
+                if (!play) governor.SpendBytes(keys, encoded.LongLength);
                 return Results.File(encoded, LiteEncoder.ContentType(format), "lite." + format);
             }
             catch (LiteRejectedException rejected)
