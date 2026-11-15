@@ -148,7 +148,7 @@ internal static class SampledInstruments
 
         public string BlockType => "gm";
         public string Id => "builtin.gm-sf2";
-        public string Version => "33";
+        public string Version => "34";
         public string Determinism => "exact";
         public string ToolprintJson => JsonSerializer.Serialize(new { engine = "ample-sf2", dsp = "integer" });
 
@@ -368,6 +368,8 @@ internal static class SampledInstruments
                 }
             }
 
+            // a voice that is still sounding when the block ends is cut there: it fades out softly, so that no click is heard where the next block of the instrument goes on
+            foreach (long[]? tail in new[] { buffer, rightBuffer, sendBuffer, sendRight, chorusBuffer, chorusRight }) EndDeclick.Apply(tail, r.SampleRate);
             short[] pcm = [.. buffer.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))];
             byte[] audio = rightBuffer is null ? Wav.Encode(pcm, r.SampleRate) : StereoWav.Encode(new StereoBuffer(pcm, [.. rightBuffer.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))]), r.SampleRate);
             // no note sends anything: silence of the same length (a mono file, the same bytes for every such render, so the takebank keeps it once)
