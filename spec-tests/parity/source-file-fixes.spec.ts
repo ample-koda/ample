@@ -3,7 +3,8 @@ import * as path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { freshServer, openApp, srcText } from '../../web/tests/support';
 
-// A file line of a song that names a file the project does not have: it is an error at once (not after a build), with the near file as a quick fix, a file browser to pick from, and the files offered after `file`.
+// A file line of a song that names a file the project does not have: it is an error at once (not after a build), with the near file as a quick fix, a
+// file browser to pick from, and the files offered after `file`.
 const NL = String.fromCharCode(10);
 const SONG = ['composition "files" { ample 1  tempo 100  master-seed 3 }', '', 'import-audio hit at 1 for 1 {', '  file "my-kick.wav"', '}', ''].join(NL);
 const WAV = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(32)]);
