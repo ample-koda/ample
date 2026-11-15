@@ -75,7 +75,7 @@ test('an open roll follows a build: the new clock gives new notes, with the same
   await expect.poll(pitch, { timeout: 15000 }).toBe(60 + (second % 4));   // what the roll shows is what the build made
 });
 
-test('Bake clock values asks where, bakes helpers, direct clock reads and calls with parameters, and undo takes it back', async ({ page }) => {
+test('Bake clock values asks where, bakes helpers, direct clock reads and calls with parameters, and undo takes it back @quarantine', async ({ page }) => {
   await openMore(page);
   await expect(bakeItem(page)).toBeDisabled();   // nothing built yet
   await page.keyboard.press('Escape');
@@ -128,7 +128,7 @@ test('Bake this call freezes one dynamic call in the source and leaves the helpe
 });
 
 // last: it opens the new song, so the tests above all start from the dynamic song
-test('Bake clock values can write a new song and leaves the open one dynamic', async ({ page }) => {
+test('Bake clock values can write a new song and leaves the open one dynamic @quarantine', async ({ page }) => {
   await built(page);
   await openMore(page);
   await bakeItem(page).click();

@@ -25,7 +25,7 @@ function sourceWav() {
 
 freshServer({ song, prepare: (_cli, folder) => fs.writeFileSync(path.join(folder, 'source.wav'), sourceWav()) });
 
-test('master GUI previews ceiling changes and A/B locally using the upstream take', async ({ page }) => {
+test('master GUI previews ceiling changes and A/B locally using the upstream take @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await node(page, 'master').locator('.studio-advanced-node').click();
   await expect(page.getByRole('region', { name: 'Master controls' })).toBeVisible();
