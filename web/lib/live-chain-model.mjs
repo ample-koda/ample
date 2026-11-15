@@ -11,12 +11,12 @@ export function sequencerLocal(params = {}) {
 }
 
 /** Block types that have a persistent live graph (studio/preview/audio.js liveEffectGraph) and can sit in a chain (convolution loads its impulse response in the chain, plan 2.3). */
-export const CHAIN_EFFECTS = new Set(['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'convolution', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'master']);
+export const CHAIN_EFFECTS = new Set(['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'convolution', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'bitcrusher', 'master']);
 /** Instruments that play the notes of a midi-clip (through the five note transforms) and that the browser renders itself: synth, piano, bass, guitar and the pitched sample sets (plan 3.4, 3.5). */
 export const NOTE_INSTRUMENTS = new Set(['synth', 'piano', 'bass', 'guitar']);
 export const SUM_TYPES = new Set(['mixer', 'bus', 'send']);   // a send has two outputs: `through` (its own id) and `send` (id:send)
 /** Buffer operations on a sound that is a buffer already (a built take or another local block): re-made in the browser when a knob moves, swapped in without a gap. */
-export const LOCAL_OPS = new Set(['cut', 'fade', 'shift', 'reverse', 'chop', 'rewind', 'scratch', 'normalize', 'pitch', 'stretch', 'granular', 'denoise', 'trim']);
+export const LOCAL_OPS = new Set(['cut', 'fade', 'shift', 'reverse', 'chop', 'rewind', 'scratch', 'normalize', 'pitch', 'stretch', 'granular', 'denoise', 'trim', 'autotune']);
 /** Buffer blocks with several inputs or none (plan local-preview 2.5): made in the browser from the sounds they work on, or from a file of the project. Splitter is one item per used output (id `splitter:left`). */
 export const LOCAL_BUFFERS = new Set(['click', 'import-audio', 'ambience', 'join', 'crossfade', 'splitter']);
 /** Blocks that pass the sound on unchanged (a Meter measures and reports, its audio out is its audio in): the plan looks through them, so adding one changes nothing of the audio graph. */
@@ -97,7 +97,7 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
     if (node.tpl === 'join' || node.tpl === 'crossfade' || node.tpl === 'splitter' || node.tpl === 'vocoder') {
       const links = audioIn(id).filter((l) => (node.tpl === 'splitter' ? (l.inName === 'in' || l.inName === 'audio') : node.tpl === 'crossfade' ? l.inName === 'a' || l.inName === 'b' : node.tpl === 'vocoder' ? l.inName === 'modulator' || l.inName === 'carrier' : /^(in|audio)\d+$/.test(l.inName)));
       if (!links.length) return null;
-      if (links.some((l) => { const up = byId.get(resolveLink(l).from); return !up || CHAIN_EFFECTS.has(up.tpl) || SUM_TYPES.has(up.tpl); })) return null;   // after an effect it plays its built take
+      if (links.some((l) => !byId.get(resolveLink(l).from))) return null;   // after an effect or a mixer its input is the sound of the chain up to there, rendered when it is needed
       return () => {
         const inputs = [];
         for (const l of links) {
@@ -135,8 +135,9 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
     if (LOCAL_OPS.has(node.tpl)) {
       const link = audioIn(id).find((l) => l.inName === 'in');
       if (!link) return null;
-      const upstream = byId.get(resolveLink(link).from);
-      if (!upstream || CHAIN_EFFECTS.has(upstream.tpl) || SUM_TYPES.has(upstream.tpl)) return null;   // after an effect it plays its built take
+      if (!byId.get(resolveLink(link).from)) return null;
+      // an Autotune with a Melody input follows notes the live chain does not resolve: it plays its built take (the song preview and the build follow the notes)
+      if (node.tpl === 'autotune' && links.some((l) => l.to === id && l.type === 'midi' && l.inName === 'target' && !l.disabled)) return null;
       return () => {
         const problem = visit(sourceOf(link));
         if (problem) return problem;
@@ -190,6 +191,38 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
   const problem = visit(target);
   if (problem) return { ok: false, reason: problem };
   return { ok: true, items, output: target, sources: items.filter((item) => item.kind === 'source' || item.kind === 'local').map((item) => item.id), notes };
+}
+
+/**
+ * The effects and mixers whose sound a block of the plan works on: everything between it and the sources and local blocks before it, dependencies first, and the ids of those
+ * sounds at the edge (`leaves`). A buffer block after an effect is made from the rendered sound of exactly these (issue 73).
+ * @param {{ items: Array<object> }} plan
+ * @param {Array<{ from: string }>} inputs the inputs of the block
+ */
+export function upstreamOf(plan, inputs) {
+  const byId = new Map(plan.items.map((item) => [item.id, item]));
+  const chain = [], seen = new Set(), leaves = [];
+  const walk = (id) => {
+    const item = byId.get(id) ?? byId.get(baseId(id));
+    if (!item || item.kind === 'source' || item.kind === 'local') { if (!leaves.includes(id)) leaves.push(id); return; }
+    if (seen.has(item.id)) return;
+    seen.add(item.id);
+    for (const link of item.inputs || []) walk(link.from);
+    if (item.key) walk(item.key);
+    chain.push(item);
+  };
+  for (const link of inputs) walk(link.from);
+  return { chain, leaves };
+}
+
+/** The structure of a plan without the takes of its sources: two plans with the same shape are the same graph, only a rebuilt sound differs (issue 275). */
+export const planShape = (plan) => JSON.stringify(plan.items.map((i) => [i.id, i.kind, i.tpl, i.role || '', i.inputs, i.midi || null, i.key || null]));
+
+/** The sources whose take is another one in the new plan (same graph): their new sound can replace the old one without starting the chain again. */
+export function changedSources(before, after) {
+  if (planShape(before) !== planShape(after)) return null;
+  const was = new Map(before.items.map((i) => [i.id, i.take]));
+  return after.items.filter((i) => i.kind === 'source' && was.get(i.id) !== i.take);
 }
 
 /** The blocks of a plan that can be bypassed or tuned: every effect and sum, in order. */

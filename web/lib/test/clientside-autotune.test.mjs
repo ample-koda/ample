@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, keptFix, keyScale, noteName, noteNumber, noteRuns, parseFixes } from '../clientside-autotune.mjs';
+import { applyCorrections, autotuneSettings, corrections, detectPitch, autotuneAudio, formatFixes, keptFix, keyScale, melodyOf, noteName, noteNumber, noteRuns, parseFixes } from '../clientside-autotune.mjs';
 
 const RATE = 16000;
 const tone = (hz, seconds = 3) => Float32Array.from({ length: Math.floor(seconds * RATE) }, (_, i) => {
@@ -107,4 +107,25 @@ test('editing one fix leaves the others as they were written, bars included (3/4
   read[1] = { ...read[1], to: 8.6 };
   assert.equal(formatFixes(read), '1bar-2bars E4; 7.9s-8.6s G4 vibrato 20%');   // only the edited one is in seconds
   assert.equal(keptFix({ from: 1, to: 2, note: 60, vibrato: null }), undefined);   // a fix that was never read has no text of its own
+});
+
+test('the melody is read as the build reads it: bar, beat and beats in samples from the first bar', () => {
+  const perBar = 4 * RATE;   // one bar of 4/4 is four seconds here
+  const melody = melodyOf([{ bar: 2, beat: 1, beats: 2, pitch: 64 }, { bar: 1, beat: 0, beats: 1, pitch: 60 }], { firstBar: 1, samplesPerBar: perBar, beatsPerBar: 4 });
+  assert.deepEqual(melody, [{ from: 0, to: RATE, note: 60 }, { from: perBar + RATE, to: perBar + 3 * RATE, note: 64 }]);
+  // a render that starts at bar 2 counts from there
+  assert.equal(melodyOf([{ bar: 2, beat: 0, beats: 1, pitch: 60 }], { firstBar: 2, samplesPerBar: perBar })[0].from, 0);
+  assert.deepEqual(melodyOf(null, { samplesPerBar: perBar }), []);
+});
+
+test('the whole Autotune of the browser follows the melody and the key as the build does', () => {
+  const sound = { sampleRate: RATE, channels: [tone(440)] };
+  const timing = { tempo: 60, beatsPerBar: 4 };   // 60 BPM: a bar is four seconds
+  const settings = { speed: '0', humanize: '0' };
+  const key = autotuneAudio(sound, { ...settings, key: 'chromatic' }, timing);
+  assert.ok(Math.abs(pitch(key.channels[0]) - 69) < 0.15, 'the key leaves an A where it is');
+  const melody = melodyOf([{ bar: 1, beat: 0, beats: 12, pitch: 48 }], { samplesPerBar: 4 * RATE, beatsPerBar: 4 });
+  const guided = autotuneAudio(sound, settings, { ...timing, melody });
+  assert.ok(Math.abs(pitch(guided.channels[0]) - 72) < 0.2, `pitch ${pitch(guided.channels[0])}`);   // the octave closest to what is sung
+  assert.equal(guided.channels[0].length, sound.channels[0].length);
 });

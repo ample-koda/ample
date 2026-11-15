@@ -377,6 +377,41 @@ function spectral(channels, rate, semitonesAt, keepFormants) {
   });
 }
 
+/**
+ * The notes of a melody (the Melody input) as { from, to, note } in samples of the block, as the build reads them (Autotune.Melody): bar, beat and beats of every note,
+ * counted from the first bar of what is rendered. Notes that end before that bar are left out.
+ * @param {Array<{ bar: number, beat: number, beats: number, pitch: number }>|null} notes
+ */
+export function melodyOf(notes, { firstBar = 1, samplesPerBar, beatsPerBar = 4 }) {
+  if (!Array.isArray(notes)) return [];
+  const out = [];
+  for (const n of notes) {
+    const bar = Number.isFinite(n.bar) ? n.bar : 1, beat = Number.isFinite(n.beat) ? n.beat : 0, beats = Number.isFinite(n.beats) ? n.beats : 1;
+    const from = Math.trunc((bar - firstBar) * samplesPerBar + (beat * samplesPerBar) / beatsPerBar);
+    const to = from + Math.max(1, Math.trunc((beats * samplesPerBar) / beatsPerBar));
+    out.push({ from, to, note: Number.isFinite(n.pitch) ? n.pitch : 60 });
+  }
+
+  return out.sort((a, b) => a.from - b.from);
+}
+
+/**
+ * Autotune on decoded audio, the steps of the engine: the pitch is followed, every moment gets the note it should be (a fix of the window, the note of the melody, or the key)
+ * and the voice is moved there. Used by the song preview and by the live chain, so both follow the same notes as the build.
+ * @param {{ sampleRate: number, channels: Float32Array[] }} audio
+ * @param {object} params the parameters of the block
+ * @param {{ tempo: number, beatsPerBar: number, melody?: Array<{ from: number, to: number, note: number }> }} timing melody in samples (see melodyOf)
+ */
+export function autotuneAudio(audio, params, { tempo, beatsPerBar, melody = [] }) {
+  const channels = audio.channels.map((c) => Float32Array.from(c));
+  const mono = channels.length > 1 ? channels[0].map((v, i) => (v + channels[1][i]) / 2) : channels[0];
+  const track = detectPitch(mono, audio.sampleRate);
+  const samplesPerBar = Math.floor((beatsPerBar * 60 * audio.sampleRate * 1000) / Math.round(tempo * 1000));
+  const fixes = parseFixes(String(params.fixes ?? '').replace(/^"|"$/g, ''), audio.sampleRate, samplesPerBar);
+  const { correction } = corrections(track, autotuneSettings(params, track), melody, fixes);
+  return { sampleRate: audio.sampleRate, channels: applyCorrections(channels, audio.sampleRate, track, correction, String(params.method ?? '').replace(/^"|"$/g, '') || 'spectral') };
+}
+
 /** The settings of a block from its parameters (the text values of the song). */
 export function autotuneSettings(params, track) {
   const num = (v, fallback) => { const n = Number.parseFloat(String(v ?? '').replace(/^"|"$/g, '')); return Number.isFinite(n) ? n : fallback; };

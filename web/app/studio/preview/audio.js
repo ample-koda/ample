@@ -40,7 +40,7 @@ export function prepareWorklets(context) {
   if (!context?.audioWorklet) return Promise.resolve(false);
   if (!worklets.has(context)) {
     const entry = { ready: false };
-    entry.promise = Promise.all(['/lib/reverb-worklet.mjs', '/lib/dynamics-worklet.mjs', '/lib/distortion-worklet.mjs', '/lib/lufs-worklet.mjs'].map((url) => context.audioWorklet.addModule(url))).then(() => { entry.ready = true; return true; }).catch(() => false);
+    entry.promise = Promise.all(['/lib/reverb-worklet.mjs', '/lib/dynamics-worklet.mjs', '/lib/distortion-worklet.mjs', '/lib/bitcrusher-worklet.mjs', '/lib/lufs-worklet.mjs'].map((url) => context.audioWorklet.addModule(url))).then(() => { entry.ready = true; return true; }).catch(() => false);
     worklets.set(context, entry);
   }
   return worklets.get(context).promise;
@@ -224,6 +224,29 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
       set(feedback.gain, clamp(number(params, 'feedback', 50), 0, 90) / 100);
     };
     updateMix = (params) => { const amount = clamp(number(params, 'mix', 50), 0, 100) / 100; set(dry.gain, 1 - amount); set(wet.gain, amount); };
+  } else if (type === 'bitcrusher' && workletReady(context)) {
+    // the exact bitcrusher: the core of the offline render (bitcrusher-core.mjs), one held value per channel, the mix inside (issue 74)
+    const stage = node(new AudioWorkletNode(context, 'ample-bitcrusher', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit', processorOptions: { params: initial } }));
+    input.connect(stage).connect(wet);
+    updateEffect = (params) => stage.port.postMessage({ params });
+    set(dry.gain, 0);
+  } else if (type === 'bitcrusher') {
+    // without the worklet: the bit depth only, as a quantizing curve (no sample hold); the worklet is the exact one
+    const shaper = node(context.createWaveShaper());
+    input.connect(shaper).connect(wet);
+    let curveBits = 0;
+    updateEffect = (params) => {
+      const bits = Math.round(clamp(number(params, 'bits', 8), 2, 16));
+      if (bits !== curveBits) {
+        curveBits = bits;
+        const levels = 2 ** bits, curve = new Float32Array(4097);
+        for (let i = 0; i < curve.length; i++) curve[i] = Math.max(-1, Math.min(1, Math.floor(((i / 2048) - 1) * (levels / 2)) / (levels / 2)));
+        shaper.curve = curve;
+      }
+
+      set(dry.gain, 1 - clamp(number(params, 'mix', 100), 0, 100) / 100);
+      set(wet.gain, clamp(number(params, 'mix', 100), 0, 100) / 100);
+    };
   } else if (type === 'distortion' && workletReady(context)) {
     // the exact distortion: the core of the offline render (distortion-core.mjs), four-point mean and mix inside, so no oversampler latency shifts the wet path
     const stage = node(new AudioWorkletNode(context, 'ample-distortion', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit', processorOptions: { params: initial } }));
