@@ -11,7 +11,7 @@
 
 const RELEASE_MS = 150;   // after the scheduled silence the source is stopped and disconnected
 
-export function createClipPlayer({ ctx, output, bufferOf, outputFor = null, timers = { set: setTimeout, clear: clearTimeout } }) {
+export function createClipPlayer({ ctx, output, bufferOf, outputFor = null, timers = { set: (...args) => setTimeout(...args), clear: (...args) => clearTimeout(...args) } }) {
   if (!ctx || !output || typeof bufferOf !== 'function') {
     throw new TypeError('createClipPlayer needs a context, an output and bufferOf(clip)');
   }
