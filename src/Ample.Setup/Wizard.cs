@@ -214,11 +214,15 @@ namespace Ample.Setup
             startAmple.Text = mode == "fresh" ? "Start AMPLE and open the studio" : mode == "update" ? "Apply the update to the running AMPLE and open the studio" : "Restart AMPLE so the changes apply, and open the studio";
             startAmple.Checked = true; startAmple.AutoSize = true; startAmple.ForeColor = Ink; startAmple.Location = new Point(0, 8);
             startHub.Text = "Start the AMPLE tray hub (a tray icon to start, stop and restart AMPLE)";
-            startHub.Checked = runtimeOk && hubPresent; startHub.Enabled = runtimeOk && hubPresent; startHub.AutoSize = true; startHub.ForeColor = Ink; startHub.Location = new Point(0, 44);
+            startHub.Checked = runtimeOk && hubPresent; startHub.AutoCheck = runtimeOk && hubPresent; startHub.AutoSize = true; startHub.ForeColor = Ink; startHub.Location = new Point(0, 44);
             restartNote.AutoSize = false; restartNote.Size = new Size(520, 36); restartNote.Location = new Point(0, 28);
             restartNote.ForeColor = Warn;
             p.Controls.Add(startAmple); p.Controls.Add(startHub); p.Controls.Add(restartNote);
-            if (!runtimeOk && hubPresent)
+            if (!hubPresent)
+                p.Controls.Add(new Label { AutoSize = false, Size = new Size(520, 40), Location = new Point(0, 76), ForeColor = Warn,
+                  Text = "The tray hub is not part of this installation (Ample.Hub.exe was not found next to this setup), so it cannot be started from here."
+                  });
+            else if (!runtimeOk)
                 p.Controls.Add(new Label { AutoSize = false, Size = new Size(520, 60), Location = new Point(0, 76), ForeColor = Warn, Text = "The tray hub needs the .NET 9 Desktop Runtime, which is not installed. The check on the previous page can install it for all users (that asks for administrator permission); then start the hub from the Start menu." });
             return p;
         }
@@ -509,8 +513,10 @@ namespace Ample.Setup
                     try
                     {
                         string arguments = doAmple ? (mode == "fresh" ? "--start-main --open-studio" : "--restart-main --open-studio") : string.Empty;
-                        Process.Start(new ProcessStartInfo(hubPath, arguments) { UseShellExecute = false });
-                        Log("OK  The tray hub started" + (doAmple ? ", and it " + (mode == "fresh" ? "starts" : "restarts") + " AMPLE and opens the studio." : "."));
+                        Process hubProcess = Process.Start(new ProcessStartInfo(hubPath, arguments) { UseShellExecute = false });
+                        if (hubProcess != null && hubProcess.WaitForExit(2000)) throw new InvalidOperationException("it ended at once (exit code " + hubProcess.ExitCode + ")");
+                        Log("OK  The tray hub is running. Windows may keep its icon in the list behind the little arrow in the taskbar: drag it onto the taskbar to keep it in view"
+                          + (doAmple ? ", and it " + (mode == "fresh" ? "starts" : "restarts") + " AMPLE and opens the studio." : "."));
                     }
                     catch (Exception ex) { Log("FAILED  The tray hub did not start: " + ex.Message); }
                 }

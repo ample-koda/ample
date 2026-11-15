@@ -26,6 +26,7 @@ namespace Ample.Setup
         private Control packsPage;
         private readonly FlowLayoutPanel packRows = new FlowLayoutPanel();
         private readonly Label packsStatus = new Label();
+        private readonly List<Button> packFilters = new List<Button>();
         private readonly Label packsSummary = new Label();
         private readonly List<PackInfo> packs = new List<PackInfo>();
         private readonly LoadGate packsGate = new LoadGate();
@@ -42,7 +43,9 @@ namespace Ample.Setup
             foreach (string label in new[] { "Only packs without a credit", "All", "None" })
             {
                 string choice = label;
-                Button b = new Button { Text = label, FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Ink, Height = 24, Width = choice.Length > 6 ? 176 : 56, Top = 48, Left = x };
+                Button b = new Button { Text = label, FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Ink, Height = 26, Top = 48, Left = x };
+                b.Width = TextRenderer.MeasureText(label, b.Font).Width + 28;   // as wide as its words: a long label was cut off
+                packFilters.Add(b);
                 b.FlatAppearance.BorderColor = Accent;
                 b.Click += (s, e) =>
                 {
@@ -55,6 +58,7 @@ namespace Ample.Setup
                 x += b.Width + 6;
             }
 
+            packsStatus.TextChanged += (s, e) => LayoutPacksTop();
             packRows.Location = new Point(0, 78); packRows.Size = new Size(528, 140); packRows.AutoScroll = true; packRows.FlowDirection = FlowDirection.TopDown; packRows.WrapContents = false;
             packsSummary.AutoSize = false; packsSummary.Size = new Size(528, 36); packsSummary.Location = new Point(0, 222); packsSummary.ForeColor = Ink;
             p.Controls.AddRange(new Control[] { packsStatus, packRows, packsSummary });
@@ -68,8 +72,24 @@ namespace Ample.Setup
             if (ClientSize.Height != height) ClientSize = new Size(560, height);
             back.Top = next.Top = cancel.Top = height - 44;
             if (current == packsPage) packsPage.Height = height - 68 - 54;
-            packRows.Height = Math.Max(100, packsPage.Height - 78 - 52);
-            packsSummary.Top = 78 + packRows.Height + 6;
+            LayoutPacksTop();
+            packRows.Height = Math.Max(100, packsPage.Height - packRows.Top - 52);
+            packsSummary.Top = packRows.Top + packRows.Height + 6;
+        }
+
+        // the note under the title can be two or three lines (what the last installation could not fetch): the buttons and the list sit under all of it, never over its end
+        private void LayoutPacksTop()
+        {
+            int textHeight = TextRenderer.MeasureText(packsStatus.Text, packsStatus.Font, new Size(528, 0), TextFormatFlags.WordBreak).Height + 4;
+            packsStatus.Height = Math.Max(18, textHeight);
+            int buttonsTop = packsStatus.Top + packsStatus.Height + 4;
+            foreach (Button b in packFilters) b.Top = buttonsTop;
+            packRows.Top = buttonsTop + 32;
+            if (packsPage != null && packsPage.Height > 0)
+            {
+                packRows.Height = Math.Max(100, packsPage.Height - packRows.Top - 52);
+                packsSummary.Top = packRows.Top + packRows.Height + 6;
+            }
         }
 
         // --shot: waits until the page has what it shows, draws the window into a PNG and closes
@@ -181,7 +201,7 @@ namespace Ample.Setup
             int y = 4;
             info.Box = new CheckBox
             {
-                Text = info.Title, Checked = info.Installed, Enabled = !info.Installed, AutoSize = false,
+                Text = info.Title, Checked = info.Installed, AutoCheck = !info.Installed, AutoSize = false,   // not Enabled = false: a disabled box is drawn in dark grey
                 Size = new Size(width - 100, 22), Location = new Point(8, y), ForeColor = Ink,
                 Font = new Font("Segoe UI Semibold", 9.5f),
             };
@@ -192,7 +212,7 @@ namespace Ample.Setup
                 Button remove = new Button
                 {
                     Text = "Remove", FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Ink,
-                    Height = 22, Width = 80, Location = new Point(width - 90, y),
+                    Height = 26, Width = 84, Location = new Point(width - 94, y - 2),
                 };
                 remove.FlatAppearance.BorderColor = Bad;
                 remove.Click += (s, e) =>
