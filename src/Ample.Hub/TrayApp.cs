@@ -39,12 +39,14 @@ internal sealed class TrayApp : ApplicationContext
         _ = RefreshAsync();
     }
 
-    /// <summary>The icon is made again (it can be lost when the taskbar is rebuilt) and a note says where it is: Windows may keep a new icon in the list behind the little arrow.</summary>
+    /// <summary>The icon is made again (it can be lost when the taskbar is rebuilt) and a short note says that the hub is running.</summary>
     private void ShowAgain()
     {
         icon.Visible = false;
         icon.Visible = true;
-        icon.ShowBalloonTip(5000, "AMPLE", "The AMPLE tray hub is running. Its icon is here or behind the little arrow in the taskbar: drag it onto the taskbar to keep it in view.", ToolTipIcon.Info);
+        string version = (System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? string.Empty).Split('+')[0];
+        icon.ShowBalloonTip(3000, "AMPLE", "AMPLE Hub " + (version.Length > 0 ? "v" + version + " " : string.Empty) + "is running.", ToolTipIcon.Info);
     }
 
     protected override void Dispose(bool disposing)
