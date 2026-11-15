@@ -24,7 +24,8 @@ export function barLevels(chunks, startSample, barSamples, bars) {
 const finish = (sum, count) => Array.from(sum, (value, k) => dbOf(count[k] ? value / count[k] : 0));
 
 /**
- * The bars side by side: { bars: [{ bar, heard, saved, diff }], compared, worst: { bar, diff } | null, meanAbs }. `diff` is saved minus heard in dB. A bar where both are below the floor is silence in both and is not compared;
+ * The bars side by side: { bars: [{ bar, heard, saved, diff }], compared, worst: { bar, diff } | null, meanAbs }. `diff` is saved minus heard in dB.
+ * A bar where both are below the floor is silence in both and is not compared;
  * a bar where only one is below it is compared against the floor, so a missing sound is a large difference.
  */
 export function compareBars(heard, saved, floorDb = FLOOR_DB) {
@@ -44,13 +45,19 @@ export function compareText(result, within = 1) {
   if (!result.compared) return 'The saved song and what you heard are both silent: nothing to compare.';
   const worst = Math.abs(result.worst.diff);
   const sign = (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)} dB`;
-  if (worst <= within) return `The saved song sounds like what you heard: every bar within ${within} dB (largest difference ${sign(result.worst.diff)}, bar ${result.worst.bar}).`;
+  if (worst <= within) {
+    return `The saved song sounds like what you heard: every bar within ${within} dB `
+      + `(largest difference ${sign(result.worst.diff)}, bar ${result.worst.bar}).`;
+  }
   const off = result.bars.filter((b) => Math.abs(b.diff) > within).map((b) => b.bar);
-  return `The saved song is close to what you heard on average (${result.meanAbs.toFixed(1)} dB), but ${off.length} bar${off.length === 1 ? ' differs' : 's differ'} more than ${within} dB; the largest is bar ${result.worst.bar} (${sign(result.worst.diff)}).`;
+  return `The saved song is close to what you heard on average (${result.meanAbs.toFixed(1)} dB), `
+    + `but ${off.length} bar${off.length === 1 ? ' differs' : 's differ'} more than ${within} dB; `
+    + `the largest is bar ${result.worst.bar} (${sign(result.worst.diff)}).`;
 }
 
 /**
- * The bars (counted from 1 in the saved song) where the sum of the set went past full scale. `peaks` are { time (seconds on the clock of the session), peak (0..) } per block of audio; `startSec` is the time of the first launch,
+ * The bars (counted from 1 in the saved song) where the sum of the set went past full scale. `peaks` are { time (seconds on the clock of the
+ * session), peak (0..) } per block of audio; `startSec` is the time of the first launch,
  * `barSec` the length of a bar. Returns { bars: [numbers], peakDb } (peakDb of the loudest block, or null when the sum never went past it).
  */
 export function clippedBars(peaks, startSec, barSec, limit = 1) {

@@ -263,7 +263,9 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 #b-performance{display:none;flex-direction:column;gap:6px;min-height:0;overflow:auto;padding:6px}
 #b-performance.on{display:flex}
 .perf-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.perf-split{display:inline-flex}.perf-split .perf-enter{border-top-right-radius:0;border-bottom-right-radius:0}.perf-enter-more{border-top-left-radius:0;border-bottom-left-radius:0;border-left:1px solid color-mix(in srgb,var(--bg) 45%,transparent);padding:0 9px}
+.perf-split{display:inline-flex}.perf-split
+  .perf-enter{border-top-right-radius:0;border-bottom-right-radius:0}.perf-enter-more{border-top-left-radius:0;border-bottom-left-radius:0;border-left:1px
+  solid color-mix(in srgb,var(--bg) 45%,transparent);padding:0 9px}
 .perf-q{display:inline-flex;gap:4px;align-items:center;font-size:12px;white-space:nowrap}
 .perf-lanes{display:flex;flex-direction:column;gap:5px}
 .perf-lane{display:grid;grid-template-columns:150px auto minmax(0,1fr) auto;gap:6px 18px;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:6px 10px}

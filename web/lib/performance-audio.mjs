@@ -66,8 +66,10 @@ export function createClipPlayer({ ctx, output, bufferOf, outputFor = null, time
   return { play, releaseAll, get count() { return live.size; } };
 }
 
-/** The filter and the pan of a lane are heard the way the saved song makes them (heard = saved): the filter block of a song is two one-pole low passes (12 dB per octave, no resonance) with the -3 dB point of the pair at the cutoff,
-    which is a second-order low pass with Q 0.5 (-6.02 dB in Web Audio) whose own corner sits 1.554 times higher; the pan block of a song balances a stereo sound (the far side gets quieter, the near side is left alone). */
+/** The filter and the pan of a lane are heard the way the saved song makes them (heard = saved): the filter block of a song is two one-pole low
+ * passes (12 dB per octave, no resonance) with the -3 dB point of the pair at the cutoff,
+    which is a second-order low pass with Q 0.5 (-6.02 dB in Web Audio) whose own corner sits 1.554 times higher;
+      the pan block of a song balances a stereo sound (the far side gets quieter, the near side is left alone). */
 export const SONG_FILTER = { qDb: 20 * Math.log10(0.5), corner: 1.554 };
 export const songCutoffHz = (hz, sampleRate = 44100) => Math.min(hz * SONG_FILTER.corner, sampleRate * 0.45);
 /** The gains of the balance of the pan block: a position from -1 to 1 in steps of 1/32 (the song's pan goes from -32 to 32). */
@@ -126,7 +128,8 @@ export function createLaneBuses({ ctx, output }) {
       }
     },
     /** Lets go of every bus (leaving the workspace). */
-    releaseAll() { for (const b of buses.values()) { for (const n of [b.input, b.filter, b.panner, b.balance?.in, b.balance?.left, b.balance?.right, b.balance?.merge, b.gain]) { try { n?.disconnect?.(); } catch { /* disconnected already */ } } } buses.clear(); },
+    releaseAll() { for (const b of buses.values()) { for (const n of [b.input, b.filter, b.panner, b.balance?.in, b.balance?.left, b.balance?.right,
+      b.balance?.merge, b.gain]) { try { n?.disconnect?.(); } catch { /* disconnected already */ } } } buses.clear(); },
     get count() { return buses.size; },
   };
 }

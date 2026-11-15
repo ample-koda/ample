@@ -1,6 +1,8 @@
 // Saving a performance as a song (phase 4): what was launched and stopped during a session becomes a song whose blocks are the clips as they were heard (an import-audio block for every
-// run of a clip, placed on the bars where it played, looping like the clip did), summed by one bus per lane and one bus for the set. The sound of a clip is the audio of the clip itself (a built take, a pattern, a live
-// chain), so the saved song plays what was heard whatever the source blocks do on the timeline. What the DJ did with the mix of a lane (volume, pan, filter, mute, solo) is automation on the bus of the lane and on a
+// run of a clip, placed on the bars where it played, looping like the clip did), summed by one bus per lane and one bus for the set. The sound of a
+// clip is the audio of the clip itself (a built take, a pattern, a live
+// chain), so the saved song plays what was heard whatever the source blocks do on the timeline. What the DJ did with the mix of a lane (volume, pan,
+// filter, mute, solo) is automation on the bus of the lane and on a
 // pan and a filter block after it (phase 5). Pure, so node --test checks it.
 import { autoText, moved } from './performance-mixlog.mjs';
 
@@ -18,9 +20,12 @@ export function slug(text, fallback = 'clip') {
 
 /**
  * The runs of a capture on the bars of the saved song: the first launch is at the start of bar 1 and everything else keeps its distance to it.
- * Returns { beatsPerBar, runs: [{ clip, lane, label, bar, bars, offsetBeats, exact, stopBar, once, endSeconds }] } with the bar (counted from 1) where the run starts, the number of bars it lasts, the beats into that bar where it really
- * started (0 on the bar line) and whether it also stopped on a bar line (`exact`). A loop that stopped inside a bar has `stopBar`, the (fractional) bar of the stop: the saved song silences it there with a volume step.
- * `capture.accents` are the runs of one-shot and momentary lanes ({ clip, lane, from, to, endSeconds }): they play once (`once`), and `endSeconds`, when it is there, is how much of the sound was heard before it was cut.
+ * Returns { beatsPerBar, runs: [{ clip, lane, label, bar, bars, offsetBeats, exact, stopBar, once, endSeconds }] } with the bar (counted from 1)
+ * where the run starts, the number of bars it lasts, the beats into that bar where it really
+ * started (0 on the bar line) and whether it also stopped on a bar line (`exact`). A loop that stopped inside a bar has `stopBar`, the (fractional)
+ * bar of the stop: the saved song silences it there with a volume step.
+ * `capture.accents` are the runs of one-shot and momentary lanes ({ clip, lane, from, to, endSeconds }): they play once (`once`), and `endSeconds`,
+ * when it is there, is how much of the sound was heard before it was cut.
  */
 export function saveModel(capture, labelOf = (id) => String(id)) {
   const bpb = Number(capture?.beatsPerBar) > 0 ? Number(capture.beatsPerBar) : 4;
@@ -43,13 +48,15 @@ export function saveModel(capture, labelOf = (id) => String(id)) {
       ...(r.once && Number.isFinite(r.endSeconds) ? { endSeconds: Math.round(r.endSeconds * 1000) / 1000 } : {}),
     };
   }).sort((a, b) => a.bar - b.bar || a.lane.localeCompare(b.lane));
-  return { beatsPerBar: bpb, runs, approximate: runs.filter((r) => !r.exact).length, once: runs.filter((r) => r.once).length, shiftBeats: t0 };   // shiftBeats: the beat of the first launch, bar 1 of the saved song
+  // shiftBeats: the beat of the first launch, bar 1 of the saved song
+  return { beatsPerBar: bpb, runs, approximate: runs.filter((r) => !r.exact).length, once: runs.filter((r) => r.once).length, shiftBeats: t0 };
 }
 
 const quote = (text) => `"${String(text).replace(/\\/g, '/').replace(/"/g, '')}"`;
 
 /**
- * The text of the saved song. `files` maps a clip id to the path of its WAV in the project. A lane that played more than sixteen runs gets more than one bus (a bus takes sixteen inputs); the set bus takes
+ * The text of the saved song. `files` maps a clip id to the path of its WAV in the project. A lane that played more than sixteen runs gets more than
+ * one bus (a bus takes sixteen inputs); the set bus takes
  * sixteen of those, which is what a performance of up to sixteen lanes needs.
  */
 export function songText({ title, source, when, tempo, model, files, mix = new Map(), heardFile = '' }) {
@@ -86,7 +93,8 @@ export function songText({ title, source, when, tempo, model, files, mix = new M
     const chunks = [];
     for (let i = 0; i < list.length; i += BUS_INPUTS) chunks.push({ name: unique(i === 0 ? stem : `${stem}-${i / BUS_INPUTS + 1}`), inputs: list.slice(i, i + BUS_INPUTS) });
     const parts = [];
-    const gain = mixed && (curves.gain.points ? autoText(curves.gain.points) : curves.gain.value !== 0 ? `${curves.gain.value} dB` : null);   // the volume of the lane: a volume block, because the gain of a bus is not automated
+    // the volume of the lane: a volume block, because the gain of a bus is not automated
+    const gain = mixed && (curves.gain.points ? autoText(curves.gain.points) : curves.gain.value !== 0 ? `${curves.gain.value} dB` : null);
     let tail;
     if (chunks.length === 1) { tail = chunks[0].name; parts.push(busText(tail, chunks[0].inputs)); }
     else { for (const c of chunks) parts.push(busText(c.name, c.inputs)); tail = unique(`${stem}-sum`); parts.push(busText(tail, chunks.map((c) => c.name))); }
@@ -121,7 +129,8 @@ export function songText({ title, source, when, tempo, model, files, mix = new M
   const head = [
     `composition ${quote(title)} { ample 1  tempo ${tempo}  master-seed 1 }`,
     '',
-    `# Saved from a performance${source ? ` of "${String(source).replace(/"/g, '')}"` : ''}${when ? ` on ${when}` : ''}: every block is a clip of the set as it was heard, on the bars where it played.`,
+    `# Saved from a performance${source ? ` of "${String(source).replace(/"/g, '')}"` : ''}${when ? ` on ${when}` : ''}: `
+      + `every block is a clip of the set as it was heard, on the bars where it played.`,
     '# The set has no master: the sound of the clips is summed and left as it was. Add a master when you want it levelled.',
     ...(heardFile ? [`# What you heard while playing the set is saved as ${quote(heardFile)}: add an import-audio block of it at bar 1 to listen to the two side by side.`] : []),
     '',
