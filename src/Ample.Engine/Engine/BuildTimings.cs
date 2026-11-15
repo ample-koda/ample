@@ -8,6 +8,15 @@ namespace Ample.Engine.Engine;
 /// <param name="Slowest">The blocks that worked longest, longest first.</param>
 public sealed record BuildTimingSummary(double ElapsedSeconds, double BlockWorkSeconds, IReadOnlyList<(string Block, double Seconds)> Slowest)
 {
+    /// <summary>Of the block work: reading inputs, rendering, storing takes (they overlap like the work does).</summary>
+    public double LoadSeconds { get; init; }
+
+    /// <inheritdoc cref="LoadSeconds"/>
+    public double RenderSeconds { get; init; }
+
+    /// <inheritdoc cref="LoadSeconds"/>
+    public double StoreSeconds { get; init; }
+
     /// <summary>One line for the build log: also for a build that only read the cache.</summary>
     public string Describe()
     {
@@ -18,7 +27,8 @@ public sealed record BuildTimingSummary(double ElapsedSeconds, double BlockWorkS
         }
 
         string slowest = string.Join(", ", Slowest.Select(b => $"{b.Block} {S(b.Seconds)}"));
-        return $"Build took {S(ElapsedSeconds)} from start to done. The blocks worked {S(BlockWorkSeconds)} in total (they overlap, so that can be more than the wall time). Slowest: {slowest}.";
+        string phases = $" Of that work: reading inputs {S(LoadSeconds)}, rendering {S(RenderSeconds)}, storing takes {S(StoreSeconds)}.";
+        return $"Build took {S(ElapsedSeconds)} from start to done. The blocks worked {S(BlockWorkSeconds)} in total (they overlap, so that can be more than the wall time).{phases} Slowest: {slowest}.";
     }
 }
 
@@ -32,6 +42,11 @@ public static class BuildTimings
     {
         ArgumentNullException.ThrowIfNull(report);
         (string Block, double Seconds)[] worked = [.. report.Blocks.Where(b => b.Seconds is > 0).Select(b => (b.Block, b.Seconds!.Value)).OrderByDescending(b => b.Item2).ThenBy(b => b.Block, StringComparer.Ordinal)];
-        return new BuildTimingSummary(report.ElapsedSeconds, worked.Sum(b => b.Seconds), [.. worked.Take(Math.Max(0, slowest))]);
+        return new BuildTimingSummary(report.ElapsedSeconds, worked.Sum(b => b.Seconds), [.. worked.Take(Math.Max(0, slowest))])
+        {
+            LoadSeconds = report.Blocks.Sum(b => b.LoadSeconds ?? 0),
+            RenderSeconds = report.Blocks.Sum(b => b.RenderSeconds ?? 0),
+            StoreSeconds = report.Blocks.Sum(b => b.StoreSeconds ?? 0),
+        };
     }
 }

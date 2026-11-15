@@ -412,3 +412,9 @@ body.no-select :is(input,textarea,select,[contenteditable="true"],[contenteditab
 #btn-build,#btn-stop{min-width:4.6em;text-align:center}
 #b-playing{display:inline-block;width:11em;box-sizing:border-box;text-align:center;white-space:nowrap}
 #btn-save .ico svg,#btn-undo .ico svg,#btn-redo .ico svg{display:inline-block;vertical-align:-3px}
+.ai-more{display:inline-block;margin:0 6px}
+.ai-more>summary{cursor:pointer;display:inline-block;padding:3px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px}
+.ai-more[open]{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ai-target-chip{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:10px;font-size:11px;color:var(--dim);margin-bottom:4px}
+.ai-attach{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.ai-attach-help summary{cursor:pointer;font-size:11px;color:var(--dim)}

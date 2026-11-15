@@ -293,9 +293,12 @@ export function openAiPrompt(options) {
   } });
   prompt.addEventListener('keydown', (event) => { if (event.key === 'Enter' && event.ctrlKey) { event.preventDefault(); go.click(); } });
   // everything that is not the request itself: what the assistant sees, strict mode, model and effort, usage and the scope. A changed default is named on the closed disclosure (issue 213)
+  // where the request goes, at a glance: the song and the scope (issue 213)
+  const targetChip = el('span', { className: 'ai-target-chip', role: 'status' });
   const optionsSummary = el('summary', { textContent: 'Options' });
   const optionsBox = el('details', { className: 'ai-options' }, [optionsSummary]);
   const refreshOptions = () => {
+    targetChip.textContent = `On ${options.path || S.path || 'no song yet'} · scope: ${scope.value || 'project'}`;
     const changed = [];
     if (contextSelect.value !== 'unsaved') changed.push('saved files only');
     if (strict.checked) changed.push('strict mode');
@@ -306,7 +309,9 @@ export function openAiPrompt(options) {
   };
   body.append(
     el('p', { className: 'tx-lead', textContent: `The assistant proposes, AMPLE checks it, you decide: nothing in the project changes until you accept the proposal. ${options.path ? `On ${options.path}${options.contextLabel ? `, starting from ${options.contextLabel}` : options.block ? `, block ${options.block}` : ''}.` : ''}` }),
-    section('What do you want?', el('div', { className: 'hum-row' }, [earlier]), earlierNote, prompt, el('div', { className: 'hum-row' }, [hum.button, hum.chips]), el('div', { className: 'hum-row' }, [files.add, offer.add, offer.record, offer.pick, files.pick, files.chips, offer.chips]), el('small', { className: 'tx-hint', textContent: 'Drag a sound onto this window, pick one, or record one: the assistant may use it, and you decide when you accept whether it comes along into the project.' }), el('small', { className: 'tx-hint', textContent: 'Hum or sing the notes you mean: AMPLE finds them (an attempt), you hear and approve them, and the assistant gets the melody and your raw recording.' }), ...(selectionPreview ? [selectionPreview] : [])),
+    section('What do you want?', targetChip, el('div', { className: 'hum-row' }, [earlier]), earlierNote, prompt, el('div', { className: 'ai-attach', role: 'group', 'aria-label': 'Attach' }, [el('span', { className: 'note', textContent: 'Attach:' }), hum.button, files.add, offer.add, offer.record, offer.pick, files.pick]),
+      el('div', { className: 'hum-row' }, [hum.chips, files.chips, offer.chips]),
+      el('details', { className: 'ai-attach-help' }, [el('summary', { textContent: 'About attachments' }), el('small', { className: 'tx-hint', textContent: 'Drag a sound onto this window, pick one, or record one: the assistant may use it, and you decide when you accept whether it comes along into the project.' }), el('small', { className: 'tx-hint', textContent: 'Hum or sing the notes you mean: AMPLE finds them (an attempt), you hear and approve them, and the assistant gets the melody and your raw recording.' })]), ...(selectionPreview ? [selectionPreview] : [])),
     optionsBox);
   const optionList = [section('What should the assistant see?', contextRow), el('label', { className: 'tx-opt' }, [strict, el('span', {}, [el('b', { textContent: 'Strict mode' }), el('small', { textContent: 'Off by default: the assistant asks before accessing anything outside this task’s work folder. Turn on to keep the current strict boundary.' })])]), el('label', { className: 'tx-opt ai-model-choice' }, [el('span', {}, [el('b', { textContent: 'Model for this request' }), el('small', { textContent: 'This choice lasts for this request only.' })]), model, effort]), usage, section('Scope', scope, note)];
   optionsBox.append(...optionList);
@@ -1376,6 +1381,14 @@ export function openAiTask(id, options = {}) {
         },
       }),
       checking ? buildSteps(t.build) : el('span', { className: 'note', textContent: invalid ? 'Does not build: Accept anyway applies it as a starting point.' : t.build.skipRequested ? 'No build or render was run. Source errors and warnings were checked; accepting is still available.' : 'Accepting is one change: it can be undone.' }));
+    // Accept is the primary action and Reject the other; the rest is a labelled menu, the same on a computer and on a phone (issue 215)
+    const more = el('details', { className: 'ai-more' }, [el('summary', { textContent: 'More actions', title: 'Accept only some files, accept and continue, accept although it does not build, or look at it in the blocks' })]);
+    for (const id of ['ai-accept-selected', 'ai-accept-selected-continue', 'ai-accept-anyway', 'ai-blockview']) {
+      const button = foot.querySelector(`#${id}`);
+      if (button) more.append(button);
+    }
+
+    foot.insertBefore(more, foot.querySelector('#ai-reject'));
   }
 
   async function confirmAnyway(t) {

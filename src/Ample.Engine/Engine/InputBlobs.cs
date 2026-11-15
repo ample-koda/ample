@@ -5,7 +5,7 @@ namespace Ample.Engine.Engine;
 /// <summary>
 /// The bytes of the takes that blocks of one build read as input, kept for a short while so that several blocks that read the same take at the same time
 /// (one stem into three effects) open and expand it once (issue 295). A take is identified by its data id, which is its content: nothing can be stale.
-/// Loads that run at the same time are coalesced, the bytes kept are bounded, and every reader gets its own copy so no renderer can change what another one reads.
+/// Loads that run at the same time are coalesced and the bytes kept are bounded. The readers share the one array: a renderer only reads its inputs (checked by a test that hashes them before and after a render), so no copy is made (issue 295).
 /// </summary>
 internal sealed class InputBlobs(long budgetBytes)
 {
@@ -15,7 +15,7 @@ internal sealed class InputBlobs(long budgetBytes)
     /// <summary>How many loads were really made (the rest were served from the bytes already read).</summary>
     public int LoadsMade { get; private set; }
 
-    /// <summary>The bytes of a take, read with <paramref name="load"/> when no other block is reading or has just read them; the caller owns the returned array.</summary>
+    /// <summary>The bytes of a take, read with <paramref name="load"/> when no other block is reading or has just read them. The array is shared: read it, never write into it.</summary>
     public async Task<byte[]> GetAsync(string dataId, Func<Task<byte[]>> load)
     {
         ArgumentNullException.ThrowIfNull(dataId);
@@ -23,8 +23,7 @@ internal sealed class InputBlobs(long budgetBytes)
         Lazy<Task<byte[]>> entry = loads.GetOrAdd(dataId, _ => new Lazy<Task<byte[]>>(() => Remember(dataId, load), LazyThreadSafetyMode.ExecutionAndPublication));
         try
         {
-            byte[] bytes = await entry.Value.ConfigureAwait(false);
-            return (byte[])bytes.Clone();
+            return await entry.Value.ConfigureAwait(false);
         }
         catch
         {

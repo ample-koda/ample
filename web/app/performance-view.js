@@ -7,6 +7,8 @@
 // ../lib/performance-audio.mjs. While the setting is off, no tab, no section and no timer exist. @ample:performance-view
 import { $, ask, el, toast } from './ui.js';
 import { api } from './api.js';
+import { formatSeq, isolatePattern, parseSeq } from '../lib/seq-model.mjs';
+import { takeFromReport } from '../lib/build-report-take.mjs';
 import { S, editAll, flat } from './store.js';
 import { getContext } from '../lib/audio-engine.mjs';
 import { takeCache } from '../lib/take-cache.mjs';
@@ -21,7 +23,7 @@ import { createExtras } from './performance-extras.js';
 import { createClipPlayer } from '../lib/performance-audio.mjs';
 import {
   addClip, addLane, addScene, clickAction, clipCount, clipOptions, emptyLayout, parseLayout, pruneLayout,
-  LANE_MODES, removeClip, removeLane, removeScene, sceneChoice, serializeLayout, setLaneMode, setSceneEntry, statusText,
+  LANE_MODES, parsePatternClipId, patternOptions, removeClip, removeLane, removeScene, sceneChoice, serializeLayout, setLaneMode, setSceneEntry, statusText,
 } from '../lib/performance-layout.mjs';
 import { createEngineSceneQueue } from './performance-scenes.js';
 import { attachPerformanceInput, bindingsList, clearBinding, detachPerformanceInput, learnAction, onBindingsChange } from './performance-input.js';
@@ -49,11 +51,62 @@ const allClips = () => {
   for (const lane of layout.lanes) for (const clip of lane.clips) if (!seen.has(clip.id)) seen.set(clip.id, { id: clip.id, label: clip.label });
   return [...seen.values()];
 };
-const bufferOfClip = (id) => { const take = (S.build.takes || {})[id]; if (!take) return Promise.reject(new Error('Build the block first: it has no take yet.')); return bufferOfTake(take); };
+const bufferOfClip = (id) => {
+  if (parsePatternClipId(id)) return patternBuffer(id);
+  const take = (S.build.takes || {})[id];
+  if (!take) return Promise.reject(new Error('Build the block first: it has no take yet.'));
+  return bufferOfTake(take);
+};
+
+// ---- patterns of a Sequencer block as clips: each is built alone (a draft: the song and its files stay as they are) and cut to the length of the pattern (issue 266)
+const patternNames = new Map();   // block -> the names of its patterns
+const patternSeen = new Map();   // block -> what they were read from
+const sequenceTextOf = async (node) => {
+  const inline = String(node.params?.sequence ?? '').trim();
+  if (inline) return inline;
+  const file = String(node.params?.file ?? '').replace(/^"|"$/g, '').trim();
+  return file ? (await api.get(`/api/file?path=${encodeURIComponent(file)}`)).text : '';
+};
+/** Reads the patterns of every Sequencer block of the song and draws the lanes again when they changed. */
+async function refreshPatterns() {
+  let changed = false;
+  for (const node of flat().nodes.filter((n) => n.tpl === 'sequencer')) {
+    let text = '';
+    try { text = await sequenceTextOf(node); } catch { text = ''; }
+    if (patternSeen.get(node.id) === text) continue;
+    patternSeen.set(node.id, text);
+    patternNames.set(node.id, text ? (parseSeq(text).seq?.patterns ?? []).map((p) => p.name) : []);
+    changed = true;
+  }
+
+  if (changed && $('#b-performance') && performanceOn() && !session) render();
+}
+const patternBuffers = new Map();
+async function patternBuffer(id) {
+  const { block, pattern } = parsePatternClipId(id);
+  const node = flat().nodes.find((n) => n.id === block);
+  if (!node) throw new Error(`The block ${block} is not in the song.`);
+  const alone = isolatePattern(parseSeq(await sequenceTextOf(node)).seq ?? { patterns: [] }, pattern);
+  if (!alone) throw new Error(`The pattern ${pattern} is not in ${block}.`);
+  const value = formatSeq(alone), tempo = S.doc?.project?.tempo || 120, key = `${block}|${pattern}|${tempo}|${value}`;
+  if (!patternBuffers.has(key)) {
+    const report = await api.post('/api/build', { path: S.path, intent: 'preview', only: block, override: { block, name: 'sequence', value } });
+    const made = takeFromReport(report, block);
+    if (!made.ok) throw new Error(made.message);
+    const full = await bufferOfTake(made.take);
+    const bars = alone.patterns.find((p) => p.name === pattern).bars;
+    const frames = Math.max(1, Math.min(full.length, Math.round(bars * barBeats() * 60 / tempo * full.sampleRate)));
+    const cut = getContext().createBuffer(full.numberOfChannels, frames, full.sampleRate);
+    for (let c = 0; c < full.numberOfChannels; c++) cut.copyToChannel(full.getChannelData(c).subarray(0, frames), c);
+    patternBuffers.set(key, cut);
+  }
+
+  return patternBuffers.get(key);
+}
 const extras = createExtras({
   clips: allClips,
   firstClips: () => layout.lanes.filter((lane) => lane.clips.length).map((lane) => lane.clips[0]),
-  choices: () => clipOptions(flat().nodes, S.build.takes || {}),
+  choices: () => [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames)],
   bufferOf: bufferOfClip,
   tempo: () => S.doc?.project?.tempo || 120,
   beatsPerBar: () => Math.max(1, Math.round(barBeats())),
@@ -120,7 +173,7 @@ async function enter() {
   const takes = S.build.takes || {};
   const wanted = layout.lanes.flatMap((lane) => lane.clips.map((c) => ({ lane: lane.name, ...c })));
   if (!wanted.length) { toast('Put at least one clip on a lane first.'); return; }
-  const missing = [...new Set(wanted.filter((c) => !takes[c.id]).map((c) => c.label))];
+  const missing = [...new Set(wanted.filter((c) => !parsePatternClipId(c.id) && !takes[c.id]).map((c) => c.label))];
   if (missing.length) { toast(`Build first: no take yet for ${missing.join(', ')}.`); return; }
   entering = true;
   render();
@@ -130,7 +183,7 @@ async function enter() {
     const ctx = getContext();
     const resumed = ctx.state !== 'running' ? ctx.resume().catch(() => {}) : null;   // inside the click
     const buffers = new Map();
-    for (const c of wanted) if (!buffers.has(c.id)) buffers.set(c.id, await bufferOfTake(takes[c.id]));
+    for (const c of wanted) if (!buffers.has(c.id)) buffers.set(c.id, parsePatternClipId(c.id) ? await patternBuffer(c.id) : await bufferOfTake(takes[c.id]));
     if (resumed) await Promise.race([resumed, new Promise((resolve) => setTimeout(resolve, 1500))]);
     const player = createClipPlayer({ ctx, output: playbackOutput(ctx), bufferOf: (clip) => buffers.get(clip.id) });
     const bpm = S.doc.project?.tempo || 120;
@@ -460,7 +513,7 @@ function addLaneForm() {
 }
 
 function sceneRow(scene) {
-  const picks = layout.lanes.map((lane) => {
+  const picks = layout.lanes.filter((lane) => lane.mode === 'loop').map((lane) => {   // one-shot and momentary lanes are played with their own pads
     const select = el('select', { 'aria-label': `${scene.name}: ${lane.name}`, disabled: isLocked() }, [
       el('option', { value: '', textContent: `${lane.name}: keep` }),
       el('option', { value: 'stop', textContent: `${lane.name}: stop` }),
@@ -501,7 +554,7 @@ function sceneRow(scene) {
 function scenesSection() {
   const name = el('input', { type: 'text', maxLength: 32, placeholder: 'Scene name, for example Chorus', 'aria-label': 'New scene name', disabled: isLocked() });
   const form = el('form', { className: 'perf-add', onsubmit: (event) => { event.preventDefault(); applyLayout(addScene(layout, name.value)); } }, [
-    name, el('button', { type: 'submit', textContent: 'Add scene', disabled: isLocked() || !layout.lanes.length, title: layout.lanes.length ? '' : 'Add a lane first' }),
+    name, el('button', { type: 'submit', textContent: 'Add scene', disabled: isLocked() || !layout.lanes.some((lane) => lane.mode === 'loop'), title: layout.lanes.some((lane) => lane.mode === 'loop') ? '' : 'Add a lane that loops first: scenes switch loops; one-shot and momentary lanes have their own pads' }),
   ]);
   return el('section', { className: 'perf-scenes', 'aria-label': 'Scenes' }, [
     el('h4', { textContent: 'Scenes' }),
@@ -549,10 +602,11 @@ export function render() {
     loadUiState().then(() => { fromStore(); render(); });
   }
   if (S.doc && !session && !entering) {
+    refreshPatterns().catch(() => {});
     const kept = pruneLayout(layout, flat().nodes.map((n) => n.id));
     if (kept.dropped.length) { layout = kept.layout; save(); }
   }
-  const options = clipOptions(flat().nodes, S.build.takes || {});
+  const options = [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames)];
   const empty = S.doc ? 'Add a lane, then put built blocks on it.' : 'Open a song to set up its lanes.';
   const lanes = layout.lanes.length
     ? layout.lanes.map((lane) => laneRow(lane, options.filter((o) => !lane.clips.some((c) => c.id === o.id))))
