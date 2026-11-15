@@ -18,7 +18,7 @@ import { evaluate, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
 import { api } from './api.js';
 import { FORMAT_STALE_MESSAGE, formatStillApplies } from '../lib/source-guards.mjs';
 import { $, ask, el, showMenu, toast } from './ui.js';
-import { S, applyText, edit, flat, notify, notifySelection, readOnly, refreshActiveModule, refreshInputs, select, setBeforeSave, subscribe } from './store.js';
+import { S, applyText, edit, flat, forgetWork, notify, notifySelection, readOnly, refreshActiveModule, refreshInputs, select, setBeforeSave, subscribe } from './store.js';
 import { LspClient } from './lsp.js';
 import { registerView, setView, V } from './views.js';
 import { focusNode, showConnectionContextMenu } from './canvas.js';
@@ -1476,6 +1476,7 @@ async function revert() {
   const route = isSong() ? '/api/doc/revert' : '/api/wc/revert';
   try { await api.post(route, { path: SE.file }); } catch (e) { toast(e.message || String(e)); return; }
   clearSourceDraft(SE.file);
+  if (isSong()) forgetWork(SE.file);
   if (isSong()) await (await import('./store.js')).reloadDoc();
   SE.text = isSong() ? S.doc?.text || SE.orig : SE.orig;
   SE.orig = SE.text;
@@ -1982,6 +1983,14 @@ export function initSource() {
     if (e.detail !== 'blocks' || !SE.file || SE.file === S.path || /.amplet$/i.test(SE.file)) return;
     saveSourceDraft();
     SE.file = null; SE.textFile = null; SE.loadedFor = '';
+  });
+  // the changes of a file were thrown away (Discard when its tab closes): the editor must not write its copy again from the text it still holds
+  document.addEventListener('ample:discarded', (e) => {
+    const path = e.detail?.path;
+    if (!path) return;
+    clearTimeout(draftTimer);
+    if (SE.file === path) { SE.text = SE.orig; const ta = $('#se-ta'); if (ta) ta.value = SE.orig; }
+    clearSourceDraft(path);
   });
   document.addEventListener('ample:song-opened', () => {
     rememberRecentFile(S.path);

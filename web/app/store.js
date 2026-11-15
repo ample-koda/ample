@@ -339,12 +339,22 @@ function persistWork() {
   if (workHold || !S.doc || S.peek) return;
   const active = S.moduleStack.length && S.moduleDoc ? S.moduleDoc : S.doc;
   const path = active.path || (S.moduleStack.length ? S.modulePath : S.path);
-  if (!path) return;
+  if (!path || forgotten.has(path)) return;
   const record = workRecord({ project: S.project ? S.project.id : '', path, text: active.text, undo: S.undo, redo: S.redo });
   try { if (record) localStorage.setItem(workKey(path), JSON.stringify(record)); } catch { /* storage may be full or blocked */ }
 }
 const readWork = (path) => { try { return parseRecord(localStorage.getItem(workKey(path)) || '', path); } catch { return null; } };
 const dropWork = (path) => { try { localStorage.removeItem(workKey(path)); } catch { /* blocked */ } };
+const forgotten = new Set();   // songs whose unsaved changes were thrown away while they closed: nothing writes their copy again until the song is opened the next time
+/**
+ * The person threw the unsaved changes of a song away (Revert, or Discard when a tab closes): the copy of this browser goes too, or the next open
+ * brings the thrown-away text back ("Your unsaved changes from this
+ * browser are back"). `block`: the song is closing, so its copy is not written again (the song in the editor still holds the text for a moment).
+ */
+export function forgetWork(path, { block = false } = {}) {
+  if (block) forgotten.add(path);
+  dropWork(path);
+}
 addEventListener('pagehide', () => persistWork());
 
 export function setDoc(doc) {
@@ -488,6 +498,7 @@ export async function openDoc(path, stillWanted) {
   activateHistory(!keepMine);
   S.selSet.clear();
   S.sel = null;
+  forgotten.delete(path);
   const stored = readWork(path);   // read before setDoc, which keeps the song as it is now
   workHold = true;
   setDoc(doc);

@@ -3,7 +3,7 @@
 
 import { api } from './api.js';
 import { $, ask, el, showMenu, toast } from './ui.js';
-import { S, dirty, reloadDoc, save, subscribe } from './store.js';
+import { S, dirty, forgetWork, reloadDoc, save, subscribe } from './store.js';
 import { fileState, saveMenuState } from '../lib/file-state.mjs';
 import { openProjects } from './projects.js';
 import { openExportDialog } from './package.js';
@@ -56,6 +56,7 @@ async function revert() {
   }
   if (!(await ask('Revert changes', 'Throws away every change since the file was saved.', [{ label: 'Revert', value: true, primary: true }, { label: 'Keep', value: false }]))) return;
   await api.post('/api/doc/revert', { path: S.path });
+  forgetWork(S.path);
   await reloadDoc();
   toast('Reverted to the saved file.');
 }
