@@ -1,3 +1,5 @@
+import { isNeutral, normalizeMix } from './performance-lanemix.mjs';
+import { CHAIN_EFFECTS, SUM_TYPES } from './live-chain-model.mjs';
 // The performance layout (issue 266): named lanes, each with the clips that can be launched on it. It is kept apart from the
 // arrangement: nothing here reads or writes a placement of the song. Pure functions on plain objects, so node --test checks them.
 // A layout is { version: 1, lanes: [{ name, clips: [{ id, label }] }] }. The id of a clip is the id of the block whose built take it plays.
@@ -17,7 +19,18 @@ const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
 /** What a lane plays: a bed that loops until it is switched, accents that play once, or sounds that last as long as a pad is held (issue 280). */
 export const LANE_MODES = ['loop', 'oneshot', 'momentary'];
 export const normalizeLaneMode = (mode) => (LANE_MODES.includes(mode) ? mode : 'loop');
-const copyLane = (lane) => ({ name: lane.name, mode: normalizeLaneMode(lane.mode), clips: lane.clips.map((c) => ({ ...c })) });
+const copyLane = (lane) => ({ name: lane.name, mode: normalizeLaneMode(lane.mode), ...(lane.mix ? { mix: normalizeMix(lane.mix) } : {}), clips: lane.clips.map((c) => ({ ...c })) });
+
+/** The layout with the mix that the lanes keep (a lane whose mix is the neutral one keeps none). `mixes` maps a lane name to its mix. */
+export function setLaneMixes(layout, mixes) {
+  const next = copy(layout);
+  for (const lane of next.lanes) {
+    const mix = mixes.get(lane.name);
+    if (mix && !isNeutral(mix)) lane.mix = normalizeMix(mix); else delete lane.mix;
+  }
+
+  return next;
+}
 const copyScene = (scene) => ({ id: scene.id, name: scene.name, lanes: scene.lanes.map((entry) => ({ ...entry })) });
 const copy = (layout) => ({ version: LAYOUT_VERSION, lanes: layout.lanes.map(copyLane), scenes: (layout.scenes ?? []).map(copyScene) });
 
@@ -115,6 +128,21 @@ export function setSceneEntry(layout, sceneId, laneName, intent, clipId) {
   return next;
 }
 
+/**
+ * The busiest moment of the set (issue 281): the scene that starts the most clips together, with those clips; a layout without scenes is its first clips (one per lane).
+ * `{ name, clips }`, or null when nothing plays.
+ */
+export function busiestScene(layout) {
+  let best = null;
+  for (const scene of layout.scenes) {
+    const clips = scene.lanes.filter((e) => e.intent === 'start').map((e) => layout.lanes.find((l) => l.name === e.lane)?.clips.find((c) => c.id === e.clip)).filter(Boolean);
+    if (clips.length && (!best || clips.length > best.clips.length)) best = { name: scene.name, clips };
+  }
+  if (best) return best;
+  const firsts = layout.lanes.filter((l) => l.clips.length).map((l) => l.clips[0]);
+  return firsts.length ? { name: null, clips: firsts } : null;
+}
+
 /** The choice of a scene on a lane as the select shows it: '' (keep), 'stop' or 'start:<clip>'. */
 export function sceneChoice(scene, laneName) {
   const entry = scene?.lanes.find((e) => e.lane === laneName);
@@ -148,6 +176,23 @@ export function patternOptions(nodes, patterns) {
   return out.sort((a, b) => a.label.localeCompare(b.label));
 }
 
+/** The id of a lane clip that is the live chain of a block: its sources and every effect and mixer up to it, made in the browser (issue 272). */
+export const chainClipId = (block) => `chain:${block}`;
+
+/** The block of such an id, or null for any other clip id. */
+export const parseChainClipId = (id) => { const m = /^chain:(.+)$/.exec(String(id ?? '')); return m ? m[1] : null; };
+
+/** The effects and mixers that can go on a lane as their live chain: one option per block, named after it. They need a built take of the sounds that lead to them, not of the block itself. */
+export function chainOptions(nodes) {
+  const out = [];
+  for (const node of nodes ?? []) {
+    if (!node?.id || !(CHAIN_EFFECTS.has(node.tpl) || SUM_TYPES.has(node.tpl))) continue;
+    out.push({ id: chainClipId(node.id), label: `${clean(node.title) || node.id} (live chain)`, chain: true });
+  }
+
+  return out.sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export function clipOptions(nodes, takes) {
   const seen = new Set();
   const out = [];
@@ -165,7 +210,7 @@ export function pruneLayout(layout, blockIds) {
   const dropped = [];
   const next = copy(layout);
   for (const lane of next.lanes) {
-    lane.clips = lane.clips.filter((c) => { if (alive.has(c.id) || alive.has(parsePatternClipId(c.id)?.block)) return true; dropped.push({ lane: lane.name, id: c.id }); return false; });
+    lane.clips = lane.clips.filter((c) => { if (alive.has(c.id) || alive.has(parsePatternClipId(c.id)?.block) || alive.has(parseChainClipId(c.id))) return true; dropped.push({ lane: lane.name, id: c.id }); return false; });
   }
   return { layout: cleanScenes(next), dropped };
 }
@@ -183,6 +228,7 @@ export function parseLayout(value) {
     if (!added.ok) continue;
     layout = added.layout;
     layout.lanes.find((l) => l.name === clean(lane.name)).mode = normalizeLaneMode(lane.mode);
+    if (lane.mix && typeof lane.mix === 'object') layout.lanes.find((l) => l.name === clean(lane.name)).mix = normalizeMix(lane.mix);
     for (const clip of Array.isArray(lane.clips) ? lane.clips : []) {
       const withClip = addClip(layout, clean(lane.name), clip);
       if (withClip.ok) layout = withClip.layout;

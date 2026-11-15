@@ -9,6 +9,7 @@ import { chopAudio, chopSettings, parsePattern, sliceStarts } from '../../../lib
 import { takeAudio } from './take-audio.js';
 import { control, controls } from './helpers.js';
 import { registerStudioPanel } from './registry.js';
+import { auditionLabel } from './helpers.js';
 
 const MAX_SECONDS = 40, COLORS = ['#4ad6ff', '#ff9f4a', '#7be07b', '#ff6fa8', '#c79bff', '#ffd84a'];
 const NAMES = ['slices', 'sensitivity', 'gap', 'pattern', 'step', 'gate', 'fit', 'repeat'];
@@ -154,7 +155,7 @@ function chopPanel(context) {
   const watcher = new ResizeObserver(draw);
   requestAnimationFrame(() => { if (wave.isConnected) watcher.observe(wave); });
   return el('section', { className: 'studio-effect-panel studio-chop-panel', 'aria-label': 'Chop controls' }, [
-    el('div', { className: 'rewind-bar vocoder-bar' }, [play, loopButton, autoButton, status]),
+    el('div', { className: 'rewind-bar vocoder-bar' }, [play, auditionLabel('live', 'the chopped sound'), loopButton, autoButton, status]),
     wave, el('div', { className: 'chop-pattern-row' }, [el('label', { textContent: 'Pattern ' }, [pattern]), info]), steps,
     controls([
       control(context, params, 'sensitivity', 'Sensitivity', 0, 100, '%', 'linear', 82, change('sensitivity')),

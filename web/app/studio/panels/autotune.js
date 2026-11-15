@@ -11,6 +11,7 @@ import { el, showMenu } from '../../ui.js';
 import { S } from '../../store.js';
 import { barMilliseconds } from '../../../lib/meter.mjs';
 import { registerStudioPanel } from './registry.js';
+import { auditionLabel } from './helpers.js';
 import { onPlayer, stop as stopSong } from '../../player.js';
 import { applyCorrections, autotuneSettings, corrections, detectPitch, formatFixes, mergeRuns, noteName, noteNumber, noteRuns, parseFixes } from '../../../lib/clientside-autotune.mjs';
 import { knob } from '../knob.js';
@@ -445,7 +446,7 @@ function autotunePanel(context) {
     dial('vibrato', 'Vibrato', vibratoNow, 0, 100, '%', (v) => (v >= 100 ? 'keep' : v <= 0 ? 'flatten' : `${v}%`), 'How much of the vibrato of the voice stays: 100% keeps it, 0% holds every note straight'),
   ]);
 
-  const bar = el('div', { className: 'rewind-bar autotune-bar' }, [play, loopButton, abButton, time, el('span', { className: 'autotune-gap' }), fitButton, el('label', { className: 'autotune-range-label' }, ['± ', range, ' st']), keyOut]);
+  const bar = el('div', { className: 'rewind-bar autotune-bar' }, [play, auditionLabel('live', 'the tuned sound'), loopButton, abButton, time, el('span', { className: 'autotune-gap' }), fitButton, el('label', { className: 'autotune-range-label' }, ['± ', range, ' st']), keyOut]);
   const legend = el('div', { className: 'autotune-legend', 'aria-hidden': 'true' }, [el('span', { className: 'sung', textContent: 'as sung' }), el('span', { className: 'tuned', textContent: 'tuned' }), el('span', { className: 'note', textContent: 'note' }), el('span', { className: 'fix', textContent: 'fix' })]);
   root.append(rack, bar, canvas, el('div', { className: 'autotune-under' }, [readout, legend]), rows);
   readout.textContent = 'Reading the pitch of the voice…';

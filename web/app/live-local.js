@@ -200,7 +200,7 @@ export async function renderLocal(item, { paramsOf, inputs, context, signal }) {
     // sources from nothing or from a file of the project, made by the same functions as the "Build and play preview"
     const node = flat().nodes.find((n) => n.id === item.id), bars = liveBars();
     if (item.tpl === 'click') return clickAudio(params, node?.parts || [], samplesPerBar(RATE), RATE, 1, bars);
-    const audio = item.tpl === 'import-audio' ? await importAudio(node, context, signal, new Map(), null, bars) : await previewAmbience(node, context, signal, null, bars);
+    const audio = item.tpl === 'import-audio' ? await importAudio(node, context, signal, new Map(), null, bars, item.port) : await previewAmbience(node, context, signal, null, bars);
     if (!audio) throw new Error(`${item.id} has no sound the browser can make.`);
     return audio;
   }

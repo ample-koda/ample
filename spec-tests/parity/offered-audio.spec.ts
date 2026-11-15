@@ -58,6 +58,7 @@ test('a sound can be picked in the AI window and shows as something that is only
   await page.reload(); await page.waitForSelector('body[data-ready="1"]');
   await page.click('#vs-source'); await page.locator('#se-cm .cm-content').click(); await page.locator('#se-ai').click();
   await page.locator('#menu div', { hasText: 'Generate' }).first().click();
+  await page.locator('.ai-attach > summary').click();   // the attachments are one menu
   await expect(page.locator('#offer-add')).toBeVisible();
   await expect(page.locator('#offer-record')).toBeVisible();
   await page.setInputFiles('#offer-file', { name: 'snare drum.wav', mimeType: 'audio/wav', buffer: Buffer.from(makeWav(200)) });

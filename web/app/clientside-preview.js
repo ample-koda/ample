@@ -6,7 +6,8 @@ import { evaluate as evaluateNotePipeline, isExpression as isNotePipeline } from
 import { playTransient } from './player.js';
 import { toast } from './ui.js';
 import { masterAudioBuffer, mixAudioBuffers, sendAudioBuffers } from '../lib/clientside-mix.mjs';
-import { placeImportedAudio } from '../lib/clientside-import-audio.mjs';
+import { importedPort, placeImportedPorts } from '../lib/clientside-import-audio.mjs';
+import { regionLinksAsAudio, sumSaturated } from '../lib/loop-place.mjs';
 import { crossfadeAudio, cutAudio, fadeAudio, joinAudio, reverseAudio, shiftAudio, splitAudio } from '../lib/clientside-sample-ops.mjs';
 import { panAudio } from '../lib/clientside-pan.mjs';
 import { widthAudio } from '../lib/clientside-width.mjs';
@@ -187,8 +188,10 @@ async function fetchMidiSourceNotes(node, signal, cache) {
   return result;
 }
 
-export async function importAudio(node, context, signal, cache, range, totalBars) {
-  if (cache.has(node.id)) return cache.get(node.id);
+export /** The sound of an import-audio block, or one of its ports: `audio` (the whole loop), `body` (the loop without its seam) or `region` (only the seam). */
+async function importAudio(node, context, signal, cache, range, totalBars, port = 'audio') {
+  const key = port === 'audio' ? node.id : `${node.id}:${port}`;
+  if (cache.has(key)) return cache.get(key);
   const path = String(node.params.file || '');
   const response = await fetch(`/api/project/audio?path=${encodeURIComponent(path)}`, { headers: { 'X-Ample-Token': getToken() }, signal });
   if (!response.ok) throw new Error(`Could not read project audio for “${node.id}” (${response.status}).`);
@@ -213,7 +216,7 @@ export async function importAudio(node, context, signal, cache, range, totalBars
   }
   const audio = { sampleRate, channels: Array.from({ length: source.numberOfChannels }, (_, channel) => source.getChannelData(channel).slice()) };
   const tempoMilli = Math.round((Number(S.doc?.project?.tempo) || 92) * 1000), samplesPerBar = Math.floor(barBeats() * 60 * sampleRate * 1000 / tempoMilli), partAt = node.parts[0]?.at || 1;
-  return cacheAudio(node.id, placeImportedAudio(audio, node.params, samplesPerBar, totalBars, range, partAt, sampleRate), cache);
+  return cacheAudio(key, importedPort(placeImportedPorts(audio, node.params, samplesPerBar, totalBars, range, partAt, sampleRate), port), cache);
 }
 
 export async function previewAmbience(node, context, signal, range, totalBars) {
@@ -313,7 +316,8 @@ export async function buildAndPlayClientPreview() {
   if (running || S.build.running || !S.doc || S.peek || S.doc.diagnostics?.some((item) => item.severity === 'error')) return;
   const initialPath = S.path, initialText = S.doc.text, initialRange = S.range ? { ...S.range } : null;
   const captured = captureOf(initialPath, initialText, initialRange);
-  const graph = flat(), nodes = new Map(graph.nodes.map((node) => [node.id, node])), memo = new Map(), audioCache = new Map();
+  const whole = flat(), graph = { ...whole, links: regionLinksAsAudio(whole.nodes, whole.links) };   // a region into an effect is read as its audio input (issue 79)
+  const nodes = new Map(graph.nodes.map((node) => [node.id, node])), memo = new Map(), audioCache = new Map();
   for (const link of graph.links) if (link.type === 'any') {
     const from = nodes.get(link.from), to = nodes.get(link.to);
     if (from?.tpl === 'group' && to?.ins.some((port) => port[0] === link.inName && port[1] === 'audio') || to?.tpl === 'group' && from?.outs.some((port) => port[0] === link.outName && port[1] === 'audio')) link.type = 'audio';
@@ -1012,10 +1016,21 @@ export async function buildAndPlayClientPreview() {
         memo.set(key, audio);
         return audio;
       }
+      if (node.tpl === 'region-merge') {   // the body of a loop and its processed seam, added and cut at full scale like the build does (issue 79)
+        const parts = [];
+        for (const link of graph.links.filter((item) => item.to === id && (item.type === 'audio' || item.type === 'region') && !item.disabled && !isDisabled(nodes.get(item.from) || {}))) {
+          const part = await resolve(link.from, link.outName);
+          if (part) parts.push(part);
+        }
+
+        const merged = parts.length ? sumSaturated(parts) : null;
+        for (const port of ['audio', 'out']) memo.set(`${id}:${port}`, merged);
+        return merged;
+      }
       const local = ['mixer', 'bus', 'send', 'master'].includes(node.tpl);
       if (node.tpl === 'import-audio') {
         try {
-          const audio = await importAudio(node, context, controller.signal, audioCache, S.range || null, totalBars);
+          const audio = await importAudio(node, context, controller.signal, audioCache, S.range || null, totalBars, output === 'body' ? 'body' : output === 'loop-region' ? 'region' : 'audio');
           memo.set(key, audio);
           return audio;
         } catch (error) {

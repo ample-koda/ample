@@ -12,7 +12,7 @@ import { flat, S, subscribe, subscribeSelection } from './store.js';
 import { setExternalPlayer, stop as stopPlayer } from './player.js';
 import { toast } from './ui.js';
 import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId, soloInPlan, upstreamOf, changedSources } from '../lib/live-chain-model.mjs';
-import { mixerGraph, sendGraph } from '../lib/live-mixer.mjs';
+import { mixerGraph, regionMergeGraph, sendGraph } from '../lib/live-mixer.mjs';
 import { getToken } from './api.js';
 import { localInfo, renderLocal, toAudio, toBuffer, drumVoicePlan } from './live-local.js';
 import { createDrumVoice } from './live-drums.js';
@@ -343,7 +343,7 @@ async function renderUpstream(s, id) {
       if (item.key && graph.keyInput) { outs.get(item.key)?.connect(graph.keyInput); graph.setKey(true); }
     } else {
       const lanes = Math.max(4, ...item.inputs.map((i) => i.lane + 1));
-      const mixer = item.tpl === 'send' ? sendGraph(offline, lanes) : mixerGraph(offline, lanes, { bus: item.tpl === 'bus' });
+      const mixer = item.tpl === 'region-merge' ? regionMergeGraph(offline) : item.tpl === 'send' ? sendGraph(offline, lanes) : mixerGraph(offline, lanes, { bus: item.tpl === 'bus' });
       for (const link of item.inputs) outs.get(link.from)?.connect(mixer.lanes[link.lane]);
       mixer.output.connect(out);
       mixer.update(effective(item.id, s), { anySolo: false });
@@ -358,6 +358,26 @@ async function renderUpstream(s, id) {
   const skip = Math.round(lead * rate), kept = Math.max(1, rendered.length - skip);
   return { sampleRate: rate, channels: Array.from({ length: rendered.numberOfChannels }, (_, c) => rendered.getChannelData(c).slice(skip, skip + kept)) };
 }
+
+/**
+ * The sound of the live chain of a block as one buffer, made without starting a chain (issue 272): its sources are decoded, the blocks the browser makes itself are made, and the effects and mixers up to the block
+ * are rendered offline with the knobs as they are now. A lane of the Performance workspace plays this the way it plays a built take.
+ */
+export async function chainClipBuffer(target) {
+  const plan = planNow(target);
+  if (!plan.ok) throw new Error(plan.reason);
+  const buffers = new Map();
+  for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role)));
+  const context = liveAudioContext();
+  await prepareWorklets(context);
+  const mine = { plan, context, buffers, bypass: new Set(), override: new Map(), tempo: Number(S.doc?.project?.tempo) || 120, impulses: new Map(), impulseKeys: new Map(), localKeys: new Map(), watch: new Set() };
+  for (const item of plan.items.filter((i) => i.tpl === 'convolution')) await loadImpulse(mine, item.id);
+  for (const item of plan.items.filter((i) => i.kind === 'local')) buffers.set(item.id, toBuffer(context, await makeLocal(mine, item)));
+  return toBuffer(context, await renderUpstream(mine, target));
+}
+
+/** The plan of the live chain of a block as it is now (for the readiness of a set). */
+export const chainPlanOf = (target) => planNow(target);
 
 async function makeLocal(s, item) {
   const inputs = new Map();
@@ -465,7 +485,7 @@ function build(s) {
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
-      const lanes = Math.max(4, ...item.inputs.map((i) => i.lane + 1)), mixer = item.tpl === 'send' ? sendGraph(context, lanes) : mixerGraph(context, lanes, { bus: item.tpl === 'bus' });
+      const lanes = Math.max(4, ...item.inputs.map((i) => i.lane + 1)), mixer = item.tpl === 'region-merge' ? regionMergeGraph(context) : item.tpl === 'send' ? sendGraph(context, lanes) : mixerGraph(context, lanes, { bus: item.tpl === 'bus' });
       for (const link of item.inputs) outs.get(link.from).connect(mixer.lanes[link.lane]);
       mixer.output.connect(out);
       if (mixer.sendOutput) { const sendOut = context.createGain(); s.disposables.push(sendOut); mixer.sendOutput.connect(sendOut); outs.set(`${item.id}:send`, sendOut); }   // the second output of a send

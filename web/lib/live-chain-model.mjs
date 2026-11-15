@@ -14,7 +14,7 @@ export function sequencerLocal(params = {}) {
 export const CHAIN_EFFECTS = new Set(['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'convolution', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'bitcrusher', 'master']);
 /** Instruments that play the notes of a midi-clip (through the five note transforms) and that the browser renders itself: synth, piano, bass, guitar and the pitched sample sets (plan 3.4, 3.5). */
 export const NOTE_INSTRUMENTS = new Set(['synth', 'piano', 'bass', 'guitar']);
-export const SUM_TYPES = new Set(['mixer', 'bus', 'send']);   // a send has two outputs: `through` (its own id) and `send` (id:send)
+export const SUM_TYPES = new Set(['mixer', 'bus', 'send', 'region-merge']);   // a send has two outputs: `through` (its own id) and `send` (id:send); a region merge adds the body of a loop and its processed seam (issue 79)
 /** Buffer operations on a sound that is a buffer already (a built take or another local block): re-made in the browser when a knob moves, swapped in without a gap. */
 export const LOCAL_OPS = new Set(['cut', 'fade', 'shift', 'reverse', 'chop', 'rewind', 'scratch', 'normalize', 'pitch', 'stretch', 'granular', 'denoise', 'trim', 'autotune']);
 /** Buffer blocks with several inputs or none (plan local-preview 2.5): made in the browser from the sounds they work on, or from a file of the project. Splitter is one item per used output (id `splitter:left`). */
@@ -48,7 +48,7 @@ export function midiChain(id, byId, links) {
   return null;
 }
 
-const laneOf = (name) => { const m = /^in(\d+)$/.exec(name || ''); return m ? Number(m[1]) - 1 : -1; };
+const laneOf = (name) => { if (name === 'body') return 0; if (name === 'region') return 1; const m = /^in(\d+)$/.exec(name || ''); return m ? Number(m[1]) - 1 : -1; };
 
 /**
  * planChain({ nodes, links, target, takeOf })
@@ -79,11 +79,15 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
   const sourceOfDirect = (link) => {
     const tpl = byId.get(link.from)?.tpl;
     if (tpl === 'splitter') return `${link.from}:${link.outName === 'right' ? 'right' : 'left'}`;
+    if (tpl === 'import-audio' && link.outName === 'body') return `${link.from}:body`;
+    if (tpl === 'import-audio' && link.outName === 'loop-region') return `${link.from}:region`;
     if (tpl === 'sequencer') return `${link.from}:${link.outName || 'mix'}`;
     if (tpl === 'send' && link.outName === 'send') return `${link.from}:send`;
     return link.from;
   };
   const audioIn = (id) => links.filter((link) => link.to === id && link.type === 'audio' && !link.disabled && !link.expression);
+  // a region (the seam of a loop) goes through an effect as the sound it is, and only a region merge turns it back into audio (issue 79)
+  const regionIn = (id) => links.filter((link) => link.to === id && link.type === 'region' && !link.disabled && !link.expression);
   const BUFFER_KINDS = new Set(['source', 'local']);
   // a block the browser can make itself returns a function that adds it: it answers undefined when done, a text when something upstream is wrong, or null to use the built take
   const localItem = (node, planId = node.id) => {
@@ -92,7 +96,8 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
     if (node.tpl === 'click') return () => { seen.add(id); items.push({ id, kind: 'local', tpl: 'click', inputs: [] }); };
     if (node.tpl === 'import-audio' || node.tpl === 'ambience') {
       if (!String(params.file || '').replace(/^"|"$/g, '').trim()) return null;
-      return () => { seen.add(id); items.push({ id, kind: 'local', tpl: node.tpl, inputs: [] }); };
+      const port = node.tpl === 'import-audio' ? planId.split(':')[1] : '';   // the whole loop, its body or its seam: each is its own sound
+      return () => { seen.add(planId); items.push({ id: planId, kind: 'local', tpl: node.tpl, inputs: [], ...(port ? { base: id, port } : {}) }); };
     }
     if (node.tpl === 'join' || node.tpl === 'crossfade' || node.tpl === 'splitter' || node.tpl === 'vocoder') {
       const links = audioIn(id).filter((l) => (node.tpl === 'splitter' ? (l.inName === 'in' || l.inName === 'audio') : node.tpl === 'crossfade' ? l.inName === 'a' || l.inName === 'b' : node.tpl === 'vocoder' ? l.inName === 'modulator' || l.inName === 'carrier' : /^(in|audio)\d+$/.test(l.inName)));
@@ -156,6 +161,7 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
     if (!effect && !sum) {
       const local = localItem(node, id);
       if (local) { const problem = local(); return problem || null; }
+      if (node.tpl === 'import-audio' && id !== baseId(id)) return `${baseId(id)} has no file the browser can read, so the ${id.split(':')[1]} of its loop is not heard in the live chain.`;
       const take = takeOf(baseId(id));
       if (!take) return `Build ${baseId(id)} first: the live chain loops the built sound of the blocks it starts from and never builds by itself.`;
       // a lane of a sequencer is its own audio of the take (role lane2); the plain take is the mix of all lanes
@@ -164,7 +170,8 @@ export function planChain({ nodes, links, target: requested, takeOf }) {
       return null;
     }
     visiting.add(id);
-    const incoming = audioIn(id), inputs = [];
+    const regions = node.tpl === 'region-merge' ? regionIn(id) : effect && !audioIn(id).some((l) => l.inName === 'in') ? regionIn(id).map((l) => ({ ...l, inName: 'in' })) : [];
+    const incoming = [...audioIn(id), ...regions], inputs = [];
     let key = null;
     for (const link of incoming) {
       if (node.tpl === 'compressor' && link.inName === 'key') {   // the sidechain: the key take is built into the chain like a source and only drives the detector

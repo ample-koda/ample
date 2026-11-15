@@ -80,3 +80,17 @@ export function routingPlan(devices) {
   }
   return { mode: 'split', cueToRoom: false, message: 'Cue plays on the headphone output only.' };
 }
+
+/** What a deck shows while it plays (issue 278): the beat it is on, counted from 1, and the loop it is in; a deck that does not play says so. */
+export function describeDeckBeat(phase, loopBeats) {
+  if (phase == null) return 'Not playing';
+  return `Beat ${Math.floor(phase) + 1} of ${loopBeats} (${(phase - Math.floor(phase)).toFixed(2)} into the beat)`;
+}
+
+/** What the drift between two decks says, in words and in milliseconds; drift is in beats (positive: B is ahead of A). */
+export function describeDrift(drift, bpm) {
+  if (drift == null) return 'Drift: both decks have to play';
+  if (drift === 0) return 'Drift: in phase';
+  const ms = Math.round(Math.abs(drift) * beatSeconds(bpm) * 1000);
+  return `Drift: ${Math.abs(drift).toFixed(2)} beat (${ms} ms), ${drift > 0 ? 'B is ahead of A' : 'A is ahead of B'}`;
+}

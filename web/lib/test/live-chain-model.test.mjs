@@ -210,3 +210,35 @@ test('a rebuilt source is the same graph with another take, so it can be put in 
   const more = planChain({ nodes: [...nodes, node('d', 'delay')], links: [...links, link('rev', 'd')], target: 'd', takeOf: () => 'take-2' });
   assert.equal(changedSources(first, more), null);
 });
+
+test('a processed loop seam is a chain: body and region are two sounds of one file, the seam goes through an effect, and a region merge adds them (issue 79)', () => {
+  const nodes = [{ id: 'loop', tpl: 'import-audio', params: { file: 'loop.wav' } }, node('duck', 'duck'), node('merge', 'region-merge'), node('out', 'master')];
+  const links = [
+    { from: 'loop', to: 'duck', type: 'region', inName: 'region_in', outName: 'loop-region' },
+    { from: 'loop', to: 'merge', type: 'audio', inName: 'body', outName: 'body' },
+    { from: 'duck', to: 'merge', type: 'region', inName: 'region', outName: 'region' },
+    { from: 'merge', to: 'out', type: 'audio', inName: 'mix', outName: 'audio' },
+  ];
+  const plan = planChain({ nodes, links, target: 'out', takeOf });
+  assert.equal(plan.ok, true, plan.reason);
+  assert.deepEqual(plan.items.map((i) => i.id), ['loop:body', 'loop:region', 'duck', 'merge', 'out']);
+  assert.deepEqual(plan.items[1], { id: 'loop:region', kind: 'local', tpl: 'import-audio', inputs: [], base: 'loop', port: 'region' });
+  assert.equal(plan.items[0].port, 'body');
+  assert.deepEqual(plan.items[2].inputs, [{ from: 'loop:region', lane: 0 }]);   // the region goes through the effect as the sound it is
+  assert.deepEqual(plan.items[3].inputs, [{ from: 'loop:body', lane: 0 }, { from: 'duck', lane: 1 }]);   // body on lane 0, the region on lane 1
+  assert.deepEqual(upstreamOf(plan, [{ from: 'merge' }]).leaves.sort(), ['loop:body', 'loop:region']);
+});
+
+test('the seam alone can be merged, and a loop without a file of the project has no ports to hear', () => {
+  const nodes = [{ id: 'loop', tpl: 'import-audio', params: { file: 'loop.wav' } }, node('merge', 'region-merge')];
+  const alone = planChain({ nodes, links: [{ from: 'loop', to: 'merge', type: 'region', inName: 'region', outName: 'loop-region' }], target: 'merge', takeOf });
+  assert.equal(alone.ok, true, alone.reason);
+  assert.deepEqual(alone.items.at(-1).inputs, [{ from: 'loop:region', lane: 1 }]);
+  const empty = planChain({ nodes: [{ id: 'loop', tpl: 'import-audio', params: {} }, node('merge', 'region-merge')], links: [{ from: 'loop', to: 'merge', type: 'region', inName: 'region', outName: 'loop-region' }], target: 'merge', takeOf });
+  assert.match(empty.reason, /no file the browser can read/);
+});
+
+test('the plain audio of a loop is still one sound under its own id', () => {
+  const plan = planChain({ nodes: [{ id: 'loop', tpl: 'import-audio', params: { file: 'loop.wav' } }, node('eq1', 'eq')], links: [{ from: 'loop', to: 'eq1', type: 'audio', inName: 'in', outName: 'audio' }], target: 'eq1', takeOf });
+  assert.deepEqual(plan.items[0], { id: 'loop', kind: 'local', tpl: 'import-audio', inputs: [] });
+});

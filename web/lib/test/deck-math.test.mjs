@@ -62,3 +62,13 @@ test('routing: default is the room device, a failure is reported, still never to
   const f = routingPlan({ canSplit: true, cueDeviceId: 'h', roomDeviceId: 'r', error: 'boom' });
   assert.equal(f.mode, 'failed'); assert.match(f.message, /boom/); assert.equal(f.cueToRoom, false);
 });
+
+test('the deck readouts: the beat it is on counted from 1, and the drift in words and milliseconds (issue 278)', async () => {
+  const { describeDeckBeat, describeDrift } = await import('../deck-math.mjs');
+  assert.equal(describeDeckBeat(null, 8), 'Not playing');
+  assert.equal(describeDeckBeat(2.25, 8), 'Beat 3 of 8 (0.25 into the beat)');
+  assert.equal(describeDrift(null, 120), 'Drift: both decks have to play');
+  assert.equal(describeDrift(0, 120), 'Drift: in phase');
+  assert.equal(describeDrift(0.5, 120), 'Drift: 0.50 beat (250 ms), B is ahead of A');
+  assert.ok(describeDrift(-0.25, 120).includes('A is ahead of B'));
+});

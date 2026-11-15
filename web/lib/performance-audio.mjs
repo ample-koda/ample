@@ -11,7 +11,7 @@
 
 const RELEASE_MS = 150;   // after the scheduled silence the source is stopped and disconnected
 
-export function createClipPlayer({ ctx, output, bufferOf, timers = { set: setTimeout, clear: clearTimeout } }) {
+export function createClipPlayer({ ctx, output, bufferOf, outputFor = null, timers = { set: setTimeout, clear: clearTimeout } }) {
   if (!ctx || !output || typeof bufferOf !== 'function') {
     throw new TypeError('createClipPlayer needs a context, an output and bufferOf(clip)');
   }
@@ -26,7 +26,7 @@ export function createClipPlayer({ ctx, output, bufferOf, timers = { set: setTim
     const gain = ctx.createGain();
     gain.gain.value = 1;
     source.connect(gain);
-    gain.connect(output);
+    gain.connect(outputFor ? outputFor(lane) : output);   // a lane has its own bus when the session mix is on (issue 276)
     source.start(Math.max(when, ctx.currentTime));
     let released = false, timer = null;
     const handle = {
@@ -64,4 +64,54 @@ export function createClipPlayer({ ctx, output, bufferOf, timers = { set: setTim
   /** Releases every source that is still around (leaving the workspace). */
   const releaseAll = () => { for (const handle of [...live]) handle.release(); };
   return { play, releaseAll, get count() { return live.size; } };
+}
+
+/**
+ * One bus per lane between the clips of the lane and the output: a low pass filter (only on the path while it closes the sound), a pan and a gain, all set at once from the session mix
+ * (performance-lanemix.mjs settings). Nodes the browser does not have (a stereo panner, a biquad) are left out; the gain always works (issue 276).
+ */
+export function createLaneBuses({ ctx, output }) {
+  const buses = new Map();
+  const smooth = (param, value) => {
+    if (!param) return;
+    if (typeof param.setTargetAtTime === 'function') { param.cancelScheduledValues?.(ctx.currentTime); param.setTargetAtTime(value, ctx.currentTime, 0.01); } else param.value = value;
+  };
+  const make = () => {
+    const input = ctx.createGain(), gain = ctx.createGain();
+    const filter = typeof ctx.createBiquadFilter === 'function' ? ctx.createBiquadFilter() : null;
+    const panner = typeof ctx.createStereoPanner === 'function' ? ctx.createStereoPanner() : null;
+    if (filter) { filter.type = 'lowpass'; filter.frequency.value = 20000; }
+    const bus = { input, gain, filter, panner, filtering: false };
+    // the path: input, then the filter when it is used, then the pan, then the gain, then the output
+    bus.route = (filtering) => {
+      input.disconnect?.();
+      const after = panner ?? gain;
+      input.connect(filtering && filter ? filter : after);
+      if (filter) { filter.disconnect?.(); filter.connect(after); }
+      if (panner) { panner.disconnect?.(); panner.connect(gain); }
+      bus.filtering = Boolean(filtering && filter);
+    };
+    gain.connect(output);
+    bus.route(false);
+    return bus;
+  };
+  const bus = (lane) => { if (!buses.has(lane)) buses.set(lane, make()); return buses.get(lane); };
+  return {
+    /** Where the clips of a lane connect to. */
+    input: (lane) => bus(lane).input,
+    /** Sets every lane: gain 0..1, pan -1..1, cutoff in Hz or null for no filter. */
+    apply(settings) {
+      for (const [lane, s] of settings) {
+        const b = bus(lane);
+        smooth(b.gain.gain, s.gain);
+        if (b.panner) smooth(b.panner.pan, s.pan);
+        const filtering = s.cutoff !== null && s.cutoff !== undefined;
+        if (filtering !== b.filtering) b.route(filtering);
+        if (filtering && b.filter) smooth(b.filter.frequency, s.cutoff);
+      }
+    },
+    /** Lets go of every bus (leaving the workspace). */
+    releaseAll() { for (const b of buses.values()) { for (const n of [b.input, b.filter, b.panner, b.gain]) { try { n?.disconnect?.(); } catch { /* disconnected already */ } } } buses.clear(); },
+    get count() { return buses.size; },
+  };
 }

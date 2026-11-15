@@ -27,7 +27,10 @@ test('the estimate grows with the clips and never passes the whole thread', () =
 test('a device that measures gets the measured result, one that cannot gets a labelled estimate', () => {
   const measured = describeCheck({ supported: true, summary: summarizeLoad([{ average: 0.2, peak: 0.3 }]), estimate: 0.12, clips: 4 });
   assert.match(measured[0], /Measured on this device with 4 clips/);
-  assert.match(measured[2], /no effect needs to be bypassed/);
+  assert.match(measured[2], /nothing a fallback has to take away/);
+  const named = describeCheck({ supported: true, summary: summarizeLoad([{ average: 0.2, peak: 0.3 }]), estimate: 0.12, clips: 4, scene: 'Drop', bypassable: ['Bass', 'Pads'] });
+  assert.match(named[0], /busiest scene, Drop/);
+  assert.match(named[2], /filters of Bass, Pads are taken off/);
   const guessed = describeCheck({ supported: false, estimate: 0.12, clips: 1 });
   assert.match(guessed[0], /cannot measure/);
   assert.match(guessed[0], /an estimate, not a measurement/);

@@ -20,7 +20,7 @@ add('sampled', 'Needs the SoundFont render of the server; the browser plays the 
 add('server', 'Made by a model on the server; the browser plays the built take, the generation itself is never live.', 'ace-music ai-voice voice-clone choir');
 add('visual', 'Display only: it analyses or selects, it makes no sound of its own.', 'scorer variants mood-scene lyrics');
 add('data', 'Shapes other values over time; it carries no audio.', 'curve fire follow map');
-add('buffer', 'Joins the results of regions; region ports are not audio ports.', 'region-merge');
+add('buffer', 'Adds the body of a loop and its processed seam; it plays in the live chain as a sum that saturates at full scale.', 'region-merge');
 add('offline', 'Mix and routing: plays through the built mix; the live mixer moves levels and pans.', 'mixer bus send master group');
 
 /** { id: [class, reason] } for every template the browser knows. */

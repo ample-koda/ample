@@ -6,6 +6,7 @@ import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
 import { S, flat } from '../../store.js';
 import { registerStudioPanel } from './registry.js';
+import { auditionLabel } from './helpers.js';
 import { onPlayer, peaksOf, stop as stopSong } from '../../player.js';
 import { knob } from '../knob.js';
 import { selector } from '../selector.js';
@@ -350,7 +351,7 @@ function delayLlamaPanel(context) {
   const look = selector({ label: 'Look', value: scheme, choices: Object.keys(SCHEMES).map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) })), onCommit: (value) => { scheme = value; remember('ample.llama.scheme', value); placeLlama(); } });
   const posture = selector({ label: 'Pose', value: pose, choices: [{ value: 'sit', label: 'Sitting (holy)' }, { value: 'stand', label: 'Standing' }], onCommit: (value) => { pose = value; remember('ample.llama.pose', value); placeLlama(); } });
 
-  const controls = el('div', { className: 'llama-controls' }, [el('div', { className: 'llama-bar' }, [sing, status, undo]), el('div', { className: 'llama-pad-label' }, [el('span', { textContent: 'Vowel and mouth' }), modeBar, pad, el('div', { className: 'llama-pad-foot' }, [hint, noteLabel])]), knobs,
+  const controls = el('div', { className: 'llama-controls' }, [el('div', { className: 'llama-bar' }, [sing, auditionLabel('live', 'the live voice'), status, undo]), el('div', { className: 'llama-pad-label' }, [el('span', { textContent: 'Vowel and mouth' }), modeBar, pad, el('div', { className: 'llama-pad-foot' }, [hint, noteLabel])]), knobs,
     ...(showLlama ? [el('div', { className: 'llama-look' }, [el('label', {}, [el('span', { textContent: 'Look' }), look]), el('label', {}, [el('span', { textContent: 'Pose' }), posture])])] : [])]);
   // ---- the keys: a touch keyboard (and MIDI in) that sing this voice with the vowel and the mouth of the pad, several keys at once glide as one voice
   const keyState = { voice: null };

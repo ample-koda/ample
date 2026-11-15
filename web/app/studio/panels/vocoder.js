@@ -8,6 +8,7 @@ import { takeAudio } from './take-audio.js';
 import { vocodeAudio } from '../../../lib/clientside-vocoder.mjs';
 import { control, controls, number, plot, svg } from './helpers.js';
 import { registerStudioPanel } from './registry.js';
+import { auditionLabel } from './helpers.js';
 
 const FLOOR = 40, CEIL = 20000, MAX_SECONDS = 40;
 const NAMES = ['bands', 'low', 'high', 'width', 'shift', 'attack', 'release', 'sibilance', 'mix', 'gain'];
@@ -96,7 +97,7 @@ function vocoderPanel(context) {
     if (key in shown) { shown[key] = next; graph.redraw(); }
     if (live.source) { clearTimeout(live.timer); live.timer = setTimeout(() => start(true), 200); }
   };
-  return el('section', { className: 'studio-effect-panel studio-vocoder-panel', 'aria-label': 'Vocoder controls' }, [el('div', { className: 'rewind-bar vocoder-bar' }, [play, loopButton, status]), graph, controls([
+  return el('section', { className: 'studio-effect-panel studio-vocoder-panel', 'aria-label': 'Vocoder controls' }, [el('div', { className: 'rewind-bar vocoder-bar' }, [play, auditionLabel('live', 'voice through the carrier'), loopButton, status]), graph, controls([
     control(context, params, 'bands', 'Bands', 4, 40, '', 'linear', 112, change('bands')),
     control(context, params, 'low', 'Low', 40, 2000, 'Hz', 'log', 82, change('low')),
     control(context, params, 'high', 'High', 1000, 16000, 'Hz', 'log', 82, change('high')),

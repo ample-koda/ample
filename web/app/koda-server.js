@@ -248,6 +248,7 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
 export const serverBackend = {
   setApprover(fn) { approver = fn; },
   hanging() { return !!hanging; },
+  hangingTask() { return hanging; },   // the conversation that the next question goes on in (issue 220)
   /** The model or thinking level changed while Koda works: the conversation uses it from its next turn. */
   async applyModel(model, effort) { if (lastTask) await api.post(`/api/ai/tasks/${lastTask}/assistant`, { model: model || '', effort: effort || '' }).catch(() => {}); },
   /** Extra input for the task that is working now (it steers it). */

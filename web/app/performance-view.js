@@ -20,10 +20,12 @@ import { QUANTIZE, createPerformance, performanceEnabled, setPerformanceEnabled 
 import { capturedOps, capturedParts, createRecorder, recordEngine } from './performance-capture.js';
 import { createLaunchScheduler } from './performance-oneshots.js';
 import { createExtras } from './performance-extras.js';
-import { createClipPlayer } from '../lib/performance-audio.mjs';
+import { chainClipBuffer, chainPlanOf } from './live-chain.js';
+import { createClipPlayer, createLaneBuses } from '../lib/performance-audio.mjs';
+import { CUTOFF, GAIN_DB, createLaneMix, createLoadGuard, cutoffAt, positionOfCutoff } from '../lib/performance-lanemix.mjs';
 import {
   addClip, addLane, addScene, clickAction, clipCount, clipOptions, emptyLayout, parseLayout, pruneLayout,
-  LANE_MODES, parsePatternClipId, patternOptions, removeClip, removeLane, removeScene, sceneChoice, serializeLayout, setLaneMode, setSceneEntry, statusText,
+  LANE_MODES, busiestScene, chainOptions, parseChainClipId, parsePatternClipId, patternOptions, removeClip, setLaneMixes, removeLane, removeScene, sceneChoice, serializeLayout, setLaneMode, setSceneEntry, statusText,
 } from '../lib/performance-layout.mjs';
 import { createEngineSceneQueue } from './performance-scenes.js';
 import { attachPerformanceInput, bindingsList, clearBinding, detachPerformanceInput, learnAction, onBindingsChange } from './performance-input.js';
@@ -53,6 +55,7 @@ const allClips = () => {
 };
 const bufferOfClip = (id) => {
   if (parsePatternClipId(id)) return patternBuffer(id);
+  if (parseChainClipId(id)) return chainClipBuffer(parseChainClipId(id));
   const take = (S.build.takes || {})[id];
   if (!take) return Promise.reject(new Error('Build the block first: it has no take yet.'));
   return bufferOfTake(take);
@@ -105,8 +108,10 @@ async function patternBuffer(id) {
 }
 const extras = createExtras({
   clips: allClips,
-  firstClips: () => layout.lanes.filter((lane) => lane.clips.length).map((lane) => lane.clips[0]),
+  busiest: () => busiestScene(layout),
+  filteredLanes: () => laneMix.filtered(laneNames()),
   choices: () => [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames)],
+  planOf: (id) => (parseChainClipId(id) ? chainPlanOf(parseChainClipId(id)) : null),
   bufferOf: bufferOfClip,
   tempo: () => S.doc?.project?.tempo || 120,
   beatsPerBar: () => Math.max(1, Math.round(barBeats())),
@@ -155,7 +160,19 @@ export function syncTab() {
 }
 
 const save = () => setUiKey(UI_KEY, serializeLayout(layout));
-const fromStore = () => { layout = parseLayout(getUiKey(UI_KEY)); };
+const fromStore = () => { layout = parseLayout(getUiKey(UI_KEY)); bindLaneMix(); };
+
+// ---- the mix of the lanes (issue 276): heard at once, kept for the session, back to the layout's with Reset, written into the layout only with Keep
+let laneMix = createLaneMix();
+let unbindMix = () => {};
+let fallback = '';   // what the performer is told while a protection is on (issue 281)
+const laneNames = () => layout.lanes.map((lane) => lane.name);
+function bindLaneMix() {
+  unbindMix();
+  laneMix = createLaneMix(new Map(layout.lanes.filter((lane) => lane.mix).map((lane) => [lane.name, lane.mix])));
+  unbindMix = laneMix.subscribe(() => { if (session) session.buses.apply(laneMix.settings(laneNames())); });
+}
+bindLaneMix();
 
 // ------------------------------------------------------------------------------------------------ audio
 
@@ -185,7 +202,8 @@ async function enter() {
     const buffers = new Map();
     for (const c of wanted) if (!buffers.has(c.id)) buffers.set(c.id, parsePatternClipId(c.id) ? await patternBuffer(c.id) : await bufferOfTake(takes[c.id]));
     if (resumed) await Promise.race([resumed, new Promise((resolve) => setTimeout(resolve, 1500))]);
-    const player = createClipPlayer({ ctx, output: playbackOutput(ctx), bufferOf: (clip) => buffers.get(clip.id) });
+    const buses = createLaneBuses({ ctx, output: playbackOutput(ctx) });
+    const player = createClipPlayer({ ctx, output: playbackOutput(ctx), outputFor: (lane) => buses.input(lane), bufferOf: (clip) => buffers.get(clip.id) });
     const bpm = S.doc.project?.tempo || 120;
     const beatsPerBar = Math.max(1, Math.round(barBeats()));
     const base = createPerformance({
@@ -218,7 +236,9 @@ async function enter() {
       for (const c of lane.clips) accents.configure(c.id, { mode: lane.mode, length: lane.mode === 'oneshot' ? (buffers.get(c.id)?.duration ?? 0) : 0 });
     }
 
-    session = { ctx, engine, player, scenes, accents, recording: false };
+    session = { ctx, engine, player, scenes, accents, buses, recording: false };
+    buses.apply(laneMix.settings(laneNames()));
+    watchLoad(ctx);
     // pads and keys launch the same way the buttons do: through launchAction
     attachPerformanceInput({ launch: launchAction, active: () => Boolean(session) && Boolean($('#b-performance')?.classList.contains('on')) });
     timer = setInterval(paint, 100);
@@ -232,6 +252,35 @@ async function enter() {
   }
 }
 
+/**
+ * Protection under load (issue 281): while a session is on and the browser can measure the audio thread, a load that stays high takes the filters of the lanes off the path (their values are kept),
+ * and a calm load puts them back. The header says so for as long as it lasts.
+ */
+const guard = createLoadGuard();
+function watchLoad(ctx) {
+  const capacity = ctx.renderCapacity;
+  if (!capacity) return;
+  capacity.onupdate = (event) => {
+    const verdict = guard.feed(event.peakLoad);
+    if (verdict === 'bypass' && laneMix.filtered(laneNames()).length) {
+      laneMix.bypassFilters(true);
+      fallback = 'Fallback: the lane filters are off because the load of this device was high.';
+      render();
+    } else if (verdict === 'restore' && laneMix.filtersBypassed) {
+      laneMix.bypassFilters(false);
+      fallback = '';
+      render();
+    }
+  };
+  try { capacity.start({ updateInterval: 0.5 }); } catch { /* the browser cannot measure now */ }
+}
+function stopWatchingLoad(ctx) {
+  try { ctx.renderCapacity?.stop(); } catch { /* it was not running */ }
+  if (ctx.renderCapacity) ctx.renderCapacity.onupdate = null;
+  laneMix.bypassFilters(false);
+  fallback = '';
+}
+
 /** Leaving ends everything that plays or is queued and releases the sources; the arrangement was never touched. */
 function leave() {
   clearInterval(timer);
@@ -241,7 +290,9 @@ function leave() {
   if (session.recording) toast('Recording stopped: the performed run was not kept.');
   extras.dispose();
   detachPerformanceInput();
+  stopWatchingLoad(session.ctx);
   session.player.releaseAll();
+  session.buses.releaseAll();
   session = null;
   wasBusy = false;
   notifyPlayer();
@@ -498,6 +549,7 @@ function headBar() {
     recordButton,
     el('label', { className: 'perf-q' }, [el('span', { textContent: 'Launch on ' }), grid]),
     el('span', { className: 'note', textContent: note }),
+    ...(fallback ? [el('span', { className: 'perf-fallback', role: 'status', textContent: fallback, title: 'A protection is on: the sound is a little simpler until the load of this device is calm again' })] : []),
     ...(loadWord ? [el('span', { className: 'perf-load', role: 'status', textContent: loadWord, title: 'The result of the rehearsal check of this device' })] : []),
   ]);
 }
@@ -588,6 +640,40 @@ function padsSection() {
 }
 
 /** The temporary mixer of the session: faders and pans heard now, kept in the session, applied to the song only when you say so. */
+/** The mix of the lanes of this session: a gain, a pan, a mute, a solo and a filter per lane, heard at once; Reset goes back to what the layout keeps, Keep writes it into the layout. */
+function laneMixSection() {
+  const names = laneNames();
+  const paints = [];
+  const rows = names.map((name) => {
+    const readout = el('output', { className: 'perf-mix-read' });
+    const gain = el('input', { type: 'range', min: String(GAIN_DB.min), max: String(GAIN_DB.max), step: '1', 'aria-label': `${name}: gain` });
+    const pan = el('input', { type: 'range', min: '-100', max: '100', step: '1', 'aria-label': `${name}: pan` });
+    const filter = el('input', { type: 'range', min: '0', max: '1', step: '0.005', 'aria-label': `${name}: filter (low pass, to the right it is open)` });
+    const mute = el('button', { type: 'button', textContent: 'M', 'aria-label': `${name}: mute`, title: 'Mute this lane' });
+    const solo = el('button', { type: 'button', textContent: 'S', 'aria-label': `${name}: solo`, title: 'Hear only the lanes with solo' });
+    gain.oninput = () => laneMix.set(name, { gainDb: Number(gain.value) });
+    pan.oninput = () => laneMix.set(name, { pan: Number(pan.value) });
+    filter.oninput = () => laneMix.set(name, { cutoff: cutoffAt(Number(filter.value)) });
+    mute.onclick = () => laneMix.set(name, { mute: !laneMix.get(name).mute });
+    solo.onclick = () => laneMix.set(name, { solo: !laneMix.get(name).solo });
+    paints.push(() => {
+      const m = laneMix.get(name);
+      gain.value = String(m.gainDb); pan.value = String(m.pan); filter.value = String(positionOfCutoff(m.cutoff));
+      mute.setAttribute('aria-pressed', String(m.mute)); solo.setAttribute('aria-pressed', String(m.solo));
+      readout.textContent = `${m.gainDb} dB · ${m.pan === 0 ? 'C' : m.pan < 0 ? `L${-m.pan}` : `R${m.pan}`} · ${m.cutoff >= CUTOFF.max ? 'filter open' : `${Math.round(m.cutoff)} Hz`}${laneMix.filtersBypassed && m.cutoff < CUTOFF.max ? ' (bypassed)' : ''}`;
+    });
+    return el('div', { className: 'perf-mix-row', role: 'group', 'aria-label': `Mix of ${name}` }, [el('strong', { textContent: name }), gain, pan, filter, mute, solo, readout]);
+  });
+  const note = el('span', { className: 'note', role: 'status' });
+  const paint = () => { paints.forEach((p) => p()); note.textContent = laneMix.size ? `${laneMix.size} lane${laneMix.size === 1 ? '' : 's'} changed in this session, not kept` : 'The mix the layout keeps'; };
+  let seen = false;
+  const off = laneMix.subscribe(() => { if (note.isConnected) seen = true; else if (seen) { off(); return; } paint(); });
+  paint();
+  const reset = el('button', { type: 'button', textContent: 'Reset', title: 'Back to the mix the layout keeps', onclick: () => laneMix.reset() });
+  const keep = el('button', { type: 'button', textContent: 'Keep in the layout', title: 'Write this mix into the lanes of the layout; Reset then goes back to it', onclick: () => { layout = setLaneMixes(layout, laneMix.keep(names)); save(); render(); } });
+  return el('details', { className: 'perf-lanemix' }, [el('summary', { textContent: 'Lane mix (this session)' }), el('div', { className: 'perfmix-bar' }, [note, reset, keep]), ...(rows.length ? rows : [el('p', { className: 'note', textContent: 'Add a lane first.' })])]);
+}
+
 function mixerSection() {
   return el('details', { className: 'perf-mixer' }, [el('summary', { textContent: 'Session mixer' }), performanceMixerPanel()]);
 }
@@ -606,12 +692,12 @@ export function render() {
     const kept = pruneLayout(layout, flat().nodes.map((n) => n.id));
     if (kept.dropped.length) { layout = kept.layout; save(); }
   }
-  const options = [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames)];
+  const options = [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames), ...chainOptions(flat().nodes)];
   const empty = S.doc ? 'Add a lane, then put built blocks on it.' : 'Open a song to set up its lanes.';
   const lanes = layout.lanes.length
     ? layout.lanes.map((lane) => laneRow(lane, options.filter((o) => !lane.clips.some((c) => c.id === o.id))))
     : [el('p', { className: 'note', textContent: empty })];
-  box.replaceChildren(headBar(), el('div', { className: 'perf-lanes' }, lanes), addLaneForm(), scenesSection(), padsSection(), mixerSection(), extras.readinessSection(), extras.decksSection(), extras.rehearsalSection());
+  box.replaceChildren(headBar(), el('div', { className: 'perf-lanes' }, lanes), addLaneForm(), scenesSection(), padsSection(), laneMixSection(), mixerSection(), extras.readinessSection(), extras.decksSection(), extras.rehearsalSection());
   box.setAttribute('aria-label', 'Performance');
   if (session) paint();
 }
