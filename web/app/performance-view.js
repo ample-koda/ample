@@ -9,7 +9,7 @@ import { $, ask, el, toast } from './ui.js';
 import { api } from './api.js';
 import { formatSeq, isolatePattern, parseSeq } from '../lib/seq-model.mjs';
 import { takeFromReport } from '../lib/build-report-take.mjs';
-import { S, build, editAll, flat } from './store.js';
+import { S, build, editAll, flat, logProject } from './store.js';
 import { getContext } from '../lib/audio-engine.mjs';
 import { takeCache } from '../lib/take-cache.mjs';
 import { barBeats } from '../lib/meter.mjs';
@@ -22,6 +22,7 @@ import { createLaunchScheduler } from './performance-oneshots.js';
 import { createExtras } from './performance-extras.js';
 import { chainClipBuffer, chainMissingSources, chainPlanOf } from './live-chain.js';
 import { createClipPlayer, createLaneBuses } from '../lib/performance-audio.mjs';
+import { loadOrder, withTimeout } from '../lib/performance-load.mjs';
 import { CUTOFF, GAIN_DB, createLaneMix, createLoadGuard, cutoffAt, positionOfCutoff } from '../lib/performance-lanemix.mjs';
 import {
   addClip, addLane, addScene, clickAction, clipCount, clipOptions, emptyLayout, parseLayout, pruneLayout,
@@ -36,6 +37,8 @@ const UI_KEY = 'performanceLayout';
 let layout = emptyLayout();
 let session = null;      // { ctx, engine, player } while a performance is on
 let entering = false;
+let loadingState = null;   // while the takes are made ready: { cancelled, text } (the button and the header Stop cancel it)
+const CLIP_TIMEOUT_MS = 240000;
 let timer = 0;
 let quantize = QUANTIZE.bar;
 let wasBusy = false;
@@ -130,7 +133,7 @@ setExternalPlayer({
   playing: () => busy(),
   loading: () => (entering ? 'performance' : null),
   take: () => 'performance',
-  stop: () => { if (session) { session.scenes.stopAll(); session.accents.stopAll(); paint(); } },
+  stop: () => { if (entering) { cancelLoading(); return; } if (session) { session.scenes.stopAll(); session.accents.stopAll(); paint(); } },
 });
 
 /** The tab exists only while the setting is on; off means no button, no section, no timer. */
@@ -201,6 +204,15 @@ function neededBuilds() {
   return { blocks: [...blocks], names: [...names] };
 }
 
+/** Stops waiting for the takes (the header Stop and the Enter button do this while they load): what is being made is let go of and the tab is free again. */
+function cancelLoading() {
+  if (!entering || !loadingState || loadingState.cancelled) return;
+  loadingState.cancelled = true;
+  loadingState.abort();   // the clip that is being made is no longer waited for
+  logProject('performance', 'cancelled', 'loading the takes was cancelled');
+  toast('Cancelling: the clip that is being made is let go of.');
+}
+
 let buildingNeeded = false;
 /** Builds the blocks the clips need, one after the other (each build is a build of that block and what it needs), and draws the lanes again. */
 async function buildNeeded() {
@@ -227,13 +239,28 @@ async function enter() {
   if (needed.names.length) { toast(`Build first: ${needed.names.join(', ')} ${needed.names.length === 1 ? 'needs' : 'need'} ${needed.blocks.join(', ')} built.`, { label: 'Build what is needed', run: buildNeeded }); return; }
   entering = true;
   render();
-  stopPlayer();
+  stopPlayer();   // ends what else plays; this tab's own Stop must not take that for a cancel, so the loading state starts after it
   notifyPlayer();
+  const state = { cancelled: false, text: 'Loading the takes…', abort: () => {}, aborted: null };
+  state.aborted = new Promise((_, reject) => { state.abort = () => reject(new Error('Loading cancelled.')); });
+  state.aborted.catch(() => {});   // it is only raced: no one has to wait for it
+  loadingState = state;
   try {
     const ctx = getContext();
     const resumed = ctx.state !== 'running' ? ctx.resume().catch(() => {}) : null;   // inside the click
     const buffers = new Map();
-    for (const c of wanted) if (!buffers.has(c.id)) buffers.set(c.id, await bufferOfClip(c.id));   // a built take, a pattern made alone or a live chain made from its sources
+    // a built take, a pattern made alone or a live chain made from its sources; one after the other, with the progress on the button and in the log, and a way out
+    const ids = loadOrder(wanted.map((c) => c.id)), labelOf = (id) => wanted.find((c) => c.id === id)?.label ?? id;
+    for (const [n, id] of ids.entries()) {
+      if (loadingState.cancelled) throw new Error('Loading cancelled.');
+      loadingState.text = `Loading the takes… ${n + 1} of ${ids.length}: ${labelOf(id)}`;
+      logProject('performance', 'running', `loading ${labelOf(id)} (${n + 1} of ${ids.length})`);
+      render();
+      const started = performance.now();
+      buffers.set(id, await Promise.race([withTimeout(bufferOfClip(id), CLIP_TIMEOUT_MS, `"${labelOf(id)}"`), loadingState.aborted]));
+      logProject('performance', 'ok', `${labelOf(id)} ready in ${((performance.now() - started) / 1000).toFixed(1)} s`);
+    }
+    if (loadingState.cancelled) throw new Error('Loading cancelled.');
     if (resumed) await Promise.race([resumed, new Promise((resolve) => setTimeout(resolve, 1500))]);
     const buses = createLaneBuses({ ctx, output: playbackOutput(ctx) });
     const player = createClipPlayer({ ctx, output: playbackOutput(ctx), outputFor: (lane) => buses.input(lane), bufferOf: (clip) => buffers.get(clip.id) });
@@ -276,9 +303,11 @@ async function enter() {
     attachPerformanceInput({ launch: launchAction, active: () => Boolean(session) && Boolean($('#b-performance')?.classList.contains('on')) });
     timer = setInterval(paint, 100);
   } catch (error) {
+    logProject('performance', 'failed', error.message || String(error));
     toast(error.message || String(error));
   } finally {
     entering = false;
+    loadingState = null;
     wasBusy = false;
     notifyPlayer();
     render();
@@ -549,10 +578,10 @@ function headBar() {
   const enterButton = el('button', {
     type: 'button',
     className: 'primary perf-enter',
-    textContent: entering ? 'Loading the takes…' : 'Enter Performance',
-    disabled: entering || !S.doc || !ready,
-    title: ready ? 'Start a performance session: launch clips at the next bar or beat' : 'Put at least one built block on a lane first',
-    onclick: enter,
+    textContent: entering ? `${loadingState?.text ?? 'Loading the takes…'} (press to cancel)` : 'Enter Performance',
+    disabled: !entering && (!S.doc || !ready),
+    title: entering ? 'Stop loading the takes' : ready ? 'Start a performance session: launch clips at the next bar or beat' : 'Put at least one built block on a lane first',
+    onclick: () => (entering ? cancelLoading() : enter()),
   });
   const needed = session ? { blocks: [] } : neededBuilds();
   const buildButton = needed.blocks.length ? el('button', {
