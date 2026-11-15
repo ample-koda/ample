@@ -71,8 +71,8 @@ public sealed class StageDeletionTests
         }
         finally
         {
+            AiService.DeleteStage(stage);   // the folders of the stage are links to the project: the links go first, never the project
             Directory.Delete(source, true);
-            Directory.Delete(stage, true);
         }
     }
 
@@ -93,8 +93,8 @@ public sealed class StageDeletionTests
         }
         finally
         {
+            AiService.DeleteStage(stage);   // the folders of the stage are links to the project: the links go first, never the project
             Directory.Delete(source, true);
-            Directory.Delete(stage, true);
         }
     }
 }

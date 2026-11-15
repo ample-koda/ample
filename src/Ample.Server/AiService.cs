@@ -3725,6 +3725,11 @@ Answer in English, whatever language the question is in, unless the user asks fo
     {
         HashSet<string> offered = new(task.Offered.Select(o => o.ProjectPath), StringComparer.Ordinal);
         List<string> found = [];
+        if (!Directory.Exists(task.ProjectDir))
+        {
+            return found;   // a task that has no working copy has nothing staged
+        }
+
         foreach (string f in Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
@@ -5469,7 +5474,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         DeleteStage(root);
     }
 
-    private static void DeleteStage(string root)
+    internal static void DeleteStage(string root)
     {
         foreach (string d in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).OrderByDescending(x => x.Length).ToList())
         {

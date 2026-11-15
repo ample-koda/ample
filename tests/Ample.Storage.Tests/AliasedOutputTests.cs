@@ -32,6 +32,36 @@ public sealed class AliasedOutputTests
             Reads++;
             return base.ReadAsync(destination, cancellationToken);
         }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            Reads++;
+            return base.ReadAsync(buffer, offset, count, cancellationToken);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            Reads++;
+            return base.Read(buffer, offset, count);
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            Reads++;
+            return base.Read(buffer);
+        }
+
+        public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        {
+            Reads++;
+            return base.CopyToAsync(destination, bufferSize, cancellationToken);
+        }
+
+        public override void CopyTo(Stream destination, int bufferSize)
+        {
+            Reads++;
+            base.CopyTo(destination, bufferSize);
+        }
     }
 
     [Fact]
@@ -48,7 +78,7 @@ public sealed class AliasedOutputTests
                 [("mixed", first), ("out", second), ("report", new MemoryStream(other)), ("audio", third)]);
 
             Assert.Equal(["audio", "mixed", "out", "report"], take.Data.Select(d => d.Role).Order(StringComparer.Ordinal));
-            Assert.True(first.Reads > 0);
+            Assert.True(first.Reads <= 1, "the one buffer is read at most once: " + first.Reads);   // it can be taken from the stream without a read at all
             Assert.Equal(0, second.Reads);
             Assert.Equal(0, third.Reads);
             string sharedId = take.Data.Single(d => d.Role == "mixed").DataId;
