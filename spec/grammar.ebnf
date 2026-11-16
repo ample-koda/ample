@@ -70,3 +70,14 @@ module-decl = "module" , module-ref , "version" , version , eol ;
 param-decl  = "param" , identifier , value-text , eol ;
 input-decl  = "input" , identifier , eol ;
 output-decl = "output" , identifier , name , "." , name , eol ;
+
+(* A conditional in the code of a helper and in the process of an audio component. The condition is written with the
+   parentheses around the whole of it or without: "if (a > 5) {" and "if a > 5 {" are the same conditional, and so are
+   "} else if (b) {" and "} else if b {". The parentheses of the whole condition are told from the ones inside it by matching
+   them outside strings (so "if (a) && (b) {" is one condition without outer parentheses). The formatter writes the
+   parenthesized form; the empty condition "()" and a missing condition are errors. *)
+conditional   = if-head , body , { else-if-head , body } , [ else-head , body ] , "}" ;
+if-head       = "if" , condition , "{" ;
+else-if-head  = "}" , "else" , "if" , condition , "{" ;
+else-head     = "}" , "else" , "{" ;
+condition     = "(" , expression , ")" | expression ;

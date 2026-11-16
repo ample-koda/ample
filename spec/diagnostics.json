@@ -3700,7 +3700,7 @@
       "code": "AMP2231",
       "severity": "error",
       "title": "Unknown name in an audio process",
-      "explanation": "A name in the process must be an input, or a let defined before it is used. Names are read top to bottom, so an audio graph can never loop back on itself.",
+      "explanation": "A name in the process must be an input, or a let defined before it is used. Names are read top to bottom, so an audio graph can never loop back on itself. The head of an if or else if is also checked here: its parentheses must match, the condition must be there, and else must stand on the line of the } before it.",
       "wrongExample": "component koda.fx.dreamEcho version 1.0.0 {\n  input audio: Audio\n  property feedback: Percent = 30%\n  property delayTime: Duration = 0.25beat\n  output audio: Audio\n  process {\n    emit signal\n      |> delay(time=delayTime, feedback=feedback)\n  }\n}",
       "rightExample": "component koda.fx.dreamEcho version 1.0.0 {\n  input audio: Audio\n  property feedback: Percent = 30%\n  property delayTime: Duration = 0.25beat\n  output audio: Audio\n  process {\n    emit audio\n      |> delay(time=delayTime, feedback=feedback)\n  }\n}",
       "since": "1.0",

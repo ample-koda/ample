@@ -171,9 +171,24 @@ A **control** is a number over time that comes out of a block (`follow`, `curve`
 
 ## if / else and silence in a component
 
-In the process of an audio component a branch can be chosen by a property: `if (tone) { ... } else if (level) { ... } else { ... }`. The condition is a Bool property, a number (0 is false) or a calculation, and the branch that is taken is known when the graph is built, so the lines of the other branches are not part of it. A `let` in a branch is available after it, so every branch should give the same names. In a calculation a Bool is 1 or 0, and `if(condition, a, b)` picks one of two values.
+In the process of an audio component a branch can be chosen by a property: `if (tone) { ... } else if (level) { ... } else { ... }`. The parentheses around the condition are optional (see below). The condition is a Bool property, a number (0 is false) or a calculation, and the branch that is taken is known when the graph is built, so the lines of the other branches are not part of it. A `let` in a branch is available after it, so every branch should give the same names. In a calculation a Bool is 1 or 0, and `if(condition, a, b)` picks one of two values.
 
 `silence()` is blank audio as long as the block it is in (`auto`); `silence(10s)` is as long as you say. It stands where a branch has no sound: `let bed = if...` is written as `if (tone) { let bed = sad |> gain(-6dB) } else { let bed = silence() }`.
+
+## The parentheses of an if
+
+The condition of `if` and `else if` is written with the parentheses around the whole of it or without, in a helper (the Notes language) and in the process of an audio component alike:
+
+```
+if (value > 5) {  }          # recommended, and what `ample fmt` writes
+if value > 5 {  }            # the same
+} else if (value == 5) {  }
+} else if value == 5 {  }
+```
+
+The two forms may be mixed in one chain and nested inside each other, and both mean exactly the same: no song sounds different, and a component built either way is the same component (its semantic hash reads the form without parentheses as the form with them). The parentheses of the whole condition are told from the ones inside it by matching them, outside strings, so `if (a > 5 && (b < 10 || c == 3)) {`, `if a > 5 && (b < 10 || c == 3) {` and `if (a) && (b) {` are each one condition. `ample fmt` and the editor write `if (condition) {`, `} else if (condition) {` and `} else {`, and writing it again changes nothing.
+
+A mistake in the head is one error at its place: a `(` that is never closed (`if (value > 5 {`), a `)` without a `(`, no condition at all (`if {`), empty parentheses (`else if () {`) or a missing `{`. In the process of a component these are `AMP2231`; a condition that is there but cannot be calculated (`if value > {`) is `AMP2232`, as before.
 
 ## Meter
 
