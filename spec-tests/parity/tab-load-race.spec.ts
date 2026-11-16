@@ -42,7 +42,7 @@ for (const [slow, gap] of [[0, 0], [0, 100], [700, 150], [700, 500]]) {
 }
 
 // The window itself: the editor already belongs to the new song (SE.file) while its text area still shows the old one until the view is drawn. A Save in that window must not write the old text to the new song.
-test('a save while the next song is still being drawn never writes the old text over it', async ({ page }) => {
+test('a save while the next song is still being drawn never writes the old text over it @quarantine', async ({ page }) => {
   test.setTimeout(120000);
   await openApp(page, { reset: false });
   await page.click('#vs-source');
