@@ -37,6 +37,19 @@ public static partial class ComponentHashing
 
     private static string Collapse(string text) => Spaces().Replace(NotePipeline.StripComments(text), " ").Trim();
 
+    /// <summary>
+    /// A line of the process as it goes into the semantic hash. The head of a conditional written without the parentheses around its condition (<c>if
+    /// a &gt; 5 {</c>) is read as the head with them (<c>if (a &gt; 5) {</c>), so that the
+    /// two ways of writing it are one component; a head that already has them, and every other line, is taken exactly as written, so that no hash or
+    /// seal that exists changes (before this the parenthesized form was the
+    /// only one a process accepted).
+    /// </summary>
+    private static string CanonicalProcessLine(string line)
+    {
+        string code = NotePipeline.StripComments(line).Trim();
+        return ConditionSyntax.Parse(code) is { Problem: null, Kind: not ConditionSyntax.HeadKind.Else, Wrapped: false } head ? ConditionSyntax.Format(head) : line;
+    }
+
     private static string Sha(string text) => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     private static string I(int n) => n.ToString(CultureInfo.InvariantCulture);
@@ -63,7 +76,7 @@ public static partial class ComponentHashing
             sb.Append('\n');
         }
 
-        sb.Append("process=").Append(Collapse(string.Join('\n', d.ProcessBody))).Append('\n');
+        sb.Append("process=").Append(Collapse(string.Join('\n', d.ProcessBody.Select(CanonicalProcessLine)))).Append('\n');
         foreach (string hash in dependencyHashes.Order(StringComparer.Ordinal)) sb.Append("uses=").Append(hash).Append('\n');
         foreach (ComponentMigration m in d.Migrations.OrderBy(m => m.To, StringComparer.Ordinal).ThenBy(m => m.From, StringComparer.Ordinal))
             sb.Append("migrate=").Append(m.From ?? string.Empty).Append("->").Append(m.To).Append(':').Append(m.Impact).Append(':').Append(Collapse(string.Join('\n', m.Body.Select(b => b.Text)))).Append('\n');

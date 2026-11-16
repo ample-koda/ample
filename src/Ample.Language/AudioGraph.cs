@@ -50,7 +50,7 @@ public static partial class AudioGraphBuilder
     [GeneratedRegex(@"^[A-Za-z_][\w-]*$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Word();
 
-    private sealed record Statement(int Line, string Kind, string Text);
+    private sealed record Statement(int Line, string Kind, string Text, bool Broken = false);
 
     private sealed class State
     {
@@ -92,10 +92,27 @@ public static partial class AudioGraphBuilder
             string line = Strip(d.ProcessBody[i]).Trim();
             int absolute = d.ProcessLine + 1 + i;
             if (line.Length == 0) continue;
-            // if (condition) { ... } else if (condition) { ... } else { ... }: the branch that is taken is known when the graph is built, because the properties are
-            if (Regex.Match(line, @"^if\s*\((.+)\)\s*\{$", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } openIf) { result.Add(new Statement(absolute, "if", openIf.Groups[1].Value.Trim())); continue; }
-            if (Regex.Match(line, @"^\}\s*else\s+if\s*\((.+)\)\s*\{$", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } elseIf) { result.Add(new Statement(absolute, "elseif", elseIf.Groups[1].Value.Trim())); continue; }
-            if (Regex.IsMatch(line, @"^\}\s*else\s*\{$", RegexOptions.None, TimeSpan.FromSeconds(1))) { result.Add(new Statement(absolute, "else", string.Empty)); continue; }
+            // if (condition) { ... } else if (condition) { ... } else { ... }, or without the parentheses around the whole condition (if condition {
+            // ... }): the same head either way (ConditionSyntax).
+            // The branch that is taken is known when the graph is built, because the properties are
+            if (ConditionSyntax.Parse(line) is { } head)
+            {
+                int indent = d.ProcessBody[i].Length - d.ProcessBody[i].TrimStart().Length;
+                if (head.Kind != ConditionSyntax.HeadKind.If && !head.Closes)
+                {
+                    issues.Add(new ComponentIssue(absolute, indent, indent + line.Length, "AMP2231", Severity.Error,
+                        $"{(head.Kind == ConditionSyntax.HeadKind.Else ? "else" : "else if")} comes on the line of the }} that closes the branch before it.",
+                        "Write } else { or } else if (condition) { on one line."));
+                    continue;
+                }
+
+                if (head.Problem is { } problem) issues.Add(new ComponentIssue(absolute, indent + problem.Column, indent + problem.Column
+                    + Math.Max(1, problem.Length), "AMP2231", Severity.Error, problem.Message, problem.Hint));
+                string kind = head.Kind switch { ConditionSyntax.HeadKind.If => "if", ConditionSyntax.HeadKind.ElseIf => "elseif", _ => "else" };
+                result.Add(new Statement(absolute, kind, head.Condition, head.Problem is not null));
+                continue;
+            }
+
             if (line == "}") { result.Add(new Statement(absolute, "end", string.Empty)); continue; }
             if (line.StartsWith("let ", StringComparison.Ordinal)) result.Add(new Statement(absolute, "let", line[4..].Trim()));
             else if (line.StartsWith("emit ", StringComparison.Ordinal)) result.Add(new Statement(absolute, "emit", line[5..].Trim()));
@@ -149,7 +166,7 @@ public static partial class AudioGraphBuilder
                 if (s.Kind == "if")
                 {
                     bool parent = branches.Count == 0 || branches.Peek().Active;
-                    bool take = parent && Truth(s.Text, s.Line) == true;
+                    bool take = parent && !s.Broken && Truth(s.Text, s.Line) == true;
                     branches.Push((parent, take, take));
                 }
                 else if (branches.Count == 0) st.Issues.Add(new ComponentIssue(s.Line, 0, 1, "AMP2231", Severity.Error, s.Kind == "end" ? "A } closes nothing here." : $"{s.Kind} comes without an if before it.", string.Empty));
@@ -157,7 +174,7 @@ public static partial class AudioGraphBuilder
                 else
                 {
                     (bool parent, bool taken, _) = branches.Pop();
-                    bool take = parent && !taken && (s.Kind == "else" || Truth(s.Text, s.Line) == true);
+                    bool take = parent && !taken && !s.Broken && (s.Kind == "else" || Truth(s.Text, s.Line) == true);
                     branches.Push((parent, taken || take, take));
                 }
 

@@ -18,6 +18,8 @@ public static partial class Formatter
         int notesDepth = 0, scratchDepth = 0;
         bool rewind = false;
         int viewDepth = 0;
+        int codeDepth = 0, parenDepth = 0;   // inside the braces of a helper or a component
+        bool pipeCarry = false;
         foreach (string raw in lines)
         {
             string line = raw.Replace('\t', ' ').Trim();
@@ -44,6 +46,12 @@ public static partial class Formatter
                     viewDepth++;
                 }
 
+                continue;
+            }
+
+            if (codeDepth > 0)
+            {
+                FormatCodeLine(line, output, ref codeDepth, ref parenDepth, ref pipeCarry);
                 continue;
             }
 
@@ -102,6 +110,15 @@ public static partial class Formatter
                 continue;
             }
 
+            if (line.EndsWith('{') && CodeStart().IsMatch(line))
+            {
+                output.Add(FormatHeader(line));
+                codeDepth = 1;
+                parenDepth = 0;
+                pipeCarry = false;
+                continue;
+            }
+
             if (line.EndsWith('{') && !ProjectWord().IsMatch(line) && !BraceLine().IsMatch(line) && !LayoutLoose().IsMatch(line))
             {
                 inBlock = true;
@@ -125,6 +142,92 @@ public static partial class Formatter
         }
 
         return output.Count == 0 ? string.Empty : string.Join('\n', output) + "\n";
+    }
+
+    // ---- code regions: the body of a helper and of a component is code, laid out by its braces (the generic body lines of a block do not nest)
+
+    [GeneratedRegex("^(?:helper|component)\\b", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
+    private static partial Regex CodeStart();
+
+    private static string Pad(int level) => new(' ', Math.Max(0, level) * 2);
+
+    /// <summary>Splits a line of code from its comment: a # that does not stand in a string and does not follow a letter, a digit or an underscore (a
+    /// hash of a bake is not a comment).</summary>
+    private static void SplitComment(string line, out string code, out string comment)
+    {
+        bool inString = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (inString) { if (c == '\\') i++; else if (c == '"') inString = false; continue; }
+            if (c == '"') { inString = true; continue; }
+            if (c == '#' && !(i > 0 && (char.IsLetterOrDigit(line[i - 1]) || line[i - 1] == '_')))
+            {
+                code = line[..i].TrimEnd();
+                comment = line[i..].TrimEnd();
+                return;
+            }
+        }
+
+        code = line.TrimEnd();
+        comment = string.Empty;
+    }
+
+    /// <summary>What a line of code does to the nesting: the closing braces it starts with, the braces it opens minus the ones it closes, and the
+    /// parentheses and brackets that stay open after it.</summary>
+    private static void Scan(string text, int parensBefore, out int leading, out int delta, out int parensAfter)
+    {
+        leading = 0;
+        delta = 0;
+        parensAfter = parensBefore;
+        bool inString = false, atStart = true;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (inString) { if (c == '\\') i++; else if (c == '"') inString = false; continue; }
+            if (c == ' ') continue;
+            if (c == '"') { inString = true; atStart = false; continue; }
+            if (c == '}') { delta--; if (atStart) leading++; }
+            else
+            {
+                atStart = false;
+                if (c == '{') delta++;
+                else if (c is '(' or '[') parensAfter++;
+                else if (c is ')' or ']') parensAfter = Math.Max(0, parensAfter - 1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// One line inside a helper or a component: its if and else if heads are written with the parentheses around the condition (ConditionSyntax), and
+    /// it is indented by its braces, two spaces a level. A line that
+    /// goes on from the one before (inside parentheses, or after a |>) stands one level in. The comment of a line stays where it was. Idempotent,
+    /// because the indentation follows from the structure and not from what was there.
+    /// </summary>
+    private static void FormatCodeLine(string line, List<string> output, ref int depth, ref int parens, ref bool pipeCarry)
+    {
+        SplitComment(line, out string code, out string comment);
+        if (code.Length == 0)
+        {
+            output.Add(Pad(depth + (parens > 0 || pipeCarry ? 1 : 0)) + comment);
+            return;
+        }
+
+        string text = ConditionSyntax.Parse(code) is { Problem: null } head ? ConditionSyntax.Format(head) : code;
+        Scan(text, parens, out int leading, out int delta, out int parensAfter);
+        bool continuation = parens > 0 || pipeCarry || text.StartsWith("|>", StringComparison.Ordinal);
+        bool closer = parens > 0 && text[0] is ')' or ']';
+        int level = depth - leading + (leading == 0 && continuation && !closer ? 1 : 0);
+        output.Add(Pad(level) + text + (comment.Length > 0 ? "  " + comment : string.Empty));
+        depth += delta;
+        parens = parensAfter;
+        pipeCarry = text.EndsWith("|>", StringComparison.Ordinal);
+        if (depth <= 0)
+        {
+            depth = 0;
+            parens = 0;
+            pipeCarry = false;
+        }
     }
 
     private static string FormatTopLine(string line)
