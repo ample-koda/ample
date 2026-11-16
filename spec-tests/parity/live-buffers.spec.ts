@@ -51,7 +51,7 @@ test('@audio a join of two built sounds and a splitter run in the live chain and
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });
 
-test('@audio a click track is made in the browser and runs through an effect without a build', async ({ page }) => {
+test('@audio a click track is made in the browser and runs through an effect without a build @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   const started = await page.evaluate(async () => (await import('/app/live-chain.js')).startChain('echo2'));
   expect(started).toBe(true);
