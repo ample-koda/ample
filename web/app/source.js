@@ -41,7 +41,7 @@ import { recentFilePaths, rememberRecentFile } from './recent-files.js';
 import { diffHunks, diffStats, lineDiff } from './diff.js';
 import { barBeats } from '../lib/meter.mjs';
 
-const SE = { file: null, textFile: null, text: '', orig: '', edit: true, diags: [], lsp: null, files: [], ctrl: false, comp: null, timer: 0, loadedFor: '', fontSize: 12 };
+const SE = { file: null, textFile: null, shownFor: null, text: '', orig: '', edit: true, diags: [], lsp: null, files: [], ctrl: false, comp: null, timer: 0, loadedFor: '', fontSize: 12 };
 let sourceParseTimer = 0, sourceParseSeq = 0;
 const lines = (t) => t.split('\n');
 const escH = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -252,6 +252,7 @@ function syncPropertiesText() {
   SE.text = S.doc.text;
   SE.syncedText = SE.text;
   ta.value = SE.text;
+  SE.shownFor = SE.file;
   if (name) {
     const open = blockOpenOffset(SE.text, name);
     if (open >= 0) ta.setSelectionRange(open + 1, open + 1);
@@ -266,7 +267,7 @@ let draftTimer = 0;
 function saveSourceDraft() {
   clearTimeout(draftTimer);
   const text = $('#se-ta')?.value ?? SE.text;
-  if (!SE.file || SE.textFile !== SE.file || !SE.edit || text === SE.orig || S.peek) return;
+  if (!SE.file || SE.textFile !== SE.file || SE.shownFor !== SE.file || !SE.edit || text === SE.orig || S.peek) return;
   try { saveRecoveryDraft(localStorage, S.project?.id || '', SE.file, text, SE.orig, Date.now()); } catch { /* storage can be full */ }
 }
 function saveSourceDraftSoon() { clearTimeout(draftTimer); draftTimer = setTimeout(saveSourceDraft, 250); }
@@ -420,14 +421,17 @@ async function loadFile(file, stillWanted) {
 async function loadFileNow(file, stillWanted) {
   const loadMine = ++loadToken;
   const song = file === S.path, module = !!S.modulePath && file === S.modulePath;
+  // another song (or module) was opened while this one was read: its text must not land in the editor of the new one, where a Save would write it over the wrong file
+  const stale = () => (song && file !== S.path) || (module && file !== S.modulePath);
   const saved = module ? (await api.get(`/api/module/source?path=${encodeURIComponent(file)}`)).text : song ? S.doc.text : (await api.get(`/api/file?path=${encodeURIComponent(file)}`)).text;
-  if (loadMine !== loadToken || (stillWanted && !stillWanted())) return false;
+  if (loadMine !== loadToken || (stillWanted && !stillWanted()) || stale()) return false;
   const drafted = await recoverSourceDraft(file, saved);
-  if (loadMine !== loadToken || (stillWanted && !stillWanted())) return false;
+  if (loadMine !== loadToken || (stillWanted && !stillWanted()) || stale()) return false;
   sourceParseSeq++;
   clearTimeout(sourceParseTimer);
   S.sourceEditMessage = null;
   SE.file = file;
+  SE.shownFor = null;   // the text area still holds the text of the file that was shown before, until the view is drawn
   SE.edit = file !== 'ample.lock';
   SE.text = drafted;
   SE.orig = saved;
@@ -619,12 +623,18 @@ async function render() {
         return;
   }
   while (loadingNow) await loadingNow.catch(() => {});   // a file is being opened: draw what it brings, do not load the song over it
-  if (!SE.file || (isSong() && SE.loadedFor !== `${S.path}`)) { if (await loadFile(S.path)) SE.loadedFor = S.path; }
+  if (!SE.file || (isSong() && SE.loadedFor !== `${S.path}`)) {
+    const wanted = S.path;
+    const loaded = await loadFile(wanted);
+    if (wanted !== S.path) return;   // another song was opened meanwhile: the draw of that one loads it, this one draws nothing over it
+    if (loaded) SE.loadedFor = wanted;
+  }
   await files();
   syncPropertiesText();
   refreshSeqDiagnostics();
   const ta = $('#se-ta');
   if (ta.value !== SE.text) ta.value = SE.text;
+  SE.shownFor = SE.file;
   ta.readOnly = !SE.edit;
   $('#se-title').textContent = SE.file;
   // Koda can be pointed at the name of the song (Ctrl and drag, or two taps and drag): then it looks at the whole file, as it does at the breadcrumb of the blocks view
@@ -658,8 +668,9 @@ async function closeCurrentSourceFile() {
   if (!(await confirmEditorSwitch(S.path || 'the node editor'))) return;
   if (S.path) {
     SE.loadedFor = '';
-    await loadFile(S.path);
-    SE.loadedFor = S.path;
+    const wanted = S.path;
+    const loaded = await loadFile(wanted);
+    SE.loadedFor = loaded && wanted === S.path ? wanted : '';
     render();
   } else setView('blocks');
 }
@@ -1410,7 +1421,7 @@ beforeSave(async () => { if (typedHere() && !(await apply())) throw new Error('T
 
 export async function apply() {
   const ta = $('#se-ta');
-  if (SE.textFile !== SE.file) return false;   // the text in the editor is not (yet) the text of SE.file: never write it there
+  if (SE.textFile !== SE.file || SE.shownFor !== SE.file) return false;   // the text in the editor is not (yet) the text of SE.file: never write it there
   SE.text = ta.value;
   if (!SE.edit) return false;
   if (isModuleSource()) {
@@ -1449,7 +1460,7 @@ export async function apply() {
  */
 export async function flushTypedSource() {
   const ta = $('#se-ta');
-  if (!ta || !SE.file || !SE.edit || SE.textFile !== SE.file || S.peek) return null;
+  if (!ta || !SE.file || !SE.edit || SE.textFile !== SE.file || SE.shownFor !== SE.file || S.peek) return null;
   if (ta.value === SE.orig) return null;
   const file = SE.file;
   return (await apply()) ? file : false;
@@ -1483,6 +1494,7 @@ async function revert() {
   SE.syncedText = SE.text;
   S.sourceEditMessage = null;
   $('#se-ta').value = SE.text;
+  SE.shownFor = SE.file;
   if (isSong() && SE.lsp) SE.lsp.change(SE.text).catch(() => {});
   gutter(); overlay(); status();   if (isSong()) syncSourceCursor();
   toast(`Reverted ${SE.file}.`);
@@ -1965,7 +1977,7 @@ let syncTimer = 0;
 async function syncSong({ quiet = true } = {}) {
   const ta = $('#se-ta');
   if (!ta || !isSong() || !SE.edit || !S.doc) return true;
-  if (SE.textFile !== SE.file) return false;
+  if (SE.textFile !== SE.file || SE.shownFor !== SE.file) return false;
   SE.text = ta.value;
   if (SE.text === SE.orig) return true;
   if (S.doc.text !== SE.orig && SE.text !== S.doc.text) return quiet ? false : apply();
