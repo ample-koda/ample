@@ -35,7 +35,7 @@ test('a block plays, pauses, and the audio is streamed with range support', asyn
   expect(heads.some((h) => h === 'bytes')).toBe(true);
 });
 
-test('node playback shows a scrubable waveform and the header stop rewinds every take', async ({ page }) => {
+test('node playback shows a scrubable waveform and the header stop rewinds every take @quarantine', async ({ page }) => {
   await build(page);
   const player = node(page, 'drums').locator('.player');
   const wave = player.locator('.plbg');

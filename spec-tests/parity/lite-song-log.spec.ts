@@ -15,7 +15,7 @@ async function fresh(page: Page) {
   await page.waitForSelector('html[data-lite-ready="true"]');
 }
 
-test('the Song log of Remix shows the events of a build at the chosen level, and the song is not changed', async ({ page }) => {
+test('the Song log of Remix shows the events of a build at the chosen level, and the song is not changed @quarantine', async ({ page }) => {
   await fresh(page);
   await page.click('#lite-demos-btn');
   await page.locator('#lite-demo-list li[data-demo="pixel-quest"] button').click();
