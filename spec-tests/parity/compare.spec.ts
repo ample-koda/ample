@@ -19,8 +19,8 @@ test('compare shows the changed files and the changed lines between two states',
   await bottomTab(page, 'hist');
   await page.click('#h-compare');
   await expect(page.locator('#dlg')).toHaveJSProperty('open', true);
-  await page.locator('#dlg-extra select').first().selectOption('studio');
-  await page.locator('#dlg-extra select').nth(1).selectOption('garage');
+  await page.locator('#dlg-extra select').first().selectOption('line:studio');   // a line and a tag can share a name, so the picker qualifies its values
+  await page.locator('#dlg-extra select').nth(1).selectOption('line:garage');
   await expect(page.locator('#dlg.compare-dialog')).toBeVisible();
   expect((await page.locator('#dlg').boundingBox())!.width).toBeGreaterThan(700);
   await page.locator('#dlg-extra select').evaluateAll((selects) => selects.forEach((select) => { (select as HTMLSelectElement).selectedOptions[0].textContent = 'long revision title '.repeat(30); }));

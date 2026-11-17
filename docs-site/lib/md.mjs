@@ -3,6 +3,7 @@
 //   {{pv {json}}}                       sound preview   (src: pad pluck arp bass drums noise voice tone seq chords grid meter rhythm (layers of hits at beat positions); fx: a block id)
 //   {{piano {json}}}                    clickable keyboard {from,to,hi:[midi],play:"chord"|"scale",caption}
 //   {{ample text with `code` | block-id, /learn/x/y=Label}}   "In AMPLE" box with link buttons (block ids are checked)
+//   {{shot name | alt text | caption}}  a screenshot of AMPLE (shots/<name>.png, see the note in build.mjs)
 //   {{blocks id; id=own text; id}}      table of blocks taken from the spec (name, first sentence of its description or your text, ports)
 //   {{deeper Title}} ... {{/deeper}}    collapsible "Go deeper"      {{try Title}} ... {{/try}}   collapsible exercise
 const slug = (s) => s.toLowerCase().replace(/<[^>]+>/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -15,8 +16,13 @@ const attr = (j) => { JSON.parse(j); return j.replace(/'/g, '&#39;'); };
 
 export function render(text, ctx) {
   const tok = [], hold = (h) => { tok.push(h); return `\n@@${tok.length - 1}@@\n`; };
+  /* ```lang ... ``` on lines of their own: a code block, shown as written (escaped); the language word is kept as a class only */
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  text = text.replace(/^```([\w-]*)[ \t]*\n([\s\S]*?)\n```[ \t]*$/gm, (_, lang, code) => hold(`<pre><code${lang ? ` class="lang-${lang}"` : ''}>${esc(code)}</code></pre>`));
   /* {{amplet Note}} ... {{/amplet}}: a complete AMPLE song, shown with the studio highlighter and a Copy button (checked by hand with `ample check`) */
   text = text.replace(/\{\{amplet([^\n}]*)\}\}\n([\s\S]*?)\n\{\{\/amplet\}\}/g, (_, note, code) => hold('<div class="pv-src" data-code="' + encodeURIComponent(code) + '" data-note="' + String(note).trim().replace(/"/g, '&quot;') + '" data-remix="' + remixId(code) + '"></div>' + remixBtn(remixId(code))));
+  /* {{shot name | what the picture shows | caption}}: a screenshot of AMPLE, made by tools/screenshots (build.mjs copies get-site/assets/shots/<name>.png) */
+  text = text.replace(/\{\{shot ([\w-]+) \| ([^|}]+)(?:\| ([^}]+))?\}\}/g, (_, name, alt, cap) => hold(`<figure class="shot"><img src="shots/${name}.png" alt="${String(alt).trim().replace(/"/g, '&quot;')}" loading="lazy">${cap ? `<figcaption>${inline(String(cap).trim())}</figcaption>` : ''}</figure>`));
   text = text.replace(/\{\{(deeper|try) ([^\n}]+)\}\}\n([\s\S]*?)\n\{\{\/\1\}\}/g, (_, k, title, body) => hold(`<details class="${k === 'try' ? 'tryit' : 'deeper'}"><summary>${k === 'try' ? 'Try it: ' : 'Go deeper: '}${inline(title)}</summary><div class="dbody">${render(body, ctx)}</div></details>`));
   text = text.replace(/\{\{blocks ([^}]+)\}\}/g, (_, list) => hold('<table class="blocktable"><tr><th>Block</th><th>What it does</th><th>In → out</th></tr>' + list.split(';').map((e) => e.trim()).filter(Boolean).map((e) => { const [id, ...r] = e.split('='), b = ctx.blockData?.get(id.trim()); if (!b) { ctx.warn('unknown block "' + id.trim() + '"'); return ''; } const first = (b.description || '').split(/(?<=[.!?])\s/)[0], txt = r.length ? r.join('=').trim() : first.length > 190 ? first.slice(0, 187) + '...' : first, ty = (a) => a.length ? a.map((p) => p.t).filter((v, i, x) => x.indexOf(v) === i).join(' + ') : '-'; return '<tr><td><a href="#/blocks/' + b.id + '"><code>' + b.id + '</code></a></td><td>' + inline(txt) + '</td><td>' + ty(b.inputs) + ' → ' + ty(b.outputs) + '</td></tr>'; }).join('') + '</table>'));
   text = text.replace(/\{\{pv (\{.*?\})\}\}(?!\})/g, (_, j) => hold(`<div class="pv" data-pv='${attr(j)}'></div>`));

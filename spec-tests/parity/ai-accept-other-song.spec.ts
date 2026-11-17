@@ -42,6 +42,8 @@ test('Accept writes the song when another song is open, hands it to the editor w
     const body = { kind: 'comment', scope: 'file', path: 'song.amplet', song: 'song.amplet', prompt: 'Add a comment.' };
     const task = await api('/api/ai/tasks', { method: 'POST', body });
     await expect.poll(async () => (await api(`/api/ai/tasks/${task.id}`)).status, { timeout: 120000 }).toBe('ready');
+    // a ready proposal is built as a check first; Accept waits for that check (AMP5455 while it runs)
+    await expect.poll(async () => (await api(`/api/ai/tasks/${task.id}`)).build?.status, { timeout: 120000 }).not.toMatch(/^(pending|running)$/);
     return task.id as string;
   };
 

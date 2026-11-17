@@ -3,6 +3,7 @@
 // @ample:samples
 
 import { el, toast } from './ui.js';
+import { infoNote } from './studio/panels/info.js';
 import { build, edit, notify, S } from './store.js';
 import { play, playProjectFile, setLoop, stop } from './player.js';
 import { api } from './api.js';
@@ -232,7 +233,7 @@ export async function renderDrumGrid(pad, n, locked) {
     play(take).catch(() => { looping = false; loopButton.textContent = '▶ Loop'; });
   };
   tools.append(loopButton);
-  box.append(tools, el('p', { className: 'note', textContent: 'Click a step: rest, hit (x), accent (X), ghost note (o). Shift+click gives an exact velocity (digits 3, 5, 7, 9). A bar has ' + W + ' steps (the steps field below changes that); a longer row goes on over the next bars.' }));
+  box.append(tools, el('div', { className: 'row note-row' }, [el('span', { className: 'note', textContent: 'Click a step to change it.' }), infoNote('Click a step: rest, hit (x), accent (X), ghost note (o). Shift+click gives an exact velocity (digits 3, 5, 7, 9). A bar has ' + W + ' steps (the steps field below changes that); a longer row goes on over the next bars.', 'Step keys and bar length')]));
   [['steps', 'Steps in a bar. A step lasts a bar divided by this: with 8 the pattern plays at half speed, with 32 at double speed, whatever the tempo of the song is.'], ['swing', 'How far the odd steps are pushed later (percent of a step).'], ['humanize', 'A little variation in volume and timing; the same song always sounds the same.']].forEach(([key, tip]) => {
     box.append(el('div', { className: 'prop' }, [el('label', { textContent: key, title: tip }), numberField({ value: key === 'steps' ? String(W) : (param(n, key, '0') || '0'), range: rangeOf(key), disabled: locked, title: tip, onCommit: (text) => edit([{ type: 'setParameter', block: n.id, name: key, value: text }]) })]));
   });
@@ -275,7 +276,7 @@ export async function renderStrum(pad, n, locked) {
   const voicing = el('select', { disabled: locked, title: 'How the chord is spread over the strings' }, ['open', 'triad', 'power'].map((v) => el('option', { value: v, textContent: v, selected: v === (param(n, 'voicing', 'open') || 'open') })));
   voicing.onchange = () => edit([{ type: 'setParameter', block: n.id, name: 'voicing', value: voicing.value }]);
   tools.append(el('label', { className: 'note', textContent: 'voicing', style: 'margin:0 4px' }), voicing);
-  box.append(tools, el('p', { className: 'note', textContent: 'Click a step: let it ring, down D, soft down d, up U, soft up u, mute x. The strings sound one after the other (stagger). A bar has ' + W + ' steps.' }));
+  box.append(tools, el('div', { className: 'row note-row' }, [el('span', { className: 'note', textContent: 'Click a step to change it.' }), infoNote('Click a step: let it ring, down D, soft down d, up U, soft up u, mute x. The strings sound one after the other (stagger). A bar has ' + W + ' steps.', 'Strum keys and bar length')]));
   [['steps', 'Steps in a bar. A step lasts a bar divided by this: with 8 the strum plays at half speed, with 32 at double speed, whatever the tempo of the song is.', String(W)], ['stagger', 'Milliseconds between the strings of one strum.', '22'], ['gain', 'Loudness in decibels.', '0']].forEach(([key, tip, fallback]) => {
     box.append(el('div', { className: 'prop' }, [el('label', { textContent: key, title: tip }), numberField({ value: param(n, key, fallback) || fallback, range: rangeOf(key), disabled: locked, title: tip, onCommit: (text) => edit([{ type: 'setParameter', block: n.id, name: key, value: text }]) })]));
   });

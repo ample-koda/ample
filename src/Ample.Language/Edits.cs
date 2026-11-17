@@ -768,7 +768,7 @@ public static class Edits
         if (h is null) return EditResult.Refuse($"There is no helper named \"{oldName}\".");
         if (!System.Text.RegularExpressions.Regex.IsMatch(newName, "^[A-Za-z_][A-Za-z0-9_]*$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1))) return EditResult.Refuse("A helper name is letters, digits and underscores, starting with a letter (lowerCamelCase).");
         if (doc.Helpers.Any(x => !ReferenceEquals(x, h) && string.Equals(x.Name, newName, StringComparison.OrdinalIgnoreCase))) return EditResult.Refuse($"Two declarations would be called \"{newName}\".");
-        if (NoteCatalog.Signatures.ContainsKey(newName) || newName is "Int" or "Float" or "Round" or "Floor" or "Ceil" or "Truncate" or "count" or "span" or "min" or "max" or "abs" or "at" or "len" or "Note" or "currentTime" or "currentDate" or "osRandom" or "environment") return EditResult.Refuse($"\"{newName}\" is the name of an operator or a built-in.");
+        if (NoteCatalog.Signatures.ContainsKey(newName) || newName is "Int" or "Float" or "String" or "sprintf" or "Round" or "Floor" or "Ceil" or "Truncate" or "count" or "span" or "min" or "max" or "abs" or "at" or "len" or "Note" or "currentTime" or "currentDate" or "osRandom" or "environment") return EditResult.Refuse($"\"{newName}\" is the name of an operator or a built-in.");
         return new EditResult([.. Queries.HelperOccurrences(doc, h).Select(l => new TextEdit(l.Line, l.Col, l.Line, l.EndCol, newName))], null);
     }
 

@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Plays a bass line on the notes it receives, using the sounds of a sample set (the default is analog-808) and a bass pattern. It needs notes as input and gives audio.",
   "inputs": [

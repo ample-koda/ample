@@ -53,7 +53,7 @@ test('local effect graphs connect each supported effect to output with mapped va
       assert.equal(context.created[0].threshold.value, -21);
       assert.equal(context.created[0].ratio.value, 5);
     }
-    if (type === 'filter') assert.equal(context.created[0].frequency.value, 1700);
+    if (type === 'filter') assert.ok(Math.abs(context.created[0].frequency.value - 1700 * 1.554) < 1e-6);   // the offline render of the plain filter is the one second-order section of the server's pair of one-poles: 1.554 times the cutoff (live-filter-law.mjs)
     if (type === 'duck') assert.ok(context.created[0].gain.events.length > 0);
     if (type === 'chorus') {
       assert.equal(context.created[0].delayTime.value, 0.02);   // the fixed 20 ms base delay, matching the server's ModDelay(x, rate, 20, ...)

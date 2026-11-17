@@ -32,6 +32,15 @@ export interface ServerOptions {
   firstRun?: boolean;
 }
 
+/** The audio packs of this user (the General MIDI bank among them): every server gets its own empty home, so without this the packs of the PC
+ * are not found and every spec that plays General MIDI fails with AMP5311. The folder is only read; the clean-up removes only the temporary project and home. */
+function userPacks(): Record<string, string> {
+  if (process.env.AMPLE_PACKS) return {};
+  const local = process.env.LOCALAPPDATA || (process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Application Support') : path.join(os.homedir(), '.local', 'share'));
+  const packs = path.join(local, 'AMPLE', 'audio-packs');
+  return fs.existsSync(packs) ? { AMPLE_PACKS: packs } : {};
+}
+
 export async function startServer(options: ServerOptions = {}): Promise<{ launch: string; folder: string; home: string; stop: () => Promise<void> }> {
   const dll = cliDll();
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ample-web-'));
@@ -45,8 +54,12 @@ export async function startServer(options: ServerOptions = {}): Promise<{ launch
     fs.writeFileSync(path.join(folder, rel), text);
   }
 
-  if (options.prepare) options.prepare((...args) => { const r = spawnSync('dotnet', [dll, ...args], { encoding: 'utf8', env: { ...process.env, ...options.env, AMPLE_HOME: home } }); if (r.status !== 0) throw new Error(`ample ${args.join(' ')} failed: ${r.stdout}${r.stderr}`); }, folder);
-  const child: ChildProcess = spawn('dotnet', [dll, 'serve', '--project', folder, '--root', ample, '--no-browser'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...options.env, AMPLE_HOME: home } });
+  const env = { ...process.env, ...userPacks(), ...options.env, AMPLE_HOME: home };
+  if (options.prepare) options.prepare((...args) => {
+    const r = spawnSync('dotnet', [dll, ...args], { encoding: 'utf8', env });
+    if (r.status !== 0) throw new Error(`ample ${args.join(' ')} failed: ${r.stdout}${r.stderr}`);
+  }, folder);
+  const child: ChildProcess = spawn('dotnet', [dll, 'serve', '--project', folder, '--root', ample, '--no-browser'], { stdio: ['ignore', 'pipe', 'pipe'], env });
   const launch: string = await new Promise((resolve, reject) => {
     let out = '';
     const timer = setTimeout(() => reject(new Error(`ample serve did not start: ${out}`)), 30000);

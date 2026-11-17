@@ -1,6 +1,8 @@
 // The live mixer of a mixer or bus block: one gain and one balance per input lane, a sum, and (bus) one gain, a mute and the song-wide solo. Persistent Web Audio nodes: a fader
 // only sets AudioParams, so it is heard while it moves. The numbers are those of the server (Renderers.cs Mixer, PanTable): gains in whole dB, pan l/c/r or -32..32 per input.
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+/** A whole number as the server reads it (int.TryParse): an optional sign and digits only. "-12.041", "6dB" or "x" are not numbers there, and the lane then gets 0. */
+export const wholeNumber = (token) => (/^\s*[+-]?\d{1,9}\s*$/.test(String(token ?? '')) ? Number.parseInt(token, 10) : null);
 const words = (value, fallback) => String(value ?? fallback).replace(/^"|"$/g, '').trim().split(/\s+/).filter(Boolean);
 
 /** The pan of one lane as -32..32: l and left are -32, r and right 32, c, centre and center 0, or a number. */
@@ -8,8 +10,8 @@ export function panValue(token) {
   const text = String(token ?? 'c').toLowerCase();
   if (text === 'l' || text === 'left') return -32;
   if (text === 'r' || text === 'right') return 32;
-  const number = Number.parseInt(text, 10);
-  return Number.isFinite(number) ? clamp(number, -32, 32) : 0;
+  const number = wholeNumber(text);
+  return number === null ? 0 : clamp(number, -32, 32);
 }
 
 /** Left and right scale of a lane for a pan, like the offline balance: the far side gets quieter, the near side is left alone (equal power around the centre). */
@@ -18,10 +20,18 @@ export function balanceGains(pan) {
   return { left: pan > 0 ? Math.cos(position * Math.PI / 2) / Math.cos(Math.PI / 4) : 1, right: pan < 0 ? Math.sin(position * Math.PI / 2) / Math.sin(Math.PI / 4) : 1 };
 }
 
-/** The lane settings of a mixer block's parameters: [{ gainDb, pan }] for `lanes` lanes. */
+/** Which inputs of a mixer are heard, from its `mutes` and `solos` (one on/off per input, as the server: a mute wins over a solo, any solo silences the inputs without one). */
+export function audibleLanes(params, lanes) {
+  const on = (list, k) => String(list[k] ?? 'off').toLowerCase() === 'on';
+  const mutes = words(params.mutes, 'off'), solos = words(params.solos, 'off');
+  const anySolo = Array.from({ length: 16 }, (_, k) => on(solos, k)).some(Boolean);
+  return Array.from({ length: lanes }, (_, k) => !on(mutes, k) && (!anySolo || on(solos, k)));
+}
+
+/** The lane settings of a mixer block's parameters: [{ gainDb, pan, audible }] for `lanes` lanes. */
 export function laneSettings(params, lanes) {
-  const gains = words(params.gains, '0'), pans = words(params.pan, 'c');
-  return Array.from({ length: lanes }, (_, k) => ({ gainDb: clamp(Number.parseInt(gains[k], 10) || 0, -60, 48), pan: panValue(pans[k]) }));
+  const gains = words(params.gains, '0'), pans = words(params.pan, 'c'), audible = audibleLanes(params, lanes);
+  return Array.from({ length: lanes }, (_, k) => ({ gainDb: clamp(wholeNumber(gains[k]) ?? 0, -60, 48), pan: panValue(pans[k]), audible: audible[k] }));
 }
 
 /** Whether a bus is silent: its own mute, or another bus has solo and this one has not. */
@@ -70,10 +80,10 @@ export function mixerGraph(context, lanes, { bus = false } = {}) {
     splitter.connect(left, 0); splitter.connect(right, 1); left.connect(merger, 0, 0); right.connect(merger, 0, 1); merger.connect(master);
     return { input, gain, left, right };
   });
-  const setLane = (k, { gainDb, pan }) => {
+  const setLane = (k, { gainDb, pan, audible = true }) => {
     const strip = strips[k]; if (!strip) return;
     const { left, right } = balanceGains(pan);
-    smooth(strip.gain.gain, 10 ** (gainDb / 20)); smooth(strip.left.gain, left); smooth(strip.right.gain, right);
+    smooth(strip.gain.gain, audible ? 10 ** (gainDb / 20) : 0); smooth(strip.left.gain, left); smooth(strip.right.gain, right);
   };
   const update = (params, { anySolo = false } = {}) => {
     laneSettings(params, lanes).forEach((lane, k) => setLane(k, lane));

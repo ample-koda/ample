@@ -1,0 +1,225 @@
+composition "Watch it think" { ample 1  tempo 112  master-seed 20261117 }
+
+# WATCH IT THINK: a short, warm groove (24 bars, about 50 seconds) whose helpers explain themselves while they work.
+# It plays the same music whatever you ask it to show: logging and assertions never change a single note.
+#
+# How to look inside:
+#   1. Build the song once and listen. The Problems tab shows one warning (warn: always kept).
+#   2. Open the Song log tab, set Log level to info and build again: the log lines appear (log).
+#   3. Set it to debug: the values the helpers work with appear too (debug); trace adds every round of a loop.
+#   4. Set Assertions to on and build: the assert lines are checked (they pass here). Change a TRY line to see one fail.
+#
+#   log     a line of information          kept from the level info
+#   debug   a value while you build it      kept from the level debug
+#   trace   every round, every step         kept only at trace
+#   warn    something worth a look          always kept, also a warning in Problems
+#   assert  a rule that must hold           checked only when Assertions is on; a false one fails the build
+#   require what a helper needs from its caller: a false one is an error a try can catch
+#   try / catch  plan B when something fails, the music goes on
+#
+# The messages are built three ways (all three read a value the same way):
+#   "lifted " + 5 + " semitones"           + joins a text with a number
+#   "room " + String(35%)                  String(...) turns any single value into text
+#   sprintf("round %d / %d", 2, 8)         sprintf fills placeholders: %d whole, %.2f decimals, %s anything, %% a percent sign
+
+# An error of our own, with the voice that was asked for.
+error MissingVoiceError extends Error { Int voice }
+
+/**
+ * The chorus: the riff lifted by a number of semitones.
+ * @param riff the notes to lift
+ * @param lift how far, 0 to 12 semitones
+ */
+helper chorus(Notes riff, Int lift) -> Notes {
+  require lift >= 0 && lift <= 12, "the lift is 0 to 12 semitones"
+  let plan = {lift: lift, octaveSafe: lift < 12}
+  debug sprintf("plan: lift %d of 12 (%.0f%% of an octave), %d notes in", lift, lift * 100 / 12, count(riff)), context=plan
+  # TRY: change the 12 below to 4 and build with Assertions on: the assert fails and says why.
+  assert lift <= 12, "the chorus stays inside an octave"
+  log "chorus lifted " + lift + " semitones", context={semitones: lift}
+  return riff |> transpose(lift)
+}
+
+/**
+ * An arpeggio that climbs: the chord again and again, one step higher each round.
+ * @param chord the notes of one bar
+ * @param rounds how many bars
+ */
+helper climb(Notes chord, Int rounds) -> Notes {
+  for i in 0..rounds {
+    trace sprintf("round %d / %d: up %02d semitones", i + 1, rounds, i * 2)
+    emit chord |> transpose(i * 2) |> shift(1bar * i)
+  }
+}
+
+/**
+ * A pad voicing by number; a voice that does not exist falls back to the first one (try / catch).
+ * @param voice 0 to 3
+ */
+helper voicing(Int voice) -> Notes {
+  try {
+    if voice > 3 {
+      throw MissingVoiceError("there are four voicings (0 to 3)", voice=voice)
+    }
+    return padChords.notes |> transpose(voice * 3)
+  } catch (MissingVoiceError e) {
+    # TRY: change the 5 in the block padHigh to 2: the warning goes away and the pad moves up.
+    warn "voicing " + e.voice + " does not exist (there are 4): playing voicing 0", code="VOICE_FALLBACK", context={asked: e.voice}
+    return padChords.notes
+  }
+}
+
+# ---- the cells ---------------------------------------------------------------------------------
+
+midi-clip riff at 1 for 4 {
+  notes "1:0:1:69:96 1:1:0.5:72:84 1:1.5:0.5:76:88 1:2:1:74:92 1:3:1:72:86 2:0:1:69:94 2:1:0.5:67:80 2:1.5:0.5:69:84 2:2:2:72:90 3:0:1:64:82 3:1:1:67:86 3:2:2:69:96 4:0:1:72:84 4:1:1:71:80 4:2:2:69:90"
+}
+
+midi-clip padChords at 1 for 4 {
+  notes "1:0:4:57:70 1:0:4:60:70 1:0:4:64:70 2:0:4:57:70 2:0:4:60:70 2:0:4:65:70 3:0:4:55:70 3:0:4:60:70 3:0:4:64:70 4:0:4:55:70 4:0:4:59:70 4:0:4:62:70"
+}
+
+midi-clip arpCell at 1 for 1 {
+  notes "1:0:0.5:57:78 1:0.5:0.5:60:72 1:1:0.5:64:76 1:1.5:0.5:60:70 1:2:0.5:57:78 1:2.5:0.5:60:72 1:3:0.5:64:76 1:3.5:0.5:67:74"
+}
+
+midi-clip groove at 1 for 1 {
+  notes "1:0:0.25:36:112 1:1:0.25:38:96 1:2:0.25:36:106 1:2.5:0.25:36:84 1:3:0.25:38:100 1:0:0.2:42:60 1:0.5:0.2:42:48 1:1:0.2:42:60 1:1.5:0.2:42:48 1:2:0.2:42:60 1:2.5:0.2:42:48 1:3:0.2:42:60 1:3.5:0.2:46:62"
+}
+
+midi-clip bassLine at 1 for 4 {
+  notes "1:0:1.5:45:96 1:1.5:0.5:45:80 1:2:1:40:88 1:3:1:45:92 2:0:1.5:41:96 2:1.5:0.5:41:80 2:2:1:48:88 2:3:1:41:90 3:0:1.5:36:96 3:1.5:0.5:36:80 3:2:1:43:88 3:3:1:48:90 4:0:1.5:43:96 4:1.5:0.5:43:80 4:2:1:50:88 4:3:1:43:92"
+}
+
+# ---- the arrangement: the helpers at work --------------------------------------------------------
+
+# bars 1-8: the riff and the pad; bars 9-16: the chorus, lifted; bars 17-24: the climbing arpeggio over everything
+midi-clip leadA at 1 for 8 {
+  notes riff.notes |> concat(riff.notes)
+}
+
+# TRY: change the 5 to 7 (a fifth up) or 12 (an octave up). 13 is too far: require stops the build with a clear error.
+midi-clip leadB at 9 for 8 {
+  notes riff.notes |> chorus(5) |> concat(riff.notes |> chorus(5))
+}
+
+midi-clip leadC at 17 for 8 {
+  notes riff.notes |> concat(riff.notes |> chorus(3))
+}
+
+midi-clip padLow at 1 for 16 {
+  notes voicing(0) |> concat(voicing(0)) |> concat(voicing(1)) |> concat(voicing(1))
+}
+
+midi-clip padHigh at 17 for 8 {
+  notes voicing(5) |> concat(voicing(2))
+}
+
+midi-clip arps at 17 for 8 {
+  notes climb(arpCell.notes, 8)
+}
+
+midi-clip drumLoop at 1 for 24 {
+  notes groove.notes |> repeat(24)
+}
+
+midi-clip bassAll at 1 for 24 {
+  notes bassLine.notes |> repeat(6)
+}
+
+# ---- the instruments (General MIDI) ---------------------------------------------------------------
+
+gm lead at 1 for 8 {
+  file pack:musescore-general
+  program 5
+  gain -10 dB
+  from leadA.notes -> notes
+}
+
+gm leadEnd at 17 for 8 {
+  file pack:musescore-general
+  program 5
+  gain -10 dB
+  from leadC.notes -> notes
+}
+
+gm leadChorus at 9 for 8 {
+  file pack:musescore-general
+  program 5
+  gain -10 dB
+  from leadB.notes -> notes
+}
+
+gm pad at 1 for 24 {
+  file pack:musescore-general
+  program 89
+  gain -16 dB
+  from padLow.notes -> notes
+}
+
+gm padTop at 17 for 8 {
+  file pack:musescore-general
+  program 89
+  gain -16 dB
+  from padHigh.notes -> notes
+}
+
+gm sparkle at 17 for 8 {
+  file pack:musescore-general
+  program 11
+  gain -14 dB
+  from arps.notes -> notes
+}
+
+gm bass at 1 for 24 {
+  file pack:musescore-general
+  program 33
+  gain -9 dB
+  from bassAll.notes -> notes
+}
+
+gm drums at 1 for 24 {
+  file pack:musescore-general
+  program 0
+  channel 9
+  gain -9 dB
+  from drumLoop.notes -> notes
+}
+
+# ---- an audio component that reports what it does ---------------------------------------------
+
+# The room: a reverb whose size is a knob. With Log level debug the Song log shows the size each time the song is built.
+component koda.watch.room version 1.0.0 current {
+  id "demo.koda.watch.room"
+  input audio: Audio
+  property size: Percent = 35%
+  output audio: Audio
+  process {
+    debug "room size " + String(size) + ", mix 20%"
+    emit audio
+      |> reverb(size=size, mix=20%)
+  }
+}
+
+mixer band {
+  inputs 8
+  gains "0 0 0 0 0 0 0 0"
+  from lead.audio -> audio1
+  from leadChorus.audio -> audio2
+  from pad.audio -> audio3
+  from padTop.audio -> audio4
+  from sparkle.audio -> audio5
+  from bass.audio -> audio6
+  from drums.audio -> audio7
+  from leadEnd.audio -> audio8
+}
+
+# TRY: size 80% for a big hall, 10% for a small room.
+koda.watch.room room {
+  size 35%
+  from band.audio -> audio
+}
+
+master out {
+  from room.audio -> audio
+}

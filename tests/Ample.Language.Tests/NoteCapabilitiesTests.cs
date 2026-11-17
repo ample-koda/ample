@@ -145,23 +145,88 @@ public sealed class NoteCapabilitiesTests
     }
 
     [Fact]
-    public void The_project_layer_of_the_host_is_used_by_every_parse()
+    public void A_parse_has_only_the_project_layer_it_is_given()
     {
+        // the project layer travels with the parse: there is no shared layer a parse could pick up from another project
         string song = "composition \"x\" { ample 1  tempo 100  master-seed 1 }\n\nmidi-clip a at 1 for auto {\n  notes \"1:0:1:60:100\"\n}\n";
-        try
+        AmpleDocument narrowed = Parser.Parse(song, Corpus.Spec, new ParseOptions { ProjectCapabilities = new Dictionary<string, string> { ["clock"] = "off" } });
+        Assert.False(narrowed.CapabilityPolicy.Allowed("clock"));
+        Assert.Contains("project", narrowed.Capabilities.First(c => c.Name == "clock").Reason, StringComparison.Ordinal);
+        Assert.True(Parser.Parse(song, Corpus.Spec).CapabilityPolicy.Allowed("clock"));   // the next parse without a project layer is not affected
+        Assert.Null(typeof(ServerCapabilities).GetProperty("Project"));   // and there is no process-wide project layer to set
+    }
+
+    [Fact]
+    public void Parses_of_projects_with_different_policies_at_the_same_time_keep_their_own()
+    {
+        string song = "composition \"x\" { ample 1  tempo 100  master-seed 1 }\n";
+        Dictionary<string, string> open = new() { ["environment"] = "on" }, closed = new() { ["clock"] = "off" };
+        bool[] wrong = new bool[3];
+        Parallel.For(0, 300, i =>
         {
-            ServerCapabilities.Project = new Dictionary<string, string> { ["clock"] = "off" };
-            AmpleDocument doc = Parser.Parse(song, Corpus.Spec);
-            Assert.False(doc.CapabilityPolicy.Allowed("clock"));
-            Assert.Contains("project", doc.Capabilities.First(c => c.Name == "clock").Reason, StringComparison.Ordinal);
-        }
-        finally
-        {
-            ServerCapabilities.Project = null;
-        }
+            int kind = i % 3;   // 0: environment on, 1: clock off, 2: no project layer
+            AmpleDocument doc = Parser.Parse(song, Corpus.Spec, new ParseOptions { ServerCapabilities = ServerCapabilities.Local, ProjectCapabilities = kind == 0 ? open : kind == 1 ? closed : null });
+            bool environment = doc.CapabilityPolicy.Allowed("environment"), clock = doc.CapabilityPolicy.Allowed("clock");
+            bool expected = kind switch { 0 => environment && clock, 1 => !environment && !clock, _ => !environment && clock };
+            if (!expected) wrong[kind] = true;
+        });
+        Assert.Equal([false, false, false], wrong);
+    }
+
+    // ---- the project layer from .ample/project.json (settings.capabilities)
+
+    private static AmpleDocument WithProject(string song, Dictionary<string, string>? project, ServerCapabilities? server = null) =>
+        Parser.Parse(song, Corpus.Spec, new ParseOptions { ApplyNoteFlow = true, ServerCapabilities = server ?? ServerCapabilities.Local, ProjectCapabilities = project, Environment = name => name == "AMPLE_KEY" ? "7" : null });
+
+    [Fact]
+    public void Without_project_capabilities_the_policy_is_what_it_was()
+    {
+        AmpleDocument none = WithProject(Head + Secret + Clip, null), empty = WithProject(Head + Secret + Clip, []);
+        Assert.Equal(none.Capabilities, empty.Capabilities);
+        Assert.Contains(none.Diagnostics, d => d.Code == "AMP2077");   // environment stays off by default
+        Assert.DoesNotContain(none.Diagnostics, d => d.Code == "AMP2097");
+    }
+
+    [Fact]
+    public void A_project_that_switches_on_a_capability_that_is_off_by_default_says_so_in_every_song()
+    {
+        AmpleDocument doc = WithProject(Head + Secret + Clip, new() { ["environment"] = "on" });
+        Assert.DoesNotContain(doc.Diagnostics, d => d.Severity == Severity.Error);
+        Diagnostic notice = Assert.Single(doc.Diagnostics, d => d.Code == "AMP2097");
+        Assert.Equal(Severity.Info, notice.Severity);
+        Assert.Contains("environment", notice.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(WithProject(Head + Secret + Clip, new() { ["clock"] = "on" }).Diagnostics, d => d.Code == "AMP2097");   // on by default anyway: nothing to say
+    }
+
+    [Fact]
+    public void A_project_can_never_switch_on_what_the_server_forbids_and_a_song_can_still_narrow()
+    {
+        AmpleDocument forbidden = WithProject(Head + Secret + Clip, new() { ["environment"] = "on" }, Forbid("environment"));
+        Assert.False(State(forbidden, "environment").Effective);
+        Assert.Contains(forbidden.Diagnostics, d => d.Code == "AMP2076" && d.Message.StartsWith("In the project file (.ample/project.json):", StringComparison.Ordinal) && d.Message.Contains("server policy", StringComparison.Ordinal));
+        Assert.DoesNotContain(forbidden.Diagnostics, d => d.Code == "AMP2097");
+        AmpleDocument narrowed = WithProject(Head + "settings { capabilities.environment off }\n" + Secret + Clip, new() { ["environment"] = "on" });
+        Assert.False(State(narrowed, "environment").Effective);
+        Assert.DoesNotContain(narrowed.Diagnostics, d => d.Code == "AMP2097");
+        AmpleDocument locked = WithProject(Head + "settings { capabilities.environment on }\n", new() { ["environment"] = "off" });
+        Assert.False(State(locked, "environment").Effective);   // off in the project is a one-way door for its songs
+        Assert.Contains(locked.Diagnostics, d => d.Code == "AMP2076");
+    }
+
+    [Theory]
+    [InlineData("environment", "yes")]
+    [InlineData("enviroment", "on")]
+    [InlineData("network.allow", "example.com")]
+    public void A_wrong_project_capability_is_a_clear_error_that_names_the_project_file(string name, string value)
+    {
+        AmpleDocument doc = WithProject(Head, new() { [name] = value });
+        Diagnostic problem = Assert.Single(doc.Diagnostics, d => d.Code == "AMP2076");
+        Assert.Equal(Severity.Error, problem.Severity);
+        Assert.StartsWith("In the project file (.ample/project.json):", problem.Message, StringComparison.Ordinal);
+        Assert.All(doc.Capabilities, c => Assert.Equal(ServerCapabilities.Local.DefaultOn.Contains(c.Name), c.Effective));   // nothing is applied
     }
 }
 
-/// <summary>One test sets the static project layer of the host (ServerCapabilities.Project): it must not run beside tests that parse songs that use the clock.</summary>
+/// <summary>Some tests here change the server ceiling of the host (ServerCapabilities.Current): they must not run beside each other. The project layer is no longer shared (it travels with each parse).</summary>
 [CollectionDefinition("Static host capability layer", DisableParallelization = true)]
 public sealed class StaticHostCapabilityLayer;

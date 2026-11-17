@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Blank audio: nothing to hear, as long as you say (silence(10s)) or, with auto, as long as the block that holds it. Use it where a branch of a component has no sound, so a mix or an effect still has something to take.",
   "inputs": [],

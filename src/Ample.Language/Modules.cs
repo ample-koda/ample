@@ -194,6 +194,15 @@ public delegate ModuleSource? ModuleResolver(string name);
 /// <param name="Components">The components the song used (their hashes are what a song pins), or null when it used none.</param>
 public sealed record ExpandedSong(string Text, IReadOnlyList<ModuleDiagnostic> Diagnostics, IReadOnlyList<ModuleUsage> Used, IReadOnlyList<int> LineOrigin, IReadOnlyList<ComponentUsage>? Components = null)
 {
+    /// <summary>Gets the observation options of the component instances by instance name (never parameters of a block).</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<BlockDirective>> Directives { get; init; } = new Dictionary<string, IReadOnlyList<BlockDirective>>();
+
+    /// <summary>Gets the original process sites of imported Notes component helpers.</summary>
+    public IReadOnlyDictionary<string, SourceSite> ObservationHelperSites { get; init; } = new Dictionary<string, SourceSite>();
+
+    /// <summary>Gets the events of the expansion (the warnings of audio processes).</summary>
+    public IReadOnlyList<LogEvent> Observations { get; init; } = [];
+
     /// <summary>The prefix of the name of a component in the list of things a song pins (<c>component:&lt;canonical id&gt;</c>, with the semantic hash as its hash).</summary>
     public const string ComponentPrefix = "component:";
 
@@ -218,18 +227,20 @@ public static class ModuleExpander
     /// <param name="spec">The language data.</param>
     /// <param name="resolve">Finds module files.</param>
     /// <param name="components">The files components can come from (resolved imports), or null.</param>
+    /// <param name="session">The session layer of the observation options, or null.</param>
     /// <returns>The expanded song.</returns>
-    public static ExpandedSong Expand(string songText, SpecData spec, ModuleResolver resolve, IReadOnlyList<ComponentSource>? components = null)
+    /// <param name="project">The project layer of the observation options, or null.</param>
+    public static ExpandedSong Expand(string songText, SpecData spec, ModuleResolver resolve, IReadOnlyList<ComponentSource>? components = null, ConfigLayerInput? session = null, ConfigLayerInput? project = null)
     {
-        ExpandedSong result = ExpandWithComponents(songText, spec, resolve, components);
+        ExpandedSong result = ExpandWithComponents(songText, spec, resolve, components, session, project);
         // what the expanders write uses the internal port names (in, out, mix); the text that the build reads uses the stream names (lint L010)
         return string.Equals(result.Text, songText, StringComparison.Ordinal) ? result : result with { Text = AmpleMigration.RenamePorts(result.Text, spec) };
     }
 
-    private static ExpandedSong ExpandWithComponents(string songText, SpecData spec, ModuleResolver resolve, IReadOnlyList<ComponentSource>? components)
+    private static ExpandedSong ExpandWithComponents(string songText, SpecData spec, ModuleResolver resolve, IReadOnlyList<ComponentSource>? components, ConfigLayerInput? session, ConfigLayerInput? project)
     {
         ExpandedSong modules = ExpandModules(songText, spec, resolve);
-        ComponentExpansion expanded = ComponentExpander.Expand(modules.Text, spec, components);
+        ComponentExpansion expanded = ComponentExpander.Expand(modules.Text, spec, components, session, project);
         if (ReferenceEquals(expanded.Text, modules.Text) && expanded.Used.Count == 0 && expanded.Diagnostics.Count == 0) return modules;
         int Origin(int line) => modules.LineOrigin.Count == 0 ? line : modules.LineOrigin[Math.Clamp(line, 0, modules.LineOrigin.Count - 1)];
         return new ExpandedSong(
@@ -237,7 +248,12 @@ public static class ModuleExpander
             [.. modules.Diagnostics, .. expanded.Diagnostics.Select(d => d with { Line = Origin(d.Line) })],
             modules.Used,
             [.. expanded.LineOrigin.Select(Origin)],
-            expanded.Used);
+            expanded.Used)
+        {
+            Directives = expanded.Directives,
+            ObservationHelperSites = expanded.ObservationHelperSites,
+            Observations = expanded.Observations,
+        };
     }
 
     private static ExpandedSong ExpandModules(string songText, SpecData spec, ModuleResolver resolve)

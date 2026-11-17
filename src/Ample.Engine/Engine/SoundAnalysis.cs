@@ -8,6 +8,12 @@ namespace Ample.Engine.Engine;
 /// <summary>One thing the sound check found. <see cref="Fix"/> says what can be done about it: <c>normalize</c>, <c>volume:-6</c> (a volume block with that gain), or null.</summary>
 public sealed record SoundFinding(string Severity, string Code, string Block, string Message, string? Fix);
 
+/// <summary>Where the soft knee of a block output (FixedAudio.Limit) starts and from which output a sample was louder than full scale before it.</summary>
+file static class SoftKnee
+{
+    public const int Knee = 30_000;
+}
+
 /// <summary>X03: the master's own peak, RMS and integrated loudness, always available (not only when a <see cref="SoundFinding"/> flags it as too loud or
 /// too quiet) so a UI meter can show the master's level after every build.</summary>
 public sealed record MasterLevels(double PeakDbfs, double RmsDbfs, double? Lufs);
@@ -18,6 +24,24 @@ public sealed record MasterLevels(double PeakDbfs, double RmsDbfs, double? Lufs)
 /// </summary>
 public static class SoundAnalysis
 {
+    /// <summary>The output from which a sample of a block was louder than full scale before the soft knee pressed it down (about +0.1 dB).</summary>
+    internal const int SoftenedFrom = 31_500;
+
+    /// <summary>How many dB a block went over full scale before the soft knee of its output (FixedAudio.Limit) pressed it under, from the loudest
+    /// sample it wrote; null when no sample shows it. The knee is linear up to 30000 and then maps an excess e to 30000 + e * 2767 / (e + 2767).</summary>
+    /// <param name="samples">The samples the block wrote.</param>
+    /// <returns>The dB over full scale, or null.</returns>
+    public static double? OverFullScaleDb(IReadOnlyList<short> samples)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        int loudest = 0;
+        foreach (short v in samples) loudest = Math.Max(loudest, Math.Abs((int)v));
+        if (loudest < SoftenedFrom || loudest >= short.MaxValue) return null;   // full scale itself is a clip (sound.clips)
+        const double range = short.MaxValue - SoftKnee.Knee;
+        double above = loudest - SoftKnee.Knee, excess = range * above / (range - above);
+        return 20 * Math.Log10((SoftKnee.Knee + excess) / short.MaxValue);
+    }
+
     /// <summary>Looks at the takes of a build report.</summary>
     public static async Task<(IReadOnlyList<SoundFinding> Findings, MasterLevels? Master)> AnalyseAsync(AmpleDocument doc, SpecData spec, Takebank bank, BuildReport report, CancellationToken token)
     {
@@ -95,6 +119,17 @@ public static class SoundAnalysis
             {
                 double lower = Math.Max(1, Math.Ceiling(peak + 3));
                 findings.Add(new SoundFinding(isMaster ? "error" : "warning", "sound.clips", block.Name, $"clips or touches full scale (peak {AudioMeter.Format(peak)}, {clipped.ToString(CultureInfo.InvariantCulture)} clipped samples); lower it by at least {lower.ToString("F0", CultureInfo.InvariantCulture)} dB", $"volume:{(-lower).ToString("F0", CultureInfo.InvariantCulture)}"));
+            }
+            else if (!isMaster && OverFullScaleDb(all) is { } over)
+            {
+                // the block's own sum was louder than 16 bits allow: the soft knee of its output (FixedAudio.Limit) pressed it under full scale,
+                // so the peak looks fine but the loud parts are bent, which sounds like crackle (Overclocked Sunrise, 2026-11-17)
+                int softened = all.Count(v => Math.Abs((int)v) >= SoftenedFrom);
+                double lower = Math.Max(1, Math.Ceiling(over + 1));
+                string overText = over.ToString("F1", CultureInfo.InvariantCulture), lowerText = lower.ToString("F0", CultureInfo.InvariantCulture);
+                string message = $"goes about {overText} dB over full scale inside the block: its output is softened in "
+                    + $"{softened.ToString(CultureInfo.InvariantCulture)} samples, which sounds like crackle; lower its gains (or what feeds it) by at least {lowerText} dB";
+                findings.Add(new SoundFinding("warning", "sound.over-full-scale", block.Name, message, null));
             }
 
             if (isMaster)

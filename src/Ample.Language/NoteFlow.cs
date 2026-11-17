@@ -43,15 +43,43 @@ public static class NoteFlow
     /// <param name="environment">How environment(name) reads a value, or null.</param>
     /// <param name="isComponent">Whether a block is an instance of a component, or null. In the editors (no <paramref name="midiSource"/>) the notes of an instance are a placeholder so that the rest of the pipeline can be checked; the build and the bake read the expanded song, where an instance is a clip.</param>
     /// <param name="beatsPerBar">The beats of a bar in quarter notes (4 in 4/4; the meter of the song).</param>
+    /// <param name="observations">The optional sink shared by the roots of this analysis.</param>
+    /// <param name="observationOptions">Resolves the options of a block's observation session.</param>
+    /// <param name="observationHelperSites">The source of expanded component helpers.</param>
     /// <returns>The entries by block name.</returns>
 #pragma warning disable CA1068 // the cancellation token stays where the callers put it
-    public static IReadOnlyDictionary<string, FlowEntry> Analyze(IReadOnlyList<BlockNode> blocks, string tempo, int limit, Func<string, string?>? readFile, string? stopBlock = null, string? stopAt = null, Func<BlockNode, PipeValue?>? midiSource = null, ulong masterSeed = 0, CancellationToken cancellation = default, NotePipeline.HelperTable? helpers = null, LangLimits? limits = null, Func<DateTime>? clock = null, CapabilityPolicy? capabilities = null, Func<string, string?>? environment = null, Func<BlockNode, bool>? isComponent = null, double beatsPerBar = 4.0)
+    public static IReadOnlyDictionary<string, FlowEntry> Analyze(
+        IReadOnlyList<BlockNode> blocks, string tempo, int limit, Func<string, string?>? readFile,
+        string? stopBlock = null, string? stopAt = null, Func<BlockNode, PipeValue?>? midiSource = null,
+        ulong masterSeed = 0, CancellationToken cancellation = default, NotePipeline.HelperTable? helpers = null,
+        LangLimits? limits = null, Func<DateTime>? clock = null, CapabilityPolicy? capabilities = null,
+        Func<string, string?>? environment = null, Func<BlockNode, bool>? isComponent = null, double beatsPerBar = 4.0,
+        ObservationSink? observations = null, Func<BlockNode, ObservationConfig>? observationOptions = null,
+        IReadOnlyDictionary<string, SourceSite>? observationHelperSites = null)
 #pragma warning restore CA1068
     {
         using IDisposable meterScope = NotePipeline.UseMeter((decimal)beatsPerBar);
         Dictionary<string, FlowEntry> done = new(StringComparer.Ordinal);
         HashSet<string> active = new(StringComparer.Ordinal);
+        NotePipeline.AssertionBudget assertions = new();
         BlockNode? Clip(string name) => blocks.FirstOrDefault(b => !b.Skipped && b.Type == "midi-clip" && b.Name == name && b.Parameters.Any(p => p.Name == "notes"));
+
+        // a midi-clip without notes but with a melody or chords: its notes as compact text, and its length in bars when it says it (bars, or the length of its first part)
+        (string Text, int? Bars)? Shorthand(string name)
+        {
+            BlockNode? clip = blocks.FirstOrDefault(b => !b.Skipped && b.Type == "midi-clip" && b.Name == name && b.Parameters.All(p => p.Name != "notes"));
+            if (clip is null) return null;
+            string? Value(string key) => clip.Parameters.FirstOrDefault(p => p.Name == key)?.Value;
+            bool said = int.TryParse(Value("bars")?.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int b) && b > 0;
+            int? bars = said ? b : clip.Parts.Count > 0 ? clip.Parts[0].Length : null;
+            string? text = ClipShorthand.ClipNotes(Value("melody"), Value("chords"), bars, beatsPerBar);
+            return text is null ? null : (text, bars);
+        }
+
+        NotePipeline.SourceInfo? PeekSource(string name) =>
+            done.TryGetValue(name, out FlowEntry? entry) && entry.Result.Value is { } value
+                ? new NotePipeline.SourceInfo(value, entry.Result.Recipe, null) { Sensitive = entry.Result.Sensitive }
+                : null;
 
         NotePipeline.SourceInfo Source(string name)
         {
@@ -71,6 +99,17 @@ public static class NoteFlow
                     : new NotePipeline.SourceInfo(null, null, $"\"{name}\" is an instance of the component {instance.Type}: the notes of an instance are only known in the expanded song");
             }
 
+            // a clip written with melody or chords: the notes it plays (the renderer's code, ClipShorthand), read like a clip with notes (2026-11-17)
+            if (block is null && Shorthand(name) is { } shorthand)
+            {
+                List<PipeIssue> bad = [];
+                List<PipeNote> events = NotePipeline.ReadNotes(shorthand.Text, bad);
+                if (bad.Count > 0) return new NotePipeline.SourceInfo(null, null, $"The notes of \"{name}\" have problems");
+                long span = Math.Max(SpanOf(events), (shorthand.Bars ?? 0) * NotePipeline.Bar);
+                string recipe = "sha256:" + Hex("lit:" + NotePipeline.WriteNotes(events) + "\nspan=" + span.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                return new NotePipeline.SourceInfo(new PipeValue { Events = events, Span = span }, recipe, null);
+            }
+
             if (block is null)
             {
                 bool exists = blocks.Any(b => !b.Skipped && b.Name == name);
@@ -81,7 +120,7 @@ public static class NoteFlow
             FlowEntry entry = Resolve(block);
             return entry.Result.Value is null
                 ? new NotePipeline.SourceInfo(null, null, $"The notes of \"{name}\" have problems")
-                : new NotePipeline.SourceInfo(entry.Result.Value, entry.Result.Recipe, null);
+                : new NotePipeline.SourceInfo(entry.Result.Value, entry.Result.Recipe, null) { Sensitive = entry.Result.Sensitive };
         }
 
         FlowEntry Resolve(BlockNode block)
@@ -111,7 +150,29 @@ public static class NoteFlow
                 try
                 {
                     Dictionary<string, string> streams = block.Parameters.Where(p => p.Name.StartsWith("random-stream:", StringComparison.Ordinal)).ToDictionary(p => p.Name["random-stream:".Length..], p => p.Value, StringComparer.Ordinal);
-                    NotePipeline.Context context = new() { Tempo = tempo, Limit = limit, Source = Source, ReadFile = readFile, Cancellation = cancellation, StopAt = block.Name == stopBlock ? stopAt : null, MasterSeed = masterSeed, Streams = streams.Count > 0 ? streams : null, Helpers = helpers, Limits = limits ?? new LangLimits(), Clock = clock, Capabilities = capabilities, Environment = environment };
+                    NotePipeline.Context context = new()
+                    {
+                        Tempo = tempo,
+                        BeatsPerBar = (decimal)beatsPerBar,   // Evaluate opens a meter scope of its own: without this it is 4/4, and repeat and concat counted 4 beats a bar in a 3/4 or 6/8 song
+                        Limit = limit,
+                        Source = Source,
+                        PeekSource = PeekSource,
+                        Observations = observations,
+                        ObservationOptions = observationOptions?.Invoke(block),
+                        ObservationRoot = block.Name,
+                        Assertions = assertions,
+                        ObservationHelperSites = observationHelperSites,
+                        ReadFile = readFile,
+                        Cancellation = cancellation,
+                        StopAt = block.Name == stopBlock ? stopAt : null,
+                        MasterSeed = masterSeed,
+                        Streams = streams.Count > 0 ? streams : null,
+                        Helpers = helpers,
+                        Limits = limits ?? new LangLimits(),
+                        Clock = clock,
+                        Capabilities = capabilities,
+                        Environment = environment,
+                    };
                     System.Numerics.BigInteger estimate = NotePipeline.Estimate(value, context);
                     PipeResult result = NotePipeline.Evaluate(value, context);
                     entry = new FlowEntry(block, notes, true, result, [.. context.StageIssues]) { Stopped = context.StoppedValue, StoppedInputHash = context.StoppedInputHash, Estimate = estimate };

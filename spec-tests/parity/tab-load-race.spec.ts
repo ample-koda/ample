@@ -47,6 +47,9 @@ test('a save while the next song is still being drawn never writes the old text 
   await openApp(page, { reset: false });
   await page.click('#vs-source');
   await settle(page);
+  // the old song is a.amplet: the tests above leave c.amplet as the last song, and typing in c itself would rightly be saved to c
+  await openSong(page, 'a.amplet');
+  expect(await settle(page)).toBe('a.amplet|AAA|AAA');
   const { setSrc, srcText, api } = await import('../../web/tests/support');
   await setSrc(page, `${await srcText(page)}${NL}# TYPED IN THE OLD SONG${NL}`);
   await page.waitForTimeout(600);

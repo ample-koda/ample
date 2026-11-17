@@ -1,7 +1,7 @@
 // Conformance of the browser implementations against the server's renders (local-preview chunk 6.5). Pure and node-safe: reads web/lib/dsp-vectors.json (made by tools/gen-dsp-vectors.mjs from the
 // real engine), renders the same input through the offline JS port, and measures the distance. The live graph is measured the same way in the browser (spec-tests/parity/dsp-conformance.spec.ts).
 import { readFileSync } from 'node:fs';
-import { PARITY_REFERENCES, testSignal, CONFORMANCE_SECONDS } from './dsp-references.mjs';
+import { PARITY_REFERENCES, testSignal, CONFORMANCE_SECONDS, blockOf } from './dsp-references.mjs';
 
 /** The vectors file: { cases: { type: { params, tempo, sampleRate, frames, channels: [base64 Int16] } } }. */
 export function loadVectors(file = new URL('./dsp-vectors.json', import.meta.url)) { return JSON.parse(readFileSync(file, 'utf8')); }
@@ -32,7 +32,7 @@ export function deviationDb(server, candidate, rate, skip = 0.05) {
 export async function offlineDeviations(vectors = loadVectors()) {
   const out = {};
   for (const [type, entry] of Object.entries(vectors.cases)) {
-    const reference = PARITY_REFERENCES[type];
+    const reference = PARITY_REFERENCES[blockOf(type)];
     if (!reference) continue;
     const input = quantizedInput();
     const result = await reference({ sampleRate: input.sampleRate, channels: input.channels.map((c) => c.slice()) }, entry.params, entry.tempo);
@@ -46,5 +46,6 @@ export async function offlineDeviations(vectors = loadVectors()) {
  * offline: the JS port of "Build and play preview"; live: the Web Audio graph or worklet of the live chain.
  */
 export const OFFLINE_LIMITS_DB = {
-  reverb: -70, gate: -60, limiter: -25, deesser: -50, eq: -55, peq: -80, filter: -55, compressor: -28, delay: -75, distortion: -70, chorus: -17, flanger: -17, phaser: -60, pan: -75, width: -75, volume: -70, tremolo: -75,
+  reverb: -70, gate: -60, limiter: -78, deesser: -50, eq: -55, peq: -80, filter: -55, compressor: -70, delay: -75, distortion: -70, chorus: -77, flanger: -70, phaser: -60, pan: -75, width: -75, volume: -70, tremolo: -75,
+  'chorus~deep': -74, 'volume~auto': -75, 'volume~fadeout': -75, 'volume~fadein': -75, 'volume~lfo': -70, 'volume~fractional': -68, 'delay~odd': -75, 'filter~highpass': -54, 'filter~sweep': -66, 'filter~resonant': -86, 'filter~slope24': -86, 'pan~lfo': -78, 'pan~auto': -78,
 };

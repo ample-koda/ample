@@ -1,4 +1,5 @@
 // Studio panels of the voice cleanup and colour effects: gate, de-esser, chorus, flanger, phaser and bit crusher (plan X04).
+import { infoNote } from './info.js';
 import { el } from '../../ui.js';
 import { baseline, control, controls, number, plot, svg, transferCurve } from './helpers.js';
 import { registerStudioPanel } from './registry.js';
@@ -8,11 +9,11 @@ function gatePanel(context) {
   let threshold = number(params, 'threshold', -50);
   const graph = transferCurve('Gate input and output level curve', (input) => (input < threshold ? -80 : input), { floor: -80, reference: () => ({ db: threshold, label: 'threshold' }) });   // the threshold goes down to -80 dB: so does the plot
   return el('section', { className: 'studio-effect-panel studio-gate-panel', 'aria-label': 'Gate controls' }, [graph, controls([
-    control(context, params, 'threshold', 'Threshold', -80, 0, 'dB', 'linear', 112, (next) => { threshold = next; graph.redraw(); }),
+    control(context, params, 'threshold', 'Threshold', -80, 0, 'dB', 'linear', 82, (next) => { threshold = next; graph.redraw(); }),
     control(context, params, 'attack', 'Attack', 1, 200, 'ms', 'log'),
     control(context, params, 'hold', 'Hold', 0, 1000, 'ms'),
     control(context, params, 'release', 'Release', 5, 2000, 'ms', 'log'),
-  ]), el('p', { className: 'note', textContent: 'Below the threshold the sound fades out after the hold time; use it on a recorded voice to remove the noise between phrases.' })]);
+  ]), infoNote('Below the threshold the sound fades out after the hold time; use it on a recorded voice to remove the noise between phrases.')]);
 }
 
 function deesserPanel(context) {
@@ -26,10 +27,10 @@ function deesserPanel(context) {
     draw(); root.append(band, label); root.redraw = draw;
   });
   return el('section', { className: 'studio-effect-panel studio-deesser-panel', 'aria-label': 'De-esser controls' }, [graph, controls([
-    control(context, params, 'frequency', 'Frequency', 2000, 12000, 'Hz', 'log', 112, (next) => { frequency = next; graph.redraw(); }),
+    control(context, params, 'frequency', 'Frequency', 2000, 12000, 'Hz', 'log', 82, (next) => { frequency = next; graph.redraw(); }),
     control(context, params, 'threshold', 'Threshold', -60, 0, 'dB'),
     control(context, params, 'ratio', 'Ratio', 1, 20, ''),
-  ]), el('p', { className: 'note', textContent: 'Only the sound above the frequency is turned down when it gets loud, so s sounds soften and the rest stays as it is.' })]);
+  ]), infoNote('Only the sound above the frequency is turned down when it gets loud, so s sounds soften and the rest stays as it is.')]);
 }
 
 function lfoPlot(label, getPeriod, getDepth) {
@@ -50,12 +51,12 @@ function modulationPanel(kind, defaults) {
     const params = context.params;
     let period = number(params, 'period', defaults.period), depth = number(params, 'depth', defaults.depth ?? 1);
     const graph = lfoPlot(`${kind} movement`, () => period, () => Math.min(1, depth / (defaults.depthMax ?? 1)));
-    const list = [control(context, params, 'period', 'Period', 100, 10000, 'ms', 'log', 112, (next) => { period = next; graph.redraw(); })];
+    const list = [control(context, params, 'period', 'Period', 100, 10000, 'ms', 'log', 82, (next) => { period = next; graph.redraw(); })];
     if (kind !== 'phaser') list.push(control(context, params, 'depth', 'Depth', 1, defaults.depthMax, 'ms', 'linear', 82, (next) => { depth = next; graph.redraw(); }));
     if (kind === 'phaser') list.push(control(context, params, 'stages', 'Stages', 2, 8, ''));
     if (kind === 'flanger') list.push(control(context, params, 'feedback', 'Feedback', 0, 90, '%'));
     list.push(control(context, params, 'mix', 'Mix', 0, 100, '%'));
-    return el('section', { className: `studio-effect-panel studio-${kind}-panel`, 'aria-label': `${kind} controls` }, [graph, controls(list), el('p', { className: 'note', textContent: 'The curve shows how the moving part travels. The mix can be automated: type auto(1:0, 5:60) or lfo(4, 20, 80) in its field.' })]);
+    return el('section', { className: `studio-effect-panel studio-${kind}-panel`, 'aria-label': `${kind} controls` }, [graph, controls(list), infoNote('The curve shows how the moving part travels. The mix can be automated: type auto(1:0, 5:60) or lfo(4, 20, 80) in its field.')]);
   };
 }
 
@@ -77,7 +78,7 @@ function bitcrusherPanel(context) {
     draw(); root.append(line); root.redraw = draw;
   });
   return el('section', { className: 'studio-effect-panel studio-bitcrusher-panel', 'aria-label': 'Bit crusher controls' }, [graph, controls([
-    control(context, params, 'bits', 'Bits', 2, 16, '', 'linear', 112, (next) => { bits = next; graph.redraw(); }),
+    control(context, params, 'bits', 'Bits', 2, 16, '', 'linear', 82, (next) => { bits = next; graph.redraw(); }),
     control(context, params, 'downsample', 'Hold', 1, 64, '', 'log', 82, (next) => { hold = next; graph.redraw(); }),
     control(context, params, 'mix', 'Mix', 0, 100, '%'),
   ])]);

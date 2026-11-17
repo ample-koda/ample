@@ -1,4 +1,4 @@
-// What a running (live) session has to do when the layout of the set changes (phase 2): which clips are new and have to be made ready, which are gone and have to stop, and which lanes
+// What a running (live) session has to do when the layout of the set changes (plan/performance-live.md, phase 2): which clips are new and have to be made ready, which are gone and have to stop, and which lanes
 // came or went. Pure, so node --test checks it. A clip is known by its lane and its id: the same block on another lane is another clip.
 
 const clipsOf = (layout) => {

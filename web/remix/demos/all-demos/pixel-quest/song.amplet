@@ -1,0 +1,131 @@
+composition "Pixel Quest" { ample 1  tempo 150  master-seed 8088 }
+
+# PIXEL QUEST: an 8-bit adventure tune, 32 bars at 150 BPM (about 51 seconds), made the way old game consoles did it:
+# a square-wave lead, a triangle bass and a noise channel for the drums. No samples at all.
+#
+#   bars  1- 4  title screen   the arpeggio and the drums
+#   bars  5-12  level one      + the lead and the bass
+#   bars 13-20  level two      the lead an octave up
+#   bars 21-24  boss warning   the arpeggio alone, then a drum roll
+#   bars 25-32  victory        everything, the lead back home
+#
+# The trick of this song: one bar of arpeggio is written once (for a major and a minor chord) and the helper chipArp
+# turns it into a whole chord progression. Change the progression in one place and every part follows.
+#
+# TRY: wave square to wave saw in the block lead for a brighter, buzzier lead, or triangle for a soft flute.
+# TRY: change the tempo (150) to 120 for a calm overworld, or 180 for a chase.
+
+/**
+ * A chord progression from one bar of arpeggio: each number is how far the bar is moved (in semitones).
+ * The major bar is used for 0, 5 and 7 steps and the minor bar for the others, so C, F and G are major and Am is minor.
+ * @param major one bar of a major arpeggio on C
+ * @param minor one bar of a minor arpeggio on C
+ */
+helper chipArp(Notes major, Notes minor) -> Notes {
+  let steps = [0, 9, 5, 7]
+  debug {progression: steps}
+  for i in 0..4 {
+    let step = at(steps, i)
+    let bar = step == 9 ? minor |> transpose(-3) : major |> transpose(step)
+    emit bar |> shift(1bar * i)
+  }
+}
+
+# ---- one bar of arpeggio each: sixteenth notes up and down ------------------------------------------
+midi-clip majorBar at 1 for 1 {
+  notes "1:0:0.2:72:100 1:0.25:0.2:76:70 1:0.5:0.2:79:80 1:0.75:0.2:84:70 1:1:0.2:79:90 1:1.25:0.2:76:70 1:1.5:0.2:72:80 1:1.75:0.2:76:70 1:2:0.2:79:100 1:2.25:0.2:84:70 1:2.5:0.2:88:80 1:2.75:0.2:84:70 1:3:0.2:79:90 1:3.25:0.2:76:70 1:3.5:0.2:79:80 1:3.75:0.2:84:70"
+}
+midi-clip minorBar at 1 for 1 {
+  notes "1:0:0.2:72:100 1:0.25:0.2:75:70 1:0.5:0.2:79:80 1:0.75:0.2:84:70 1:1:0.2:79:90 1:1.25:0.2:75:70 1:1.5:0.2:72:80 1:1.75:0.2:75:70 1:2:0.2:79:100 1:2.25:0.2:84:70 1:2.5:0.2:87:80 1:2.75:0.2:84:70 1:3:0.2:79:90 1:3.25:0.2:75:70 1:3.5:0.2:79:80 1:3.75:0.2:84:70"
+}
+
+# ---- the tune: eight bars over C, Am, F, G (twice) --------------------------------------------------
+midi-clip theme at 1 for 8 {
+  notes "1:0:1:72:110 1:1:0.5:76:100 1:1.5:0.5:79:100 1:2:1.5:84:110 1:3.5:0.5:83:90 2:0:1:81:110 2:1:1:76:100 2:2:2:81:110 3:0:1:77:110 3:1:0.5:81:100 3:1.5:0.5:84:100 3:2:1:86:110 3:3:1:84:100 4:0:2:83:110 4:2:1:79:100 4:3:1:74:90 5:0:1:72:110 5:1:0.5:76:100 5:1.5:0.5:79:100 5:2:1.5:84:110 5:3.5:0.5:86:90 6:0:1:88:110 6:1:1:84:100 6:2:2:81:110 7:0:1:77:110 7:1:1:81:100 7:2:1:79:110 7:3:1:77:100 8:0:3:79:110 8:3:1:83:90"
+}
+# the bass: the root of each chord in eighth notes, an octave jump on the last of each bar
+midi-clip bassBar at 1 for 4 {
+  notes "1:0:0.4:48:110 1:0.5:0.4:48:90 1:1:0.4:48:100 1:1.5:0.4:48:90 1:2:0.4:48:100 1:2.5:0.4:48:90 1:3:0.4:48:100 1:3.5:0.4:60:90 2:0:0.4:45:110 2:0.5:0.4:45:90 2:1:0.4:45:100 2:1.5:0.4:45:90 2:2:0.4:45:100 2:2.5:0.4:45:90 2:3:0.4:45:100 2:3.5:0.4:57:90 3:0:0.4:41:110 3:0.5:0.4:41:90 3:1:0.4:41:100 3:1.5:0.4:41:90 3:2:0.4:41:100 3:2.5:0.4:41:90 3:3:0.4:41:100 3:3.5:0.4:53:90 4:0:0.4:43:110 4:0.5:0.4:43:90 4:1:0.4:43:100 4:1.5:0.4:43:90 4:2:0.4:43:100 4:2.5:0.4:43:90 4:3:0.4:43:100 4:3.5:0.4:55:90"
+}
+# the drums on the noise channel: a low note is a kick, a middle one a snare, a high one a hat
+midi-clip beat at 1 for 1 {
+  notes "1:0:0.2:30:120 1:1:0.15:64:100 1:2:0.2:30:120 1:2.5:0.2:30:90 1:3:0.15:64:100 1:0.5:0.05:100:60 1:1.5:0.05:100:60 1:2.5:0.05:100:60 1:3.5:0.05:100:60"
+}
+midi-clip roll at 1 for 4 {
+  notes "4:0:0.1:64:70 4:0.25:0.1:64:76 4:0.5:0.1:64:82 4:0.75:0.1:64:88 4:1:0.1:64:94 4:1.25:0.1:64:100 4:1.5:0.1:64:106 4:1.75:0.1:64:112 4:2:0.1:64:118 4:2.25:0.1:64:120 4:2.5:0.1:64:122 4:2.75:0.1:64:124 4:3:0.4:30:127"
+}
+
+# ---- the arrangement ---------------------------------------------------------------------------------
+midi-clip arps at 1 for 32 {
+  notes chipArp(majorBar.notes, minorBar.notes) |> repeat(8)
+}
+midi-clip leadPart at 1 for 32 {
+  notes theme.notes |> shift(4bars) |> merge(theme.notes |> transpose(12) |> shift(12bars)) |> merge(theme.notes |> shift(24bars))
+}
+midi-clip bassPart at 1 for 32 {
+  notes bassBar.notes |> repeat(4) |> shift(4bars) |> merge(bassBar.notes |> repeat(2) |> shift(24bars))
+}
+midi-clip drumPart at 1 for 32 {
+  notes beat.notes |> repeat(20) |> merge(roll.notes |> shift(20bars)) |> merge(beat.notes |> repeat(8) |> shift(24bars))
+}
+
+# ---- the console: three oscillators and a noise channel ------------------------------------------
+synth lead at 1 for 32 {
+  wave square
+  attack 2 ms
+  decay 120 ms
+  sustain 60
+  release 60 ms
+  cutoff 9000 Hz
+  gain -16 dB
+  from leadPart.notes -> notes
+}
+synth sparkle at 1 for 32 {
+  wave square
+  attack 1 ms
+  decay 60 ms
+  sustain 20
+  release 30 ms
+  cutoff 7000 Hz
+  gain -24 dB
+  from arps.notes -> notes
+}
+synth bass at 1 for 32 {
+  wave triangle
+  attack 2 ms
+  decay 100 ms
+  sustain 80
+  release 40 ms
+  gain -10 dB
+  from bassPart.notes -> notes
+}
+synth noiseDrums at 1 for 32 {
+  wave noise
+  attack 1 ms
+  decay 90 ms
+  sustain 0
+  release 30 ms
+  gain -18 dB
+  from drumPart.notes -> notes
+}
+
+# a short echo on the lead, like the cartridge games that faked a room
+delay echo {
+  time 200 ms
+  feedback 25%
+  mix 18%
+  from lead.audio -> audio
+}
+
+mixer console {
+  inputs 4
+  gains "0 0 0 0"
+  from echo.audio -> audio1
+  from sparkle.audio -> audio2
+  from bass.audio -> audio3
+  from noiseDrums.audio -> audio4
+}
+
+master out {
+  from console.audio -> audio
+}

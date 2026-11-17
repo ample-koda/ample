@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Makes one sound speak with another: the voice on the modulator input is split into frequency bands and the loudness of every band sets the loudness of the same band of the carrier (a chord, a pad, a saw), so the carrier says the words. Consonants such as s and t come from noise that follows the highest band of the voice. For robot voices and the classic Daft Punk sound.",
   "inputs": [

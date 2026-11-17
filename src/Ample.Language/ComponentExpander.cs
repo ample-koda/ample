@@ -29,7 +29,17 @@ public sealed record ComponentUsage(string Name, string Id, string Version, stri
 /// <param name="Diagnostics">Problems with the components of the song (the same shape as the problems of modules).</param>
 /// <param name="Used">The components that were used.</param>
 /// <param name="LineOrigin">For every line of the expanded text the 0-based line of the original it stands for.</param>
-public sealed record ComponentExpansion(string Text, IReadOnlyList<ModuleDiagnostic> Diagnostics, IReadOnlyList<ComponentUsage> Used, IReadOnlyList<int> LineOrigin);
+public sealed record ComponentExpansion(string Text, IReadOnlyList<ModuleDiagnostic> Diagnostics, IReadOnlyList<ComponentUsage> Used, IReadOnlyList<int> LineOrigin)
+{
+    /// <summary>Gets the observation options of the instances by instance name: the side channel that the lowering must not turn into parameters of the generated block.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<BlockDirective>> Directives { get; init; } = new Dictionary<string, IReadOnlyList<BlockDirective>>();
+
+    /// <summary>Gets the original process sites of imported Notes component helpers.</summary>
+    public IReadOnlyDictionary<string, SourceSite> ObservationHelperSites { get; init; } = new Dictionary<string, SourceSite>();
+
+    /// <summary>Gets the events that the expansion made (the warnings of audio processes), produced through an observation sink with its budgets.</summary>
+    public IReadOnlyList<LogEvent> Observations { get; init; } = [];
+}
 
 /// <summary>
 /// Lowers the instances of components (docs/language/19-components.md): an instance <c>koda.notes.tripleNotes intro stable@1 { copies 3  from a.notes -> source }</c> becomes a <c>midi-clip</c> of the same name whose notes
@@ -48,8 +58,10 @@ public static partial class ComponentExpander
     /// <param name="songText">The text of the song.</param>
     /// <param name="spec">The language data.</param>
     /// <param name="sources">The files that components can come from (the resolved imports), or null.</param>
+    /// <param name="session">The session layer of the observation options, or null.</param>
     /// <returns>The expansion.</returns>
-    public static ComponentExpansion Expand(string songText, SpecData spec, IReadOnlyList<ComponentSource>? sources = null)
+    /// <param name="project">The project layer of the observation options, or null.</param>
+    public static ComponentExpansion Expand(string songText, SpecData spec, IReadOnlyList<ComponentSource>? sources = null, ConfigLayerInput? session = null, ConfigLayerInput? project = null)
     {
         ArgumentNullException.ThrowIfNull(songText);
         ArgumentNullException.ThrowIfNull(spec);
@@ -63,6 +75,10 @@ public static partial class ComponentExpander
         if (instances.Count == 0) return new ComponentExpansion(songText, [], [], [.. Enumerable.Range(0, lines.Length)]);
 
         List<ModuleDiagnostic> diagnostics = [];
+        ObservationSink sink = new();   // the events of the expansion: the same budgets and rules as the events of the song
+        Dictionary<string, (string Value, int Line)> songOptions = doc.Settings.Where(pair => ObservationConfig.IsOption(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => (pair.Value, doc.SettingLines.GetValueOrDefault(pair.Key)), StringComparer.Ordinal);
+        List<ConfigLayerInput> songLayers = [.. project is null ? [] : new[] { project }, new ConfigLayerInput(new ConfigSource(ConfigLayer.Song), songOptions)];
         Dictionary<string, ComponentUsage> used = [];
         List<ComponentDefinition> all = [.. doc.Components, .. external];
         Dictionary<string, ComponentDefinition> resolved = [];
@@ -105,11 +121,24 @@ public static partial class ComponentExpander
 
             if (def.IsAudio)
             {
-                AudioPlan plan = PlanAudio(b, def, effective, doc.Project?.Tempo ?? 120, diagnostics, all);
+                AudioPlan plan = PlanAudio(b, def, effective, doc.Project?.Tempo ?? 120, diagnostics, all, sink, songLayers, session);
                 audioPlans[b.Name] = plan;
                 replacement[b.Line] = [];
             }
             else replacement[b.Line] = Instance(b, def, instanceNames, instances, resolved, lines, diagnostics);
+        }
+
+        // the lines of an instance are replaced by the expansion, so a wrong setting name on them (a private property set from outside, AMP2261;
+        // a name the component does not have, AMP2003) would be lost. The parser checks an instance against the newest version, so a problem is kept
+        // only when the version this instance really uses agrees (a block pinned at 1.0 may set what 1.0 has)
+        foreach (Diagnostic d in doc.Diagnostics.Where(d => d.Code is "AMP2261" or "AMP2003"))
+        {
+            BlockNode? owner = instances.FirstOrDefault(b => d.Line - 1 >= b.Line && d.Line - 1 <= b.CloseLine);
+            if (owner is null || !resolved.TryGetValue(owner.Name, out ComponentDefinition? picked) || diagnostics.Any(m => m.Code == d.Code && m.Line == d.Line - 1)) continue;
+            string? name = owner.Parameters.FirstOrDefault(p => p.Line == d.Line - 1)?.Name;
+            bool isPrivate = name is not null && picked.PrivateProperties.Any(p => p.Name == name);
+            if (name is null || picked.Properties.Any(p => p.Name == name) || (d.Code == "AMP2261") != isPrivate) continue;
+            diagnostics.Add(new ModuleDiagnostic(d.Code, d.Message + (d.Hint.Length > 0 ? " " + d.Hint : string.Empty), d.Line - 1, owner.Type, d.Severity));
         }
 
         // the files of the components that these components call (and so on) are needed too: the helper of the caller calls their helpers
@@ -172,8 +201,11 @@ public static partial class ComponentExpander
         }
 
         // the files the used components come from are added whole (their helpers, constants and types come with them), once
+        Dictionary<string, SourceSite> observationSites = new(StringComparer.OrdinalIgnoreCase);
         foreach (ComponentSource source in neededSources)
         {
+            foreach (ComponentDefinition definition in source.Definitions.Where(d => !d.IsAudio && d.ProcessLine >= 0))
+                observationSites.TryAdd(definition.HelperName, new SourceSite(source.Origin, definition.ProcessLine + 1, 1, 1));
             int first = used.Values.Where(u => source.Definitions.Any(d => d.Id == u.Id && d.Version.ToString() == u.Version)).Select(u => u.Line).DefaultIfEmpty(0).Min();
             output.Add(string.Empty);
             origin.Add(first);
@@ -184,7 +216,11 @@ public static partial class ComponentExpander
             }
         }
 
-        return new ComponentExpansion(string.Join('\n', output), diagnostics, [.. used.Values.OrderBy(u => u.Name, StringComparer.Ordinal).ThenBy(u => u.Version, StringComparer.Ordinal)], origin);
+        Dictionary<string, IReadOnlyList<BlockDirective>> directives = instances.Where(b => b.Directives.Count > 0).ToDictionary(b => b.Name,
+            b => (IReadOnlyList<BlockDirective>)[.. b.Directives], StringComparer.Ordinal);
+        return new ComponentExpansion(string.Join('\n', output), diagnostics, [.. used.Values.OrderBy(u => u.Name,
+            StringComparer.Ordinal).ThenBy(u => u.Version, StringComparer.Ordinal)], origin)
+        { Directives = directives, ObservationHelperSites = observationSites, Observations = sink.Events };
     }
 
     /// <summary>The hashes of what the process of a component uses, from the helper table of the file the component lives in, and of the components it calls.</summary>

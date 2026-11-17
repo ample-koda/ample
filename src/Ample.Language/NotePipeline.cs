@@ -16,6 +16,9 @@ public sealed record PipeIssue(string Id, string Message, int Start, int End, st
 {
     /// <summary>Gets whether the issue is an error because its stage is <c>strict</c>.</summary>
     public bool Strict { get; init; }
+
+    /// <summary>Gets the call stack of a failure (innermost first), or null: the helpers that were running and where each was called from.</summary>
+    public IReadOnlyList<StackFrameInfo>? Stack { get; init; }
 }
 
 /// <summary>One note of a pipeline value, in exact micro-beats (1 beat = 1,000,000; 1 bar = 4 beats) from the origin of the value; the routing fields and the per-note extensions ride along as text.</summary>
@@ -76,6 +79,11 @@ public sealed class PipeResult
 
     /// <summary>Gets whether a volatile value (the clock, OS randomness, the environment, a dynamic helper) took part and was not baked: the result can differ the next time.</summary>
     public bool Dynamic { get; init; }
+
+    /// <summary>Gets whether the notes depend on a volatile value (provenance of the data and of the branches that made them; the Dynamic flag decides what is built again).</summary>
+    public bool Tainted { get; init; }
+
+    internal bool Sensitive { get; init; }
 
     /// <summary>Gets the volatile values that were read, as <c>currentTime() = 14:20:03</c> (provenance of a take of a dynamic song).</summary>
     public IReadOnlyList<string> DynamicInputs { get; init; } = [];
@@ -250,8 +258,10 @@ public static partial class NotePipeline
 
     private sealed record PipelineNode(Node Source, List<Node> Steps, int Start, int End) : Node(Start, End);
 
-    private sealed class SyntaxError(string message, int start, int end) : Exception(message)
+    private sealed class SyntaxError(string message, int start, int end, string id = "syntax") : Exception(message)
     {
+        public string Id { get; } = id;
+
         public int Start { get; } = start;
 
         public int End { get; } = end;
@@ -414,6 +424,17 @@ public static partial class NotePipeline
         private CallNode Call()
         {
             Tok name = Expect(T.Ident, "an operator name");
+            int nameEnd = name.End;
+            if (AudioProcess)
+            {
+                // a nested component: a dotted name with an optional pinned version (koda.fx.echo@1.0.0), written without spaces
+                while (Peek() is { Kind: T.Dot } dot && dot.Start == nameEnd && Peek(1) is { Kind: T.Ident } part && part.Start == dot.End) { p += 2; nameEnd = part.End; }
+                if (nameEnd < Text.Length && Text[nameEnd] == '@')
+                {
+                    while (Peek() is { } piece && piece.Kind != T.LParen && piece.Start == nameEnd) { p++; nameEnd = piece.End; }
+                }
+            }
+
             Expect(T.LParen, "\"(\"");
             List<Node> args = [];
             if (Peek()?.Kind != T.RParen)
@@ -427,7 +448,7 @@ public static partial class NotePipeline
             }
 
             Tok close = Expect(T.RParen, "\")\"");
-            return new CallNode(name.Text, args, name.Start, close.End, name.End);
+            return new CallNode(Text[name.Start..nameEnd], args, name.Start, close.End, nameEnd);
         }
 
         private BakeNode Bake()
@@ -524,6 +545,7 @@ public static partial class NotePipeline
             if (k.Kind == T.Number) return Quantity();
             if (k.Kind == T.Str) { p++; return new StringNode(k.Text, k.Start, k.End); }
             if (k.Kind == T.LBracket) return ListLiteral();
+            if (k.Kind == T.LBrace && IsRecordStart()) return Postfix(RecordLiteral());
             if (k.Kind == T.Ident && k.Text is "true" or "false") { p++; return Postfix(new BoolNode(k.Text == "true", k.Start, k.End)); }
             if (k.Kind == T.Ident && k.Text == "bake") return BakeValue();
             if (k.Kind == T.Ident)
@@ -549,7 +571,7 @@ public static partial class NotePipeline
                         return Postfix(new MethodNode(new WordNode(k.Text, k.Start, k.End), port.Text, args, k.Start, close.End));
                     }
 
-                    return new RefNode(k.Text, port.Text, k.Start, port.End);
+                    return Postfix(new RefNode(k.Text, port.Text, k.Start, port.End));   // r.inner.a: a field of a field
                 }
 
                 if (Peek(1)?.Kind == T.LParen) return Postfix(Call());
@@ -711,7 +733,10 @@ public static partial class NotePipeline
     /// <param name="Value">The notes of the block, or null.</param>
     /// <param name="Recipe">The recipe hash of the block (what it is made of), or null.</param>
     /// <param name="Error">A message when the block cannot be used, or null.</param>
-    public sealed record SourceInfo(PipeValue? Value, string? Recipe, string? Error);
+    public sealed record SourceInfo(PipeValue? Value, string? Recipe, string? Error)
+    {
+        internal bool Sensitive { get; init; }
+    }
 
     /// <summary>Everything an evaluation needs from the outside.</summary>
     public sealed class Context
@@ -728,6 +753,23 @@ public static partial class NotePipeline
         /// <summary>Gets or sets how the notes of another block are found (by block name), or null when there are none.</summary>
         public Func<string, SourceInfo>? Source { get; set; }
 
+        /// <summary>Gets or sets a lookup that only returns already evaluated notes and never resolves a block.</summary>
+        public Func<string, SourceInfo?>? PeekSource { get; set; }
+
+        /// <summary>Gets or sets the observation sink of the enclosing evaluation session.</summary>
+        public ObservationSink? Observations { get; set; }
+
+        /// <summary>Gets or sets the resolved logging and assertion options for this root.</summary>
+        public ObservationConfig? ObservationOptions { get; set; }
+
+        /// <summary>Gets or sets the identity of the root whose observation is evaluated.</summary>
+        public string? ObservationRoot { get; set; }
+
+        internal AssertionBudget Assertions { get; set; } = new();
+
+        /// <summary>Gets or sets the original file and process line of expanded component helpers.</summary>
+        public IReadOnlyDictionary<string, SourceSite>? ObservationHelperSites { get; set; }
+
         /// <summary>Gets or sets how a file of the project is read (for a bake that keeps its notes in a file), or null.</summary>
         public Func<string, string?>? ReadFile { get; set; }
 
@@ -736,6 +778,9 @@ public static partial class NotePipeline
 
         /// <summary>Gets or sets the wall-clock budget of one evaluation.</summary>
         public TimeSpan Budget { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>Gets or sets the monotonic timer in <see cref="System.Diagnostics.Stopwatch.Frequency"/> units.</summary>
+        public Func<long> TimeSource { get; set; } = System.Diagnostics.Stopwatch.GetTimestamp;
 
         /// <summary>Gets or sets the master-seed of the song (the seed of every stable namespace).</summary>
         public ulong MasterSeed { get; set; }
@@ -960,7 +1005,7 @@ public static partial class NotePipeline
         }
         catch (SyntaxError e)
         {
-            issues.Add(new PipeIssue("syntax", e.Message, e.Start, e.End));
+            issues.Add(new PipeIssue(e.Id, e.Message, e.Start, e.End));
             return [];
         }
     }
@@ -981,7 +1026,7 @@ public static partial class NotePipeline
         }
         catch (SyntaxError e)
         {
-            errors.Add(new PipeIssue("syntax", e.Message, e.Start, e.End));
+            errors.Add(new PipeIssue(e.Id, e.Message, e.Start, e.End));
             return new PipeResult { Errors = errors, Warnings = warnings };
         }
 
@@ -1003,6 +1048,8 @@ public static partial class NotePipeline
                 Seeds = lang.Legacy.Uses,
                 Streams = lang.Legacy.StreamUses,
                 Dynamic = lang.Dynamic,
+                Tainted = lang.ResultTainted,
+                Sensitive = lang.ResultSensitive || lang.Legacy.SensitiveInput,
                 BakedDynamic = lang.BakedDynamic,
                 DynamicInputs = lang.DynamicInputs,
                 Fuel = lang.Fuel,
@@ -1013,12 +1060,28 @@ public static partial class NotePipeline
         PipeValue? value = run.Eval(ast, out string? recipe);
         run.Finish();
         if (errors.Count > 0 || value is null) return new PipeResult { Errors = errors, Warnings = warnings, Recipe = recipe, Seeds = run.Uses, Streams = run.StreamUses };
-        return new PipeResult { Notes = WriteNotes(value.Events), Span = value.Span, Warnings = warnings, Recipe = recipe, Value = value, Seeds = run.Uses, Streams = run.StreamUses };
+        return new PipeResult
+        {
+            Notes = WriteNotes(value.Events),
+            Span = value.Span,
+            Warnings = warnings,
+            Recipe = recipe,
+            Value = value,
+            Seeds = run.Uses,
+            Streams = run.StreamUses,
+            Sensitive = run.SensitiveInput,
+        };
     }
 
     private sealed class Evaluation(Context context, Rat tempo, List<PipeIssue> errors, List<PipeIssue> warnings, string text)
     {
-        private readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        private readonly EvaluationClock clock = new(context.TimeSource);
+
+        internal void PauseClock() => clock.Pause();
+
+        internal void ResumeClock() => clock.Resume();
+
+        internal bool SensitiveInput { get; private set; }
         private static string TempoOf(string? acc, Rat tempo) => acc is not null && SecondsPattern().IsMatch(acc) ? "|tempo=" + tempo : string.Empty;
 
         // what a recipe depends on besides its text: the tempo (when seconds are used) and the master-seed (when a stable seed is used, directly or through a stream)
@@ -1041,6 +1104,7 @@ public static partial class NotePipeline
                         if (info.Error is not null) { Problem(errors, info.Error.StartsWith("cycle", StringComparison.Ordinal) ? "reference-cycle" : "unknown-reference", info.Error.StartsWith("cycle", StringComparison.Ordinal) ? $"\"{r.Block}\" reads itself through its notes" : info.Error, node); return null; }
                         if (r.Port != "notes") { Problem(errors, "bad-argument", $"\"{r.Port}\" is not a notes output; use {r.Block}.notes", node); return null; }
                         recipe = $"ref:{r.Block}.{r.Port}@{info.Recipe}";
+                        SensitiveInput |= info.Sensitive;
                         value = info.Value?.Copy();
                         break;
                     }

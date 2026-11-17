@@ -1,4 +1,4 @@
-// The two ways to enter Performance: with the built takes of the server (the default: safe and exact), or live, which also plays the live chains made in the browser and (in later
+// The two ways to enter Performance (plan/performance-live.md): with the built takes of the server (the default: safe and exact), or live, which also plays the live chains made in the browser and (in later
 // steps) lets the set be changed while it plays. Pure, so node --test checks it.
 
 export const MODES = ['takes', 'live'];

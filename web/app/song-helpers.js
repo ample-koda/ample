@@ -1,8 +1,16 @@
 // The helpers of the song text as a table (cached by the text): the editor completes them, shows their signatures and the roll evaluates pipelines that use them. @ample:song-helpers
 import { helperTableFrom } from '../lib/note-pipeline.mjs';
 import { helperSourcesOf } from '../lib/note-lang.mjs';
+import { assertionsOf } from '../lib/observation-config.mjs';
 
 let cache = { text: null, table: null };
+let session = null;
+
+/** The assertion toggle of the editor (true, false, or null for "as the song says"): the session layer of the configuration. */
+export const setAssertionsSession = (value) => { session = value === true || value === false ? value : null; };
+
+/** Whether assertions are on for an evaluation in the browser: the song, the instance directives of the block (when it has any) and the session toggle, as the server resolves them. */
+export const assertionsForSong = (text, node = null) => assertionsOf(text, { directives: node?.directives ?? [], session });
 
 /** The helper table of a song text (built again only when the text changed). */
 export function helpersOfText(text) {

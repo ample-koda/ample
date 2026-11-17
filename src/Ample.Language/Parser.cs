@@ -37,7 +37,7 @@ public sealed class ParseOptions
     public ServerCapabilities? ServerCapabilities { get; set; }
 
     /// <summary>Gets or sets what the project says about capabilities (capability to on or off), or null.</summary>
-    public IReadOnlyDictionary<string, string>? ProjectCapabilities { get; set; }
+    public IReadOnlyDictionary<string, string>? ProjectCapabilities { get; set; }   // the project layer of THIS parse only (null: no project layer); never shared between parses
 
     /// <summary>Gets or sets how environment(name) reads a value (tests give a fake one), or null for the process environment. Only reachable when the capability environment is on.</summary>
     public Func<string, string?>? Environment { get; set; }
@@ -47,6 +47,21 @@ public sealed class ParseOptions
 
     /// <summary>Gets or sets the clock that currentTime() and currentDate() read, or null for the system clock (tests give a fixed one).</summary>
     public Func<DateTime>? Clock { get; set; }
+
+    /// <summary>Gets or sets the observation sink used during Notes analysis, or null for no observation output.</summary>
+    public ObservationSink? Observations { get; set; }
+
+    /// <summary>Gets or sets the server and project defaults used before song and instance options.</summary>
+    public IReadOnlyList<ConfigLayerInput> ObservationDefaults { get; set; } = [];
+
+    /// <summary>Gets or sets the observation directives carried by expanded component instances.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<BlockDirective>>? InstanceDirectives { get; set; }
+
+    /// <summary>Gets or sets source sites preserved by component expansion.</summary>
+    public IReadOnlyDictionary<string, SourceSite>? ObservationHelperSites { get; set; }
+
+    /// <summary>Gets or sets the optional highest-priority observation override.</summary>
+    public ConfigLayerInput? ObservationOverride { get; set; }
 
     /// <summary>Gets or sets whether the notes of a note pipeline replace the expression in the parsed blocks (what the build needs; the editors keep the text).</summary>
     public bool ApplyNoteFlow { get; set; }
@@ -88,6 +103,7 @@ public static partial class Parser
         SpecData effective = available.Count == 0 ? spec : spec.WithTemplates(available.GroupBy(c => c.Name, StringComparer.Ordinal).Select(g => ComponentChecker.TemplateOf(ComponentVersions.Default(g)!)));
         Run run = new(songLines, effective, options) { Docs = docs, Original = original, Components = components };
         run.Execute();
+        run.AddExternal(Run.ProjectObservations(run.ObservationEvents));
         if (options.ExtraDiagnostics.Count > 0) run.AddExternal(options.ExtraDiagnostics);
         if (openComment >= 0) run.AddExternal([new Diagnostic("AMP1116", Severity.Error, openComment + 1, 1, original[openComment].Length + 1, "This block comment is never closed: it runs to the end of the file.", "Close it with */, or use # for a comment that ends with the line.", null, null)]);
         if (options.Preflight is not null) run.AddExternal(options.Preflight(run.BlockList, lines));
@@ -110,6 +126,8 @@ public static partial class Parser
             Uses = run.Uses,
             Layout = run.Layout,
             Settings = run.Settings,
+            SettingLines = run.SettingLines,
+            Observations = run.ObservationEvents,
             Helpers = run.HelperInfos,
             Capabilities = run.CapabilityStates,
             HelperTable = run.HelperTableValue,
@@ -198,7 +216,7 @@ public static partial class Parser
         return d[a.Length, b.Length];
     }
 
-    [GeneratedRegex(@"^(?:dynamic\s+helper|helper)\s+\S|^type\s+[A-Za-z][\w-]*\s*=|^let\s+\S", RegexOptions.None, 1000)]
+    [GeneratedRegex(@"^(?:dynamic\s+helper|helper)\s+\S|^type\s+[A-Za-z][\w-]*\s*=|^error\s+[A-Za-z]|^let\s+\S", RegexOptions.None, 1000)]
     private static partial Regex HelperStart();
 
     [GeneratedRegex(@"^\s*random-stream\s+([A-Za-z][A-Za-z0-9_-]*)\s+(\S.*?)\s*$", RegexOptions.None, 1000)]
@@ -267,9 +285,13 @@ public static partial class Parser
         private readonly List<UseNode> uses = [];
         private readonly Dictionary<string, string> settings = new(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, int> settingLines = new(StringComparer.Ordinal);
+
         public ProjectInfo? Project { get; private set; }
 
         public IReadOnlyDictionary<string, string> Settings => settings;
+
+        public IReadOnlyDictionary<string, int> SettingLines => settingLines;
 
         public IReadOnlyList<HelperInfo> HelperInfos => helperTable.Infos;
 
@@ -284,6 +306,9 @@ public static partial class Parser
         private readonly List<string> stabilityNotes = [];
 
         private IReadOnlyDictionary<string, FlowEntry>? flowResults;
+        private ObservationSink? observationSink;
+
+        public IReadOnlyList<LogEvent> ObservationEvents => observationSink?.Events ?? [];
 
         private readonly DateTime started = DateTime.Now;   // currentTime() is read once per parse: one instant for the whole song
 
@@ -508,6 +533,12 @@ public static partial class Parser
                     {
                         cur.CloseLine = i;
                         cur = null;
+                        continue;
+                    }
+
+                    if (ObservationDirectivePattern.Match(line) is { Success: true } directive)
+                    {
+                        Directive(cur, directive.Groups[1].Value, directive.Groups[2].Value.Trim(), i);
                         continue;
                     }
 
@@ -1033,8 +1064,25 @@ public static partial class Parser
                 }
 
                 settings[tk[k]] = Unquote(tk[k + 1]);
+                settingLines[tk[k]] = i + 1;
+                CheckObservationOption(i, tk[k], Unquote(tk[k + 1]));
                 if (tk[k].StartsWith("capabilities.", StringComparison.Ordinal)) capabilityEntries.Add((tk[k]["capabilities.".Length..], Unquote(tk[k + 1]), i));
             }
+        }
+
+        /// <summary>The options of logging and assertions: valid values, and not before the feature that reads them is on (a setting that is never read would be ignored silently).</summary>
+        private void CheckObservationOption(int i, string key, string value)
+        {
+            bool logging = key.StartsWith("logging.", StringComparison.Ordinal), assertions = key == "diagnostics.assertions";
+            if (!logging && !assertions && !key.StartsWith("diagnostics.", StringComparison.Ordinal)) return;
+            if (!SyntaxGate.Supports(assertions ? SyntaxFeatures.Assert : SyntaxFeatures.Observe))
+            {
+                Add(i, "AMP6020", Severity.Error, $"{key} is not supported yet in this AMPLE version.", new Opts { Needle = key });
+                return;
+            }
+
+            if (ObservationConfig.Validate(key, value) is { } problem)
+                Add(i, "AMP6030", Severity.Error, problem, new Opts { Needle = key, Hint = "The options: " + string.Join(", ", ObservationConfig.Defaults.Keys) + "." });
         }
 
         private void LintLine(int i, string inner)
@@ -1206,6 +1254,31 @@ public static partial class Parser
             return u;
         }
 
+        private static readonly Regex ObservationDirectivePattern = new("^((?:logging|diagnostics)\\.[A-Za-z][A-Za-z0-9-]*)\\s+(\\S.*)$", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+        /// <summary>An option of observation on a component instance: validated, kept apart from the parameters (plan D22), and not before its feature is on.</summary>
+        private void Directive(BlockNode block, string key, string value, int i)
+        {
+            if (!SyntaxGate.Supports(key == "diagnostics.assertions" ? SyntaxFeatures.Assert : SyntaxFeatures.Observe))
+            {
+                Add(i, "AMP6020", Severity.Error, $"{key} is not supported yet in this AMPLE version.", new Opts { Needle = key });
+                return;
+            }
+
+            if (!spec.Templates.TryGetValue(block.Type, out TemplateSpec? template) || !template.Component)
+            {
+                Add(i, "AMP6032", Severity.Error, $"{key} belongs to an instance of a component: {block.Type} is not one.", new Opts { Needle = key });
+                return;
+            }
+
+            if (ObservationConfig.Validate(key, value) is { } problem) Add(i, "AMP6030", Severity.Error, problem, new Opts
+            {
+                Needle = key,
+                Hint = "The options: " + string.Join(", ", ObservationConfig.Defaults.Keys) + "."
+            });
+            else block.Directives.Add(new BlockDirective(key, value.Trim('\"'), i + 1));
+        }
+
         private void BodyLine(List<Parameter> parameters, List<FromLine> froms, string line, int i)
         {
             if (line.StartsWith("from", StringComparison.Ordinal) && (line.Length == 4 || char.IsWhiteSpace(line[4])))
@@ -1272,6 +1345,17 @@ public static partial class Parser
         private static (string Code, Severity Severity) FlowCode(string id) => id switch
         {
             "syntax" => ("AMP1111", Severity.Error),
+            "feature-off" => ("AMP6020", Severity.Error),
+            "throw" => ("AMP6003", Severity.Error),
+            "assert" => ("AMP6004", Severity.Error),
+            "assert-unavailable" => ("AMP6018", Severity.Error),
+            "error-decl" => ("AMP6040", Severity.Error),
+            "fail" => ("AMP6002", Severity.Error),
+            "finally-flow" => ("AMP6011", Severity.Error),
+            "unwind-reserve" => ("AMP6014", Severity.Info),
+            "require" => ("AMP6005", Severity.Error),
+            "unknown-field" => ("AMP2067", Severity.Error),
+            "reserved-name" => ("AMP6016", Severity.Warning),
             "unknown-operator" => ("AMP2023", Severity.Error),
             "wrong-unit" or "bad-argument" => ("AMP2024", Severity.Error),
             "type-mismatch" => ("AMP2044", Severity.Error),
@@ -1281,6 +1365,7 @@ public static partial class Parser
             "shared-stable" => ("AMP2055", Severity.Info),
             "while-limit" => ("AMP2056", Severity.Error),
             "helper-effect" => ("AMP2060", Severity.Error),
+            "diagnostic-volatile" => ("AMP6012", Severity.Error),
             "helper-naming" => ("AMP2078", Severity.Warning),
             "deprecated-name" => ("AMP2079", Severity.Warning),
             "capability-denied" => ("AMP2077", Severity.Error),
@@ -1303,6 +1388,7 @@ public static partial class Parser
             "unknown-name" or "ambiguous-name" => ("AMP2074", Severity.Error),
             "unsupported" => ("AMP2075", Severity.Error),
             "dynamic-property" => ("AMP2073", Severity.Info),
+            "bake-upstream-dynamic" => ("AMP2096", Severity.Warning),
             "loop-limit" => ("AMP5710", Severity.Error),
             "fuel" => ("AMP5711", Severity.Error),
             "stack-depth" => ("AMP5712", Severity.Error),
@@ -1334,6 +1420,29 @@ public static partial class Parser
             "unused-stream" => ("AMP2043", Severity.Info),
             _ => ("AMP2024", Severity.Error),
         };
+
+        /// <summary>The call stack as one line: <c>Called from: gain (song:12:5) &lt;- main (song:8:3)</c>, innermost first.</summary>
+        internal static string StackText(IReadOnlyList<StackFrameInfo> frames)
+            => "Called from: " + string.Join(" <- ", frames.Select(f => f.Name + (f.Site is null ? string.Empty : " (" + f.Site + ")")))
+            + (frames[0].Instance is null ? string.Empty : " in " + frames[0].Instance);
+
+        /// <summary>The events of the observations as diagnostics (plan D2, WP6): user warnings are AMP6001,
+        /// an observation that could not be evaluated is AMP6006, a budget notice is AMP6007; events of other files stay in the observations.</summary>
+        internal static IEnumerable<Diagnostic> ProjectObservations(IReadOnlyList<LogEvent> events)
+        {
+            foreach (LogEvent e in events)
+            {
+                if (e.Site is not { Origin: "song" } site) continue;
+                bool engine = e.Code is { } c && c.StartsWith("AMP", StringComparison.Ordinal);
+                bool failed = e.Code is { Length: > 0 } f && char.IsLower(f[0]);
+                string? code = engine && e.Code == "AMP6007" ? "AMP6007" : failed ? "AMP6006" : e.Level == EventLevel.Warning && !engine ? "AMP6001" : null;
+                if (code is null) continue;
+                Severity severity = code == "AMP6001" ? Severity.Warning : Severity.Info;
+                string message = code switch { "AMP6001" => e.Message + (e.Code is { } user ? " [" + user + "]" : string.Empty), "AMP6006" => e.Message + " (" + e.Code + ")", _ => e.Message };
+                string hint = (e.Hint ?? string.Empty) + (e.Stack.Count > 0 ? (e.Hint is null ? string.Empty : " ") + StackText(e.Stack) : string.Empty);
+                yield return new Diagnostic(code, severity, site.Line, site.Col, Math.Max(site.EndCol, site.Col + 1), message, hint, null, null);
+            }
+        }
 
         private void ReportFlow(Parameter p, PipeIssue issue, string? strictStage = null)
         {
@@ -1382,11 +1491,12 @@ public static partial class Parser
                 "cost-estimate" => "Make the pipeline smaller, or raise the limit of the song: settings { notes.maxEvents 500000 } (never more than the limit of the server, 2000000).",
                 _ => string.Empty,
             };
+            if (issue.Stack is { Count: > 0 } frames) hint = (hint.Length > 0 ? hint + " " : string.Empty) + StackText(frames);
             string? typoName = issue.Id == "seed-typo" && issue.Suggestion is not null ? System.Text.RegularExpressions.Regex.Match(value.Substring(s, e - s), "\"([^\"]*)\"", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)).Groups[1].Value : null;
             Opts opts = typoName is { Length: > 0 }
                 ? new Opts { ColStart = baseCol + (s - lineStart), ColEnd = baseCol + (e - lineStart), Hint = hint, FixLabel = $"Use \"{issue.Suggestion}\"", FixNeedle = "\"" + typoName + "\"", FixFrom = baseCol + (s - lineStart), FixText = "\"" + issue.Suggestion + "\"" }
-                : issue.Id is "type-mismatch" or "quoted-word" or "not-whole" or "bad-argument" or "helper-casing" or "unknown-helper" or "helper-effect" or "lossy-conversion" or "unknown-name" or "undefined-name" or "ambiguous-name" or "deprecated-name" or "stale-value-bake" or "dirty-value-bake" or "unknown-type" && issue.Suggestion is { Length: > 0 }
-                ? new Opts { ColStart = baseCol + (s - lineStart), ColEnd = baseCol + (e - lineStart), Hint = hint, FixLabel = issue.Id switch { "helper-effect" => "Mark the helper dynamic", "stale-value-bake" or "dirty-value-bake" => "Bake this value again", "lossy-conversion" => "Say how: Round(...)", _ => $"Change to {issue.Suggestion}" }, FixNeedle = value.Substring(s, e - s), FixFrom = baseCol + (s - lineStart), FixText = issue.Suggestion }
+                : issue.Id is "type-mismatch" or "quoted-word" or "not-whole" or "bad-argument" or "helper-casing" or "unknown-helper" or "helper-effect" or "lossy-conversion" or "unknown-name" or "undefined-name" or "ambiguous-name" or "deprecated-name" or "stale-value-bake" or "dirty-value-bake" or "unknown-type" or "reserved-name" && issue.Suggestion is { Length: > 0 }
+                ? new Opts { ColStart = baseCol + (s - lineStart), ColEnd = baseCol + (e - lineStart), Hint = hint, FixLabel = issue.Id switch { "helper-effect" => "Mark the helper dynamic", "reserved-name" => $"Rename it to {issue.Suggestion} (its calls follow with their own fix)", "stale-value-bake" or "dirty-value-bake" => "Bake this value again", "lossy-conversion" => "Say how: Round(...)", _ => $"Change to {issue.Suggestion}" }, FixNeedle = value.Substring(s, e - s), FixFrom = baseCol + (s - lineStart), FixText = issue.Suggestion, Risky = issue.Id == "reserved-name" }
                 : issue.Id == "unknown-operator" && issue.Suggestion is { Length: > 0 }
                 ? new Opts { ColStart = baseCol + (s - lineStart), ColEnd = baseCol + (e - lineStart), Hint = hint, FixLabel = $"Replace with {issue.Suggestion}", FixNeedle = value.Substring(s, e - s), FixFrom = baseCol + (s - lineStart), FixText = issue.Suggestion }
                 : new Opts { ColStart = baseCol + (s - lineStart), ColEnd = baseCol + (e - lineStart), Hint = hint };
@@ -1461,6 +1571,52 @@ public static partial class Parser
         /// <summary>The <c>block.notes</c> that note pipelines read, collected before the note flow replaces a pipeline by its value (the unused-output lint needs them).</summary>
         private readonly HashSet<string> notePipelineSources = [];
 
+        private IReadOnlyDictionary<string, FlowEntry> AnalyzeNotes(string tempo, int limit, LangLimits limits)
+        {
+            ObservationSink? sink = observationSink ?? options.Observations;
+            if (sink is null && SyntaxGate.Supports(SyntaxFeatures.Observe))
+            {
+                ObservationConfig global = ResolveObservation(null);
+                sink = new ObservationSink(global.Budgets, global.Level);
+            }
+            observationSink = sink;
+
+            return NoteFlow.Analyze(
+                blocks, tempo, limit, options.ReadFile,
+                midiSource: options.MidiSource,
+                masterSeed: Project?.MasterSeed ?? 0,
+                helpers: helperTable,
+                limits: limits,
+                clock: options.Clock ?? (() => started),
+                capabilities: capabilityPolicy,
+                environment: options.Environment,
+                isComponent: IsComponentBlock,
+                beatsPerBar: Project?.BeatsPerBar ?? 4.0,
+                observations: sink,
+                observationOptions: sink is null ? null : ResolveObservation,
+                observationHelperSites: options.ObservationHelperSites);
+        }
+
+        private ObservationConfig ResolveObservation(BlockNode? block)
+        {
+            List<ConfigLayerInput> layers = [.. options.ObservationDefaults];
+            Dictionary<string, (string Value, int Line)> song = settings.Where(pair => ObservationConfig.IsOption(pair.Key))
+                .ToDictionary(pair => pair.Key, pair => (pair.Value, settingLines.GetValueOrDefault(pair.Key)), StringComparer.Ordinal);
+            layers.Add(new ConfigLayerInput(new ConfigSource(ConfigLayer.Song), song));
+            if (block is not null)
+            {
+                IReadOnlyList<BlockDirective> directives = options.InstanceDirectives?.GetValueOrDefault(block.Name) ?? block.Directives;
+                if (directives.Count > 0)
+                {
+                    Dictionary<string, (string Value, int Line)> values = new(StringComparer.Ordinal);
+                    foreach (BlockDirective directive in directives) values[directive.Name] = (directive.Value, directive.Line);
+                    layers.Add(new ConfigLayerInput(new ConfigSource(ConfigLayer.Instance, block.Name), values));
+                }
+            }
+            if (options.ObservationOverride is { } session) layers.Add(session);
+            return ObservationConfig.Resolve(layers);
+        }
+
         private void NoteFlowDiagnostics()
         {
             foreach (BlockNode clipBlock in blocks.Where(x => !x.Skipped && x.Type == "midi-clip"))
@@ -1476,7 +1632,7 @@ public static partial class Parser
             int limit = options.NoteLimit;
             if (settings.TryGetValue("notes.maxEvents", out string? raw) && int.TryParse(raw.Trim('"'), NumberStyles.None, CultureInfo.InvariantCulture, out int fromSong) && fromSong > 0) limit = fromSong;
             limit = Math.Min(limit, NotePipeline.HardCap);
-            IReadOnlyDictionary<string, FlowEntry> flow = flowResults = NoteFlow.Analyze(blocks, tempo, limit, options.ReadFile, midiSource: options.MidiSource, masterSeed: Project?.MasterSeed ?? 0, helpers: helperTable, limits: LangLimits.From(settings), clock: options.Clock ?? (() => started), capabilities: capabilityPolicy, environment: options.Environment, isComponent: IsComponentBlock, beatsPerBar: Project?.BeatsPerBar ?? 4.0);
+            IReadOnlyDictionary<string, FlowEntry> flow = flowResults = AnalyzeNotes(tempo, limit, LangLimits.From(settings));
             foreach ((FlowEntry owner, PipeIssue typo) in NoteFlow.SeedLint([.. flow.Values])) ReportFlow(owner.Parameter, typo);
             foreach (FlowEntry entry in flow.Values.Where(x => x.IsExpression))
             {
@@ -1527,7 +1683,7 @@ public static partial class Parser
             string tempo = (Project?.Tempo ?? 120).ToString(CultureInfo.InvariantCulture);
             int limit = Math.Min(options.NoteLimit, NotePipeline.HardCap);
             LangLimits limits = LangLimits.From(settings);
-            IReadOnlyDictionary<string, FlowEntry> flow = flowResults ?? NoteFlow.Analyze(blocks, tempo, limit, options.ReadFile, midiSource: options.MidiSource, masterSeed: Project?.MasterSeed ?? 0, helpers: helperTable, limits: limits, clock: options.Clock ?? (() => started), capabilities: capabilityPolicy, environment: options.Environment, isComponent: IsComponentBlock, beatsPerBar: Project?.BeatsPerBar ?? 4.0);
+            IReadOnlyDictionary<string, FlowEntry> flow = flowResults ?? AnalyzeNotes(tempo, limit, limits);
             Dictionary<string, PropertyResult> resolved = new(StringComparer.Ordinal);
             HashSet<string> chain = new(StringComparer.Ordinal);
 
@@ -1630,9 +1786,13 @@ public static partial class Parser
 
             List<HelperIssue> issues = [];
             List<CapabilityIssue> capabilityIssues = [];
-            capabilityPolicy = CapabilityPolicy.Resolve(options.ServerCapabilities ?? ServerCapabilities.Current, options.ProjectCapabilities ?? ServerCapabilities.Project, capabilityEntries, capabilityIssues);
+            capabilityPolicy = CapabilityPolicy.Resolve(options.ServerCapabilities ?? ServerCapabilities.Current, options.ProjectCapabilities, capabilityEntries, capabilityIssues);
             foreach (CapabilityIssue ci in capabilityIssues)
-                Add(Math.Max(0, ci.Line), "AMP2076", Severity.Error, ci.Message, new Opts { Needle = ci.Needle, FixLabel = ci.Suggestion is null ? null : $"Use {ci.Suggestion}", FixNeedle = ci.Suggestion is null ? null : ci.Needle, FixText = ci.Suggestion });
+                Add(Math.Max(0, ci.Line), "AMP2076", Severity.Error, ci.Line < 0 ? "In the project file (.ample/project.json): " + ci.Message : ci.Message, ci.Line < 0 ? new Opts() : new Opts { Needle = ci.Needle, FixLabel = ci.Suggestion is null ? null : $"Use {ci.Suggestion}", FixNeedle = ci.Suggestion is null ? null : ci.Needle, FixText = ci.Suggestion });
+            // a capability that is off by default and that the project switches on is never silent: every song of the project says so (AMP2097)
+            ServerCapabilities host = options.ServerCapabilities ?? ServerCapabilities.Current;
+            foreach (CapabilityState state in capabilityPolicy.States.Where(c => c.Effective && c.Scope == "project" && !host.DefaultOn.Contains(c.Name)))
+                Add(0, "AMP2097", Severity.Info, $"The capability {state.Name} is switched on by the project (.ample/project.json), not by this song.", new Opts { Hint = $"To keep it off for this song: settings {{ capabilities.{state.Name} off }}." });
             // the process of every component of this text is a helper like any other (its lines stand where the process lines stand), so that it is checked, typed and evaluated by the helper system
             List<ComponentDefinition> visibleComponents = [.. Components.Definitions, .. (options.Components ?? []).Concat(ImportedByFile()).Where(x => !Components.Definitions.Contains(x))];
             List<NestIssue> nestIssues = [];
@@ -1646,7 +1806,7 @@ public static partial class Parser
             foreach (ComponentDefinition callee in calledComponents.Where(c => c.ProcessLine >= 0)) helperSources.Add((ComponentHelper.Text(callee, visibleComponents), -1));
             foreach (NestIssue nest in nestIssues.Concat(ComponentNesting.Analyze(visibleComponents).Where(i => Components.Definitions.Contains(i.Component))))
                 Add(Math.Max(0, nest.Component.ProcessLine), nest.Code, nest.Severity, nest.Message, new Opts());
-            helperTable = NotePipeline.HelperTable.Build(helperSources, issues);
+            helperTable = NotePipeline.HelperTable.Build(helperSources, issues, visibleComponents);
             foreach ((int line, int start, int end, string call, string capability) in helperTable.VolatileUses())
             {
                 if (capabilityPolicy.Allowed(capability)) continue;
@@ -1911,6 +2071,14 @@ public static partial class Parser
                             Add(p.Line, "AMP2022", Severity.Error, $"Unknown tint \"{p.Value.Trim().Trim('"')}\" on {b.Name}.", new Opts { Needle = p.Name, Hint = "Use one of: " + string.Join(", ", TintNames) + "." });
                         }
 
+                        continue;
+                    }
+
+                    ComponentDefinition? ownerOf = Components.Definitions.Concat(options.Components ?? []).FirstOrDefault(c => c.Name == b.Type);
+                    if (!t.Parameters.ContainsKey(p.Name) && ownerOf is { } owner && owner.PrivateProperties.Any(q => q.Name == p.Name))
+                    {
+                        string known = t.Parameters.Count > 0 ? "Its public properties: " + string.Join(", ", t.Parameters.Keys) : "It has no public properties.";
+                        Add(p.Line, "AMP2261", Severity.Error, $"\"{p.Name}\" is a private property of {b.Type}: it cannot be set from outside.", new Opts { Needle = p.Name, Hint = known });
                         continue;
                     }
 

@@ -63,6 +63,22 @@ public sealed class NotePipelineRoutesTests : IAsyncLifetime, IDisposable
         Assert.Contains("2:0:1:70:100", text, StringComparison.Ordinal);
     }
 
+    // A clip written with melody or chords is a pipeline source (2026-11-17, owner): the pipeline reads exactly the notes the midi-clip renderer makes for it.
+    [Theory]
+    [InlineData("melody \"mp c4:1 d4 < e4:1 g4:1 ff c5:2 g4:1/8 r:1\"\n  bars 2")]
+    [InlineData("chords Am F.G C/E\n  bars 4")]
+    public async Task A_pipeline_reads_a_melody_or_chords_clip_as_the_notes_the_clip_plays(string shorthand)
+    {
+        string song = "composition \"demo\" { ample 1  tempo 100  master-seed 1 }\n\n" +
+            $"midi-clip theme {{\n  {shorthand}\n}}\n\n" +
+            "midi-clip copy at 1 for auto {\n  notes theme.notes\n}\n";
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), song);
+        string played = (await Post("/api/midi/clip-notes", new { path = "song.amplet", block = "theme" })).GetProperty("text").GetString()!;   // the renderer
+        string read = (await Post("/api/midi/clip-notes", new { path = "song.amplet", block = "copy" })).GetProperty("text").GetString()!;     // the pipeline
+        Assert.NotEmpty(played);
+        Assert.Equal(played, read);
+    }
+
     [Fact]
     public async Task Bake_returns_the_new_text_and_writes_nothing()
     {

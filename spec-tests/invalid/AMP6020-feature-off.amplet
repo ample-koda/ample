@@ -1,0 +1,6 @@
+composition "x" { ample 1  tempo 120  master-seed 1 }
+
+helper f() -> Int {
+  assert true
+  return 1
+}

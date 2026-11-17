@@ -36,8 +36,7 @@ test('a field has a note that makes Koda explain it from the documentation, a bu
 });
 
 test('an answer can be followed by a question of your own, which goes with what Koda just said', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.keyboard.press('Escape');
   await page.evaluate(async () => {
     const { setBackend } = await import('/app/koda-backend.js');
@@ -136,8 +135,7 @@ test('a proposal that came from a question: Details opens a big sheet with the e
 });
 
 test('Ctrl+K asks about the selected block: the menu names it and the explanation comes from its type', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.keyboard.press('Escape');
   await page.locator('.node').first().click();
   await page.keyboard.press('Control+k');
@@ -148,8 +146,7 @@ test('Ctrl+K asks about the selected block: the menu names it and the explanatio
 });
 
 test('a hidden Koda holds an answer and peeks out of the edge, and shows it when they come back; muted Koda still answers a question asked by hand', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.evaluate(async () => {
     const { setBackend } = await import('/app/koda-backend.js');
     (window as any).__release = () => {};
@@ -178,8 +175,7 @@ test('a hidden Koda holds an answer and peeks out of the edge, and shows it when
 });
 
 test('Do this goes to the model: a draft shows its changes and the buttons, Yes keeps it', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.evaluate(async () => {
     const { setBackend } = await import('/app/koda-backend.js');
     (window as any).__kept = false;
@@ -209,8 +205,7 @@ test('the server backend runs a Koda task: a question becomes an answer, an inst
   });
   await page.route(/\/api\/ai\/tasks\/t1(\?.*)?$/,(route) => route.fulfill({ json: { id: 't1', status: 'ready', summary: 'It plays the chords.\n\nIt feeds the mixer.', changes: [{ path: 'song.amplet', diff: '--- a\n+++ b\n+reverb room {\n+  from keys.audio -> audio\n' }] } }));
   await page.route('**/api/ai/tasks/t1/accept', (route) => { calls.push('accept'); return route.fulfill({ json: { song: 'x', songText: null } }); });
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.locator('.node').first().click();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+k');
@@ -286,8 +281,11 @@ test('in the source editor the draft is shown in the text: added lines dashed, A
 });
 
 test('the language of Koda is a project setting in the project settings: Dutch words, remembered after a reload', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  // The save of the settings is two journaled commands on the server and takes 1 to 5 s when several servers share the machine, so the waits below are long. A save that was
+  // too late for a short wait used to land after the test and leave Dutch on the server of this worker, which broke the next tests: the language is always put back at the end.
+  test.setTimeout(120000);
+  try {
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.keyboard.press('Escape');
   // the menu of Koda has no language switch any more
   await page.locator('.node').first().click();
@@ -300,13 +298,15 @@ test('the language of Koda is a project setting in the project settings: Dutch w
   await page.locator('#open-settings').click();
   await page.locator('#ps-koda-language').selectOption('nl');
   await page.locator('#ps-save').click();
-  await expect.poll(async () => page.evaluate(async () => (await (await fetch('/api/project/settings')).json()).koda.language)).toBe('nl');
+  await expect.poll(async () => page.evaluate(async () => (await (await fetch('/api/project/settings')).json()).koda.language), { timeout: 60000 }).toBe('nl');
   await page.reload();
   await expect.poll(async () => (await state(page)).presence).toBe('visible');
   await page.locator('.node').first().click();
   await page.keyboard.press('Control+k');
   await expect(page.locator('#koda-layer .bub.k-menu .tag')).toHaveText('Vraag Koda');
-  await page.evaluate(() => import('/app/koda-lang.js').then((m) => m.saveKodaLanguage('en')));
+  } finally {
+    await page.evaluate(() => import('/app/koda-lang.js').then((m) => m.saveKodaLanguage('en'))).catch(() => {});
+  }
 });
 
 test('Ctrl and drag from Koda to a block: Koda looks there, a neon line stays while the block is selected and fades when it is not', async ({ page }) => {
@@ -620,8 +620,7 @@ test('after an answer, faded lines go to the blocks it talks about and stay a fe
 });
 
 test('variants the model offered are shown as A, B and C: listen to one, ask about them, Use this one keeps that one and drops the proposal once', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.evaluate(async () => {
     const { setBackend } = await import('/app/koda-backend.js');
     (window as any).__discarded = []; (window as any).__kept = '';
@@ -713,8 +712,12 @@ test('draft or live: a pill in the bubble until the first reply; live applies th
     (window as any).__kept = 0;
     setBackend({ explain: async () => ({ kind: 'answer', title: 'x', text: 'y' }), run: async () => ({ kind: 'draft', summary: [{ type: 'add', text: 'reverb after piano' }], apply: async () => { (window as any).__kept++; return true; } }) });
   });
+  // The first time Koda is turned on it says hello after a second, if no bubble is open then. Wait for that hello and close it, or it opens between the Esc and the Ctrl+K
+  // below and the Ctrl+K closes it again (Ctrl+K toggles) instead of opening the menu.
+  await expect(page.locator('#koda-layer .bub')).toContainText('I am Koda');
   await page.locator('.node').first().click();
   await page.keyboard.press('Escape');
+  await expect(page.locator('#koda-layer .bub')).toHaveCount(0);
   await page.keyboard.press('Control+k');
   const pill = page.locator('#koda-layer .riskpill');
   await expect(pill).toBeVisible();
@@ -732,6 +735,7 @@ test('draft or live: a pill in the bubble until the first reply; live applies th
   await expect(page.locator('#koda-layer .riskdot.unsafe')).toBeVisible();
   // live is remembered in this browser: a closed conversation stays on live, until it is switched off
   await page.keyboard.press('Escape');
+  await expect(page.locator('#koda-layer .bub')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('ample.koda.live'))).toBe('1');
   await page.keyboard.press('Control+k');
   await expect(page.locator('#koda-layer .riskpill')).toHaveAttribute('aria-checked', 'true');
@@ -747,8 +751,7 @@ test('draft or live: a pill in the bubble until the first reply; live applies th
 });
 
 test('draft or live is locked as soon as Koda starts to think', async ({ page }) => {
-  await page.locator('#btn-koda').click();
-  await expect.poll(async () => (await state(page)).presence).toBe('visible');
+  await kodaOn(page);   // waits for the first hello and closes it: it would open between a later Esc and Ctrl+K, and the Ctrl+K (a toggle) would close it again
   await page.evaluate(async () => {
     const { setBackend } = await import('/app/koda-backend.js');
     setBackend({ explain: async () => ({ kind: 'answer', title: 'x', text: 'y' }), run: () => new Promise(() => {}) });

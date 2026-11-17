@@ -327,7 +327,7 @@ export const NOTE_SIGNATURES = {
     "kind": "transform",
     "receiver": "Notes",
     "returns": "Notes",
-    "doc": "Move every note in time by a length (negative allowed).",
+    "doc": "Move every note in time by a musical length (negative allowed), for example shift(3beats). This is the Notes operator; the shift block moves audio.",
     "params": [
       {
         "name": "by",
@@ -1079,6 +1079,42 @@ export const NOTE_BUILTINS = {
       }
     ]
   },
+  "String": {
+    "id": "String",
+    "kind": "function",
+    "receiver": null,
+    "returns": "String",
+    "doc": "The value as text, written the way the log shows it (3, 0.5, true, 40%, -6dB; a length in ticks). A list, record, notes or error is refused.",
+    "params": [
+      {
+        "name": "value",
+        "type": "Values",
+        "required": true,
+        "doc": "A text, a number, a Bool or a quantity (40%, -6dB, 2bars)."
+      }
+    ]
+  },
+  "sprintf": {
+    "id": "sprintf",
+    "kind": "function",
+    "receiver": null,
+    "returns": "String",
+    "doc": "Builds a text from a format and values, like sprintf(\"Bar %03d at %.1f%%\", 4, 75.5). Culture independent; %f rounds half to even.",
+    "params": [
+      {
+        "name": "format",
+        "type": "String",
+        "required": true,
+        "doc": "The text with placeholders: %s (any single value), %d (an Int), %f or %.2f (a number), %% (a percent sign); an optional - or 0 and a width, like %03d."
+      },
+      {
+        "name": "values",
+        "type": "Values",
+        "required": false,
+        "doc": "One value for each placeholder, in order: no more, no less."
+      }
+    ]
+  },
   "Round": {
     "id": "Round",
     "kind": "function",
@@ -1539,6 +1575,102 @@ export const NOTE_BUILTINS = {
     "receiver": null,
     "returns": "",
     "doc": "while condition max N { ... }: a loop with a guard; reaching max is an error unless it says stop.",
+    "params": []
+  },
+  "log": {
+    "id": "log",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "log \"message\", context={...}: an info event of the log view (kept when logging.level is info, debug or trace). It never changes the notes or the music.",
+    "params": []
+  },
+  "debug": {
+    "id": "debug",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "debug value: a debug event of the log view (kept when logging.level is debug or trace).",
+    "params": []
+  },
+  "trace": {
+    "id": "trace",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "trace value: the finest event of the log view (kept only at logging.level trace).",
+    "params": []
+  },
+  "warn": {
+    "id": "warn",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "warn \"message\", code=\"NAME\": a warning of the song (AMP6001) and an event of the log view; always kept.",
+    "params": []
+  },
+  "assert": {
+    "id": "assert",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "assert condition, \"message\": checked only when diagnostics.assertions is on (the song, a block or the session); a false condition fails the song (AMP6004) and cannot be caught.",
+    "params": []
+  },
+  "require": {
+    "id": "require",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "require condition, \"message\": a condition the caller must meet; when it is false the helper fails (AMP6005), and a try can catch it.",
+    "params": []
+  },
+  "fail": {
+    "id": "fail",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "fail \"message\": stops the helper with an error (AMP6002) that a try can catch.",
+    "params": []
+  },
+  "throw": {
+    "id": "throw",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "throw ErrorType(\"message\", field=value): raises a declared error (error Name { ... }); uncaught it is AMP6003.",
+    "params": []
+  },
+  "try": {
+    "id": "try",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "try { ... } catch (e) { ... } finally { ... }: runs the body; an error of a fail, require, throw or a failing call goes to the first catch that matches; finally always runs.",
+    "params": []
+  },
+  "catch": {
+    "id": "catch",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "catch (e) or catch (ErrorType e): takes the error of the try body; e has type, message, code and its declared fields.",
+    "params": []
+  },
+  "finally": {
+    "id": "finally",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "finally { ... }: runs after the try and its catch, also when the error is not caught.",
+    "params": []
+  },
+  "error": {
+    "id": "error",
+    "kind": "keyword",
+    "receiver": null,
+    "returns": "",
+    "doc": "error Name { String field ... }: declares an error type (with an optional parent: error Name extends Parent { ... }) for throw and catch.",
     "params": []
   },
   "if": {

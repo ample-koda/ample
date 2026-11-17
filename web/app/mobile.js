@@ -24,7 +24,8 @@ function menuItem(label, run, extra = {}) {
 /** A small popup in the style of the transport popups: toggle button, Escape closes, outside press closes, arrow keys move. */
 function popupMenu(button, menu) {
   const close = (focus) => { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); if (focus) button.focus(); };
-  const items = () => [...menu.querySelectorAll('[role^="menuitem"]:not([hidden])')];
+  // a disabled item cannot take focus, so the arrow keys skip it (otherwise they stop in front of it)
+  const items = () => [...menu.querySelectorAll('[role^="menuitem"]:not([hidden]):not(:disabled)')];
   button.onclick = () => {
     menu.hidden = !menu.hidden;
     button.setAttribute('aria-expanded', String(!menu.hidden));
@@ -124,6 +125,8 @@ function initMoreMenu() {
   popupMenu(button, menu);
 }
 
+const MORE_TABS = [['var', 'Variants'], ['mixer', 'Mixer'], ['assistant', 'Assistant'], ['log', 'Log']];
+
 function initBottomNav() {
   const bottom = $('#bottom'), tabs = $('#btabs'), body = $('#bbody');
   if (!bottom || !tabs || !body) return;
@@ -157,21 +160,21 @@ function initBottomNav() {
     else if (e.key === 'ArrowDown') { e.preventDefault(); setHeight(Math.max(160, now - 40)); }
   };
 
-  // "More": the tabs that do not fit in the bar (Variants, Assistant, Log)
+  // "More": the tabs that do not fit in the bar (Variants, Mixer, Assistant, Log; hidden by mobile.css)
   const more = document.createElement('span');
   more.className = 'nav-more';
   more.innerHTML = '<button id="b-more" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="more-tabs" aria-label="More panels"><span class="ico" aria-hidden="true">⋯</span><span class="lab">More</span></button><span id="more-tabs" class="transport-popup nav-popup" role="menu" hidden></span>';
   tabs.append(more);
   const list = $('#more-tabs');
-  for (const [t, label] of [['var', 'Variants'], ['assistant', 'Assistant'], ['log', 'Log']]) {
+  for (const [t, label] of MORE_TABS) {
     list.append(menuItem(label, () => $(`#btabs button[data-t="${t}"]`)?.click()));
   }
   popupMenu($('#b-more'), list);
   const sync = () => {
-    const hidden = ['var', 'assistant', 'log'].some((t) => $(`#btabs button[data-t="${t}"]`)?.classList.contains('on')) && !bottom.classList.contains('min');
+    const hidden = MORE_TABS.some(([t]) => $(`#btabs button[data-t="${t}"]`)?.classList.contains('on')) && !bottom.classList.contains('min');
     $('#b-more').classList.toggle('on', hidden);
     // More says which panel it holds open, and the menu marks it
-    const open = hidden ? [['var', 'Variants'], ['assistant', 'Assistant'], ['log', 'Log']].find(([t]) => $(`#btabs button[data-t="${t}"]`)?.classList.contains('on')) : null;
+    const open = hidden ? MORE_TABS.find(([t]) => $(`#btabs button[data-t="${t}"]`)?.classList.contains('on')) : null;
     const lab = $('#b-more .lab');
     if (lab) lab.textContent = open ? open[1] : 'More';
     $('#b-more').setAttribute('aria-label', open ? `More panels: ${open[1]} is open` : 'More panels');

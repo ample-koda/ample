@@ -3369,5 +3369,1851 @@
   },
   "song": "f257b8a8eb78",
   "code": "# The composition line: the name of the song, the AMPLE version it is written for (ample 1), the tempo in beats per minute and the master seed.\n# tip: change the tempo (150) to hear it faster or slower; the notes keep their place in the bars.\ncomposition \"Music Built from parts (150 bpm)\" { ample 1  tempo 150  master-seed 20261017 }\n\n# Built from parts: intro 4, verse1 8, chorus1 8, verse2 8, bridge 4, chorus2 8, outro 4 (bars), 44 bars at 150 bpm\n# The song is built per instrument, and every instrument per section: a clip of notes for each section where it plays (for example pad_intro),\n# joined into one line of notes per instrument (pad_notes) that feeds the instrument. An instrument that is not in a section has no clip there.\n\n# PAD: soft chords, one chord a bar: the floor under everything.\n# Plays in: intro (bars 1-4), verse1 (bars 5-12), chorus1 (bars 13-20), verse2 (bars 21-28), bridge (bars 29-32), chorus2 (bars 33-40), outro (bars 41-44).\n# The pad in the intro (bars 1-4); it is read by pad_notes below.\nmidi-clip pad_intro at 1 for 4 {\n  notes 1:0:4:47:100 1:0:4:51:100 1:0:4:54:100 2:0:4:51:100 2:0:4:54:100 2:0:4:58:100 3:0:4:49:100 3:0:4:52:100 3:0:4:56:100 4:0:4:54:100 4:0:4:58:100 4:0:4:61:100\n  bars 4\n}\n\n# The pad in the verse1 (bars 5-12); it is read by pad_notes below.\nmidi-clip pad_verse1 at 1 for 8 {\n  notes 1:0:4:47:100 1:0:4:51:100 1:0:4:54:100 2:0:4:51:100 2:0:4:54:100 2:0:4:58:100 3:0:4:49:100 3:0:4:52:100 3:0:4:56:100 4:0:4:54:100 4:0:4:58:100 4:0:4:61:100 5:0:4:47:100 5:0:4:51:100 5:0:4:54:100 6:0:4:51:100 6:0:4:54:100 6:0:4:58:100 7:0:4:49:100 7:0:4:52:100 7:0:4:56:100 8:0:4:54:100 8:0:4:58:100 8:0:4:61:100\n  bars 8\n}\n\n# The pad in the chorus1 (bars 13-20); it is read by pad_notes below.\nmidi-clip pad_chorus1 at 1 for 8 {\n  notes 1:0:4:49:100 1:0:4:52:100 1:0:4:56:100 2:0:4:54:100 2:0:4:58:100 2:0:4:61:100 3:0:4:47:100 3:0:4:51:100 3:0:4:54:100 4:0:4:51:100 4:0:4:54:100 4:0:4:58:100 5:0:4:49:100 5:0:4:52:100 5:0:4:56:100 6:0:4:54:100 6:0:4:58:100 6:0:4:61:100 7:0:4:47:100 7:0:4:51:100 7:0:4:54:100 8:0:4:51:100 8:0:4:54:100 8:0:4:58:100\n  bars 8\n}\n\n# The pad in the verse2 (bars 21-28); it is read by pad_notes below.\nmidi-clip pad_verse2 at 1 for 8 {\n  notes 1:0:4:47:100 1:0:4:51:100 1:0:4:54:100 2:0:4:51:100 2:0:4:54:100 2:0:4:58:100 3:0:4:49:100 3:0:4:52:100 3:0:4:56:100 4:0:4:54:100 4:0:4:58:100 4:0:4:61:100 5:0:4:47:100 5:0:4:51:100 5:0:4:54:100 6:0:4:51:100 6:0:4:54:100 6:0:4:58:100 7:0:4:49:100 7:0:4:52:100 7:0:4:56:100 8:0:4:54:100 8:0:4:58:100 8:0:4:61:100\n  bars 8\n}\n\n# The pad in the bridge (bars 29-32); it is read by pad_notes below.\nmidi-clip pad_bridge at 1 for 4 {\n  notes 1:0:4:54:100 1:0:4:58:100 1:0:4:61:100 2:0:4:51:100 2:0:4:54:100 2:0:4:58:100 3:0:4:54:100 3:0:4:58:100 3:0:4:61:100 4:0:4:49:100 4:0:4:52:100 4:0:4:56:100\n  bars 4\n}\n\n# The pad in the chorus2 (bars 33-40); it is read by pad_notes below.\nmidi-clip pad_chorus2 at 1 for 8 {\n  notes 1:0:4:49:100 1:0:4:52:100 1:0:4:56:100 2:0:4:54:100 2:0:4:58:100 2:0:4:61:100 3:0:4:47:100 3:0:4:51:100 3:0:4:54:100 4:0:4:51:100 4:0:4:54:100 4:0:4:58:100 5:0:4:49:100 5:0:4:52:100 5:0:4:56:100 6:0:4:54:100 6:0:4:58:100 6:0:4:61:100 7:0:4:47:100 7:0:4:51:100 7:0:4:54:100 8:0:4:51:100 8:0:4:54:100 8:0:4:58:100\n  bars 8\n}\n\n# The pad in the outro (bars 41-44); it is read by pad_notes below.\nmidi-clip pad_outro at 1 for 4 {\n  notes 1:0:4:47:100 1:0:4:51:100 1:0:4:54:100 2:0:4:51:100 2:0:4:54:100 2:0:4:58:100 3:0:4:49:100 3:0:4:52:100 3:0:4:56:100 4:0:4:54:100 4:0:4:58:100 4:0:4:61:100\n  bars 4\n}\n\n# The notes of the pad over the whole song: its sections one after the other (merge puts them together, shift moves each one to its bar).\nmidi-clip pad_notes at 1 for 44 {\n  notes pad_intro.notes |> merge(pad_verse1.notes |> shift(4bars)) |> merge(pad_chorus1.notes |> shift(12bars)) |> merge(pad_verse2.notes |> shift(20bars)) |> merge(pad_bridge.notes |> shift(28bars)) |> merge(pad_chorus2.notes |> shift(32bars)) |> merge(pad_outro.notes |> shift(40bars))\n}\n\n# synth \"pad\": An instrument: it turns the notes it gets into sound with an oscillator.\n#   wave is the shape of the tone, attack and release shape its start and end, cutoff takes away high frequencies.\n# tip: try \"wave saw\" for a brighter, buzzier tone, or \"wave sine\" for a soft, round one.\n# tip: try \"attack 400 ms\" to let each note fade in slowly, like a string section.\nsynth pad at 1 for 44 {\n  wave sine\n  attack 120 ms\n  release 900 ms\n  gain -16 dB\n  from pad_notes.notes -> notes\n}\n\n# ARPEGGIO: the chord notes one by one in eighth notes (half as many in the first verse): the movement.\n# Plays in: verse1 (bars 5-12), chorus1 (bars 13-20), verse2 (bars 21-28), chorus2 (bars 33-40).\n# The arp in the verse1 (bars 5-12); it is read by arp_notes below.\nmidi-clip arp_verse1 at 1 for 8 {\n  notes 1:0:0.9:71:100 1:1:0.9:78:100 1:2:0.9:71:100 1:3:0.9:78:100 2:0:0.9:75:100 2:1:0.9:82:100 2:2:0.9:75:100 2:3:0.9:82:100 3:0:0.9:73:100 3:1:0.9:80:100 3:2:0.9:73:100 3:3:0.9:80:100 4:0:0.9:78:100 4:1:0.9:85:100 4:2:0.9:78:100 4:3:0.9:85:100 5:0:0.9:71:100 5:1:0.9:78:100 5:2:0.9:71:100 5:3:0.9:78:100 6:0:0.9:75:100 6:1:0.9:82:100 6:2:0.9:75:100 6:3:0.9:82:100 7:0:0.9:73:100 7:1:0.9:80:100 7:2:0.9:73:100 7:3:0.9:80:100 8:0:0.9:78:100 8:1:0.9:85:100 8:2:0.9:78:100 8:3:0.9:85:100\n  bars 8\n}\n\n# The arp in the chorus1 (bars 13-20); it is read by arp_notes below.\nmidi-clip arp_chorus1 at 1 for 8 {\n  notes 1:0:0.45:73:100 1:0.5:0.45:76:100 1:1:0.45:80:100 1:1.5:0.45:76:100 1:2:0.45:73:100 1:2.5:0.45:76:100 1:3:0.45:80:100 1:3.5:0.45:76:100 2:0:0.45:78:100 2:0.5:0.45:82:100 2:1:0.45:85:100 2:1.5:0.45:82:100 2:2:0.45:78:100 2:2.5:0.45:82:100 2:3:0.45:85:100 2:3.5:0.45:82:100 3:0:0.45:71:100 3:0.5:0.45:75:100 3:1:0.45:78:100 3:1.5:0.45:75:100 3:2:0.45:71:100 3:2.5:0.45:75:100 3:3:0.45:78:100 3:3.5:0.45:75:100 4:0:0.45:75:100 4:0.5:0.45:78:100 4:1:0.45:82:100 4:1.5:0.45:78:100 4:2:0.45:75:100 4:2.5:0.45:78:100 4:3:0.45:82:100 4:3.5:0.45:78:100 5:0:0.45:73:100 5:0.5:0.45:76:100 5:1:0.45:80:100 5:1.5:0.45:76:100 5:2:0.45:73:100 5:2.5:0.45:76:100 5:3:0.45:80:100 5:3.5:0.45:76:100 6:0:0.45:78:100 6:0.5:0.45:82:100 6:1:0.45:85:100 6:1.5:0.45:82:100 6:2:0.45:78:100 6:2.5:0.45:82:100 6:3:0.45:85:100 6:3.5:0.45:82:100 7:0:0.45:71:100 7:0.5:0.45:75:100 7:1:0.45:78:100 7:1.5:0.45:75:100 7:2:0.45:71:100 7:2.5:0.45:75:100 7:3:0.45:78:100 7:3.5:0.45:75:100 8:0:0.45:75:100 8:0.5:0.45:78:100 8:1:0.45:82:100 8:1.5:0.45:78:100 8:2:0.45:75:100 8:2.5:0.45:78:100 8:3:0.45:82:100 8:3.5:0.45:78:100\n  bars 8\n}\n\n# The arp in the verse2 (bars 21-28); it is read by arp_notes below.\nmidi-clip arp_verse2 at 1 for 8 {\n  notes 1:0:0.45:78:100 1:0.5:0.45:75:100 1:1:0.45:71:100 1:1.5:0.45:75:100 1:2:0.45:78:100 1:2.5:0.45:75:100 1:3:0.45:71:100 1:3.5:0.45:75:100 2:0:0.45:82:100 2:0.5:0.45:78:100 2:1:0.45:75:100 2:1.5:0.45:78:100 2:2:0.45:82:100 2:2.5:0.45:78:100 2:3:0.45:75:100 2:3.5:0.45:78:100 3:0:0.45:80:100 3:0.5:0.45:76:100 3:1:0.45:73:100 3:1.5:0.45:76:100 3:2:0.45:80:100 3:2.5:0.45:76:100 3:3:0.45:73:100 3:3.5:0.45:76:100 4:0:0.45:85:100 4:0.5:0.45:82:100 4:1:0.45:78:100 4:1.5:0.45:82:100 4:2:0.45:85:100 4:2.5:0.45:82:100 4:3:0.45:78:100 4:3.5:0.45:82:100 5:0:0.45:78:100 5:0.5:0.45:75:100 5:1:0.45:71:100 5:1.5:0.45:75:100 5:2:0.45:78:100 5:2.5:0.45:75:100 5:3:0.45:71:100 5:3.5:0.45:75:100 6:0:0.45:82:100 6:0.5:0.45:78:100 6:1:0.45:75:100 6:1.5:0.45:78:100 6:2:0.45:82:100 6:2.5:0.45:78:100 6:3:0.45:75:100 6:3.5:0.45:78:100 7:0:0.45:80:100 7:0.5:0.45:76:100 7:1:0.45:73:100 7:1.5:0.45:76:100 7:2:0.45:80:100 7:2.5:0.45:76:100 7:3:0.45:73:100 7:3.5:0.45:76:100 8:0:0.45:85:100 8:0.5:0.45:82:100 8:1:0.45:78:100 8:1.5:0.45:82:100 8:2:0.45:85:100 8:2.5:0.45:82:100 8:3:0.45:78:100 8:3.5:0.45:82:100\n  bars 8\n}\n\n# The arp in the chorus2 (bars 33-40); it is read by arp_notes below.\nmidi-clip arp_chorus2 at 1 for 8 {\n  notes 1:0:0.45:85:100 1:0.5:0.45:88:100 1:1:0.45:92:100 1:1.5:0.45:88:100 1:2:0.45:85:100 1:2.5:0.45:88:100 1:3:0.45:92:100 1:3.5:0.45:88:100 2:0:0.45:90:100 2:0.5:0.45:94:100 2:1:0.45:97:100 2:1.5:0.45:94:100 2:2:0.45:90:100 2:2.5:0.45:94:100 2:3:0.45:97:100 2:3.5:0.45:94:100 3:0:0.45:83:100 3:0.5:0.45:87:100 3:1:0.45:90:100 3:1.5:0.45:87:100 3:2:0.45:83:100 3:2.5:0.45:87:100 3:3:0.45:90:100 3:3.5:0.45:87:100 4:0:0.45:87:100 4:0.5:0.45:90:100 4:1:0.45:94:100 4:1.5:0.45:90:100 4:2:0.45:87:100 4:2.5:0.45:90:100 4:3:0.45:94:100 4:3.5:0.45:90:100 5:0:0.45:85:100 5:0.5:0.45:88:100 5:1:0.45:92:100 5:1.5:0.45:88:100 5:2:0.45:85:100 5:2.5:0.45:88:100 5:3:0.45:92:100 5:3.5:0.45:88:100 6:0:0.45:90:100 6:0.5:0.45:94:100 6:1:0.45:97:100 6:1.5:0.45:94:100 6:2:0.45:90:100 6:2.5:0.45:94:100 6:3:0.45:97:100 6:3.5:0.45:94:100 7:0:0.45:83:100 7:0.5:0.45:87:100 7:1:0.45:90:100 7:1.5:0.45:87:100 7:2:0.45:83:100 7:2.5:0.45:87:100 7:3:0.45:90:100 7:3.5:0.45:87:100 8:0:0.45:87:100 8:0.5:0.45:90:100 8:1:0.45:94:100 8:1.5:0.45:90:100 8:2:0.45:87:100 8:2.5:0.45:90:100 8:3:0.45:94:100 8:3.5:0.45:90:100\n  bars 8\n}\n\n# The notes of the arp over the whole song: its sections one after the other (merge puts them together, shift moves each one to its bar).\nmidi-clip arp_notes at 1 for 44 {\n  notes arp_verse1.notes |> shift(4bars) |> merge(arp_chorus1.notes |> shift(12bars)) |> merge(arp_verse2.notes |> shift(20bars)) |> merge(arp_chorus2.notes |> shift(32bars))\n}\n\n# synth \"arp\": An instrument: it turns the notes it gets into sound with an oscillator.\n#   wave is the shape of the tone, attack and release shape its start and end, cutoff takes away high frequencies.\n# tip: try \"wave saw\" for a brighter, buzzier tone, or \"wave sine\" for a soft, round one.\n# tip: try \"attack 400 ms\" to let each note fade in slowly, like a string section.\nsynth arp at 1 for 44 {\n  wave triangle\n  attack 10 ms\n  release 200 ms\n  cutoff 4000 Hz\n  gain -18 dB\n  from arp_notes.notes -> notes\n}\n\n# BASS: the root of every chord, low down: the weight.\n# Plays in: verse1 (bars 5-12), chorus1 (bars 13-20), verse2 (bars 21-28), chorus2 (bars 33-40), outro (bars 41-44).\n# The bass in the verse1 (bars 5-12); it is read by bass_notes below.\nmidi-clip bass_verse1 at 1 for 8 {\n  notes 1:0:1.5:35:100 1:2:1.5:35:100 2:0:1.5:39:100 2:2:1.5:39:100 3:0:1.5:37:100 3:2:1.5:37:100 4:0:1.5:42:100 4:2:1.5:42:100 5:0:1.5:35:100 5:2:1.5:35:100 6:0:1.5:39:100 6:2:1.5:39:100 7:0:1.5:37:100 7:2:1.5:37:100 8:0:1.5:42:100 8:2:1.5:42:100\n  bars 8\n}\n\n# The bass in the chorus1 (bars 13-20); it is read by bass_notes below.\nmidi-clip bass_chorus1 at 1 for 8 {\n  notes 1:0:1.5:37:100 1:2:1.5:37:100 2:0:1.5:42:100 2:2:1.5:42:100 3:0:1.5:35:100 3:2:1.5:35:100 4:0:1.5:39:100 4:2:1.5:39:100 5:0:1.5:37:100 5:2:1.5:37:100 6:0:1.5:42:100 6:2:1.5:42:100 7:0:1.5:35:100 7:2:1.5:35:100 8:0:1.5:39:100 8:2:1.5:39:100\n  bars 8\n}\n\n# The bass in the verse2 (bars 21-28); it is read by bass_notes below.\nmidi-clip bass_verse2 at 1 for 8 {\n  notes 1:0:1.5:35:100 1:2:1.5:35:100 2:0:1.5:39:100 2:2:1.5:39:100 3:0:1.5:37:100 3:2:1.5:37:100 4:0:1.5:42:100 4:2:1.5:42:100 5:0:1.5:35:100 5:2:1.5:35:100 6:0:1.5:39:100 6:2:1.5:39:100 7:0:1.5:37:100 7:2:1.5:37:100 8:0:1.5:42:100 8:2:1.5:42:100\n  bars 8\n}\n\n# The bass in the chorus2 (bars 33-40); it is read by bass_notes below.\nmidi-clip bass_chorus2 at 1 for 8 {\n  notes 1:0:1.5:37:100 1:2:1.5:37:100 2:0:1.5:42:100 2:2:1.5:42:100 3:0:1.5:35:100 3:2:1.5:35:100 4:0:1.5:39:100 4:2:1.5:39:100 5:0:1.5:37:100 5:2:1.5:37:100 6:0:1.5:42:100 6:2:1.5:42:100 7:0:1.5:35:100 7:2:1.5:35:100 8:0:1.5:39:100 8:2:1.5:39:100\n  bars 8\n}\n\n# The bass in the outro (bars 41-44); it is read by bass_notes below.\nmidi-clip bass_outro at 1 for 4 {\n  notes 1:0:3.5:35:100 2:0:3.5:39:100 3:0:3.5:37:100 4:0:3.5:42:100\n  bars 4\n}\n\n# The notes of the bass over the whole song: its sections one after the other (merge puts them together, shift moves each one to its bar).\nmidi-clip bass_notes at 1 for 44 {\n  notes bass_verse1.notes |> shift(4bars) |> merge(bass_chorus1.notes |> shift(12bars)) |> merge(bass_verse2.notes |> shift(20bars)) |> merge(bass_chorus2.notes |> shift(32bars)) |> merge(bass_outro.notes |> shift(40bars))\n}\n\n# synth \"bass\": An instrument: it turns the notes it gets into sound with an oscillator.\n#   wave is the shape of the tone, attack and release shape its start and end, cutoff takes away high frequencies.\n# tip: try \"wave saw\" for a brighter, buzzier tone, or \"wave sine\" for a soft, round one.\n# tip: try \"attack 400 ms\" to let each note fade in slowly, like a string section.\nsynth bass at 1 for 44 {\n  wave sine\n  attack 5 ms\n  release 150 ms\n  gain -12 dB\n  from bass_notes.notes -> notes\n}\n\n# BELL: a short high note now and then: the sparkle.\n# Plays in: chorus1 (bars 13-20), verse2 (bars 21-28), bridge (bars 29-32), chorus2 (bars 33-40).\n# The bell in the chorus1 (bars 13-20); it is read by bell_notes below.\nmidi-clip bell_chorus1 at 1 for 8 {\n  notes 2:3:1:97:100 4:3:1:94:100 6:3:1:97:100 8:3:1:94:100\n  bars 8\n}\n\n# The bell in the verse2 (bars 21-28); it is read by bell_notes below.\nmidi-clip bell_verse2 at 1 for 8 {\n  notes 2:3:1:94:100 4:3:1:97:100 6:3:1:94:100 8:3:1:97:100\n  bars 8\n}\n\n# The bell in the bridge (bars 29-32); it is read by bell_notes below.\nmidi-clip bell_bridge at 1 for 4 {\n  notes 2:3:1:94:100 4:3:1:92:100\n  bars 4\n}\n\n# The bell in the chorus2 (bars 33-40); it is read by bell_notes below.\nmidi-clip bell_chorus2 at 1 for 8 {\n  notes 2:3:1:97:100 4:3:1:94:100 6:3:1:97:100 8:3:1:94:100\n  bars 8\n}\n\n# The notes of the bell over the whole song: its sections one after the other (merge puts them together, shift moves each one to its bar).\nmidi-clip bell_notes at 1 for 44 {\n  notes bell_chorus1.notes |> shift(12bars) |> merge(bell_verse2.notes |> shift(20bars)) |> merge(bell_bridge.notes |> shift(28bars)) |> merge(bell_chorus2.notes |> shift(32bars))\n}\n\n# synth \"bell\": An instrument: it turns the notes it gets into sound with an oscillator.\n#   wave is the shape of the tone, attack and release shape its start and end, cutoff takes away high frequencies.\n# tip: try \"wave saw\" for a brighter, buzzier tone, or \"wave sine\" for a soft, round one.\n# tip: try \"attack 400 ms\" to let each note fade in slowly, like a string section.\nsynth bell at 1 for 44 {\n  wave sine\n  attack 2 ms\n  decay 400 ms\n  sustain 0\n  release 300 ms\n  gain -22 dB\n  from bell_notes.notes -> notes\n}\n\n# LEAD: the melody of the song, on top of the chords.\n# Plays in: chorus1 (bars 13-20), bridge (bars 29-32), chorus2 (bars 33-40).\n# The lead in the chorus1 (bars 13-20); it is read by lead_notes below.\nmidi-clip lead_chorus1 at 1 for 8 {\n  notes 1:0:0.5:73:100 1:1:0.5:73:100 1:1.5:0.5:76:100 1:2.5:1.5:76:100 2:0:0.5:78:100 2:1:0.5:85:100 2:1.5:0.5:78:100 2:2.5:1.5:82:100 3:0:0.5:71:100 3:1:0.5:71:100 3:1.5:0.5:75:100 3:2.5:1.5:75:100 4:0:0.5:75:100 4:1:0.5:82:100 4:1.5:0.5:75:100 4:2.5:1.5:78:100 5:0:0.5:73:100 5:1:0.5:73:100 5:1.5:0.5:76:100 5:2.5:1.5:76:100 6:0:0.5:78:100 6:1:0.5:85:100 6:1.5:0.5:78:100 6:2.5:1.5:82:100 7:0:0.5:71:100 7:1:0.5:71:100 7:1.5:0.5:75:100 7:2.5:1.5:75:100 8:0:0.5:75:100 8:1:0.5:82:100 8:1.5:0.5:75:100 8:2.5:1.5:78:100\n  bars 8\n}\n\n# The lead in the bridge (bars 29-32); it is read by lead_notes below.\nmidi-clip lead_bridge at 1 for 4 {\n  notes 1:0:3.5:78:100 2:0:3.5:78:100 3:0:3.5:85:100 4:0:3.5:73:100\n  bars 4\n}\n\n# The lead in the chorus2 (bars 33-40); it is read by lead_notes below.\nmidi-clip lead_chorus2 at 1 for 8 {\n  notes 1:0:0.5:73:100 1:1:0.5:73:100 1:1.5:0.5:76:100 1:2.5:1.5:76:100 2:0:0.5:78:100 2:1:0.5:85:100 2:1.5:0.5:78:100 2:2.5:1.5:82:100 3:0:0.5:71:100 3:1:0.5:71:100 3:1.5:0.5:75:100 3:2.5:1.5:75:100 4:0:0.5:75:100 4:1:0.5:82:100 4:1.5:0.5:75:100 4:2.5:1.5:78:100 5:0:0.5:73:100 5:1:0.5:73:100 5:1.5:0.5:76:100 5:2.5:1.5:76:100 6:0:0.5:78:100 6:1:0.5:85:100 6:1.5:0.5:78:100 6:2.5:1.5:82:100 7:0:0.5:71:100 7:1:0.5:71:100 7:1.5:0.5:75:100 7:2.5:1.5:75:100 8:0:0.5:75:100 8:1:0.5:82:100 8:1.5:0.5:75:100 8:2.5:1.5:78:100\n  bars 8\n}\n\n# The notes of the lead over the whole song: its sections one after the other (merge puts them together, shift moves each one to its bar).\nmidi-clip lead_notes at 1 for 44 {\n  notes lead_chorus1.notes |> shift(12bars) |> merge(lead_bridge.notes |> shift(28bars)) |> merge(lead_chorus2.notes |> shift(32bars))\n}\n\n# synth \"lead\": An instrument: it turns the notes it gets into sound with an oscillator.\n#   wave is the shape of the tone, attack and release shape its start and end, cutoff takes away high frequencies.\n# tip: try \"wave saw\" for a brighter, buzzier tone, or \"wave sine\" for a soft, round one.\n# tip: try \"attack 400 ms\" to let each note fade in slowly, like a string section.\nsynth lead at 1 for 44 {\n  wave triangle\n  attack 15 ms\n  release 250 ms\n  cutoff 5000 Hz\n  gain -17 dB\n  from lead_notes.notes -> notes\n}\n\n# The band: every instrument into one mixer.\nmixer band {\n  gains 0 0 0 0 0\n  from pad.audio -> audio1\n  from arp.audio -> audio2\n  from bass.audio -> audio3\n  from bell.audio -> audio4\n  from lead.audio -> audio5\n}\n\n# master \"out\": The master: what reaches it is what you hear. Every song has exactly one.\nmaster out {\n  from band.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-cf6e670d26a7",
+  "src": "example",
+  "fx": "dry",
+  "title": "Ambience example",
+  "bpm": 92,
+  "bars": null,
+  "seconds": 10.4,
+  "example": "ambience",
+  "stats": {
+   "seconds": 10.4,
+   "full": 10.4,
+   "cut": false,
+   "peakDb": -21.34698,
+   "rmsDb": -39.410625
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "a40858b7e",
+   "at": "2026-11-13",
+   "song": "cf6e670d26a7"
+  },
+  "song": "cf6e670d26a7",
+  "code": "composition \"Ambience preview\" { ample 1  tempo 92  master-seed 20261017 }\n\nambience room at 1 for 4 {\n  file recordings/room-tone.wav\n  segment 8 s\n  crossfade 2 s\n  variation 30%\n}\n\nmaster master {\n  from room.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-cdda5f5048ef",
+  "src": "example",
+  "fx": "dry",
+  "title": "Arpeggiator example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "arpeggiator",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -6.558319,
+   "rmsDb": -16.318428
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "cdda5f5048ef"
+  },
+  "song": "cdda5f5048ef",
+  "code": "composition \"Arpeggiator preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\narpeggiator run {\n  rate 1/16\n  pattern updown\n  octaves 2\n  gate 75\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from run.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-b3a55d53e878",
+  "src": "example",
+  "fx": "dry",
+  "title": "Autotune example",
+  "bpm": 84,
+  "bars": null,
+  "seconds": 11.4,
+  "example": "autotune",
+  "stats": {
+   "seconds": 11.4,
+   "full": 11.4,
+   "cut": false,
+   "peakDb": -3.777101,
+   "rmsDb": -17.379609
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "b3a55d53e878"
+  },
+  "song": "b3a55d53e878",
+  "code": "composition \"Autotune\" { ample 1  tempo 84  master-seed 42 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nautotune tuned {\n  key \"A minor\"\n  method spectral\n  speed 20 ms\n  amount 100%\n  from llama.audio -> audio\n}\n\nmaster output {\n  from tuned.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-831301fd51ff",
+  "src": "example",
+  "fx": "dry",
+  "title": "Bass example",
+  "bpm": 100,
+  "bars": null,
+  "seconds": 9.6,
+  "example": "bass",
+  "stats": {
+   "seconds": 9.6,
+   "full": 9.6,
+   "cut": false,
+   "peakDb": -4.288134,
+   "rmsDb": -9.059426
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "a40858b7e",
+   "at": "2026-11-13",
+   "song": "831301fd51ff"
+  },
+  "song": "831301fd51ff",
+  "code": "composition \"Built-in bass preview\" { ample 1  tempo 100  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords Am F C G\n  bars 4\n}\n\nbass local_bass {\n  # the sample set is a folder of the project with one mono C4.wav-style file per note\n  set analog-808\n  pattern bass-A\n  humanize 0\n  from phrase.notes -> notes\n}\n\nmaster output {\n  from local_bass.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-428fb1502ac1",
+  "src": "example",
+  "fx": "dry",
+  "title": "Bitcrusher example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 5,
+  "example": "bitcrusher",
+  "stats": {
+   "seconds": 5,
+   "full": 5,
+   "cut": false,
+   "peakDb": -10.943746,
+   "rmsDb": -24.467654
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "428fb1502ac1"
+  },
+  "song": "428fb1502ac1",
+  "code": "composition \"Bitcrusher preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C4:1/8 G4:1/8 E4:1/8 G4:1/8\n  bars 2\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nbitcrusher crush {\n  bits 6\n  downsample 4\n  mix 75 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from crush.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-82c95b3a3baa",
+  "src": "example",
+  "fx": "dry",
+  "title": "Bus example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "bus",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -3.037622,
+   "rmsDb": -17.218599
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "82c95b3a3baa"
+  },
+  "song": "82c95b3a3baa",
+  "code": "composition \"Bus preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth part {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nbus group {\n  gain -3 dB\n  mute off\n  solo off\n  from part.audio -> audio1\n}\n\nmaster master {\n  from group.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-50c2db7a1ed7",
+  "src": "example",
+  "fx": "dry",
+  "title": "Chop example",
+  "bpm": 84,
+  "bars": null,
+  "seconds": 11.4,
+  "example": "chop",
+  "stats": {
+   "seconds": 11.4,
+   "full": 11.4,
+   "cut": false,
+   "peakDb": -3.346532,
+   "rmsDb": -19.104452
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "50c2db7a1ed7"
+  },
+  "song": "50c2db7a1ed7",
+  "code": "composition \"Chop a voice\" { ample 1  tempo 84  master-seed 43 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nchop chopped {\n  slices 0 2.9 5.7 8.6\n  pattern \"1 3 - 2 4*2 - 3 1\"\n  step 1\n  from llama.audio -> audio\n}\n\nmaster output {\n  from chopped.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-1fc04d13c835",
+  "src": "example",
+  "fx": "dry",
+  "title": "Chord example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "chord",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -9.209723
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "1fc04d13c835"
+  },
+  "song": "1fc04d13c835",
+  "code": "composition \"Chord preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nchord triads {\n  type major\n  inversion 1\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from triads.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-53bc3cbeabf9",
+  "src": "example",
+  "fx": "dry",
+  "title": "Chorus example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "chorus",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.360301,
+   "rmsDb": -17.045239
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "53bc3cbeabf9"
+  },
+  "song": "53bc3cbeabf9",
+  "code": "composition \"Chorus preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nchorus widen {\n  depth 5 ms\n  period 1500 ms\n  mix 50 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from widen.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-986da875bb38",
+  "src": "example",
+  "fx": "dry",
+  "title": "Click example",
+  "bpm": 100,
+  "bars": null,
+  "seconds": 9.6,
+  "example": "click",
+  "stats": {
+   "seconds": 9.6,
+   "full": 9.6,
+   "cut": false,
+   "peakDb": -6.226334,
+   "rmsDb": -27.918284
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "986da875bb38"
+  },
+  "song": "986da875bb38",
+  "code": "composition \"Click\" { ample 1  tempo 100  master-seed 7 }\n\nclick metronome at 1 for 4 {\n  accent on\n  per_beat 1\n}\n\nmaster output {\n  from metronome.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-cdaca01a59c6",
+  "src": "example",
+  "fx": "dry",
+  "title": "Compressor example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "compressor",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -11.463611,
+   "rmsDb": -24.980872
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "cdaca01a59c6"
+  },
+  "song": "cdaca01a59c6",
+  "code": "composition \"Compressor preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth key-source {\n  wave sine\n  gain -6 dB\n  from phrase.notes -> notes\n}\n\ncompressor duck {\n  threshold -24 dB\n  ratio 5\n  attack 5 ms\n  release 100 ms\n  from source.audio -> audio\n  from key-source.audio -> key\n}\n\nmaster master {\n  from duck.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-68b593e3299a",
+  "src": "example",
+  "fx": "dry",
+  "title": "Convolution reverb example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "convolution",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -2.137829,
+   "rmsDb": -14.564346
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "a40858b7e",
+   "at": "2026-11-13",
+   "song": "68b593e3299a"
+  },
+  "song": "68b593e3299a",
+  "code": "composition \"Convolution preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nconvolution room {\n  ir room\n  mix 30 %\n  predelay 20 ms\n  length 3 s\n  level 0 dB\n  normalize on\n  from source.audio -> audio\n}\n\nmaster master {\n  from room.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-d4000055268f",
+  "src": "example",
+  "fx": "dry",
+  "title": "Crossfade example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "crossfade",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -16.351369
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "d4000055268f"
+  },
+  "song": "d4000055268f",
+  "code": "composition \"Crossfade preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth first {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth second {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ncrossfade transition {\n  start 1\n  length 2\n  shape equal\n  from first.audio -> a\n  from second.audio -> b\n}\n\nmaster master {\n  from transition.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-871122b0be26",
+  "src": "example",
+  "fx": "dry",
+  "title": "Curve example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "curve",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -5.497749,
+   "rmsDb": -22.810884
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "871122b0be26"
+  },
+  "song": "871122b0be26",
+  "code": "composition \"Curve\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncurve swell {\n  value auto(1:0, 5:1000)\n}\n\nvolume fadeIn {\n  gain -30 dB + 30 dB * swell.level\n  from source.audio -> audio\n}\n\nmaster output {\n  from fadeIn.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-51ddac88e5cb",
+  "src": "example",
+  "fx": "dry",
+  "title": "Cut / trim example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "cut",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -2.753869,
+   "rmsDb": -14.34947
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "51ddac88e5cb"
+  },
+  "song": "51ddac88e5cb",
+  "code": "composition \"Cut preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncut opening {\n  first 2s\n  loop on\n  from source.audio -> audio\n}\n\nmaster master {\n  from opening.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-7bf35d3645a0",
+  "src": "example",
+  "fx": "dry",
+  "title": "De-esser example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 2.5,
+  "example": "deesser",
+  "stats": {
+   "seconds": 2.5,
+   "full": 2.5,
+   "cut": false,
+   "peakDb": -10.6615,
+   "rmsDb": -21.89935
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "7bf35d3645a0"
+  },
+  "song": "7bf35d3645a0",
+  "code": "composition \"De-esser preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C5:1/8 D5:1/8 E5:1/8 G5:1/8\n  bars 1\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ndeesser ess {\n  frequency 5000 Hz\n  threshold -30 dB\n  ratio 6\n  from source.audio -> audio\n}\n\nmaster master {\n  from ess.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-c120585ea375",
+  "src": "example",
+  "fx": "dry",
+  "title": "Delay Llama example",
+  "bpm": 84,
+  "bars": null,
+  "seconds": 11.4,
+  "example": "delay-llama",
+  "stats": {
+   "seconds": 11.4,
+   "full": 11.4,
+   "cut": false,
+   "peakDb": -2.168058,
+   "rmsDb": -15.633755
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "c120585ea375"
+  },
+  "song": "c120585ea375",
+  "code": "composition \"Delay Llama\" { ample 1  tempo 84  master-seed 20261025 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nmaster output {\n  from llama.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-dc7f3a374c61",
+  "src": "example",
+  "fx": "dry",
+  "title": "Delay (echo) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 2.5,
+  "example": "delay",
+  "stats": {
+   "seconds": 2.5,
+   "full": 2.5,
+   "cut": false,
+   "peakDb": -7.896597,
+   "rmsDb": -18.613806
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "dc7f3a374c61"
+  },
+  "song": "dc7f3a374c61",
+  "code": "composition \"Delay preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C4:1/4 D4:1/4 E4:1/4 G4:1/4\n  bars 1\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ndelay echo {\n  time 250 ms\n  feedback 45 %\n  mix 35 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from echo.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-603e8b92e08d",
+  "src": "example",
+  "fx": "dry",
+  "title": "Denoise example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "denoise",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -7.325583,
+   "rmsDb": -24.231531
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "603e8b92e08d"
+  },
+  "song": "603e8b92e08d",
+  "code": "composition \"Denoise preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  melody C4:1/4 D4:1/4 E4:1/4 G4:1/4\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ndenoise cleanup {\n  reduction 12 dB\n  sensitivity 50 %\n  noise auto\n  from source.audio -> audio\n}\n\nmaster master {\n  from cleanup.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-14e36efdffbf",
+  "src": "example",
+  "fx": "dry",
+  "title": "Distortion example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 2.5,
+  "example": "distortion",
+  "stats": {
+   "seconds": 2.5,
+   "full": 2.5,
+   "cut": false,
+   "peakDb": -5.311076,
+   "rmsDb": -12.073076
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "14e36efdffbf"
+  },
+  "song": "14e36efdffbf",
+  "code": "composition \"Distortion preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  melody C3:1/4 G3:1/4 C4:1/4 G3:1/4\n  bars 1\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ndistortion drive {\n  drive 18\n  mode soft\n  tone 7000 Hz\n  level 0 dB\n  mix 60 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from drive.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-417461488783",
+  "src": "example",
+  "fx": "dry",
+  "title": "Drums example",
+  "bpm": 104,
+  "bars": null,
+  "seconds": 18.5,
+  "example": "drums",
+  "stats": {
+   "seconds": 18.5,
+   "full": 18.5,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -10.183267
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "417461488783"
+  },
+  "song": "417461488783",
+  "code": "composition \"Built-in drum preview\" { ample 1  tempo 104  master-seed 20261017 }\n\n# Built-in kick/snare/hat patterns need no sample pack and render locally from the exact block seed.\ndrums groove at 1 for 8 {\n  kit builtin\n  pattern beat-B\n  humanize 0\n}\n\nmaster output {\n  from groove.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-c333263dce4f",
+  "src": "example",
+  "fx": "dry",
+  "title": "Duck (pumping) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "duck",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -7.003847,
+   "rmsDb": -18.190589
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "c333263dce4f"
+  },
+  "song": "c333263dce4f",
+  "code": "composition \"Duck preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nduck pump {\n  depth 12 dB\n  release 160 ms\n  pattern x...x...x...x...\n  from source.audio -> audio\n}\n\nmaster master {\n  from pump.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-d8eb4de094ab",
+  "src": "example",
+  "fx": "dry",
+  "title": "Equalizer example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "eq",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.075162,
+   "rmsDb": -14.988895
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "d8eb4de094ab"
+  },
+  "song": "d8eb4de094ab",
+  "code": "composition \"EQ preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\neq tone {\n  low 4 dB\n  mid -2 dB\n  high 3 dB\n  low_hz 250 Hz\n  high_hz 3000 Hz\n  from source.audio -> audio\n}\n\nmaster master {\n  from tone.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-513645992e21",
+  "src": "example",
+  "fx": "dry",
+  "title": "Fade example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "fade",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.809294
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "513645992e21"
+  },
+  "song": "513645992e21",
+  "code": "composition \"Fade preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nfade fade_in {\n  direction in\n  start 1\n  length 1\n  shape equal\n  from source.audio -> audio\n}\n\nmaster master {\n  from fade_in.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-22f75542536e",
+  "src": "example",
+  "fx": "dry",
+  "title": "Filter example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "filter",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -3.304549,
+   "rmsDb": -17.681162
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "22f75542536e"
+  },
+  "song": "22f75542536e",
+  "code": "composition \"Filter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nfilter wobble {\n  type lowpass\n  cutoff 800 Hz\n  lfo_rate 1/8\n  lfo_depth 3 oct\n  lfo_shape triangle\n  from source.audio -> audio\n}\n\nmaster master {\n  from wobble.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-74bc5db16ba7",
+  "src": "example",
+  "fx": "dry",
+  "title": "Fire (notes from a control) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 20,
+  "example": "fire",
+  "stats": {
+   "seconds": 20,
+   "full": 20,
+   "cut": false,
+   "peakDb": -11.204603,
+   "rmsDb": -29.235482
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "74bc5db16ba7"
+  },
+  "song": "74bc5db16ba7",
+  "code": "composition \"Fire\" { ample 1  tempo 96  master-seed 17 }\n\ncurve wave {\n  value lfo(2, 0, 1000)\n}\n\nfire hit {\n  threshold 0.5\n  direction rising\n  note 48\n  length 300 ms\n  gap 600 ms\n  from wave.level -> input\n}\n\nsynth bass {\n  wave saw\n  gain -9 dB\n  from hit.notes -> notes\n}\n\nmaster output {\n  from bass.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-592de5dd9039",
+  "src": "example",
+  "fx": "dry",
+  "title": "Flanger example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "flanger",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.262882,
+   "rmsDb": -17.350061
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "592de5dd9039"
+  },
+  "song": "592de5dd9039",
+  "code": "composition \"Flanger preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nflanger sweep {\n  depth 2 ms\n  period 2000 ms\n  feedback 50 %\n  mix 50 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from sweep.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-6301d25e0104",
+  "src": "example",
+  "fx": "dry",
+  "title": "Follow (envelope) example",
+  "bpm": 100,
+  "bars": null,
+  "seconds": 9.6,
+  "example": "follow",
+  "stats": {
+   "seconds": 9.6,
+   "full": 9.6,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -13.87333
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "6301d25e0104"
+  },
+  "song": "6301d25e0104",
+  "code": "composition \"Follow\" { ample 1  tempo 100  master-seed 77 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nfollow listen {\n  band mid\n  baseline off\n  attack 60 ms\n  release 700 ms\n  from source.audio -> audio\n}\n\nsynth pad {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nvolume padDuck {\n  gain -11 dB * listen.level\n  from pad.audio -> audio\n}\n\nmixer room {\n  inputs 4\n  from source.audio -> audio1\n  from padDuck.audio -> audio2\n}\n\nmaster output {\n  from room.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-2b0292b77f65",
+  "src": "example",
+  "fx": "dry",
+  "title": "Gate example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "gate",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -2.460423,
+   "rmsDb": -17.321069
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "2b0292b77f65"
+  },
+  "song": "2b0292b77f65",
+  "code": "composition \"Gate preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ngate quiet {\n  threshold -30 dB\n  attack 5 ms\n  hold 80 ms\n  release 150 ms\n  from source.audio -> audio\n}\n\nmaster master {\n  from quiet.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-29ba8f328b9b",
+  "src": "example",
+  "fx": "dry",
+  "title": "General MIDI example",
+  "bpm": 108,
+  "bars": null,
+  "seconds": 4.4,
+  "example": "gm",
+  "stats": {
+   "seconds": 4.4,
+   "full": 4.4,
+   "cut": false,
+   "peakDb": -5.999684,
+   "rmsDb": -23.160931
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "051b8e59f",
+   "at": "2026-11-13",
+   "song": "29ba8f328b9b"
+  },
+  "song": "29ba8f328b9b",
+  "code": "composition \"General MIDI preview\" { ample 1  tempo 108  master-seed 20261017 }\n\nmidi-clip melody {\n  notes \"1:0:1:60:92 1:1:1:64:78 1:2:1:67:100 1:3:1:72:110\"\n  bars 2\n}\n\ngm piano at 1 for 2 {\n  file pack:musescore-general\n  program 0\n  from melody.notes -> notes\n}\n\nmaster output {\n  from piano.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-500256c957e5",
+  "src": "example",
+  "fx": "dry",
+  "title": "Granular example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "granular",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -11.225814,
+   "rmsDb": -26.786888
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "500256c957e5"
+  },
+  "song": "500256c957e5",
+  "code": "composition \"Granular preview\" { ample 1  tempo 96 master-seed 123456789 }\n\nmidi-clip phrase {\n  melody C4:1/4 E4:1/4 G4:1/4 C5:1/4\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ngranular texture {\n  grain 120 ms\n  density 40 /s\n  scatter 60 %\n  pitch 2 st\n  from source.audio -> audio\n}\n\nmaster master {\n  from texture.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-2d1ced66e0d3",
+  "src": "example",
+  "fx": "dry",
+  "title": "Group (empty block) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "group",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -10.321187
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "2d1ced66e0d3"
+  },
+  "song": "2d1ced66e0d3",
+  "code": "composition \"Group pass-through preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  from phrase.notes -> notes\n}\n\ngroup wrapped {\n  from source.audio -> input\n}\n\nreverb space {\n  from wrapped.output -> audio\n  mix 25\n}\n\nmaster output {\n  from space.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-bb6879f95037",
+  "src": "example",
+  "fx": "dry",
+  "title": "Guitar (samples) example",
+  "bpm": 112,
+  "bars": null,
+  "seconds": 8.6,
+  "example": "guitar",
+  "stats": {
+   "seconds": 8.6,
+   "full": 8.6,
+   "cut": false,
+   "peakDb": -8.572998,
+   "rmsDb": -24.623439
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "a40858b7e",
+   "at": "2026-11-13",
+   "song": "bb6879f95037"
+  },
+  "song": "bb6879f95037",
+  "code": "composition \"Sampled guitar preview\" { ample 1  tempo 112  master-seed 20261017 }\n\nmidi-clip harmony {\n  chords Em C G D\n  bars 4\n}\n\n# Add one or more mono note-named WAVs such as e2.wav to samples/guitar for local preview.\nguitar strum at 1 for 4 {\n  set samples/guitar\n  voicing power\n  strum D...D.u.D...D.u.\n  humanize 0\n  from harmony.notes -> notes\n}\n\nmaster output {\n  from strum.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-abbcddf41993",
+  "src": "example",
+  "fx": "dry",
+  "title": "Import audio example",
+  "bpm": 92,
+  "bars": null,
+  "seconds": 20.9,
+  "example": "import-audio",
+  "stats": {
+   "seconds": 20.9,
+   "full": 20.9,
+   "cut": false,
+   "peakDb": -2.216164,
+   "rmsDb": -14.794924
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "6fc3f65fa",
+   "at": "2026-11-13",
+   "song": "ca1b23fc6d1e"
+  },
+  "song": "ca1b23fc6d1e",
+  "code": "composition \"Imported audio preview\" { ample 1  tempo 92  master-seed 20261017 }\n\nimport-audio recording at 1 for 8 {\n  file recordings/preview.wav\n  start 0 s\n  end 30 s\n  loop on\n  crossfade 2 s\n}\n\nmaster master {\n  from recording.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-23b1d40f4a9b",
+  "src": "example",
+  "fx": "dry",
+  "title": "Join one after the other example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "join",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.233713
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "23b1d40f4a9b"
+  },
+  "song": "23b1d40f4a9b",
+  "code": "composition \"Join preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth first {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth second {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\njoin sequence {\n  seconds 0.25s\n  beats 1\n  from first.audio -> audio1\n  from second.audio -> audio2\n}\n\nmaster master {\n  from sequence.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-a16b5c5dd6da",
+  "src": "example",
+  "fx": "dry",
+  "title": "Limiter example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "limiter",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -6.000213,
+   "rmsDb": -13.415723
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "a16b5c5dd6da"
+  },
+  "song": "a16b5c5dd6da",
+  "code": "composition \"Limiter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -3 dB\n  from phrase.notes -> notes\n}\n\nlimiter safe {\n  ceiling -6 dB\n  lookahead 5 ms\n  release 100 ms\n  from source.audio -> audio\n}\n\nmaster master {\n  from safe.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-c61bcf08e3cd",
+  "src": "example",
+  "fx": "dry",
+  "title": "Map (scale a control) example",
+  "bpm": 100,
+  "bars": null,
+  "seconds": 9.6,
+  "example": "map",
+  "stats": {
+   "seconds": 9.6,
+   "full": 9.6,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -14.340098
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "c61bcf08e3cd"
+  },
+  "song": "c61bcf08e3cd",
+  "code": "composition \"Map\" { ample 1  tempo 100  master-seed 78 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncurve slow {\n  value auto(1:0, 5:1000)\n}\n\nmap open {\n  unit Hz\n  out_low 300\n  out_high 4500\n  smooth 400 ms\n  from slow.level -> input\n}\n\nfilter sweep {\n  type lowpass\n  from source.audio -> audio\n  from open.level -> cutoff\n}\n\nmaster output {\n  from sweep.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-e7a9431791ac",
+  "src": "example",
+  "fx": "dry",
+  "title": "Master chain example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 20,
+  "example": "master",
+  "stats": {
+   "seconds": 20,
+   "full": 20,
+   "cut": false,
+   "peakDb": -3.000097,
+   "rmsDb": -11.526782
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "e7a9431791ac"
+  },
+  "song": "e7a9431791ac",
+  "code": "composition \"Master preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G C Am F G\n  bars 8\n}\n\nsynth part {\n  wave triangle\n  gain -6 dB\n  from phrase.notes -> notes\n}\n\nmaster master {\n  limiter -3 dB\n  # Loudness reference for comparison; does not automatically change gain.\n  target -14 LUFS\n  from part.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-55d0594c2c28",
+  "src": "example",
+  "fx": "dry",
+  "title": "Meter example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "meter",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -3.03875,
+   "rmsDb": -17.218444
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "55d0594c2c28"
+  },
+  "song": "55d0594c2c28",
+  "code": "composition \"Meter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nmeter levels {\n  from source.audio -> audio\n}\n\nmaster master {\n  from levels.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-cf78b31817fd",
+  "src": "example",
+  "fx": "dry",
+  "title": "MIDI clip / chords example",
+  "bpm": 110,
+  "bars": null,
+  "seconds": 4.4,
+  "example": "midi-clip",
+  "stats": {
+   "seconds": 4.4,
+   "full": 4.4,
+   "cut": false,
+   "peakDb": -10.06127,
+   "rmsDb": -20.002838
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "cf78b31817fd"
+  },
+  "song": "cf78b31817fd",
+  "code": "composition \"MIDI clip preview\" { ample 1  tempo 110  master-seed 20261017 }\n\nmidi-clip melody {\n  melody c4:1:96 d4:1:80 e4:2:100 g4:2 a4:2\n  bars 2\n}\n\nsynth audition {\n  wave sine\n  gain -12 dB\n  from melody.notes -> notes\n}\n\nmaster output {\n  from audition.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-39497afa9024",
+  "src": "example",
+  "fx": "dry",
+  "title": "MIDI humanize example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 5,
+  "example": "midi-humanize",
+  "stats": {
+   "seconds": 5,
+   "full": 5,
+   "cut": false,
+   "peakDb": -7.63604,
+   "rmsDb": -23.626696
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "39497afa9024"
+  },
+  "song": "39497afa9024",
+  "code": "composition \"Seeded humanize preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  bars 2\n  notes 1:0:0.5:60:96 1:0.5:0.5:64:96 1:1:0.5:67:96 1:1.5:0.5:72:96\n}\n\nmidi-humanize loose {\n  velocity 12\n  timing 35\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from loose.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-de321de6ec58",
+  "src": "example",
+  "fx": "dry",
+  "title": "MIDI to audio example",
+  "bpm": 120,
+  "bars": null,
+  "seconds": 8,
+  "example": "midi-render",
+  "stats": {
+   "seconds": 8,
+   "full": 8,
+   "cut": false,
+   "peakDb": -1.371469,
+   "rmsDb": -15.248014
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "6fc3f65fa",
+   "at": "2026-11-13",
+   "song": "b3fac9d3c169"
+  },
+  "song": "b3fac9d3c169",
+  "code": "composition \"MIDI sequence render preview\" { ample 1  tempo 120  master-seed 20261017 }\n\n# Provide a Standard MIDI File at midi/input.mid before building.\nmidi performance {\n  file midi/input.mid\n  track all\n  bars 4\n}\n\nmidi-render soundfont {\n  file pack:musescore-general\n  track all\n  from performance.sequence -> sequence\n}\n\nmaster output {\n  from soundfont.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-a5ef8fc88f4e",
+  "src": "example",
+  "fx": "dry",
+  "title": "MIDI file example",
+  "bpm": 120,
+  "bars": null,
+  "seconds": 8,
+  "example": "midi",
+  "stats": {
+   "seconds": 8,
+   "full": 8,
+   "cut": false,
+   "peakDb": -9.46589,
+   "rmsDb": -22.452939
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "6fc3f65fa",
+   "at": "2026-11-13",
+   "song": "9ecd5a5a5359"
+  },
+  "song": "9ecd5a5a5359",
+  "code": "composition \"MIDI file preview\" { ample 1  tempo 120  master-seed 20261017 }\n\nmidi performance {\n  file midi/input.mid\n  track all\n  bars 4\n}\n\nsynth local {\n  wave triangle\n  gain -12 dB\n  from performance.notes -> notes\n}\n\nmaster master {\n  from local.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-8f69e6251293",
+  "src": "example",
+  "fx": "dry",
+  "title": "Mixer example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "mixer",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -16.733787
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "8f69e6251293"
+  },
+  "song": "8f69e6251293",
+  "code": "composition \"Mixer preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth left_part {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth right_part {\n  wave saw\n  gain -15 dB\n  from phrase.notes -> notes\n}\n\nmixer blend {\n  gains 0 -3\n  pan l r\n  from left_part.audio -> audio1\n  from right_part.audio -> audio2\n}\n\nmaster master {\n  from blend.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-0d6947bc3c57",
+  "src": "example",
+  "fx": "dry",
+  "title": "Normalize example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "normalize",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -2.999723,
+   "rmsDb": -17.179516
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "0d6947bc3c57"
+  },
+  "song": "0d6947bc3c57",
+  "code": "composition \"Normalize preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -15 dB\n  from phrase.notes -> notes\n}\n\nnormalize peak {\n  mode peak\n  peak -3 dBFS\n  max_gain 24 dB\n  from source.audio -> audio\n}\n\nmaster master {\n  from peak.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-80b2ad10df2d",
+  "src": "example",
+  "fx": "dry",
+  "title": "Pan example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "pan",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.109732,
+   "rmsDb": -17.228258
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "80b2ad10df2d"
+  },
+  "song": "80b2ad10df2d",
+  "code": "composition \"Pan preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\npan left {\n  pan -18\n  from source.audio -> audio\n}\n\nmaster master {\n  from left.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-6f7751c79334",
+  "src": "example",
+  "fx": "dry",
+  "title": "Parametric EQ example",
+  "bpm": 100,
+  "bars": null,
+  "seconds": 9.6,
+  "example": "peq",
+  "stats": {
+   "seconds": 9.6,
+   "full": 9.6,
+   "cut": false,
+   "peakDb": -2.221982,
+   "rmsDb": -17.708343
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "6f7751c79334"
+  },
+  "song": "6f7751c79334",
+  "code": "composition \"Parametric EQ preview\" { ample 1  tempo 100  master-seed 17 }\n\nmidi-clip phrase {\n  chords Am F C G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\npeq shape {\n  band1_type lowshelf\n  band1_hz 90 Hz\n  band1_gain -4 dB\n  band2_hz 400 Hz\n  band2_gain -6 dB\n  band2_q 2\n  band3_hz 2200 Hz\n  band3_gain 5 dB\n  band3_q 0.8\n  band4_type notch\n  band4_hz 5000 Hz\n  band4_q 6\n  from source.audio -> audio\n}\n\nmaster master {\n  from shape.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-6dc342bc0df6",
+  "src": "example",
+  "fx": "dry",
+  "title": "Phaser example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "phaser",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -15.712204
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "6dc342bc0df6"
+  },
+  "song": "6dc342bc0df6",
+  "code": "composition \"Phaser preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave saw\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nphaser swirl {\n  stages 6\n  period 1800 ms\n  mix 65 %\n  from source.audio -> audio\n}\n\nmaster master {\n  from swirl.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-06bd8277771c",
+  "src": "example",
+  "fx": "dry",
+  "title": "Felt piano example",
+  "bpm": 108,
+  "bars": null,
+  "seconds": 4.4,
+  "example": "piano",
+  "stats": {
+   "seconds": 4.4,
+   "full": 4.4,
+   "cut": false,
+   "peakDb": -11.313129,
+   "rmsDb": -26.783942
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "a40858b7e",
+   "at": "2026-11-13",
+   "song": "06bd8277771c"
+  },
+  "song": "06bd8277771c",
+  "code": "composition \"Built-in piano preview\" { ample 1  tempo 108  master-seed 20261017 }\n\nmidi-clip melody {\n  notes \"1:0:1:60:92 1:1:1:64:78 1:2:1:67:100 1:3:1:72:110\"\n  bars 2\n}\n\npiano felt pinned@1.0 {\n  # the sample set is a folder of the project with one mono C4.wav-style file per note\n  set felt-piano\n  humanize 0\n  from melody.notes -> notes\n}\n\nmaster output {\n  from felt.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-06790aae400a",
+  "src": "example",
+  "fx": "dry",
+  "title": "Pitch shift example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "pitch",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -7.623278,
+   "rmsDb": -24.288519
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "06790aae400a"
+  },
+  "song": "06790aae400a",
+  "code": "composition \"Pitch preview\" { ample 1  tempo 96 master-seed 29 }\n\nmidi-clip phrase {\n  melody C4:1/2 E4:1/2 G4:1/2 C5:1/2\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\npitch shifted at 1 for 4 {\n  semitones 3.5\n  method wsola\n  from source.audio -> audio\n}\n\nmaster master {\n  from shifted.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-7afbf349072c",
+  "src": "example",
+  "fx": "dry",
+  "title": "Quantize example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 5,
+  "example": "quantize",
+  "stats": {
+   "seconds": 5,
+   "full": 5,
+   "cut": false,
+   "peakDb": -7.612446,
+   "rmsDb": -22.864827
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "7afbf349072c"
+  },
+  "song": "7afbf349072c",
+  "code": "composition \"Quantize preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip loose_phrase {\n  bars 2\n  notes 1:0.13:0.7:60:96 1:0.68:0.6:64:88 1:2.11:0.8:67:100 2:1.07:0.6:72:92\n}\n\nquantize grid {\n  grid 1/16\n  strength 100\n  lengths on\n  from loose_phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from grid.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-e24c886ea821",
+  "src": "example",
+  "fx": "dry",
+  "title": "Region merge (a loop seam back to audio) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "region-merge",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -2.753869,
+   "rmsDb": -21.33917
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "e24c886ea821"
+  },
+  "song": "e24c886ea821",
+  "code": "composition \"Region merge\" { ample 1  tempo 96  master-seed 79 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ncut opening {\n  first 2s\n  from source.audio -> audio\n}\n\nregion-merge merged {\n  from opening.region -> region\n}\n\nmaster output {\n  from merged.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-a65c85e797b5",
+  "src": "example",
+  "fx": "dry",
+  "title": "Reverb example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "reverb",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -13.244242
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "a65c85e797b5"
+  },
+  "song": "a65c85e797b5",
+  "code": "composition \"Reverb preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nreverb room {\n  size 50%\n  decay 60%\n  mix 25%\n  from source.audio -> audio\n}\n\nmaster master {\n  from room.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-a9b06da24d3c",
+  "src": "example",
+  "fx": "dry",
+  "title": "Reverse example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "reverse",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.230793
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "a9b06da24d3c"
+  },
+  "song": "a9b06da24d3c",
+  "code": "composition \"Reverse preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nreverse swell {\n  from source.audio -> audio\n}\n\nmaster master {\n  from swell.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-dc60e1ca2b6f",
+  "src": "example",
+  "fx": "dry",
+  "title": "Rewind (DJ pull-up) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "rewind",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.324317
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "dc60e1ca2b6f"
+  },
+  "song": "dc60e1ca2b6f",
+  "code": "composition \"Rewind\" { ample 1  tempo 96  master-seed 80 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nrewind pull at 1 for 4 {\n  events \"at 3.5 scratch 500ms back 1.9s\"\n  sound spin\n  brake 200 ms\n  from source.audio -> audio\n}\n\nmaster output {\n  from pull.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-16b82afa2550",
+  "src": "example",
+  "fx": "dry",
+  "title": "Sampler example",
+  "bpm": 110,
+  "bars": null,
+  "seconds": 4.4,
+  "example": "sampler",
+  "stats": {
+   "seconds": 4.4,
+   "full": 4.4,
+   "cut": false,
+   "peakDb": -13.805406,
+   "rmsDb": -33.889586
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "a40858b7e",
+   "at": "2026-11-13",
+   "song": "16b82afa2550"
+  },
+  "song": "16b82afa2550",
+  "code": "composition \"Local sampler preview\" { ample 1  tempo 110  master-seed 20261017 }\n\nmidi-clip phrase {\n  melody c4:1:96 e4:1:80 g4:2:100\n  bars 2\n}\n\nsampler sample_source {\n  file recordings/sampler-preview.wav\n  root 60\n  mode oneshot\n  gain -6 dB\n  from phrase.notes -> notes\n}\n\nmaster output {\n  from sample_source.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-be66f5ff1f2d",
+  "src": "example",
+  "fx": "dry",
+  "title": "Scratch (DJ) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "scratch",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -2.011271,
+   "rmsDb": -14.901697
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "be66f5ff1f2d"
+  },
+  "song": "be66f5ff1f2d",
+  "code": "composition \"Scratch preview\" { ample 1  tempo 96 master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nscratch scratch_phrase {\n  pattern x...b...f...r...\n  depth 120 ms\n  mix 65%\n  from source.audio -> audio\n}\n\nmaster master {\n  from scratch_phrase.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-df15722bc8de",
+  "src": "example",
+  "fx": "dry",
+  "title": "Send bus example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "send",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -10.39595
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "df15722bc8de"
+  },
+  "song": "df15722bc8de",
+  "code": "composition \"Send preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth part_a {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsynth part_b {\n  wave saw\n  gain -15 dB\n  from phrase.notes -> notes\n}\n\nsend fx_send {\n  levels -6 -12\n  from part_a.audio -> audio1\n  from part_b.audio -> audio2\n}\n\nreverb room {\n  size 35%\n  decay 40%\n  mix 35%\n  from fx_send.send -> audio\n}\n\nmixer blend {\n  from fx_send.through -> audio1\n  from room.audio -> audio2\n}\n\nmaster master {\n  from blend.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-3ea8fb78274a",
+  "src": "example",
+  "fx": "dry",
+  "title": "Sequencer example",
+  "bpm": 104,
+  "bars": null,
+  "seconds": 18.5,
+  "example": "sequencer",
+  "stats": {
+   "seconds": 18.5,
+   "full": 18.5,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -12.822858
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "3ea8fb78274a"
+  },
+  "song": "3ea8fb78274a",
+  "code": "composition \"Local sequencer preview\" { ample 1  tempo 104  master-seed 5 }\n\nsequencer sq at 1 for 8 {\n  lanes lane1=bass lane2=lead\n  sequence {\n    sequencer 1\n    channel bass bass vol=-6\n    channel lead notes wave=triangle vol=-10\n    pattern verse bars=2\n      bass 1:0:1:45:100 1:2:1:45:90 2:0:1:43:100 2:2:1:43:90\n      lead 1:0:1:69:96 1:1:1:72:96 1:2:2:76:96 2:0:2:74:96\n    pattern chorus bars=2\n      bass 1:0:2:41:100 2:0:2:48:100\n      lead 1:0:1:77:100 1:1:1:76:96 1:2:2:72:96 2:0:2:69:96\n    playlist\n      clip verse track=1 at=1 for=4\n      clip chorus track=1 at=5 for=4\n  }\n}\n\nreverb space {\n  from sq.lane2 -> audio\n  mix 25\n}\n\nmixer mix {\n  from sq.lane1 -> audio1\n  from space.audio -> audio2\n}\n\nmaster master bake {\n  from mix.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-a1d3bf903c96",
+  "src": "example",
+  "fx": "dry",
+  "title": "Shift in time example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "shift",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.296913
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "a1d3bf903c96"
+  },
+  "song": "a1d3bf903c96",
+  "code": "composition \"Shift preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nshift delay {\n  seconds 0.15s\n  beats 0\n  from source.audio -> audio\n}\n\nmaster master {\n  from delay.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-a8f592881b07",
+  "src": "example",
+  "fx": "dry",
+  "title": "Silence example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "silence",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.227065
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "a8f592881b07"
+  },
+  "song": "a8f592881b07",
+  "code": "composition \"Silence\" { ample 1  tempo 96  master-seed 81 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsilence gap {\n  length 2 s\n}\n\nmixer room {\n  inputs 4\n  from source.audio -> audio1\n  from gap.audio -> audio2\n}\n\nmaster output {\n  from room.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-294fb9be8835",
+  "src": "example",
+  "fx": "dry",
+  "title": "Stereo splitter example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "splitter",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -13.70391
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "294fb9be8835"
+  },
+  "song": "294fb9be8835",
+  "code": "composition \"Splitter preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsplitter split {\n  from source.audio -> audio\n}\n\nmixer branches {\n  gains -3 -9\n  from split.left -> audio1\n  from split.right -> audio2\n}\n\nmaster master {\n  from branches.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-192f4976e91b",
+  "src": "example",
+  "fx": "dry",
+  "title": "Time stretch example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "stretch",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -8.863736,
+   "rmsDb": -28.889856
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "192f4976e91b"
+  },
+  "song": "192f4976e91b",
+  "code": "composition \"Stretch preview\" { ample 1  tempo 96 master-seed 31 }\n\nmidi-clip phrase {\n  melody C4:1/2 E4:1/2 G4:1/2 C5:1/2\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nstretch faster at 1 for 4 {\n  speed 200\n  from source.audio -> audio\n}\n\nmaster master {\n  from faster.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-757bab708037",
+  "src": "example",
+  "fx": "dry",
+  "title": "Synth example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "synth",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -3.731767,
+   "rmsDb": -19.10353
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "757bab708037"
+  },
+  "song": "757bab708037",
+  "code": "composition \"Client synth preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth local_synth {\n  wave triangle\n  attack 20 ms\n  decay 180 ms\n  sustain 55\n  release 300 ms\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nmaster output {\n  limiter -1 dB\n  from local_synth.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-0611a11fd39d",
+  "src": "example",
+  "fx": "dry",
+  "title": "Transpose example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "transpose",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.254696
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "0611a11fd39d"
+  },
+  "song": "0611a11fd39d",
+  "code": "composition \"Transpose preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\ntranspose octave {\n  semitones 12\n  from phrase.notes -> notes\n}\n\nsynth instrument {\n  wave triangle\n  gain -9 dB\n  from octave.notes -> notes\n}\n\nmaster master {\n  from instrument.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-4137719fd4cd",
+  "src": "example",
+  "fx": "dry",
+  "title": "Tremolo / autopan example",
+  "bpm": 128,
+  "bars": null,
+  "seconds": 7.5,
+  "example": "tremolo",
+  "stats": {
+   "seconds": 7.5,
+   "full": 7.5,
+   "cut": false,
+   "peakDb": -5.083952,
+   "rmsDb": -20.135261
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "4137719fd4cd"
+  },
+  "song": "4137719fd4cd",
+  "code": "composition \"Trance gate preview\" { ample 1  tempo 128  master-seed 17 }\n\nmidi-clip phrase {\n  chords Am F C G\n  bars 4\n}\n\nsynth pad {\n  wave saw\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\ntremolo trance {\n  shape gate\n  sync 1/16\n  pattern \"xdx.bxdx.xdx.x\"\n  depth 100\n  from pad.audio -> audio\n}\n\nmaster master {\n  from trance.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-63c3d963bfd5",
+  "src": "example",
+  "fx": "dry",
+  "title": "Trim (cut the silence) example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "trim",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.233713
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "63c3d963bfd5"
+  },
+  "song": "63c3d963bfd5",
+  "code": "composition \"Trim\" { ample 1  tempo 96  master-seed 82 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\ntrim tight {\n  threshold -45 dB\n  padding 50 ms\n  from source.audio -> audio\n}\n\nmaster output {\n  from tight.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-7257c537cb80",
+  "src": "example",
+  "fx": "dry",
+  "title": "Variants set example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "variants",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -14.233713
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "7257c537cb80"
+  },
+  "song": "7257c537cb80",
+  "code": "composition \"Existing variants preview\" { ample 1  tempo 96  master-seed 20261017 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -12 dB\n  from phrase.notes -> notes\n}\n\nvariants candidates {\n  count 3\n  from source.audio -> block\n}\n\nmaster output {\n  from candidates.pick -> audio\n}\n"
+ },
+ {
+  "id": "ex-0898f58e16c8",
+  "src": "example",
+  "fx": "dry",
+  "title": "Vocoder example",
+  "bpm": 84,
+  "bars": null,
+  "seconds": 11.4,
+  "example": "vocoder",
+  "stats": {
+   "seconds": 11.4,
+   "full": 11.4,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -12.251953
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "0898f58e16c8"
+  },
+  "song": "0898f58e16c8",
+  "code": "composition \"Vocoder\" { ample 1  tempo 84  master-seed 41 }\n\nmidi-clip chant at 1 for 4 {\n  bars 4\n  notes 1:0:2:57:92 1:2:2:60:96 2:0:3:64:104 3:0:4:60:100 4:0:2:57:92 4:2:2:55:90\n}\n\ndelay-llama llama {\n  vowel auto(1:100, 3:30, 5:0)\n  mouth auto(1:15, 3:85, 5:40)\n  voice 40\n  glide 120 ms\n  echo 0%\n  gain -4 dB\n  from chant.notes -> notes\n}\n\nmidi-clip pad-notes at 1 for 4 {\n  bars 4\n  chords \"Am F C G\"\n}\n\nsynth carrier at 1 for 4 {\n  wave saw\n  cutoff 6000 Hz\n  from pad-notes.notes -> notes\n}\n\nvocoder robot {\n  bands 24\n  sibilance 35 %\n  from llama.audio -> modulator\n  from carrier.audio -> carrier\n}\n\nmaster output {\n  from robot.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-ff073bfec16e",
+  "src": "example",
+  "fx": "dry",
+  "title": "Volume / channels example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "volume",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -0.999887,
+   "rmsDb": -12.538867
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "ff073bfec16e"
+  },
+  "song": "ff073bfec16e",
+  "code": "composition \"Volume preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nvolume channels {\n  gain 3 dB\n  left_gain 0 dB\n  right_gain -3 dB\n  mono off\n  left on\n  right on\n  from source.audio -> audio\n}\n\nmaster master {\n  from channels.audio -> audio\n}\n"
+ },
+ {
+  "id": "ex-f00ff3b4e120",
+  "src": "example",
+  "fx": "dry",
+  "title": "Width example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 10,
+  "example": "width",
+  "stats": {
+   "seconds": 10,
+   "full": 10,
+   "cut": false,
+   "peakDb": -1.000184,
+   "rmsDb": -17.034959
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.12 (beta, commit unknown)",
+   "commit": "7c49a8ce5",
+   "at": "2026-11-13",
+   "song": "f00ff3b4e120"
+  },
+  "song": "f00ff3b4e120",
+  "code": "composition \"Width preview\" { ample 1  tempo 96  master-seed 17 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\npan spread {\n  pan -12\n  from source.audio -> audio\n}\n\nwidth widen {\n  width 150\n  from spread.audio -> audio\n}\n\nmaster master {\n  from widen.audio -> audio\n}\n"
  }
 ]

@@ -292,7 +292,7 @@ public static class AmpleServer
 
                 using System.Net.WebSockets.WebSocket socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
                 using WebSocketChannel channel = new(socket);
-                await new Ample.Lsp.LspServer(session.Spec, "/help", session.SettingHints(), session.ReadProjectText, (blocks, lines) => Ample.Audio.Engine.DrumPreflight.Check(session.Root, blocks, lines), text => new Ample.Engine.Modules.ModuleService(session.Root, () => session.Library, session.Manifest.Id.ToString("D")).ComponentsForEditors(text, session.Spec)).RunAsync(channel, context.RequestAborted).ConfigureAwait(false);
+                await new Ample.Lsp.LspServer(session.Spec, "/help", session.SettingHints(), session.ReadProjectText, (blocks, lines) => Ample.Audio.Engine.DrumPreflight.Check(session.Root, blocks, lines), text => session.Modules().ComponentsForEditors(text, session.Spec), () => session.Modules().SessionLayerInput, () => session.Modules().ProjectLayerInput, () => session.LiveSettings().Capabilities).RunAsync(channel, context.RequestAborted).ConfigureAwait(false);
             });
             string helpFile = Path.Combine(options.AmpleRoot, "docs", "help", "help.html");
             app.MapGet("/help", () => File.Exists(helpFile) ? Results.File(helpFile, "text/html; charset=utf-8") : Results.NotFound());
@@ -353,7 +353,7 @@ public static class AmpleServer
         string value = path.Value ?? string.Empty;
         if (value.Contains("/test/", StringComparison.Ordinal) || value.Contains("..", StringComparison.Ordinal)) return false;
         return value is "/remix" or "/lsp/remix" or "/styles/tokens.css" or "/app/api.js" or "/app/lsp.js" or "/app/editor-touch-menu.js" or
-          "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/lib/file-refs.mjs" or "/vendor/codemirror-ample.js"
+          "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/lib/file-refs.mjs" or "/lib/log-view.mjs" or "/vendor/codemirror-ample.js"
             || path.StartsWithSegments("/remix", StringComparison.Ordinal) || path.StartsWithSegments("/api/remix", StringComparison.Ordinal);
     }
 

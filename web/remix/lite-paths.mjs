@@ -3,7 +3,7 @@
 
 export const DEFAULT_LIMITS = Object.freeze({
   maxFiles: 200, maxDepth: 6, maxNameLength: 80, maxTextBytes: 512 * 1024, maxAudioBytes: 25 * 1024 * 1024, maxSoundFontBytes: 40 * 1024 * 1024,
-  maxProjectBytes: 64 * 1024 * 1024, buildSeconds: 120, maxOutputSeconds: 8 * 60, concurrentBuilds: 2, outputMinutes: 10, maxKeptOutputs: 16,
+  maxProjectBytes: 64 * 1024 * 1024, buildSeconds: 90, maxOutputSeconds: 8 * 60, concurrentBuilds: 2, outputMinutes: 10, maxKeptOutputs: 16,
 });
 
 export const TEXT_EXTENSIONS = new Set(['.amplet', '.amplec', '.ampleseq', '.txt', '.md', '.json']);

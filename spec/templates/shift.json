@@ -5,8 +5,9 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
-  "description": "Start the input a little later (or earlier): put it after one block to move only that block by some seconds or beats, without moving it on the timeline.",
+  "description": "Start the input audio a little later (or earlier): put it after one block to move only that block by some seconds or beats, without moving it on the timeline. MIDI notes are moved with the notes operator shift(length) in a note pipeline instead (notes theme.notes |> shift(3beats)).",
   "inputs": [
     {
       "name": "audio",

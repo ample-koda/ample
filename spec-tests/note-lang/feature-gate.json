@@ -1,0 +1,63 @@
+{
+  "$comment": "The syntax gate of the diagnostics work (plan/diagnostics/PLAN.md, D17). shipped is the set of syntax features that are on in a shipped build; C# (SyntaxGate.Shipped) and JS (SYNTAX_FEATURES in note-pipeline.mjs) must equal it. Every case is a statement or an expression of a feature; with the feature off (an empty gate) both runtimes must report it as feature-off (AMP6020) and give no result.",
+  "shipped": [
+    "Observe",
+    "Record",
+    "Fail",
+    "Require",
+    "Throw",
+    "TryCatch",
+    "ErrorDecl",
+    "Assert"
+  ],
+  "cases": [
+    {
+      "id": "fail",
+      "body": "  fail \"stop\""
+    },
+    {
+      "id": "throw",
+      "body": "  throw \"stop\""
+    },
+    {
+      "id": "require",
+      "body": "  require 1 > 0, \"x\""
+    },
+    {
+      "id": "assert",
+      "body": "  assert 1 > 0, \"x\""
+    },
+    {
+      "id": "log-statement",
+      "body": "  log \"x\""
+    },
+    {
+      "id": "log-call",
+      "body": "  log(\"x\")"
+    },
+    {
+      "id": "debug",
+      "body": "  debug 1"
+    },
+    {
+      "id": "trace",
+      "body": "  trace 1"
+    },
+    {
+      "id": "warn-with-named",
+      "body": "  warn \"x\", code=\"C\""
+    },
+    {
+      "id": "try",
+      "body": "  try {\n    let a = 1\n  }"
+    },
+    {
+      "id": "record",
+      "body": "  let r = {a: 1}"
+    },
+    {
+      "id": "empty-record",
+      "body": "  let r = {}"
+    }
+  ]
+}

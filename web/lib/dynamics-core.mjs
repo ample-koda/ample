@@ -2,6 +2,7 @@
 // AudioWorklet (dynamics-worklet.mjs) both run these classes, so the sound you hear while a knob moves is the sound of the render, sample for sample (the pattern of the
 // Delay Llama). process(ins, outs, from, to) reads ins[channel][i] and writes outs[channel][i] for i in [from, to); all channels are linked (one detector).
 import { cutoffAlpha } from './one-pole.mjs';
+import { serverInt } from './server-int.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 /** A number from a parameter text such as "-50 dB" or "5 ms" (any unit words are ignored). */
@@ -78,8 +79,12 @@ export class DeesserCore {
   }
 }
 
+/** The server's Q15 gain of a whole number of dB (FixedAudio.GainFromDb: 32768 * 1.12201845...^db, rounded, -60..+12). */
+export const gainQ15 = (db) => Math.round(32768 * 1.1220184543019634355910389464 ** Math.max(-60, Math.min(12, db)));
+
 /**
- * AMPLE linked-channel look-ahead limiter (float math approximates the Q15 gain path of the server). The sound comes out `latency` samples after it went in: the gain is the
+ * AMPLE linked-channel look-ahead limiter, the gain path in the whole numbers of the server (Effects.cs Limit: ceiling, release and look-ahead in whole units, the wanted gain by integer
+ * division, the gain released in whole 1/32768 steps, the mean over the window cut off): the integer division of the release is what made the float version recover about 20 % faster, -29 dB from the render. The sound comes out `latency` samples after it went in: the gain is the
  * running mean of the lowest wanted gain over the look-ahead window. A change of the look-ahead starts the window afresh.
  */
 export class LimiterCore {
@@ -87,10 +92,10 @@ export class LimiterCore {
 
   configure(params) {
     const rate = this.rate;
-    const ceilingDb = clamp(readNumber(params.ceiling, -1), -24, 0);
-    this.ceiling = 10 ** (ceilingDb / 20) * 32767 / 32768;
-    this.release = Math.max(1, Math.trunc(clamp(readNumber(params.release, 100), 10, 1000) * rate / 1000));
-    const look = Math.max(1, Math.trunc(clamp(readNumber(params.lookahead, 5), 1, 20) * rate / 1000));
+    const ceilingDb = clamp(serverInt(params.ceiling, -1), -24, 0);
+    this.ceiling = Math.floor(gainQ15(ceilingDb) * 32767 / 32768) / 32768;   // the ceiling in whole 16-bit steps, as a fraction of full scale
+    this.release = Math.max(1, Math.trunc(clamp(serverInt(params.release, 100), 10, 1000) * rate / 1000));
+    const look = Math.max(1, Math.trunc(clamp(serverInt(params.lookahead, 5), 1, 20) * rate / 1000));
     if (look !== this.look) this.reset(look);
   }
 
@@ -98,7 +103,7 @@ export class LimiterCore {
     this.look = look; this.capacity = look + 2;
     this.queueIndex = new Int32Array(this.capacity); this.queueValue = new Float64Array(this.capacity); this.floorRing = new Float64Array(look + 1);
     this.delay = Array.from({ length: this.channels }, () => new Float64Array(look));
-    this.head = 0; this.tail = 0; this.previous = 1; this.floorSum = 0; this.index = 0;
+    this.head = 0; this.tail = 0; this.previous = 32768; this.floorSum = 0; this.index = 0;
   }
 
   /** Samples between a sound going in and coming out. */
@@ -110,9 +115,9 @@ export class LimiterCore {
     let { head, tail, previous, floorSum } = this, i = this.index;
     for (let n = from; n < to; n++, i++) {
       let level = 0;
-      for (const channel of ins) level = Math.max(level, Math.abs(channel[n] * 32768));
-      const wanted = level > ceilingPcm ? ceilingPcm / level : 1;
-      previous = followGain(previous, wanted, this.release);
+      for (const channel of ins) level = Math.max(level, Math.abs(Math.round(channel[n] * 32768)));
+      const wanted = level > ceilingPcm ? Math.floor(ceilingPcm * 32768 / level) : 32768;
+      previous = wanted < previous ? wanted : Math.min(wanted, previous + Math.max(1, Math.floor((32768 - previous) / this.release)));
       while (tail > head) {
         if (queueValue[(tail - 1) % capacity] < previous) break;
         tail--;
@@ -124,7 +129,7 @@ export class LimiterCore {
       floorSum += floor;
       const ring = i % floorRing.length, old = i >= look ? floorRing[(i - look) % floorRing.length] : 0;
       if (i >= look) floorSum -= old;
-      const gain = floorSum / look, slotIn = i % look;
+      const gain = Math.floor(floorSum / look) / 32768, slotIn = i % look;
       for (let c = 0; c < ins.length; c++) {
         const delayed = this.delay[c][slotIn];   // the sample that went in `look` samples ago (silence while the window fills)
         outs[c][n] = i >= look ? delayed * gain : 0;
@@ -172,8 +177,11 @@ export class CompressorCore {
           level = Math.max(level, Math.abs(value));
         }
       } else for (const channel of ins) level = Math.max(level, Math.abs(channel[i]));
-      envelope += (level - envelope) / (level > envelope ? this.attack : this.release);
-      const gain = envelope > this.threshold ? (this.threshold + (envelope - this.threshold) / this.ratio) / envelope : 1;
+      // the server keeps the envelope in whole 16-bit steps and divides with truncation (Effects.Compress): a step smaller than the attack or release time in samples is lost, so the
+      // envelope stops that far from the level (about -12 dBFS on the way down at a 180 ms release) and the compression is held. Float math here made the live sound 2.3 dB louder.
+      envelope += Math.trunc((Math.round(level * 32768) - envelope) / (level * 32768 > envelope ? this.attack : this.release));
+      const limit = Math.trunc(this.threshold * 32767);
+      const gain = envelope > limit && envelope > 0 ? Math.trunc((limit + Math.trunc((envelope - limit) / this.ratio)) * 32768 / envelope) / 32768 : 1;
       for (let c = 0; c < ins.length; c++) outs[c][i] = ins[c][i] * gain * this.makeup;
     }
     this.envelope = envelope;

@@ -1,0 +1,10 @@
+[
+  {
+    "code": "AMP6020",
+    "severity": "error",
+    "line": 4,
+    "col": 3,
+    "endCol": 9,
+    "message": "\"assert\" is not supported yet in this AMPLE version."
+  }
+]

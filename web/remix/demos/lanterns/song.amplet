@@ -1,0 +1,119 @@
+composition "Lanterns on the Water" { ample 1  tempo 84  meter 3/4  master-seed 1408 }
+
+# LANTERNS ON THE WATER: a slow waltz in A minor, 32 bars of 3/4 at 84 BPM (about 70 seconds).
+#
+#   bars  1- 8  the piano alone, a broken chord on every beat
+#   bars  9-16  a cello sings the tune
+#   bars 17-24  the strings come in, a flute takes the tune an octave up
+#   bars 25-32  everyone together; the last four bars fade into the night
+#
+# The piano part is not written note by note: the chords are written once and the arp operator breaks them into
+# eighth notes. The tune is one phrase of eight bars; the helper phrase moves it by octaves, and its assert keeps
+# it in a range the instruments can play (switch Assertions on in the Song log tab to have it checked).
+#
+# TRY: tempo 84 to 66 for a sleepier waltz. TRY: program 73 (flute) in the block flute to 71 (clarinet) or 68 (oboe).
+# TRY: shape exp in the block night to lin for a straight fade.
+
+/**
+ * The tune, moved by whole octaves.
+ * @param tune the eight bars
+ * @param octaves -1, 0 or 1
+ */
+helper phrase(Notes tune, Int octaves) -> Notes {
+  # TRY: phrase(tune.notes, 2) below, with Assertions on: the assert tells you the flute cannot reach that high.
+  assert octaves >= -1 && octaves <= 1, "the tune stays within an octave of where it is written"
+  return tune |> transpose(12 * octaves)
+}
+
+# ---- the harmony: Am F C G | Dm Am E Am, one chord a bar --------------------------------------------
+midi-clip chords at 1 for 8 {
+  notes "1:0:3:57:72 1:0:3:60:72 1:0:3:64:72 2:0:3:57:72 2:0:3:60:72 2:0:3:65:72 3:0:3:55:72 3:0:3:60:72 3:0:3:64:72 4:0:3:55:72 4:0:3:59:72 4:0:3:62:72 5:0:3:57:72 5:0:3:62:72 5:0:3:65:72 6:0:3:57:72 6:0:3:60:72 6:0:3:64:72 7:0:3:56:72 7:0:3:59:72 7:0:3:64:72 8:0:3:57:72 8:0:3:60:72 8:0:3:64:72"
+}
+# the bass of the waltz: the root on the first beat of every bar
+midi-clip roots at 1 for 8 {
+  notes "1:0:3:45:80 2:0:3:41:80 3:0:3:48:80 4:0:3:43:80 5:0:3:38:80 6:0:3:45:80 7:0:3:40:80 8:0:3:45:80"
+}
+# the tune: eight bars
+midi-clip tune at 1 for 8 {
+  notes "1:0:2:64:84 1:2:1:62:76 2:0:1:60:78 2:1:1:65:80 2:2:1:69:86 3:0:2:67:84 3:2:1:64:76 4:0:3:62:80 5:0:2:65:84 5:2:1:64:76 6:0:1:60:76 6:1:1:64:80 6:2:1:69:88 7:0:2:68:86 7:2:1:71:84 8:0:3:69:82"
+}
+
+# ---- the parts ---------------------------------------------------------------------------------------
+midi-clip pianoPart at 1 for 32 {
+  notes chords.notes |> arp(0.5beat) |> merge(roots.notes) |> repeat(4)
+}
+midi-clip celloPart at 9 for 24 {
+  # bars 9-16, a rest while the flute sings (17-24), and bars 25-32 again
+  notes phrase(tune.notes, -1) |> concat(phrase(tune.notes, -1) |> shift(8bars))
+}
+midi-clip flutePart at 17 for 16 {
+  notes phrase(tune.notes, 1) |> repeat(2)
+}
+midi-clip stringPart at 17 for 16 {
+  notes chords.notes |> transpose(-12) |> repeat(2)
+}
+
+# a little breath in the piano: no two notes exactly on the grid
+midi-humanize touch {
+  timing 12
+  velocity 8
+  from pianoPart.notes -> notes
+}
+
+# ---- the instruments (General MIDI) ---------------------------------------------------------------
+gm piano at 1 for 32 {
+  file pack:musescore-general
+  program 0
+  gain -6 dB
+  from touch.notes -> notes
+}
+gm cello at 9 for 24 {
+  file pack:musescore-general
+  program 42
+  gain -7 dB
+  from celloPart.notes -> notes
+}
+gm flute at 17 for 16 {
+  file pack:musescore-general
+  program 73
+  gain -9 dB
+  from flutePart.notes -> notes
+}
+gm strings at 17 for 16 {
+  file pack:musescore-general
+  program 49
+  gain -13 dB
+  from stringPart.notes -> notes
+}
+
+mixer quiet {
+  inputs 4
+  gains "0 0 0 0"
+  from piano.audio -> audio1
+  from cello.audio -> audio2
+  from flute.audio -> audio3
+  from strings.audio -> audio4
+}
+# the water: a soft echo of a dotted quarter and a large, dark hall
+delay ripples {
+  time 536 ms
+  feedback 30%
+  mix 14%
+  from quiet.audio -> audio
+}
+reverb hall {
+  size 80%
+  decay 75%
+  mix 32%
+  from ripples.audio -> audio
+}
+fade night at 29 for 4 {
+  direction out
+  start 29
+  length 4
+  shape exp
+  from hall.audio -> audio
+}
+master out {
+  from night.audio -> audio
+}

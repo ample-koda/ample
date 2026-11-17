@@ -3,6 +3,7 @@
 // "Apply and back" (writes the file, journaled) and "Undo and back". @ample:lyrics-editor
 
 import { api } from './api.js';
+import { infoNote } from './studio/panels/info.js';
 import { $, ask, el, toast } from './ui.js';
 import { S, edit, refreshInputs } from './store.js';
 import { registerView, setView } from './views.js';
@@ -112,7 +113,7 @@ function render() {
   left.append(el('datalist', { id: 'ly-tags' }, TAGS.map((x) => el('option', { value: x }))), tbl, el('div', { className: 'row' }, [
     el('button', { id: 'ly-add-tag', textContent: '+ Add a tag', title: 'Add a section tag such as [Verse] or [Chorus] before the selected line (or at the end)', onclick: () => { push(); L.rows.splice(L.sel >= 0 ? L.sel : L.rows.length, 0, { tag: true, text: '[Verse]' }); render(); } }),
     el('button', { id: 'ly-add', textContent: '+ Add a line', onclick: () => { push(); const lastTimed = timedRows(L.rows).pop()?.r; L.rows.push({ bar: lastTimed ? lastTimed.bar + 2 : (L.node.parts[0] ? L.node.parts[0].at : 1), text: '' }); L.sel = L.rows.length - 1; render(); } }),
-    el('span', { className: 'note', textContent: 'Tip: a bar can be fractional (9.5 = halfway through bar 9). The file stays a plain text file: [bar 9] text.', style: 'margin:0' }),
+    infoNote('A bar can be fractional (9.5 = halfway through bar 9). The file stays a plain text file: [bar 9] text.', 'About the lyrics file'),
   ]));
   right.append(el('h4', { textContent: 'Checks', style: 'padding:0' }), el('div', { id: 'ly-checks' }), el('h4', { textContent: 'Timing view', style: 'padding:0;margin-top:12px' }), el('div', { id: 'ly-strip', className: 'lystrip' }), el('p', { className: 'note', id: 'ly-strip-note' }), el('h4', { textContent: 'This block', style: 'padding:0;margin-top:12px' }), el('div', { className: 'note', id: 'ly-block' }));
   body.append(left, right);

@@ -27,7 +27,7 @@ export const PARITY_REFERENCES = {
   eq: (audio, params) => eqAudio(audio, params), peq: (audio, params) => peqAudio(audio, params), delay: (audio, params, tempo) => delayAudio(audio, params, undefined, tempo), distortion: (audio, params) => distortionAudio(audio, params),
   chorus: (audio, params) => chorusAudio(audio, params), flanger: (audio, params) => flangerAudio(audio, params), phaser: (audio, params) => phaserAudio(audio, params),
   master: (audio, params, tempo) => masterAudioBuffer(audio, params, tempo),
-  pan: (audio, params) => panAudio(audio, params), width: (audio, params) => widthAudio(audio, params), volume: (audio, params) => volumeAudio(audio, params),
+  pan: (audio, params, tempo) => panAudio(audio, params, undefined, tempo), width: (audio, params) => widthAudio(audio, params), volume: (audio, params, tempo, firstBar) => volumeAudio(audio, params, tempo, firstBar),
   filter: (audio, params, tempo) => filterAudio(audio, params, tempo, 1),
   compressor: (audio, params) => compressorAudio(audio, params, null),
   tremolo: (audio, params, tempo) => tremoloAudio(audio, params, tempo, 1),   // duck and the tremolo gate follow the playing take, so a silent offline context cannot compare them
@@ -54,5 +54,13 @@ export const CONFORMANCE_PARAMS = {
   peq: { band2_gain: '4 dB' }, filter: { cutoff: '800 Hz' }, compressor: { threshold: '-18 dB', ratio: '4' }, delay: { time: '250 ms', feedback: '35', mix: '30' }, distortion: { drive: '12 dB', mix: '100' },
   chorus: { depth: '5', period: '1500 ms', mix: '50' }, flanger: { depth: '2 ms', period: '2000 ms', feedback: '50', mix: '50' }, phaser: { stages: '4', period: '2500 ms', mix: '50' },
   pan: { pan: '16' }, width: { width: '150' }, volume: { gain: '-6 dB' }, tremolo: { shape: 'sine', rate: '4', depth: '50' },
+  // variants of a block ('block~variant' is checked with the block 'block'): the cases the plain parameters do not reach
+  'pan~lfo': { pan: 'lfo(2, -16, 16)' }, 'pan~auto': { pan: 'auto(1:-20, 1.1:20, 1.2:-8)' },
+  'filter~highpass': { type: 'highpass', cutoff: '1500 Hz' }, 'filter~sweep': { cutoff: '800 Hz', lfo_rate: '1/4', lfo_depth: '3', lfo_shape: 'sine' }, 'filter~resonant': { cutoff: '800 Hz', resonance: '60' }, 'filter~slope24': { cutoff: '800 Hz', slope: '24' },
+  'delay~odd': { time: '37 ms', feedback: '22%', mix: '18%' },   // a time that is not a whole number of samples (37 ms at 44.1 kHz = 1631.7): the server truncates it, the song's 455 ms echo is the same case
+  'volume~auto': { gain: 'auto(0.05s:0, 0.2s:-18, 0.35s:-3)' }, 'volume~fadeout': { gain: 'fadeout(0.1s, 0.25s, equal)' }, 'volume~fadein': { gain: 'fadein(0.05s, 0.3s, exp)' }, 'volume~lfo': { gain: 'lfo(2, -12, 0)' }, 'volume~fractional': { gain: '-12.041 dB' },
+  'chorus~deep': { depth: '12', period: '700 ms', mix: '70' },
 };
+/** The block type of a conformance key ('pan~lfo' is a pan block). */
+export const blockOf = (key) => String(key).split('~')[0];
 export const CONFORMANCE_SECONDS = 0.4, CONFORMANCE_TEMPO = 120;

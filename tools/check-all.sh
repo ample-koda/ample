@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Older Node versions (the CI runner's) do not know --test-isolation: pass it only when this Node lists it (as check-all.ps1).
+node_isolation=()
+if node --help | grep -q -- '--test-isolation'; then node_isolation=(--test-isolation=none); fi
+
 full=0
 skip_tests=0
 while [[ $# -gt 0 ]]; do
@@ -29,19 +33,22 @@ else
   echo 'Slow performance and chaos suites skipped (rerun with --full when needed).'
 fi
 dotnet format "$solution" --no-restore --verify-no-changes
-node --test --test-isolation=none "$repository_root/ample/tools/parity-report.test.mjs"
-node "$repository_root/ample/tools/parity-report.mjs" --check --require-complete
-node --test --test-isolation=none "$repository_root/ample/tools/validate-spec.test.mjs"
-node --test --test-isolation=none "$repository_root/ample/tools/quarantine-failed.test.mjs"
-node --test --test-isolation=none "$repository_root/ample/tools/issue-sync/sync.test.mjs"
-node --test --test-isolation=none "$repository_root/ample/faer/server.test.mjs" "$repository_root/ample/faer/gpu-manager.test.mjs"
+# The parity matrix and its sketch are internal documents: the public tree has neither the tool nor the matrix, so this check runs only where they are.
+if [[ -f "$repository_root/ample/tools/parity-report.mjs" && -f "$repository_root/ample/docs/parity-matrix.md" ]]; then
+  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/parity-report.test.mjs"
+  node "$repository_root/ample/tools/parity-report.mjs" --check --require-complete
+fi
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/validate-spec.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/quarantine-failed.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/issue-sync/sync.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/faer/server.test.mjs" "$repository_root/ample/faer/gpu-manager.test.mjs"
 node "$repository_root/ample/tools/validate-spec.mjs"
 node "$repository_root/ample/tools/gen-prng-vectors.mjs" --check
-node --test --test-isolation=none "$repository_root/ample/web/lib/test/stable-rng.test.mjs" "$repository_root/ample/web/lib/test/geometry.test.mjs" "$repository_root/ample/web/lib/test/history.test.mjs" "$repository_root/ample/web/lib/test/lyrics.test.mjs" "$repository_root/ample/web/lib/test/pluginui.test.mjs" "$repository_root/ample/web/lib/test/stepseq.test.mjs" "$repository_root/ample/web/lib/test/numfield.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/web/lib/test/stable-rng.test.mjs" "$repository_root/ample/web/lib/test/geometry.test.mjs" "$repository_root/ample/web/lib/test/history.test.mjs" "$repository_root/ample/web/lib/test/lyrics.test.mjs" "$repository_root/ample/web/lib/test/pluginui.test.mjs" "$repository_root/ample/web/lib/test/stepseq.test.mjs" "$repository_root/ample/web/lib/test/numfield.test.mjs"
 
 node "$repository_root/ample/tools/gen-editor-assets.mjs" --check
 if [[ -d "$repository_root/ample/node_modules/vscode-textmate" ]]; then
-  node --test --test-isolation=none "$repository_root/ample/editors/vscode/test/grammar.test.mjs"
+  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/editors/vscode/test/grammar.test.mjs"
 elif [[ "$full" -eq 1 ]]; then
   echo 'Full check requires npm install in ample/ for the VS Code grammar tests.' >&2
   exit 1

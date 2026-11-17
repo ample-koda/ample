@@ -373,7 +373,18 @@ test('AMPLE Jam window management: double-click and the minus button roll it up,
   await panel.locator('.mls-title').dblclick({ position: { x: 150, y: 8 } });
   await expect(panel).toHaveAttribute('data-window', 'collapsed');
   expect((await panel.boundingBox())!.height).toBeLessThan(60);
-  expect((await panel.boundingBox())!.width).toBeLessThan(420);
+  // as narrow as its title and buttons: what is in the bar with its margins, gaps, padding and the frame of the window, no free space
+  const [width, content] = await panel.evaluate((p) => {
+    const px = (value: string) => parseFloat(value) || 0;
+    const bar = p.querySelector('.mls-title') as HTMLElement, style = getComputedStyle(bar), frame = getComputedStyle(p);
+    const items = [...bar.children].filter((c) => getComputedStyle(c).position !== 'absolute' && getComputedStyle(c).display !== 'none');
+    const widths = items.reduce((sum, c) => sum + c.getBoundingClientRect().width + px(getComputedStyle(c).marginLeft) + px(getComputedStyle(c).marginRight), 0);
+    const inside = (items.length - 1) * px(style.columnGap) + px(style.paddingLeft) + px(style.paddingRight);
+    const edge = px(frame.paddingLeft) + px(frame.paddingRight) + px(frame.borderLeftWidth) + px(frame.borderRightWidth);
+    return [p.getBoundingClientRect().width, widths + inside + edge];
+  });
+  expect(width).toBeLessThan(before.width);
+  expect(Math.abs(width - content)).toBeLessThan(2);
   const rightGap = await panel.evaluate((p) => p.getBoundingClientRect().right - (p.querySelector('.mls-close') as HTMLElement).getBoundingClientRect().right);
   expect(rightGap).toBeLessThan(20);
   await panel.getByRole('button', { name: 'Expand' }).click();

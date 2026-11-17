@@ -1,4 +1,4 @@
-// What the DJ did with the faders during a set (phase 5): the mix of the lanes is logged as it changes and, when the set is saved as a song, turned into automation curves, auto(bar:value, ...),
+// What the DJ did with the faders during a set (plan/performance-live.md, phase 5): the mix of the lanes is logged as it changes and, when the set is saved as a song, turned into automation curves, auto(bar:value, ...),
 // for the volume, the pan and the filter of every lane. Pure, so node --test checks it.
 
 /** The log of the mix: a snapshot of what every lane sounds like (gain 0..1, pan -1..1, cutoff in Hz or null) at a beat of the set, written only when something changed. */

@@ -121,6 +121,9 @@ button[data-later]:disabled{opacity:.4}
 .savectl .savedot{font-size:12px;color:var(--dim);white-space:nowrap}
 .savectl[data-state="changed"] .savedot{color:var(--warn)}
 .savectl[data-state="typed"] .savedot{color:var(--acc)}
+/* the code editor bar wraps: the texts that change while typing keep the room of their longest form, so no button moves to another row (the editor jumped) */
+#se-bar .savectl .savedot{display:inline-block;min-width:11.5em}
+#se-bar #se-status{display:inline-block;min-width:19em}
 .savectl .savebtn,.savectl .savemore{padding:2px 7px}
 .savectl.compact .savemore{padding:2px 6px}
 /* named patterns, sections and the patterns view (plan patterns P03, P04) */
@@ -438,6 +441,9 @@ dialog.volume-dialog h3{margin:0 0 8px;font-size:13px}
 .ai-log{min-height:120px;max-height:min(55vh,620px);resize:vertical;overflow:auto;font:11px/1.5 ui-monospace,Consolas,monospace;background:var(--bg);border-radius:6px;padding:6px 8px;margin:8px 0}
 .ai-modal-stop{padding:4px 9px;flex-shrink:0}.ai-modal-stop[hidden]{display:none}
 .project-export-dialog{width:min(520px,94vw);height:auto;max-height:80vh}.project-export-dialog progress{width:100%;height:14px;accent-color:var(--acc)}.project-export-dialog .tx-body>p{overflow-wrap:anywhere}
+/* the transport keeps one width while a build starts and ends (Build and play <-> the play glyph, Stop <-> Cancel build): the header used to wrap differently
+   and its rows changed height by a few pixels, so the page shook at every build (owner report, 2026-11-17) */
+@media (min-width:900px){.transport-combo{min-width:158px}.transport-combo>#btn-preview{flex:1 1 auto}#btn-stop{min-width:110px}}
 .transport-combo,.transport-volume{position:relative;display:inline-flex;align-items:stretch}.transport-combo>#btn-preview{border-radius:6px 0 0 6px}.transport-combo>#btn-play-options{border-radius:0 6px 6px 0;border-left:1px solid color-mix(in srgb,var(--fg) 20%,transparent);padding-inline:6px}.transport-popup{position:absolute;top:calc(100% + 7px);right:0;z-index:1500;min-width:110px;padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--panel);box-shadow:0 6px 24px #0008}.transport-popup[hidden]{display:none}.transport-popup>#btn-loop{width:100%;white-space:nowrap;text-align:left}.volume-adjusted{color:var(--warn)!important;border-color:var(--warn)!important;background:color-mix(in srgb,var(--warn) 15%,var(--panel))!important}
 .node-status{width:15px;height:15px;min-width:15px;flex:none;border-radius:50%;padding:0;border:2px solid var(--dim);background:transparent;color:var(--dim);font:bold 10px/11px sans-serif;cursor:pointer}.node-status.ok{background:#70cf72;border-color:#70cf72}.node-status.hit{border-color:#70cf72}.node-status.invalid{background:var(--bad);border-color:var(--bad);color:white}.node-status.blocked{background:var(--warn);border-color:var(--warn);color:var(--on-warn)}.node-status.run{background:var(--acc);border-color:var(--acc);animation:node-status-pulse 1.2s ease-in-out infinite}.node-status:focus-visible{outline:2px solid var(--acc);outline-offset:3px}@keyframes node-status-pulse{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--acc) 25%,transparent);opacity:.55}}.log-focus{outline:2px solid var(--acc);background:color-mix(in srgb,var(--acc) 15%,var(--panel))!important}@media(prefers-reduced-motion:reduce){.node-status.run{animation:none}}
 .ai-tool-summary{display:flex;align-items:baseline;gap:6px;min-width:0}.ai-tool-summary>span{color:inherit!important;overflow-wrap:anywhere}.ai-tool-link{padding:0 4px;border:0;background:transparent;color:var(--acc);font:inherit;cursor:pointer;flex-shrink:0}.ai-tool-link:hover{background:var(--panel2);border-radius:3px}.ai-tool-link:focus-visible{outline:2px solid var(--acc)}
@@ -1083,6 +1089,19 @@ dialog.ask-dialog:has(textarea.notes-editor) #dlg-extra{max-width:100%}
 /* the marks of the source editor are decorations of CodeMirror itself (they scroll with the text) */
 .cm-content .sq{text-decoration:underline wavy var(--warn);text-decoration-thickness:1px}
 .cm-content .lk-mark{text-decoration:underline;text-decoration-color:var(--acc);text-decoration-thickness:2px;text-underline-offset:2px}
+/* Live Preview of the code editor (plan/live-preview): the block listened to, the note tokens that sound now, the notes line of generated notes, the other blocks that sound */
+.cm-content .lp-target{background:color-mix(in srgb,var(--acc) 9%,transparent)}
+.cm-content .lp-now{background:color-mix(in srgb,var(--acc) 45%,transparent);border-radius:3px;box-shadow:0 0 0 1px var(--acc)}
+.cm-content .lp-line{text-decoration:underline dotted;text-decoration-color:var(--acc);text-decoration-thickness:2px;text-underline-offset:3px}
+.cm-content .lp-active{box-shadow:inset 3px 0 0 color-mix(in srgb,var(--acc) 60%,transparent)}
+/* one line that never changes height while the status changes (a wrapping bar made the editor jump while typing) */
+.lp-bar{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;min-height:30px}.lp-bar #lp-pin.on{border-color:var(--acc);color:var(--acc)}
+.lp-bar>select,.lp-bar>input,.lp-settings select{width:auto}.lp-bar>*{flex:0 0 auto}
+.lp-bar>#lp-status{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-bar #lp-status.bad{color:var(--bad,#ff6b6b)}.lp-bar #lp-status.draft{color:var(--warn)}
+.lp-more{display:inline-block}
+.lp-more>summary{cursor:pointer;list-style:none;padding:2px 8px;border:1px solid var(--line);border-radius:6px}
+.lp-more[open] .lp-settings{display:flex;flex-direction:column;gap:4px;position:absolute;z-index:30;background:var(--panel);border:1px solid var(--line);padding:8px;border-radius:8px}
 .cm-content .sq.error{text-decoration-color:var(--bad)}
 .cm-content .sq.info{text-decoration-color:var(--dim)}
 .cm-content .sq.build{text-decoration:underline solid var(--bad);text-decoration-thickness:2px;text-underline-offset:3px;background:color-mix(in srgb,var(--bad) 10%,transparent)}
@@ -1328,3 +1347,85 @@ kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px sol
   .mixms .mixmute,.mixms .mixsolo,.mixchan .mixmute,.mixchan .mixsolo{width:18px!important;min-width:18px!important;height:22px!important;min-height:22px!important;padding:0!important;font-size:10px}
   .mixstrip>button{margin-top:2px;min-height:32px}
 }
+
+/* Mixer: strips as tall as the panel (the row scrolls sideways), names and colours of the sources, pan knob, dB ticks, peak hold */
+.mixview{align-items:stretch;overflow:auto}
+.mixview .mixstrip{align-self:stretch;min-height:0}
+.mixstrip-mixer,.mixstrip-bus{border-top-color:var(--mc,var(--line))}
+.mixfaders{flex:1 1 auto;min-height:0;gap:4px}
+.mixview .mixchan{width:58px;flex:1 1 auto;min-height:0;padding:3px 2px 4px;border-radius:6px;border-top:3px solid var(--mc,var(--line));background:color-mix(in srgb,var(--mc,transparent) 8%,transparent)}
+.mixview .mixchan.empty{opacity:.45;border-top-color:var(--line);background:none}
+.mixview .mixchan.muted .mixfader{opacity:.45}
+.mixhead{display:flex;flex-direction:column;align-items:center;gap:0;max-width:100%;line-height:1.15}
+.mixicon{font-size:14px;color:var(--mc,var(--dim))}
+.mixview .mixsrc{max-width:56px;font-size:11px;font-weight:600;color:var(--fg,inherit);text-align:center}
+.mixpan.studio-knob .studio-knob-label{display:none}
+.mixpan.studio-knob{gap:0}.mixpan .studio-knob-value{font-size:10px}
+.mixview .mixfw{flex:1 1 70px;min-height:70px;position:relative;align-items:stretch;gap:2px}
+.mixview .mixfader{height:auto;align-self:stretch;min-height:64px;width:22px;accent-color:var(--mc,var(--acc))}
+.mixview .mixsingle .mixfw{min-height:120px}
+.mixticks{position:relative;width:20px;flex:none;margin:8px 0}
+.mixticks span{position:absolute;right:0;transform:translateY(50%);font:9px ui-monospace,Consolas,monospace;color:var(--dim);line-height:1}
+.mixview .mixchm{position:relative;width:24px!important;min-width:24px}
+.mixchm .mixpk{position:absolute;left:0;width:50%;height:3px;bottom:0;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.75);z-index:1;pointer-events:none}.mixchm .mixpk+.mixpk{left:50%}
+.mixchm .mixpk.hot{height:4px;background:#fff;box-shadow:0 0 0 1px #000,0 0 5px 1px var(--bad)}
+.mixchm{cursor:pointer}
+.mixtools{display:flex;gap:4px;flex:none}.mixtools button{margin:0!important;font-size:11px;padding:2px 6px;min-height:0}.mixclear{font-size:11px}
+.mixfaders .mixchan:focus-within{outline:1px solid var(--acc);outline-offset:1px}
+@media(max-width:700px){.mixview .mixchan{width:50px}.mixview .mixfader{height:auto}.mixview .mixfw{min-height:90px}.mixview .mixsrc{max-width:46px;font-size:9px}.mixticks{width:16px}}
+#bbody:has(>#b-mixer.on){overflow:hidden;padding:0}#b-mixer.on{height:100%;min-height:0;box-sizing:border-box}
+.mixview .mixmeter{margin-left:0}.mixview{padding:6px 8px}.mixview .mixchan{padding-top:2px}
+
+/* Mixer: the effects of an input as chips */
+.mixfx{display:flex;flex-direction:column;gap:2px;align-items:stretch;width:100%;margin-top:2px}
+.mixfxchip{border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:1px 2px;font-size:10px}
+.mixfxchip.off{opacity:.55}.mixfxchip.off .mixfxname{text-decoration:line-through}
+.mixfxrow{display:flex;align-items:center;gap:2px;min-width:0}
+.mixfxname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:none;padding:0;font-size:10px;text-align:left;color:var(--fg,inherit);min-height:0;cursor:pointer}
+.mixfxbyp{width:10px;height:10px;min-width:10px!important;min-height:10px!important;padding:0;border-radius:50%;border:1px solid var(--dim);background:none}.mixfxbyp.on{background:var(--ok);border-color:var(--ok)}
+.mixfxtools{display:flex;gap:1px;justify-content:center;max-height:0;overflow:hidden;opacity:0}.mixfxchip:hover .mixfxtools,.mixfxchip:focus-within .mixfxtools{max-height:16px;opacity:1}
+.mixfxtools button{min-width:14px!important;min-height:14px!important;width:14px;height:14px;padding:0;font-size:10px;line-height:1;border-radius:3px}
+.mixfxadd{align-self:center;width:22px;height:18px;min-width:22px!important;min-height:18px!important;padding:0;font-size:13px;line-height:1;border-style:dashed}
+
+/* Mixer: send knobs (reverb, delay) */
+.mixsends{display:flex;gap:0;justify-content:center;width:100%}
+.mixsend.studio-knob .studio-knob-label{font-size:8px;letter-spacing:0}.mixsend .studio-knob-value{font-size:9px}.mixsend.studio-knob{gap:0}
+
+/* Mixer: loudness and peak of the master */
+.mixlufs{display:flex;flex-direction:column;gap:2px;align-items:stretch;font-size:10px;color:var(--dim);margin-top:4px}
+.mixlufs div{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.mixlufs output{font:700 14px ui-monospace,Consolas,monospace;color:var(--fg,inherit)}.mixlufs output.hot{color:var(--bad)}.mixlufs output.ok{color:var(--ok)}
+.mixlufs-reset{font-size:10px;padding:1px 6px;min-height:0}
+/* Mixer: nothing in a strip is squeezed away; a strip that is taller than the panel scrolls with the row; the master has its loudness beside the fader */
+.mixview .mixstrip{min-height:min-content}
+.mixview .mixstrip>*{flex-shrink:0}.mixview .mixstrip>.mixfaders,.mixview .mixstrip>.mixmasterbody{flex:1 1 auto}
+.mixview .mixchan{flex:1 0 auto}
+.mixmasterbody{display:flex;gap:8px;align-items:stretch;min-height:0}
+.mixmasterbody .mixlufs{justify-content:center;min-width:64px;margin-top:0}
+.mixview .mixsingle{width:64px}
+
+/* Mixer chores (2026-11-13): a taller panel by default, a compact mixer picker above the row, a toggle for the empty inputs at the end, a clearer peak-hold line */
+#bottom:has(>#bbody>#b-mixer.on),#bottom:has(#b-mixer.on){height:var(--bh,470px)}
+#b-mixer.on{display:flex;flex-direction:column}
+#b-mixer.on>.mixview{flex:1 1 0;height:auto;min-height:0}
+.mixscopebar{flex:none;display:flex;align-items:center;padding:3px 10px 0}
+.mixscopebar .mixscope{height:22px;width:auto;max-width:180px;padding:0 4px;font-size:11px}
+.mixtools .mixempties{white-space:nowrap}
+.mixview .mixpan.studio-knob{width:auto;height:auto;min-height:0;padding:0;font-size:11px}
+.mixview .mixpan .studio-knob-value{line-height:1.1;min-height:11px}
+.song-log-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:4px 8px;border-bottom:1px solid var(--line)}
+.song-log-choice{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--dim,#9aa0a6)}
+.song-log-events-head{padding:6px 8px 2px;font-size:12px;font-weight:600;color:var(--dim,#9aa0a6)}
+.song-event{display:grid;grid-template-columns:minmax(140px,190px) minmax(0,1fr);gap:12px;padding:3px 8px;border-bottom:1px solid var(--line)}
+.song-event-head{font:12px/20px ui-monospace,Consolas,'Cascadia Mono',monospace;white-space:nowrap;color:var(--dim,#9aa0a6)}
+.song-event.warning .song-event-head{color:var(--warn,#d8a83e)}
+.song-event-message{overflow-wrap:anywhere}
+.song-log-events-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.song-log-filters{display:inline-flex;flex-wrap:wrap;gap:4px;font-weight:400}
+.song-log-filter{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--dim,#9aa0a6);cursor:pointer}
+.song-log-filter[aria-pressed="true"]{background:color-mix(in srgb,var(--acc) 18%,transparent);color:inherit}
+.song-event-count{color:var(--dim,#9aa0a6);font-size:11px}
+.song-event-more{grid-column:2;white-space:pre-wrap;font:11px/16px ui-monospace,Consolas,monospace;color:var(--dim,#9aa0a6)}
+.song-event.budget .song-event-head{color:var(--warn,#d8a83e)}
+.song-event[tabindex]{cursor:pointer}
+@media (max-width:700px){.song-event{grid-template-columns:1fr;gap:2px}.song-event-more{grid-column:1}}

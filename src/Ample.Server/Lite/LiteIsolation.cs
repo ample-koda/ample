@@ -31,7 +31,8 @@ internal sealed class LiteIsolation(string workerPath, string ampleRoot)
     /// <param name="cancellationToken">Cancelled when the page goes away.</param>
     /// <returns>The outcome.</returns>
     /// <exception cref="LiteRejectedException">The project is refused, the worker needed too much memory or failed.</exception>
-    public async Task<LiteBuildResult> BuildAsync(string libraryHome, string entry, IReadOnlyList<LiteFile> files, LiteLimits limits, LiteOutputs outputs, Action<string, double>? log, CancellationToken cancellationToken)
+    /// <param name="options">The observation options of this build, or null.</param>
+    public async Task<LiteBuildResult> BuildAsync(string libraryHome, string entry, IReadOnlyList<LiteFile> files, LiteLimits limits, LiteOutputs outputs, Action<string, double>? log, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? options = null)
     {
         string work = Path.Combine(LiteWorkspace.WorkRoot(libraryHome), "job-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(work);
@@ -69,7 +70,7 @@ internal sealed class LiteIsolation(string workerPath, string ampleRoot)
             {
                 try
                 {
-                    await LiteWorker.WriteRequestAsync(process.StandardInput.BaseStream, entry, files, limits, limit.Token).ConfigureAwait(false);
+                    await LiteWorker.WriteRequestAsync(process.StandardInput.BaseStream, entry, files, limits, limit.Token, options).ConfigureAwait(false);
                 }
                 catch (IOException)
                 {

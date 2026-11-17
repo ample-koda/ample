@@ -38,12 +38,13 @@
   #btn-more{font-size:20px;line-height:1;padding:3px 9px}
 
   /* MUI02: bottom navigation, the panel opens as a sheet above it */
-  #bottom{height:auto!important;min-height:0;position:relative;border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
+  /* overflow visible: the More menu opens above the bar, outside #bottom (the desktop rule clips it away) */
+  #bottom{height:auto!important;min-height:0;position:relative;overflow:visible;border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
   #bgrip,#b-min{display:none!important}
   #btabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0;overflow:visible;position:relative}
   #btabs>button[data-t]{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-radius:0;border:0;border-top:2px solid transparent;background:transparent;min-height:50px;padding:4px 2px;font-size:11px;white-space:nowrap;overflow:hidden}
   #btabs>button[data-t].on{border-top-color:var(--acc);background:var(--bg);color:var(--acc)}
-  #btabs>button[data-t="var"],#btabs>button[data-t="assistant"],#btabs>button[data-t="log"]{display:none}
+  #btabs>button[data-t="var"],#btabs>button[data-t="mixer"],#btabs>button[data-t="assistant"],#btabs>button[data-t="log"]{display:none}
   #btabs>button[data-t]::before{font-size:18px;line-height:1;content:'\25A4'}
   #btabs>button[data-t="arr"]::before{content:'\25A6'}
   #btabs>button[data-t="branch"]::before{content:'\2442'}
@@ -171,7 +172,10 @@
   /* the close button is the Back button of the panel, first in the bar */
   .mls-close{order:-1;font-size:0;min-width:72px;color:var(--acc);font-weight:600}
   .mls-close::after{content:'\2039  Back';font-size:15px}
-  .mls-badge{margin-left:auto;max-width:35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mls-badge{margin-left:auto;max-width:35%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* the bar keeps one height: when the preview badge appears (first note heard) the badge shrinks, the button does not wrap,
+     otherwise the grid jumps down under the finger between two taps (#745) */
+  .mls-title .mls-context{flex:none;white-space:nowrap}
   .mls-hint{left:54px;right:6px;top:32px;font-size:11px}
   .mls-help{left:6px;right:6px;max-width:none}
   .mls-help-row kbd{min-width:7em}
@@ -276,3 +280,4 @@
   #sq .sqplaylist .sqscroll, #sq .sqpatterns { max-width: 100%; }
   #sq .sqchannel select, #sq .sqchannel input { min-height: 38px; }
 }
+@media (max-width:700px){dialog.studio-dialog.metal-window{padding:0!important;min-width:0}}

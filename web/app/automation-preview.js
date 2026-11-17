@@ -68,7 +68,7 @@ export function createAutomationPreview({ block, type, name, tempo, totalBars, g
         const st = playerState();
         if (!st.playing) return;
         const value = automationValueAt(getPoints(), songBar(st.time, tempo, firstBar), range);
-        if (value !== null) updateLivePreview({ ...base, [name]: String(Math.round(value * 100) / 100) });
+        if (value !== null) updateLivePreview({ ...base, [name]: String(Math.round(value * 100) / 100), ...(name === 'gain' ? { gain_precise: 'on' } : {}) });   // the decimal dB of the curve, not the whole dB of the server
       }, 30);
       onStatus(`Live · approximate · ${label(win)}`);
       return true;

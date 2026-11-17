@@ -335,11 +335,15 @@ function placeRack(rack, main) {
  * the change event it fires must not put the focus back on the redrawn control.
  */
 let leaving = 0;
+// the control Tab was pressed in: Chromium has already moved the focus to body when the change event of that Tab fires,
+// so the step of Tab is counted from this control, not from document.activeElement
+let leavingFrom = null;
 function watchLeaving() {
   const mark = () => { leaving = 'pointer'; setTimeout(() => { leaving = 0; }, 0); };
   addEventListener('keydown', (event) => {
     if (event.key !== 'Tab') return;
     leaving = event.shiftKey ? -1 : 1;
+    leavingFrom = event.target instanceof Element ? event.target : null;
     addEventListener('keyup', () => { leaving = 0; }, { once: true, capture: true });
     setTimeout(() => { leaving = 0; }, 1000);
   }, true);
@@ -347,7 +351,7 @@ function watchLeaving() {
 }
 function scrollPlaces(root) {
   const places = SCROLLERS.map((selector) => [selector, root.querySelector(selector)?.scrollTop ?? 0, root.querySelector(selector)?.scrollLeft ?? 0]);
-  const active = document.activeElement;
+  const active = leaving && leaving !== 'pointer' && document.activeElement === document.body && leavingFrom?.isConnected ? leavingFrom : document.activeElement;
   // a change caused by Tab goes on to the next control, one caused by a click elsewhere leaves the focus alone
   const focusKey = leaving === 'pointer' ? null : leaving ? neighbourKey(root, active, leaving) : focusKeyOf(root, active);
   return {

@@ -44,8 +44,7 @@ export function playbackOutput(context) {
   outputs.set(context, chain); chains.add(new WeakRef(chain));
   return input;
 }
-/** Where the sound of a context can be listened in on (the recorder of a performance): `sum`, the sum of everything before the safety stage, and
- * `heard`, what leaves the safety stage (before the listening volume). */
+/** Where the sound of a context can be listened in on (the recorder of a performance): `sum`, the sum of everything before the safety stage, and `heard`, what leaves the safety stage (before the listening volume). */
 export function playbackTap(context) { playbackOutput(context); const chain = outputs.get(context); return { sum: chain.input, heard: chain.safety }; }
 /** The peak of the last ~20 ms that left each channel (0..1+), over every audio context that is playing. */
 export function outputLevels() {

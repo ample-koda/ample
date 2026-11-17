@@ -50,6 +50,8 @@ public static partial class ComponentHashing
         return ConditionSyntax.Parse(code) is { Problem: null, Kind: not ConditionSyntax.HeadKind.Else, Wrapped: false } head ? ConditionSyntax.Format(head) : line;
     }
 
+    private const string SourceMark = "source:";
+
     private static string Sha(string text) => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     private static string I(int n) => n.ToString(CultureInfo.InvariantCulture);
@@ -76,8 +78,12 @@ public static partial class ComponentHashing
             sb.Append('\n');
         }
 
-        sb.Append("process=").Append(Collapse(string.Join('\n', d.ProcessBody.Select(CanonicalProcessLine)))).Append('\n');
-        foreach (string hash in dependencyHashes.Order(StringComparer.Ordinal)) sb.Append("uses=").Append(hash).Append('\n');
+        // a private property that the music reads is content; the others are metadata and only the payload hash (the seal) sees them
+        foreach (ComponentProperty p in ComponentHelper.UsedPrivate(d))
+            sb.Append("private-property=").Append(p.Name).Append(':').Append(p.Type.TrimEnd('?')).Append(':').Append(Collapse(p.Default ?? string.Empty)).Append('\n');
+        string fullBody = string.Join('\n', d.ProcessBody.Select(CanonicalProcessLine));
+        sb.Append("process=").Append(Collapse(NotePipeline.BlankObservationStatements(fullBody) ?? fullBody)).Append('\n');
+        foreach (string hash in dependencyHashes.Where(h => !h.StartsWith(SourceMark, StringComparison.Ordinal)).Order(StringComparer.Ordinal)) sb.Append("uses=").Append(hash).Append('\n');
         foreach (ComponentMigration m in d.Migrations.OrderBy(m => m.To, StringComparer.Ordinal).ThenBy(m => m.From, StringComparer.Ordinal))
             sb.Append("migrate=").Append(m.From ?? string.Empty).Append("->").Append(m.To).Append(':').Append(m.Impact).Append(':').Append(Collapse(string.Join('\n', m.Body.Select(b => b.Text)))).Append('\n');
         return sb.ToString();
@@ -97,6 +103,15 @@ public static partial class ComponentHashing
     {
         ArgumentNullException.ThrowIfNull(d);
         StringBuilder sb = new(SemanticText(d, dependencyHashes));
+        // the source tier (plan R1.1): observation and assert statements are not music, so they are not in the semantic hash,
+        // but a seal must notice them; the lines exist only when there is something to notice,
+        // so that every payload hash that existed before stays the same
+        string fullBody = string.Join('\n', d.ProcessBody.Select(CanonicalProcessLine));
+        foreach (ComponentProperty p in d.PrivateProperties.Except(ComponentHelper.UsedPrivate(d)))
+            sb.Append("private-metadata=").Append(p.Name).Append(':').Append(p.Type.TrimEnd('?')).Append(':').Append(Collapse(p.Default ?? string.Empty)).Append('\n');
+        if (NotePipeline.BlankObservationStatements(fullBody) is not null) sb.Append("process-source=").Append(Collapse(fullBody)).Append('\n');
+        foreach (string source in dependencyHashes.Where(h => h.StartsWith(SourceMark, StringComparison.Ordinal)).Order(StringComparer.Ordinal))
+            sb.Append("uses-source=").Append(source[SourceMark.Length..]).Append('\n');
         sb.Append("--- presentation\n");
         sb.Append("current=").Append(d.Current ? "yes" : "no").Append('\n');
         sb.Append("doc=").Append(Collapse(d.Doc is null ? string.Empty : d.Doc.Summary + " " + string.Join(' ', d.Doc.Params.Select(p => p.Name + " " + p.Text)))).Append('\n');
@@ -125,7 +140,14 @@ public static partial class ComponentHashing
         string semantic = Semantic(d, dependencyHashes), payload = Payload(d, dependencyHashes);
         if (d.Seal is null) return new SealCheck(SealState.Unsealed, string.Empty, semantic, payload);
         if (d.Seal.Semantic != semantic) return new SealCheck(SealState.Invalid, $"the component changed after it was sealed (semantic hash {Abbreviate(d.Seal.Semantic)} is now {Abbreviate(semantic)}); a sealed version is immutable: make a new version.", semantic, payload);
-        if (d.Seal.Payload != payload) return new SealCheck(SealState.Invalid, $"the documentation, presentation or UI changed after it was sealed (payload hash {Abbreviate(d.Seal.Payload)} is now {Abbreviate(payload)}).", semantic, payload);
+        bool observed = NotePipeline.BlankObservationStatements(string.Join('\n', d.ProcessBody)) is not null || dependencyHashes.Any(h => h.StartsWith(SourceMark, StringComparison.Ordinal));
+        string what = observed ? "the documentation, presentation, UI or the logging and assertion statements" : "the documentation, presentation or UI";
+        if (d.Seal.Payload != payload)
+        {
+            string reason = $"{what} changed after it was sealed (payload hash {Abbreviate(d.Seal.Payload)} is now {Abbreviate(payload)}).";
+            return new SealCheck(SealState.Invalid, reason, semantic, payload);
+        }
+
         return new SealCheck(SealState.Valid, string.Empty, semantic, payload);
     }
 

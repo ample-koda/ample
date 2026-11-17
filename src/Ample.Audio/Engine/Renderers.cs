@@ -123,66 +123,23 @@ public interface IBlockRenderer
 /// <summary>The built-in deterministic renderers.</summary>
 public static partial class BuiltInRenderers
 {
-    private static readonly string[] Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
     internal static IReadOnlyList<(int Bar, int Pitch, long Beat, long Length, int Velocity, int Channel, int Bank, int Program)> MapMidiTempoNotes(RenderRequest request, SmfFile file, IReadOnlyList<(long StartTick, long EndTick, int Pitch, int Velocity, int Channel, int Bank, int Program)> notes, int ppq, List<string> warnings, HashSet<(int Bar, int Pitch, int Channel)>? ties = null) => Midi.MapTempoNotes(request, file, notes, ppq, warnings, ties);
     internal static void ApplyMidiControllerGain(short[] samples, IReadOnlyList<(int Sample, int Controller, int Value)> events) => Midi.ApplyControllerGain(samples, events);
 
     /// <summary>Gets all built-in renderers, including SF2 General MIDI instruments.</summary>
     public static IReadOnlyList<IBlockRenderer> All { get; } = [new MidiClip(), new Midi(), new MidiRender(), new Drums(), new Bass(), new Piano(), new SampledInstruments.Guitar(), new SampledInstruments.Gm(), new MachineExactRenderer(new SampledInstruments.Gm()), new MachineExactRenderer(new MidiRender()), new Mixer("mixer"), new Mixer("bus"), new Master(), new Group(), new Lyrics(), new MoodScene(), new SplitterRenderer(), new SynthRenderer(), new DelayLlamaRenderer(), new ImportAudioRenderer(), new RegionMergeRenderer(), new OneShotSamplerRenderer(), new SendRenderer(), new FadeRenderer(), new CrossfadeRenderer(), new SequencerRenderer(), .. MidiEffects.All, .. AudioEffects.All, .. ExtraEffects.All, .. ControlBlocks.All, .. TrimBlock.All, .. SilenceBlock.All, .. ClickBlock.All];
 
-    /// <summary>Parses a chord name (<c>Am</c>, <c>F</c>, <c>C#m</c>, <c>Bb</c>) into a triad of MIDI notes around C3.</summary>
-    public static int[] Triad(string chord)
-    {
-        string root = chord.Length > 1 && chord[1] is '#' or 'b' ? chord[..2] : chord[..1];
-        bool minor = chord[root.Length..].StartsWith('m');
-        int index = root.EndsWith('b') ? (Array.IndexOf(Names, root[..1]) + 11) % 12 : Array.IndexOf(Names, root);
-        if (index < 0)
-        {
-            index = 0;
-        }
-
-        int baseNote = 48 + index;
-        return [baseNote, baseNote + (minor ? 3 : 4), baseNote + 7];
-    }
+    /// <summary>Parses a chord name (<c>Am</c>, <c>F</c>, <c>C#m</c>, <c>Bb</c>) into a triad of MIDI notes around C3 (<see cref="ClipShorthand.Triad"/>).</summary>
+    public static int[] Triad(string chord) => ClipShorthand.Triad(chord);
 
     private static List<string> Chords(RenderRequest r) => [.. (r.Block.Parameters.FirstOrDefault(p => p.Name == "chords")?.Value is { Length: > 0 } own ? own : r.Template.Parameters.GetValueOrDefault("chords") is { Length: > 0 } fallback ? fallback : "C").Split(' ', StringSplitOptions.RemoveEmptyEntries)];
 
-    /// <summary>
-    /// The tones of one chord symbol: the root and quality of <see cref="NoteTheory.TryChord"/> (Am, F, G7, Cmaj7, Dsus4 ...), and a slash chord <c>C/E</c> puts the named bass note lowest
-    /// (an inversion when it is a tone of the chord, otherwise an extra bass note below the root). A symbol that is not known falls back to <see cref="Triad"/>, so older songs sound the same.
-    /// </summary>
-    public static int[] ChordTones(string symbol)
-    {
-        string main = symbol, bass = string.Empty;
-        int slash = symbol.IndexOf('/', StringComparison.Ordinal);
-        if (slash > 0) { main = symbol[..slash]; bass = symbol[(slash + 1)..]; }
-        if (!NoteTheory.TryChord(main, out int pc, out int[] intervals)) return Triad(main);
-        int root = 48 + pc;
-        int[] tones = [.. intervals.Select(i => root + i)];
-        if (bass.Length == 0) return tones;
-        if (!NoteTheory.TryRoot(bass, out int bassClass)) return tones;
-        int at = Array.FindIndex(tones, x => ((x % 12) + 12) % 12 == bassClass);
-        if (at >= 0)
-        {
-            // inversion: the tones below the bass note move up an octave
-            return [.. tones.Select((x, i) => i < at ? x + 12 : x).Order()];
-        }
-
-        int low = 48 + bassClass;
-        while (low >= tones.Min()) low -= 12;
-        return [low, .. tones];
-    }
+    /// <summary>The tones of one chord symbol (<see cref="ClipShorthand.ChordTones"/>).</summary>
+    public static int[] ChordTones(string symbol) => ClipShorthand.ChordTones(symbol);
 
     /// <summary>The chords of a bar: one symbol, or several joined by <c>.</c> (<c>Am.F</c> is two chords of two beats) that share the bar evenly.</summary>
     private static IEnumerable<(int Bar, int[] Notes, double Beat, double Beats)> ChordBars(RenderRequest r, List<string> chords) =>
-        r.ActiveBars.Where(b => b >= r.FirstBar && b < r.FirstBar + r.BarCount).Order().SelectMany(b =>
-        {
-            string[] parts = chords[(b - 1) % chords.Count].Split('.', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) parts = ["C"];
-            double each = r.BeatsPerBar / parts.Length;
-            return parts.Select((p, i) => (b, ChordTones(p), i * each, each));
-        });
+        r.ActiveBars.Where(b => b >= r.FirstBar && b < r.FirstBar + r.BarCount).Order().SelectMany(b => ClipShorthand.ChordsOfBar(chords, b, r.BeatsPerBar).Select(c => (b, c.Notes, c.Beat, c.Beats)));
 
     private static int[] Notes(RenderRequest r, int bar)
     {
@@ -195,88 +152,16 @@ public static partial class BuiltInRenderers
         return [.. doc.RootElement.GetProperty("notes").EnumerateArray().Where(n => n.GetProperty("bar").GetInt32() == bar).Select(n => n.GetProperty("pitch").GetInt32())];
     }
 
-    /// <summary>Parses a melody such as <c>c4:1 d4:1 e4:2 r:1</c> (note name, optional # or b, octave, then beats; r is a rest, 1 beat when no length is given) into notes per bar. A note stops at the end of its bar.</summary>
+    /// <summary>Parses a melody into notes per bar (<see cref="ClipShorthand.Melody"/>).</summary>
     public static IEnumerable<(int Bar, int Pitch, double Beat, double Beats)> Melody(string text, int firstBar, int barCount, double beatsPerBar = 4.0) =>
-        MelodyWithVelocity(text, firstBar, barCount, beatsPerBar).Select(n => (n.Bar, n.Pitch, n.Beat, n.Beats));
+        ClipShorthand.Melody(text, firstBar, barCount, beatsPerBar);
 
-    /// <summary>The velocity of a dynamic marker word in a melody: <c>pp p mp mf f ff</c> (32 to 112 in steps of 16; <c>f</c> is the default of 96).</summary>
-    public static readonly IReadOnlyDictionary<string, int> DynamicMarkers = new Dictionary<string, int>(StringComparer.Ordinal) { ["pp"] = 32, ["p"] = 48, ["mp"] = 64, ["mf"] = 80, ["f"] = 96, ["ff"] = 112 };
+    /// <summary>The velocity of a dynamic marker word in a melody (<see cref="ClipShorthand.DynamicMarkers"/>).</summary>
+    public static IReadOnlyDictionary<string, int> DynamicMarkers => ClipShorthand.DynamicMarkers;
 
-    /// <summary>Like <see cref="Melody"/>, with a MIDI velocity (1 to 127, default 96). A note can carry its own as a third field (<c>c4:1:110</c>); a marker word (<c>pp p mp mf f ff</c>, see <see cref="DynamicMarkers"/>) sets the velocity of the notes after it; <c>&lt;</c> (crescendo) or <c>&gt;</c> (decrescendo) ramps the notes after it, by their place in time, to the next marker word (to <c>ff</c> or <c>pp</c> at the end of the melody when none follows). A note with its own velocity is never changed by a marker. Markers take no time.</summary>
-    public static IEnumerable<(int Bar, int Pitch, double Beat, double Beats, int Velocity)> MelodyWithVelocity(string text, int firstBar, int barCount, double beatsPerBar = 4.0)
-    {
-        List<(int Bar, int Pitch, double Beat, double Beats, int Velocity)> result = [];
-        List<double> starts = [];
-        double at = 0;
-        int current = 96;
-        double hairAt = 0;
-        int hairFrom = 0, hairDir = 0;
-        List<int> hairNotes = [];
-
-        void Resolve(int target, double endAt)
-        {
-            double span = endAt - hairAt;
-            foreach (int index in hairNotes)
-            {
-                double t = span > 0 ? Math.Clamp((starts[index] - hairAt) / span, 0, 1) : 0;
-                (int bar, int pitch, double beat, double beats, _) = result[index];
-                result[index] = (bar, pitch, beat, beats, Math.Clamp((int)Math.Round(hairFrom + ((target - hairFrom) * t), MidpointRounding.AwayFromZero), 1, 127));
-            }
-
-            hairNotes = [];
-            hairDir = 0;
-        }
-
-        foreach (string token in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            string[] parts = token.Split(':');
-            string name = parts[0].ToLowerInvariant();
-            if (parts.Length == 1 && DynamicMarkers.TryGetValue(name, out int marker))
-            {
-                if (hairDir != 0) Resolve(marker, at);
-                current = marker;
-                continue;
-            }
-
-            if (parts.Length == 1 && name is "<" or ">")
-            {
-                if (hairDir != 0) Resolve(hairDir > 0 ? 112 : 32, at);
-                hairDir = name == "<" ? 1 : -1;
-                hairAt = at;
-                hairFrom = current;
-                continue;
-            }
-
-            double beats = parts.Length > 1 && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double b) && b > 0 ? b : 1;
-            int barIndex = (int)(at / beatsPerBar);
-            if (barIndex >= barCount)
-            {
-                break;
-            }
-
-            if (name != "r" && name.Length >= 2 && "cdefgab".Contains(name[0]))
-            {
-                int semitone = name[0] switch { 'c' => 0, 'd' => 2, 'e' => 4, 'f' => 5, 'g' => 7, 'a' => 9, _ => 11 };
-                int i = 1;
-                if (name[i] == '#') { semitone++; i++; }
-                else if (name[i] == 'b' && name.Length > i + 1) { semitone--; i++; }
-                if (int.TryParse(name[i..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int octave))
-                {
-                    double beat = at - (barIndex * beatsPerBar);
-                    bool own = parts.Length > 2 && int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out _);
-                    int velocity = own ? Math.Clamp(int.Parse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture), 1, 127) : current;
-                    if (hairDir != 0 && !own) hairNotes.Add(result.Count);
-                    starts.Add(at);
-                    result.Add((firstBar + barIndex, Math.Clamp(12 * (octave + 1) + semitone, 0, 127), beat, Math.Min(beats, beatsPerBar - beat), velocity));
-                }
-            }
-
-            at += beats;
-        }
-
-        if (hairDir != 0) Resolve(hairDir > 0 ? 112 : 32, at);
-        return result;
-    }
+    /// <summary>A melody with velocities (<see cref="ClipShorthand.MelodyWithVelocity"/>).</summary>
+    public static IEnumerable<(int Bar, int Pitch, double Beat, double Beats, int Velocity)> MelodyWithVelocity(string text, int firstBar, int barCount, double beatsPerBar = 4.0) =>
+        ClipShorthand.MelodyWithVelocity(text, firstBar, barCount, beatsPerBar);
 
     internal static IEnumerable<(int Pitch, double Beat, double Beats, int Velocity)> NoteEventsOf(RenderRequest r, int bar) => NoteEvents(r, bar);
 
@@ -1086,6 +971,11 @@ public static partial class BuiltInRenderers
             // pan (left, centre, right or a number from -32 to 32 per input) and channels stereo make the mix stereo even when every input is mono; without them the mix is as before
             string[] pans = (r.Block.Parameters.FirstOrDefault(p => p.Name == "pan")?.Value ?? "c").Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries);
             int PanOf(int k) => k - 1 < pans.Length ? pans[k - 1].ToLowerInvariant() switch { "l" or "left" => -PanTable.Range, "r" or "right" => PanTable.Range, "c" or "centre" or "center" => 0, var n => int.TryParse(n, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int v) ? Math.Clamp(v, -PanTable.Range, PanTable.Range) : 0 } : 0;
+            // mutes and solos (mixer and bus): one on/off per input; with any solo on only the soloed inputs are heard, a mute on a soloed input still wins (the maths of the bus solo, per input)
+            string[] mutes = (r.Block.Parameters.FirstOrDefault(p => p.Name == "mutes")?.Value ?? "").Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] solos = (r.Block.Parameters.FirstOrDefault(p => p.Name == "solos")?.Value ?? "").Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            bool On(string[] list, int k) => k - 1 < list.Length && list[k - 1].Equals("on", StringComparison.OrdinalIgnoreCase);
+            bool anySolo = Enumerable.Range(1, 16).Any(k => On(solos, k));
             bool placed = Enumerable.Range(1, 16).Any(k => PanOf(k) != 0) || r.Block.Parameters.FirstOrDefault(p => p.Name == "channels")?.Value.Trim().Trim('"') == "stereo";
             long[]? rightSum = placed || r.Inputs.Values.Any(data => ChannelAudio.IsStereo(data)) ? new long[sum.Length] : null;
             // a bus has one more gain for the whole sum and a mute
@@ -1100,7 +990,7 @@ public static partial class BuiltInRenderers
                 }
 
                 int db = k - 1 < gains.Length && int.TryParse(gains[k - 1], out int g) ? g : 0;
-                int gain = FixedAudio.GainFromDbWide(db);
+                int gain = On(mutes, k) || (anySolo && !On(solos, k)) ? 0 : FixedAudio.GainFromDbWide(db);
                 if (rightSum is not null)
                 {
                     (StereoBuffer channels, _) = ChannelAudio.Decode(data);

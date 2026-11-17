@@ -78,6 +78,7 @@ for (let round = 0; round < 3; round++) {
 for (const hash of ['#/learn/music/basic/chords', '#/blocks/synth', '']) { location.hash = hash; (listeners.get('hashchange') || []).forEach((f) => safely(() => f(new CustomEvent('hashchange')), 'page ' + (hash || '/'))); frames.splice(0).forEach((f) => safely(() => f(2000), 'animation frame')); }
 await new Promise((r) => setImmediate(r));
 
+{ /* every recorded example song of a block page (exAudio in blocks-data.js) has its mp3 in site/audio */ const bd = path.join(site, 'blocks-data.js'); if (fs.existsSync(bd)) { const txt = fs.readFileSync(bd, 'utf8'), i0 = txt.indexOf('['), i1 = txt.lastIndexOf(']'); const list = i0 > 0 ? JSON.parse(txt.slice(i0, i1 + 1)) : []; const withAudio = list.filter((b) => b.exAudio); for (const b of withAudio) if (!fs.existsSync(path.join(site, 'audio', b.exAudio.id + '.mp3'))) problems.push('example song of block ' + b.id + ': audio/' + b.exAudio.id + '.mp3 is missing'); if (!withAudio.length) notes.push('no block has a recorded example song yet'); } }
 if (problems.length) {
   console.log('boot check: ' + problems.length + ' error(s) a browser would show while the page starts:');
   for (const p of [...new Set(problems)].slice(0, 20)) console.log('  ' + p);

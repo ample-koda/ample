@@ -1,9 +1,7 @@
-using System.Reflection;
-
 namespace Ample.Language;
 
 /// <summary>
-/// The components that ship with AMPLE (content/components, embedded in this assembly). Every song sees them by name, without an import line:
+/// The components that ship with AMPLE (content/components, compiled into this assembly as text: BuiltInComponentsData, made by tools/gen-builtin-components.mjs). Every song sees them by name, without an import line:
 /// when the text of a song names one, the registry adds its file as an implicit import. Their versions are fixed: a better sound is a new version.
 /// </summary>
 public static class BuiltInComponents
@@ -37,13 +35,9 @@ public static class BuiltInComponents
     private static List<(string File, string Text, IReadOnlyList<string> Names)> Load()
     {
         List<(string File, string Text, IReadOnlyList<string> Names)> files = [];
-        Assembly assembly = typeof(BuiltInComponents).Assembly;
-        foreach (string resource in assembly.GetManifestResourceNames().Where(n => n.StartsWith("components/", StringComparison.Ordinal) && n.EndsWith(".amplec", StringComparison.Ordinal)).Order(StringComparer.Ordinal))
+        foreach ((string file, string compiled) in BuiltInComponentsData.Files.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            using Stream? stream = assembly.GetManifestResourceStream(resource);
-            if (stream is null) continue;
-            using StreamReader reader = new(stream);
-            string text = reader.ReadToEnd();
+            string text = compiled;   // the file as it is (the raw string keeps every line)
             List<string> names = [];
             foreach (string line in text.Split('\n'))
             {
@@ -53,7 +47,7 @@ public static class BuiltInComponents
                 if (parts.Length > 1) names.Add(parts[1]);
             }
 
-            files.Add((resource["components/".Length..], text, names));
+            files.Add((file, text, names));
         }
 
         return files;

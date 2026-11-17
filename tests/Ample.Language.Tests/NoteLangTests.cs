@@ -317,6 +317,9 @@ public sealed class NoteLangTests
         Assert.Contains(Song("helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n  else { return \"text\" }\n}").Diagnostics, d => d.Code == "AMP2044" && d.Severity == Severity.Error);
         // a path that ends without a value
         Assert.Contains(Song("helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n}").Diagnostics, d => d.Code == "AMP2083");
+        // a path that ends in throw (or fail) ends the evaluation: it needs no value
+        Assert.DoesNotContain(Song("helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n  throw \"no such p\"\n}").Diagnostics, d => d.Code == "AMP2083");
+        Assert.DoesNotContain(Song("helper f(Int p) -> Int {\n  if p == 0 { return 1 }\n  else { fail \"no such p\" }\n}").Diagnostics, d => d.Code == "AMP2083");
         // a statement that does nothing, a variable that is never read, a helper nobody calls
         Assert.Contains(Song("helper f(Int p) -> Int {\n  p\n  return 1\n}").Diagnostics, d => d.Code == "AMP2085" && d.Severity == Severity.Info);
         Assert.Contains(Song("helper f(Int p) -> Int {\n  let unused = 5\n  return 1\n}").Diagnostics, d => d.Code == "AMP2084" && d.Severity == Severity.Info);

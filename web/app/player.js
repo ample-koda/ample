@@ -30,6 +30,8 @@ let meterContext = null;
 let meterSource = null;
 let channelAnalysers = [];
 let channelData = [];
+const loudnessLast = { momentary: -Infinity, shortTerm: -Infinity, integrated: -Infinity };   // BS.1770 loudness of what plays (an AudioWorklet next to the meters), LUFS
+let loudnessNode = null;
 let liveEffect = null;
 let auditionBlock = null;
 const externals = new Set();   // other players that share the Stop button (the looping player of the sequencer, the live chain): { playing(), take(), stop(), loading?() }
@@ -57,6 +59,15 @@ async function prepareMeterAudio() {
     channelAnalysers = Array.from({ length: 2 }, (_, channel) => { const analyser = context.createAnalyser(); analyser.fftSize = 2048; splitter.connect(analyser, channel); return analyser; });
     channelData = channelAnalysers.map((analyser) => new Float32Array(analyser.fftSize));
     if (context.state === 'suspended') await context.resume();
+    try {   // loudness: a worklet next to the meters; without it the song plays on and only the LUFS readout stays empty
+      await context.audioWorklet.addModule('/lib/lufs-worklet.mjs');
+      const meter = new AudioWorkletNode(context, 'ample-lufs', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
+      const silent = context.createGain(); silent.gain.value = 0;
+      meterAnalyser.connect(meter).connect(silent).connect(context.destination);   // a worklet without a path to the destination may not be run
+      meter.port.onmessage = ({ data }) => Object.assign(loudnessLast, data);
+      loudnessNode = meter;
+      audio.addEventListener('play', () => { if (audio.currentTime < 0.3) resetPlayerLoudness(); });   // a new run from the start measures anew
+    } catch { loudnessNode = null; }
   } catch {
     meterAnalyser = null; meterData = null; meterSpectrum = null; meterSampleRate = 0;
   }
@@ -80,6 +91,9 @@ function stereoMeterLevel() {
   return { leftLevel: levels[0]?.level || 0, leftPeak: levels[0]?.peak || 0, rightLevel: levels[1]?.level || 0, rightPeak: levels[1]?.peak || 0 };
 }
 
+/** Momentary, short-term and integrated loudness of the song that plays, in LUFS (-Infinity while silent or when the worklet is not available). */
+export const playerLoudness = () => ({ ...loudnessLast });
+export function resetPlayerLoudness() { loudnessNode?.port.postMessage({ reset: true }); Object.assign(loudnessLast, { momentary: -Infinity, shortTerm: -Infinity, integrated: -Infinity }); }
 export const onPlayer = (f) => { listeners.add(f); return () => listeners.delete(f); };
 export function playerSpectrum(count) {
   if (!meterAnalyser || !meterSpectrum || !(meterSampleRate > 0)) return [];

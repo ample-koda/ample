@@ -21,6 +21,20 @@ public class MeterTests
     }
 
     [Theory]
+    [InlineData("6/8", "c.notes |> repeat(2)")]
+    [InlineData("6/8", "c.notes |> concat(c.notes)")]
+    [InlineData("3/4", "c.notes |> repeat(2)")]
+    [InlineData("7/8", "c.notes |> concat(c.notes)")]
+    public void Repeat_and_concat_count_the_bars_of_the_meter(string meter, string pipeline)
+    {
+        // the evaluation of a pipeline opened a 4/4 scope of its own, so the second copy started after four beats and crossed the bar line of a shorter bar
+        string song = $"composition \"x\" {{ ample 1  tempo 100  meter {meter}  master-seed 1 }}\nmidi-clip c at 1 for 1 {{\n  notes \"1:0:1:62:100 1:1.5:1:65:88\"\n}}\nmidi-clip d at 1 for 2 {{\n  notes {pipeline}\n}}\n";
+        AmpleDocument doc = Parser.Parse(song, Corpus.Spec, new ParseOptions { ApplyNoteFlow = true });
+        Assert.DoesNotContain(doc.Diagnostics, d => d.Severity == Severity.Error);
+        Assert.Equal("1:0:1:62:100 1:1.5:1:65:88 2:0:1:62:100 2:1.5:1:65:88", doc.Blocks.Single(b => b.Name == "d").Parameters.Single(p => p.Name == "notes").Value);
+    }
+
+    [Theory]
     [InlineData("3/5")]
     [InlineData("0/4")]
     [InlineData("17/4")]

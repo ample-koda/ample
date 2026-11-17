@@ -1,5 +1,6 @@
 import { limiterAudio } from './clientside-limiter.mjs';
 import { pause } from './yield-slice.mjs';
+import { audibleLanes, wholeNumber } from './live-mixer.mjs';
 import { barBeats } from './meter.mjs';
 
 const gain = (text, fallback) => {
@@ -22,9 +23,11 @@ export async function mixAudioBuffers(inputs, options, signal) {
   const count = stereo ? 2 : 1, channels = Array.from({ length: count }, () => new Float32Array(length));
   const levels = String(options.gains ?? '').trim().split(/[\s,]+/).filter(Boolean);
   const pans = String(options.pan ?? '').trim().split(/[\s,]+/).filter(Boolean);
+  const audible = audibleLanes(options, 16);   // mutes and solos of a mixer (a bus has none): silent inputs add nothing, as on the server
   for (let lane = 0; lane < inputs.length; lane++) {
     const { audio, index } = inputs[lane];
-    const amount = linear(gain(levels[index], 0));
+    if (audible[index] === false) continue;
+    const amount = linear(Math.max(-60, Math.min(48, wholeNumber(levels[index]) ?? 0)));   // the server reads a lane gain with int.TryParse: -12.041 is not a number there, the lane stays at 0 dB
     const pan = pans[index] === 'l' ? -1 : pans[index] === 'r' ? 1 : 0;
     for (let start = 0; start < length; start += 65536) {
       signal?.throwIfAborted();

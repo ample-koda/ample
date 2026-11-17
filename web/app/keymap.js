@@ -57,7 +57,16 @@ registerCommand({ id: 'view.mixer', group: 'Views', label: 'Mixer', keys: ['F9']
 registerCommand({ id: 'build', group: 'Song', label: 'Build the song', keys: [], run: () => document.querySelector('#btn-build')?.click() });
 
 // keys that work without this registry (listed on the sheet so they can be found; they cannot be remapped yet)
-const FIXED = [['Space', 'Play or stop the song'], ['Ctrl+B', 'Build'], ['Ctrl+Z / Ctrl+Y', 'Undo / redo'], ['Esc', 'Close the window that was used last'], ['Delete', 'Delete the selected block or clip']];
+const FIXED = [
+  ['Space', 'Play or stop the song'],
+  ['Ctrl+B', 'Build'],
+  ['Ctrl+Enter', 'Code editor: apply and build what Live Preview listens to'],
+  ['Ctrl+Shift+Enter', 'Code editor: run the waiting Live Preview build now'],
+  ['Ctrl+Shift+Space', 'Code editor: Live Preview, listen or stop'],
+  ['Ctrl+Z / Ctrl+Y', 'Undo / redo'],
+  ['Esc', 'Close the window that was used last'],
+  ['Delete', 'Delete the selected block or clip'],
+];
 
 let overlay = null;
 const closeOverlay = () => { capturing = null; overlay?.remove(); overlay = null; };

@@ -1,0 +1,129 @@
+composition "Backroom Groove" { ample 1  tempo 104  master-seed 4444 }
+
+# BACKROOM GROOVE: a funk vamp in E minor at 104 BPM, 32 bars (about 74 seconds): Em9 to A13, round and round.
+#
+#   bars  1- 8  drums and the slap bass
+#   bars  9-16  + the Rhodes and the chicken-scratch guitar
+#   bars 17-24  + the horns
+#   bars 25-28  breakdown: bass and drums alone
+#   bars 29-32  everyone back for the last round
+#
+# Funk lives between the beats: ghost notes on the snare, hats that breathe. The hats are written flat and the set
+# operator gives them a cycle of four velocities (loud, soft, medium, soft), which is where the groove comes from.
+# The helper vamp repeats a cell and says so in the Song log (Log level info).
+#
+# TRY: the velocities "100 46 74 46" in the clip hats to "100 100 100 100" and hear the groove go stiff.
+# TRY: program 4 (Rhodes) in the block keys to 16 (organ) for a 70s club.
+
+/**
+ * A cell played again and again.
+ * @param cell the bars to repeat
+ * @param times how many times
+ */
+helper vamp(Notes cell, Int times) -> Notes {
+  require times >= 1, "a vamp plays at least once"
+  log "vamp", context={times: times}
+  return cell |> repeat(times)
+}
+
+# ---- one bar of drums: kick, snare on two and four, ghost notes in between ---------------------------
+midi-clip kit at 1 for 1 {
+  notes "1:0:0.2:36:118 1:0.75:0.2:36:96 1:2.5:0.2:36:108 1:1:0.25:38:118 1:3:0.25:38:118 1:1.75:0.15:38:40 1:2.25:0.15:38:36 1:3.75:0.15:38:44"
+}
+# the hats: sixteen sixteenths, all the same here; set gives them the cycle of four velocities
+midi-clip hats at 1 for 1 {
+  notes "1:0:0.1:42:80 1:0.25:0.1:42:80 1:0.5:0.1:42:80 1:0.75:0.1:42:80 1:1:0.1:42:80 1:1.25:0.1:42:80 1:1.5:0.1:42:80 1:1.75:0.1:42:80 1:2:0.1:42:80 1:2.25:0.1:42:80 1:2.5:0.1:46:80 1:2.75:0.1:42:80 1:3:0.1:42:80 1:3.25:0.1:42:80 1:3.5:0.1:42:80 1:3.75:0.1:42:80"
+}
+# the bass: two bars, E then A, with octave pops
+midi-clip bassCell at 1 for 2 {
+  notes "1:0:0.25:40:120 1:0.75:0.25:52:96 1:1:0.25:40:100 1:1.5:0.25:43:96 1:1.75:0.25:45:100 1:2.5:0.5:40:118 1:3.25:0.25:47:96 1:3.5:0.25:50:100 2:0:0.25:45:120 2:0.75:0.25:57:96 2:1:0.25:45:100 2:1.5:0.25:48:96 2:2:0.25:49:100 2:2.5:0.5:45:118 2:3.25:0.25:43:96 2:3.5:0.25:42:100"
+}
+# the Rhodes: Em9 and A13, pushed just before the beat
+midi-clip keysCell at 1 for 2 {
+  notes "1:0.5:0.5:52:84 1:0.5:0.5:55:84 1:0.5:0.5:59:84 1:0.5:0.5:62:84 1:0.5:0.5:66:84 1:1.75:0.25:52:72 1:1.75:0.25:55:72 1:1.75:0.25:59:72 1:1.75:0.25:62:72 1:1.75:0.25:66:72 1:3:0.75:52:80 1:3:0.75:55:80 1:3:0.75:59:80 1:3:0.75:62:80 1:3:0.75:66:80 2:0.5:0.5:55:84 2:0.5:0.5:59:84 2:0.5:0.5:61:84 2:0.5:0.5:66:84 2:1.75:0.25:55:72 2:1.75:0.25:59:72 2:1.75:0.25:61:72 2:1.75:0.25:66:72 2:3:0.75:55:80 2:3:0.75:59:80 2:3:0.75:61:80 2:3:0.75:66:80"
+}
+# the guitar: short muted scratches on the off-beats
+midi-clip scratchCell at 1 for 1 {
+  notes "1:0.25:0.08:64:70 1:0.5:0.1:64:96 1:1.25:0.08:64:66 1:1.5:0.1:64:96 1:2.25:0.08:64:70 1:2.5:0.1:64:96 1:3.25:0.08:64:66 1:3.5:0.1:64:100"
+}
+# the horns: a call in the second bar of every two
+midi-clip hornsCell at 1 for 2 {
+  notes "2:0:0.25:71:108 2:0.5:0.25:74:104 2:0.75:0.5:76:112 2:1.5:0.25:74:100 2:2:0.75:71:108 2:3:0.25:69:96 2:3.5:0.5:67:104"
+}
+
+# ---- the parts ---------------------------------------------------------------------------------------
+midi-clip drumPart at 1 for 32 {
+  notes vamp(kit.notes |> merge(hats.notes |> set(velocity="100 46 74 46")), 32)
+}
+midi-clip bassPart at 1 for 32 {
+  notes vamp(bassCell.notes, 16)
+}
+midi-clip keysPart at 9 for 24 {
+  notes vamp(keysCell.notes, 8) |> concat(vamp(keysCell.notes, 2) |> shift(4bars))
+}
+midi-clip scratchPart at 9 for 24 {
+  notes vamp(scratchCell.notes, 16) |> concat(vamp(scratchCell.notes, 4) |> shift(4bars))
+}
+midi-clip hornsPart at 17 for 16 {
+  notes vamp(hornsCell.notes, 4) |> concat(vamp(hornsCell.notes, 2) |> shift(4bars))
+}
+
+# the band plays together but not like a machine
+midi-humanize pocket {
+  timing 10
+  velocity 6
+  from keysPart.notes -> notes
+}
+
+# ---- the band (General MIDI) ----------------------------------------------------------------------
+gm drums at 1 for 32 {
+  file pack:musescore-general
+  program 0
+  channel 9
+  gain -2 dB
+  from drumPart.notes -> notes
+}
+gm slap at 1 for 32 {
+  file pack:musescore-general
+  program 36
+  gain -4 dB
+  from bassPart.notes -> notes
+}
+gm keys at 9 for 24 {
+  file pack:musescore-general
+  program 4
+  gain -7 dB
+  from pocket.notes -> notes
+}
+gm guitar at 9 for 24 {
+  file pack:musescore-general
+  program 28
+  gain -10 dB
+  from scratchPart.notes -> notes
+}
+gm horns at 17 for 16 {
+  file pack:musescore-general
+  program 61
+  gain -7 dB
+  from hornsPart.notes -> notes
+}
+
+mixer band {
+  inputs 5
+  gains "0 0 0 0 0"
+  from drums.audio -> audio1
+  from slap.audio -> audio2
+  from keys.audio -> audio3
+  from guitar.audio -> audio4
+  from horns.audio -> audio5
+}
+# the backroom: small, a little dark, close
+reverb backroom {
+  size 25%
+  decay 35%
+  mix 12%
+  from band.audio -> audio
+}
+master out {
+  from backroom.audio -> audio
+}

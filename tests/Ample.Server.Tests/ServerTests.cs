@@ -193,6 +193,133 @@ public sealed class ServerTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task The_document_view_carries_the_log_events_of_the_song()
+    {
+        JsonElement doc = await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None);
+        const string helper = "helper shown(Notes n) -> Notes {\n  debug \"checking\", code=\"CHK\", context={count: 2, token: \"hidden\"}\n  return n\n}\n\n";
+        const string clips = "midi-clip melody2 at 1 for 1 {\n  notes \"1:0:1:60:100\"\n}\n\nmidi-clip shifted at 2 for auto {\n  notes melody2.notes |> shown()\n}\n";
+        string text = Song + "\nsettings { logging.level debug }\n\n" + helper + clips;
+        HttpResponseMessage put = await http.PutAsJsonAsync("/api/doc", new { path = "song.amplet", text, baseVersion = doc.GetProperty("version").GetInt32() }, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        JsonElement view = await put.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        JsonElement entry = view.GetProperty("observations").EnumerateArray().First(e => e.GetProperty("code").GetString() == "CHK");
+        Assert.Equal("debug", entry.GetProperty("level").GetString());
+        Assert.Equal("checking", entry.GetProperty("message").GetString());
+        JsonElement context = entry.GetProperty("context");
+        Assert.Equal(JsonValueKind.Object, context.ValueKind);   // JSON itself, not a text that holds JSON
+        Assert.Equal(2, context.GetProperty("count").GetInt32());
+        Assert.DoesNotContain("hidden", context.GetRawText(), StringComparison.Ordinal);   // a secret-named field is redacted before it leaves the engine
+        Assert.True(entry.GetProperty("line").GetInt32() > 0);
+    }
+
+    [Fact]
+    public async Task The_session_layer_switches_assertions_on_for_the_document_view_and_is_validated()
+    {
+        const string helper = "helper checked(Notes n) -> Notes {\n  assert 1 > 2, \"never true\"\n  return n\n}\n\n";
+        const string clips = "midi-clip melody3 at 1 for 1 {\n  notes \"1:0:1:60:100\"\n}\n\nmidi-clip checkedclip at 2 for auto {\n  notes melody3.notes |> checked()\n}\n";
+        JsonElement doc = await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None);
+        int version = doc.GetProperty("version").GetInt32();
+        HttpResponseMessage put = await http.PutAsJsonAsync("/api/doc", new { path = "song.amplet", text = Song + "\n" + helper + clips, baseVersion = version }, CancellationToken.None);
+        static bool Failed(JsonElement view) => view.GetProperty("diagnostics").EnumerateArray().Any(d => d.GetProperty("code").GetString() == "AMP6004");
+        Assert.False(Failed(await put.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None)));   // off by default
+        static object Values(string value) => new { values = new Dictionary<string, string> { ["diagnostics.assertions"] = value } };
+        HttpResponseMessage bad = await http.PutAsJsonAsync("/api/diagnostics/session", Values("maybe"), CancellationToken.None);
+        Assert.False(bad.IsSuccessStatusCode);
+        HttpResponseMessage on = await http.PutAsJsonAsync("/api/diagnostics/session", Values("on"), CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, on.StatusCode);
+        Assert.True(Failed(await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None)));
+        JsonElement stored = await http.GetFromJsonAsync<JsonElement>("/api/diagnostics/session", CancellationToken.None);
+        Assert.Equal("on", stored.GetProperty("values").GetProperty("diagnostics.assertions").GetString());
+        await http.PutAsJsonAsync("/api/diagnostics/session", new { values = new Dictionary<string, string>() }, CancellationToken.None);
+        Assert.False(Failed(await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None)));
+    }
+
+    [Fact]
+    public async Task The_capabilities_of_this_project_never_reach_a_parse_of_another_project_or_of_Remix()
+    {
+        // project A (this server's project) switches environment on; a parse that belongs to something else in the same process must not inherit it
+        string file = Path.Combine(folder, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile);
+        string original = await File.ReadAllTextAsync(file, CancellationToken.None);
+        string other = Path.Combine(Path.GetTempPath(), "ample-other-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(other);
+        const string song = "composition \"x\" { ample 1  tempo 100  master-seed 1 }\n";
+        static bool Environment(Ample.Language.AmpleDocument doc) => doc.Capabilities.Single(c => c.Name == "environment").Effective;
+        try
+        {
+            ProjectManifest m = ProjectFile.Parse(original);
+            await File.WriteAllTextAsync(file, ProjectFile.Serialize(m with { Settings = m.Settings with { Capabilities = new Dictionary<string, string> { ["environment"] = "on" } } }), CancellationToken.None);
+            File.SetLastWriteTimeUtc(file, File.GetLastWriteTimeUtc(file).AddSeconds(5));
+            JsonElement mine = await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None);
+            Assert.Contains(mine.GetProperty("diagnostics").EnumerateArray(), d => d.GetProperty("code").GetString() == "AMP2097");   // project A has it on
+            Ample.Language.SpecData spec = Ample.Docs.SpecRoot.At(FindAmpleRoot()).LoadSpecData();
+            // a Remix build and a project without a project file: no project layer of their own
+            using Ample.Engine.Modules.ModuleService remix = new(other, (Ample.Storage.Library.Library?)null);
+            Assert.False(Environment(remix.ParseExpanded(song, spec)));
+            // a plain parse with no project at all
+            Assert.False(Environment(Ample.Language.Parser.Parse(song, spec)));
+            // a project whose file says nothing about capabilities (B)
+            Directory.CreateDirectory(Path.Combine(other, ProjectLayout.AmpleFolder));
+            await File.WriteAllTextAsync(Path.Combine(other, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), ProjectFile.Serialize(ProjectFile.CreateNew(Guid.NewGuid(), "b", DateTimeOffset.UtcNow, 1)), CancellationToken.None);
+            using Ample.Engine.Modules.ModuleService b = Ample.Engine.Modules.ModuleService.WithUserLibrary(other, new SystemClock());
+            Assert.False(Environment(b.ParseExpanded(song, spec)));
+        }
+        finally
+        {
+            await File.WriteAllTextAsync(file, original, CancellationToken.None);
+            File.SetLastWriteTimeUtc(file, File.GetLastWriteTimeUtc(file).AddSeconds(10));
+            await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None);
+            Directory.Delete(other, true);
+        }
+    }
+
+    [Fact]
+    public async Task A_hand_edit_of_the_project_capabilities_counts_at_the_next_parse_and_a_broken_file_keeps_the_last_good_one()
+    {
+        string file = Path.Combine(folder, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile);
+        string original = await File.ReadAllTextAsync(file, CancellationToken.None);
+        DateTime stamp = File.GetLastWriteTimeUtc(file);
+        async Task Write(string text)
+        {
+            await File.WriteAllTextAsync(file, text, CancellationToken.None);
+            stamp = stamp.AddSeconds(2);
+            File.SetLastWriteTimeUtc(file, stamp);   // a new time even on a file system with a coarse clock
+        }
+
+        async Task<string[]> Codes() => [.. (await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None)).GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("code").GetString()!)];
+        try
+        {
+            Assert.DoesNotContain("AMP2097", await Codes());
+            ProjectManifest m = ProjectFile.Parse(original);
+            await Write(ProjectFile.Serialize(m with { Settings = m.Settings with { Capabilities = new Dictionary<string, string> { ["network"] = "on" } } }));
+            Assert.Contains("AMP2097", await Codes());   // the server read the edit without a reopen, and says so in the song
+            await Write("{ not json");
+            Assert.Contains("AMP2097", await Codes());   // a broken file keeps what was read last
+        }
+        finally
+        {
+            await Write(original);
+            Assert.DoesNotContain("AMP2097", await Codes());   // back as it was (the host layer is shared by the process)
+        }
+    }
+
+    [Fact]
+    public async Task The_session_layer_also_reaches_the_build_of_a_text()
+    {
+        const string text = "composition \"t\" { ample 1  tempo 100  master-seed 1 }\n\nhelper checked(Notes n) -> Notes {\n  assert 1 > 2, \"never true\"\n  return n\n}\n\nmidi-clip melody4 at 1 for 1 {\n  notes \"1:0:1:60:100\"\n}\n\nmidi-clip checkedclip4 at 2 for auto {\n  notes melody4.notes |> checked()\n}\n";
+        async Task<string> Build() => await (await http.PostAsJsonAsync("/api/build/text", new { text }, CancellationToken.None)).Content.ReadAsStringAsync(CancellationToken.None);
+        Assert.DoesNotContain("AMP5287", await Build(), StringComparison.Ordinal);   // assertions are off: the failing assert is not checked
+        await http.PutAsJsonAsync("/api/diagnostics/session", new { values = new Dictionary<string, string> { ["diagnostics.assertions"] = "on" } }, CancellationToken.None);
+        try
+        {
+            Assert.Contains("AMP5287", await Build(), StringComparison.Ordinal);   // on for the session: the text has an error now
+        }
+        finally
+        {
+            await http.PutAsJsonAsync("/api/diagnostics/session", new { values = new Dictionary<string, string>() }, CancellationToken.None);
+        }
+    }
+
+    [Fact]
     public async Task Document_edits_use_optimistic_concurrency()
     {
         JsonElement doc = await http.GetFromJsonAsync<JsonElement>("/api/doc?path=song.amplet", CancellationToken.None);

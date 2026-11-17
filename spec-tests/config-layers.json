@@ -1,0 +1,330 @@
+{
+  "$comment": "The layers of the logging and assertion options (plan/diagnostics/PLAN.md, D3). Both runtimes resolve 'layers' (lowest precedence first, the built-in defaults below them) to 'expect' (key -> [value, layer that decided it]) and count 'problems'. C#: ObservationConfig (ObservationConfigTests); JS: web/lib/observation-config.mjs.",
+  "cases": [
+    {
+      "id": "defaults",
+      "layers": [],
+      "expect": {
+        "logging.level": [
+          "warning",
+          "server"
+        ],
+        "logging.stack": [
+          "errors",
+          "server"
+        ],
+        "diagnostics.assertions": [
+          "off",
+          "server"
+        ],
+        "logging.maxTotal": [
+          "200",
+          "server"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "the-song-sets-the-level",
+      "layers": [
+        {
+          "layer": "song",
+          "origin": "song.amplet",
+          "values": {
+            "logging.level": [
+              "debug",
+              12
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "debug",
+          "song"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "higher-layers-win-and-off-is-a-value",
+      "layers": [
+        {
+          "layer": "project",
+          "values": {
+            "logging.level": [
+              "info",
+              0
+            ]
+          }
+        },
+        {
+          "layer": "song",
+          "values": {
+            "logging.level": [
+              "debug",
+              3
+            ]
+          }
+        },
+        {
+          "layer": "instance",
+          "origin": "up",
+          "values": {
+            "logging.level": [
+              "trace",
+              20
+            ]
+          }
+        },
+        {
+          "layer": "session",
+          "values": {
+            "logging.level": [
+              "off",
+              0
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "off",
+          "session"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "inherit-takes-the-value-below",
+      "layers": [
+        {
+          "layer": "song",
+          "values": {
+            "logging.level": [
+              "debug",
+              3
+            ]
+          }
+        },
+        {
+          "layer": "instance",
+          "origin": "up",
+          "values": {
+            "logging.level": [
+              "inherit",
+              20
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "debug",
+          "song"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "a-nested-instance-inherits-from-its-parent",
+      "layers": [
+        {
+          "layer": "song",
+          "values": {
+            "logging.level": [
+              "warning",
+              1
+            ]
+          }
+        },
+        {
+          "layer": "instance",
+          "origin": "parent",
+          "values": {
+            "logging.level": [
+              "trace",
+              5
+            ]
+          }
+        },
+        {
+          "layer": "instance",
+          "origin": "child",
+          "values": {}
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "trace",
+          "instance"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "a-nested-instance-can-set-its-own",
+      "layers": [
+        {
+          "layer": "instance",
+          "origin": "parent",
+          "values": {
+            "logging.level": [
+              "trace",
+              5
+            ]
+          }
+        },
+        {
+          "layer": "instance",
+          "origin": "child",
+          "values": {
+            "logging.level": [
+              "warning",
+              9
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "warning",
+          "instance"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "a-wrong-value-is-reported-and-not-applied",
+      "layers": [
+        {
+          "layer": "song",
+          "values": {
+            "logging.level": [
+              "loud",
+              4
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "warning",
+          "server"
+        ]
+      },
+      "problems": 1
+    },
+    {
+      "id": "a-value-over-its-cap-is-reported-and-not-applied",
+      "layers": [
+        {
+          "layer": "song",
+          "values": {
+            "logging.maxTotal": [
+              "99999",
+              4
+            ],
+            "logging.maxPerSite": [
+              "5",
+              5
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.maxTotal": [
+          "200",
+          "server"
+        ],
+        "logging.maxPerSite": [
+          "5",
+          "song"
+        ]
+      },
+      "problems": 1
+    },
+    {
+      "id": "assertions-the-song-beats-the-project",
+      "layers": [
+        {
+          "layer": "project",
+          "values": {
+            "diagnostics.assertions": [
+              "on",
+              0
+            ]
+          }
+        },
+        {
+          "layer": "song",
+          "values": {
+            "diagnostics.assertions": [
+              "off",
+              2
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "diagnostics.assertions": [
+          "off",
+          "song"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "assertions-the-session-beats-the-song",
+      "layers": [
+        {
+          "layer": "song",
+          "values": {
+            "diagnostics.assertions": [
+              "off",
+              2
+            ]
+          }
+        },
+        {
+          "layer": "session",
+          "origin": "editor toggle",
+          "values": {
+            "diagnostics.assertions": [
+              "on",
+              0
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "diagnostics.assertions": [
+          "on",
+          "session"
+        ]
+      },
+      "problems": 0
+    },
+    {
+      "id": "a-key-that-is-not-an-option-is-ignored",
+      "layers": [
+        {
+          "layer": "song",
+          "values": {
+            "acestep.synthModel": [
+              "sft",
+              2
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "logging.level": [
+          "warning",
+          "server"
+        ]
+      },
+      "problems": 0
+    }
+  ]
+}

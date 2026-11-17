@@ -44,7 +44,23 @@ public sealed class PhysicalFileSystem : IFileSystem
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
 
     /// <inheritdoc />
-    public void Move(string source, string destination, bool overwrite) => File.Move(source, destination, overwrite);
+    public void Move(string source, string destination, bool overwrite)
+    {
+        // On Windows a replace fails with "access denied" while a reader (a GET of the same file, a virus scanner) has the destination open for a moment; the same call a few
+        // milliseconds later works. Replacing the project file under load returned a 500 for that.
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(source, destination, overwrite);
+                return;
+            }
+            catch (Exception ex) when (overwrite && attempt < 8 && ex is UnauthorizedAccessException or IOException && File.Exists(destination) && File.Exists(source))
+            {
+                Thread.Sleep(20 * attempt);
+            }
+        }
+    }
 
     /// <inheritdoc />
     public void MoveDirectory(string source, string destination) => Directory.Move(source, destination);

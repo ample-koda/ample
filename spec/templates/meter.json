@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Passes the sound on unchanged and reports its peak, RMS, integrated loudness, crest factor and clipped samples as text (the report output; ample build prints it).",
   "inputs": [

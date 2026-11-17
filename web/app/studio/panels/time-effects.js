@@ -1,3 +1,4 @@
+import { infoNote } from './info.js';
 import { delayTapGain, distortionSample, estimatedRt60 } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
@@ -40,9 +41,9 @@ function distortionPanel(context) {
   };
   const waveformPanel = el('section', { className: 'studio-compressor-analysis', 'aria-label': 'Distortion input and output waveform comparison' }, [el('div', { className: 'studio-analysis-heading' }, [el('strong', { textContent: 'BEFORE / AFTER' }), analyze]), waveform, waveStatus]);
   return el('section', { className: 'studio-effect-panel studio-distortion-panel', 'aria-label': 'Distortion controls' }, [graph, controls([
-    knobControl(context, params, 'drive', 'Drive', 0, 36, 'dB', 'linear', 112, (next) => graph.updateDrive(next)), choice(context, params, 'mode', 'Mode', ['soft', 'hard']),
+    knobControl(context, params, 'drive', 'Drive', 0, 36, 'dB', 'linear', 82, (next) => graph.updateDrive(next)), choice(context, params, 'mode', 'Mode', ['soft', 'hard']),
     knobControl(context, params, 'tone', 'Tone', 500, 16000, 'Hz', 'log'), knobControl(context, params, 'level', 'Level', -24, 12, 'dB'), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
-  ]), waveformPanel, el('p', { className: 'note', textContent: 'The transfer curve is an approximation; waveform analysis uses the exact bounded integer renderer.' })]);
+  ]), waveformPanel, infoNote('The transfer curve is an approximation; waveform analysis uses the exact bounded integer renderer.')]);
 }
 
 function delayPanel(context) {
@@ -57,7 +58,7 @@ function delayPanel(context) {
   const updateFeedback = (next) => { liveFeedback = next; tapLines.forEach((line, index) => line.setAttribute('y1', String(110 - delayTapGain(liveFeedback, index) * 90))); };
   const updateTime = (next) => { timing.textContent = delayTimingText(next, sync(), context.tempo); };
   return el('section', { className: 'studio-effect-panel studio-delay-panel', 'aria-label': 'Delay controls' }, [graph, controls([
-    knobControl(context, params, 'time', 'Time', 1, 2000, 'ms', 'log', 112, updateTime), choice(context, params, 'sync', 'Sync', ['off', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/4t', '1/8t', '1/16t']), knobControl(context, params, 'feedback', 'Feedback', 0, 90, '%', 'linear', 82, updateFeedback), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
+    knobControl(context, params, 'time', 'Time', 1, 2000, 'ms', 'log', 82, updateTime), choice(context, params, 'sync', 'Sync', ['off', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/4t', '1/8t', '1/16t']), knobControl(context, params, 'feedback', 'Feedback', 0, 90, '%', 'linear', 82, updateFeedback), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
   ]), timing]);
 }
 
@@ -72,7 +73,7 @@ function reverbPanel(context) {
   const estimate = el('p', { className: 'note', textContent: `Estimated RT60: ${estimatedRt60(size, decay).toFixed(1)} s` });
   const updateEstimate = () => { estimate.textContent = `Estimated RT60: ${estimatedRt60(liveSize, liveDecay).toFixed(1)} s`; };
   return el('section', { className: 'studio-effect-panel studio-reverb-panel', 'aria-label': 'Reverb controls' }, [graph, controls([
-    knobControl(context, params, 'size', 'Room size', 1, 100, '%', 'linear', 112, (next) => { graph.updateRoom(next); updateEstimate(); }), knobControl(context, params, 'decay', 'Decay', 0, 95, '%', 'linear', 82, (next) => { graph.updateDecay(next); updateEstimate(); }), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
+    knobControl(context, params, 'size', 'Room size', 1, 100, '%', 'linear', 82, (next) => { graph.updateRoom(next); updateEstimate(); }), knobControl(context, params, 'decay', 'Decay', 0, 95, '%', 'linear', 82, (next) => { graph.updateDecay(next); updateEstimate(); }), knobControl(context, params, 'mix', 'Mix', 0, 100, '%'),
   ]), estimate]);
 }
 

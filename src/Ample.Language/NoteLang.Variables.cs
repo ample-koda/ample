@@ -56,7 +56,7 @@ public static partial class NotePipeline
 
         private static string? Combine(string op, string a, string b)
         {
-            if (op == "+" && a == "String" && b == "String") return "String";
+            if (op == "+" && ((a == "String" && (b == "String" || IsNumber(b))) || (IsNumber(a) && b == "String"))) return "String";   // + with a text and a number joins them
             if (IsNumber(a) && IsNumber(b)) return op == "/" ? "Float" : a == "Float" || b == "Float" ? "Float" : "Int";
             bool qa = Quantities.Contains(a), qb = Quantities.Contains(b);
             if (qa && IsNumber(b) && op is "*" or "/") return a;
@@ -272,6 +272,14 @@ public static partial class NotePipeline
                             if (constants.ContainsKey(w.Text)) Mark(d, w.Start, w.End, ConstantInfo(w.Text));
                             next:;
                         }
+
+                        foreach (RefNode field in Descendants(n).Prepend(n).OfType<RefNode>())   // r.steps reads the variable r
+                        {
+                            for (int i = scopes.Count - 1; i >= 0; i--)
+                            {
+                                if (scopes[i].TryGetValue(field.Block, out VarInfo? v)) { Mark(d, field.Start, field.Start + field.Block.Length, v); break; }
+                            }
+                        }
                     }
 
                     void Block(StmtBlock block, string? loopVar = null, ForStmt? loop = null)
@@ -319,6 +327,11 @@ public static partial class NotePipeline
                                         break;
                                     }
 
+                                case TryStmt ts:
+                                    Block(ts.Body);
+                                    foreach (CatchClause cc in ts.Catches) Block(cc.Body);
+                                    if (ts.Finally is not null) Block(ts.Finally);
+                                    break;
                                 case IfStmt f:
                                     foreach ((Node cond, StmtBlock body) in f.Branches) { References(cond); Block(body); }
                                     if (f.Otherwise is not null) Block(f.Otherwise);
@@ -345,9 +358,13 @@ public static partial class NotePipeline
                                     References(em.Value);
                                     if (!returnTypes.Contains("Notes")) returnTypes.Add("Notes");
                                     break;
+                                case ObserveStmt o:
+                                    foreach (Node a in o.Args) References(a);
+                                    break;
                                 case ExprStmt ex:
                                     References(ex.Value);
-                                    if (ReferenceEquals(block, h.Body) && ReferenceEquals(s, block.Statements[^1])) foreach (string t in Infer(ex.Value, scopes, d).Types) if (!returnTypes.Contains(t)) returnTypes.Add(t);   // the last expression is the value
+                                    bool lastValue = ReferenceEquals(block, h.Body) && block.Statements.Skip(block.Statements.IndexOf(s) + 1).All(x => x is ObserveStmt { Semantic: false });
+                                    if (lastValue) foreach (string t in Infer(ex.Value, scopes, d).Types) if (!returnTypes.Contains(t)) returnTypes.Add(t);   // the last expression is the value
                                     break;
                             }
                         }

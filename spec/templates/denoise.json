@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Takes steady noise (hiss, room tone, rain on a recording) away: the noise level of every frequency band is estimated and subtracted.",
   "inputs": [

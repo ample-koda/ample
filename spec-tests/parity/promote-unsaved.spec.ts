@@ -14,6 +14,9 @@ test('promoting while studio is open with unsaved edits asks first, and Cancel c
   await api('/api/history/go', { method: 'POST', body: { line: 'studio' } });
   await page.reload();
   await expect.poll(async () => (await api('/api/history/graph')).current).toBe('studio');
+  // the reloaded page loads its song after it reports ready: the edit below needs that document
+  await page.waitForSelector('body[data-ready="1"]');
+  await expect.poll(() => page.evaluate(() => import('/app/store.js').then((s) => typeof s.S.doc?.text))).toBe('string');
   await page.evaluate(() => import('/app/store.js').then((s) => s.applyText(s.S.doc.text + '\n# unsaved studio edit\n')));
   const before = await studioHead();
 

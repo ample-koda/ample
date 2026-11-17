@@ -130,6 +130,10 @@ public sealed record ProjectSettings(BlackBoxSettings BlackBox, CleanupSettings 
     public int? BuildParallelism { get; init; }
     /// <summary>What the project says about capabilities (clock, os-random, environment ... to on or off; environment.allow to a list of names): the layer between the server and the song. A project can only narrow what the server allows, a song only what the project allows.</summary>
     public IReadOnlyDictionary<string, string> Capabilities { get; init; } = new Dictionary<string, string>();
+    /// <summary>The project defaults of the logging and assertion options (logging.level, diagnostics.assertions ...): the layer between the server and the song (plan/diagnostics). The song, an instance and the session win over it; a value that is not valid is reported where it is used and not applied.</summary>
+    public IReadOnlyDictionary<string, string> Observation { get; init; } = new Dictionary<string, string>();
+    /// <summary>Gets the keys of <c>settings</c> that this AMPLE does not know, by name, as their JSON: written back as they were, so a newer AMPLE or a hand edit keeps them (forward compatibility).</summary>
+    public IReadOnlyDictionary<string, string> Unknown { get; init; } = new Dictionary<string, string>();
     /// <summary>The helper Koda: its language.</summary>
     public KodaSettings Koda { get; init; } = KodaSettings.Default;
     /// <summary>The first-time setup wizard of the project: where the project came from and which wizard version was walked through. A project file without it has never done the wizard.</summary>
@@ -145,7 +149,11 @@ public sealed record ProjectSettings(BlackBoxSettings BlackBox, CleanupSettings 
 /// <param name="FormatVersion">Project format version.</param>
 /// <param name="MasterSeed">The master seed.</param>
 /// <param name="Settings">Settings.</param>
-public sealed record ProjectManifest(Guid Id, string Name, DateTimeOffset Created, int FormatVersion, ulong MasterSeed, ProjectSettings Settings);
+public sealed record ProjectManifest(Guid Id, string Name, DateTimeOffset Created, int FormatVersion, ulong MasterSeed, ProjectSettings Settings)
+{
+    /// <summary>Gets the top-level keys of the file that this AMPLE does not know, by name, as their JSON: written back as they were.</summary>
+    public IReadOnlyDictionary<string, string> Unknown { get; init; } = new Dictionary<string, string>();
+}
 
 /// <summary>Names of the folders and files of a project.</summary>
 public static class ProjectLayout
@@ -169,6 +177,30 @@ public static class ProjectLayout
 /// <summary>Reads and writes <c>project.json</c> in a canonical form (fixed property order, indented, LF).</summary>
 public static class ProjectFile
 {
+    // the keys this AMPLE reads; any other key of the file or of settings is kept as it is (see Unknown)
+    private static readonly HashSet<string> KnownTop = new(StringComparer.Ordinal) { "formatVersion", "id", "name", "created", "masterSeed", "settings" };
+    private static readonly HashSet<string> KnownSettings = new(StringComparer.Ordinal) { "blackBox", "cleanup", "mounts", "defaultEngine", "projectPanel", "autoCheckpoint", "ai", "faer", "capabilities", "observation", "build", "koda", "firstRun" };
+
+    private static Dictionary<string, string> UnknownOf(JsonElement element, HashSet<string> known) =>
+        element.ValueKind != JsonValueKind.Object ? [] : element.EnumerateObject().Where(p => !known.Contains(p.Name)).ToDictionary(p => p.Name, p => p.Value.GetRawText(), StringComparer.Ordinal);
+
+    private static void WriteUnknown(Utf8JsonWriter w, IReadOnlyDictionary<string, string> unknown)
+    {
+        foreach ((string key, string json) in unknown.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            w.WritePropertyName(key);
+            w.WriteRawValue(json);
+        }
+    }
+
+    // settings.observation: an object of option and text (a number or a bool is kept as written)
+    private static Dictionary<string, string> ObservationOf(JsonElement settings) => TextsOf(settings, "observation");
+
+    private static Dictionary<string, string> TextsOf(JsonElement settings, string name) =>
+        settings.TryGetProperty(name, out JsonElement o) && o.ValueKind == JsonValueKind.Object
+            ? o.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText(), StringComparer.Ordinal)
+            : new Dictionary<string, string>(StringComparer.Ordinal);
+
     /// <summary>Writes the manifest.</summary>
     public static string Serialize(ProjectManifest m)
     {
@@ -255,6 +287,20 @@ public static class ProjectFile
             if (m.Settings.Faer.VoiceModel.Length > 0) w.WriteString("voiceModel", m.Settings.Faer.VoiceModel);
             w.WriteEndObject();
 
+            if (m.Settings.Capabilities.Count > 0)
+            {
+                w.WriteStartObject("capabilities");
+                foreach ((string key, string value) in m.Settings.Capabilities.OrderBy(p => p.Key, StringComparer.Ordinal)) w.WriteString(key, value);
+                w.WriteEndObject();
+            }
+
+            if (m.Settings.Observation.Count > 0)
+            {
+                w.WriteStartObject("observation");
+                foreach ((string key, string value) in m.Settings.Observation.OrderBy(p => p.Key, StringComparer.Ordinal)) w.WriteString(key, value);
+                w.WriteEndObject();
+            }
+
             if (m.Settings.BuildParallelism is int parallelism)
             {
                 w.WriteStartObject("build");
@@ -280,7 +326,9 @@ public static class ProjectFile
                 w.WriteEndObject();
             }
 
+            WriteUnknown(w, m.Settings.Unknown);
             w.WriteEndObject();
+            WriteUnknown(w, m.Unknown);
             w.WriteEndObject();
         }
 
@@ -371,7 +419,7 @@ public static class ProjectFile
                     projectPanel,
                     autoCheckpoint,
                     ai)
-                { Faer = faer, Koda = koda, FirstRun = firstRun, BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null });
+                { Faer = faer, Koda = koda, FirstRun = firstRun, Observation = ObservationOf(settings), Capabilities = TextsOf(settings, "capabilities"), Unknown = UnknownOf(settings, KnownSettings), BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null }) { Unknown = UnknownOf(root, KnownTop) };
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or FormatException or InvalidOperationException or OverflowException)
         {

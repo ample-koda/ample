@@ -1,6 +1,8 @@
 import { pause } from './yield-slice.mjs';
 import { barBeats } from './meter.mjs';
 import { cutoffAlpha } from './one-pole.mjs';
+import { panPoints } from './live-pan-auto.mjs';
+import { curveAt } from './clientside-control-curves.mjs';
 const number = (value, fallback, min, max) => {
   const text = String(value ?? '').trim();
   const parsed = Number.parseFloat(text.replace(/kHz/i, '')) * (/kHz/i.test(text) ? 1000 : 1);
@@ -14,8 +16,18 @@ export async function filterAudio(audio, params, tempo, firstBar, signal) {
   const rate = audio.sampleRate, base = number(params.cutoff, 1000, 20, 20000), depth = number(params.lfo_depth, 0, 0, 8);
   const cycles = cyclesPerBar[params.lfo_rate] || 0, barsamples = Math.floor((barBeats() * 60) * rate / (Number(tempo) || 120)), origin = (Math.max(1, firstBar) - 1) * barsamples;
   const shape = params.lfo_shape || 'sine';
+  // an automated cutoff or resonance (auto/lfo/env, or the points of a control): one value per sample, joined by straight lines as the server (Automation.CurveAt)
+  const perSample = (value, lo, hi) => {
+    const points = panPoints(value, barsamples, rate);
+    return points ? curveAt(points, Math.max(1, firstBar), barsamples, audio.channels[0]?.length || 0, (v) => Math.max(lo, Math.min(hi, v))) : null;
+  };
+  const cutoffs = perSample(params.cutoff, 20, 20000), resonances = perSample(params.resonance, 0, 100);
   if (!['sine', 'triangle', 'saw', 'square'].includes(shape)) throw new Error(`Unsupported filter LFO shape “${shape}”.`);
-  const type = params.type || 'lowpass', highpass = type === 'highpass', kind = ['bandpass', 'notch'].includes(type) ? type : '', passes = { 24: 2, 36: 3, 48: 4 }[String(params.slope ?? '12').trim()] || 1, channels = [], resonance = number(String(params.resonance ?? '').replace('%', ''), 0, 0, 100), q = 10 ** (resonance * 0.18 / 20), k = 1 / q;
+  const type = params.type || 'lowpass', highpass = type === 'highpass', kind = ['bandpass', 'notch'].includes(type) ? type : '';
+  const passes = { 24: 2, 36: 3, 48: 4 }[String(params.slope ?? '12').trim()] || 1, channels = [];
+  const automatedResonance = Array.isArray(params.resonance) || /^\s*(auto|lfo|env)\(/.test(String(params.resonance ?? ''));
+  const resonance = automatedResonance ? 0 : number(String(params.resonance ?? '').replace('%', ''), 0, 0, 100), q = 10 ** (resonance * 0.18 / 20);
+  let k = 1 / q;
   for (const source of audio.channels) {
     let input = source;
     for (let pass = 0; pass < passes; pass++) {
@@ -24,14 +36,15 @@ export async function filterAudio(audio, params, tempo, firstBar, signal) {
       signal?.throwIfAborted();
       const end = Math.min(source.length, start + 65536);
       for (let i = start; i < end; i++) {
-        let cutoff = base;
+        let cutoff = cutoffs ? cutoffs[i] : base;
+        if (resonances) k = 1 / 10 ** (resonances[i] * 0.18 / 20);
         if (cycles > 0 && depth > 0) {
           const phase = (((origin + i) / barsamples * cycles) % 1 + 1) % 1;
           const wave = shape === 'triangle' ? phase < 0.5 ? phase * 2 : 2 - phase * 2
             : shape === 'saw' ? phase : shape === 'square' ? phase < 0.5 ? 0 : 1 : 0.5 - 0.5 * Math.cos(2 * Math.PI * phase);
-          cutoff = Math.max(20, Math.min(20000, base * 2 ** (depth * wave)));
+          cutoff = Math.max(20, Math.min(20000, (cutoffs ? cutoffs[i] : base) * 2 ** (depth * wave)));
         }
-        if (resonance > 0 || kind || passes > 1) {
+        if (resonance > 0 || resonances || kind || passes > 1) {
           // two-pole state-variable filter, the same as the server (resonance 0 keeps the two one-pole stages)
           const g = Math.tan(Math.PI * Math.min(cutoff, rate * 0.45) / rate), a1 = 1 / (1 + g * (g + k)), a2 = g * a1, a3 = g * a2;
           const v3 = src[i] - ic2, v1 = a1 * ic1 + a2 * v3, v2 = ic2 + a2 * ic1 + a3 * v3;

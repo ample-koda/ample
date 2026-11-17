@@ -6,6 +6,7 @@
   "version": "1.0",
   "dynamic": false,
   "livePreview": true,
+  "clientPreview": true,
   "plugin": null,
   "description": "Gives the sound a lo-fi, crunchy character by using fewer bits and a lower sample rate. Takes audio and gives audio; mix sets how much of the effect you hear.",
   "inputs": [

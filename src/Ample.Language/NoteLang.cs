@@ -165,11 +165,34 @@ public static partial class NotePipeline
 
     private sealed record ExprStmt(Node Value, int Start, int End) : Node(Start, End);
 
+    /// <summary>log, debug, trace, warn and assert, in both spellings (<c>log "x"</c> and <c>log("x")</c> are the same node).</summary>
+    private sealed record ObserveStmt(string Kind, List<Node> Positional, List<NamedNode> Named, bool CallForm, int Start, int End) : Node(Start, End)
+    {
+        public IEnumerable<Node> Args => Positional.Concat(Named);
+
+        /// <summary>Whether the statement decides the outcome (fail, require, throw): it is part of the meaning, unlike an observation.</summary>
+        public bool Semantic => Kind is "fail" or "require" or "throw";
+    }
+
+    private sealed record CatchClause(string? Type, string Name, StmtBlock Body, int Start, int End) : Node(Start, End);
+
+    /// <summary><c>try { } catch (Type name) { } finally { }</c>: at least one catch or a finally.</summary>
+    private sealed record TryStmt(StmtBlock Body, List<CatchClause> Catches, StmtBlock? Finally, int Start, int End) : Node(Start, End);
+
+    private sealed record RecordField(string Name, Node Value, int Start, int End);
+
+    private sealed record RecordNode(List<RecordField> Fields, int Start, int End) : Node(Start, End);
+
     internal sealed record ParamNode(string Name, string Type, Node? Default, int Start, int End);
 
     internal sealed record HelperDeclNode(string Name, bool Dynamic, List<ParamNode> Params, string? Returns, Node? Baked, StmtBlock Body, int Start, int End, int NameStart, int NameEnd) : Node(Start, End);
 
     internal sealed record TypeDeclNode(string Name, List<string> Members, int Start, int End) : Node(Start, End);
+
+    internal sealed record ErrorFieldDecl(bool Dynamic, string Type, string Name, int Start, int End);
+
+    /// <summary><c>error Name extends Parent { dynamic Int field, String other }</c>: a kind of error with typed fields (file-scoped, no methods).</summary>
+    internal sealed record ErrorDeclNode(string Name, string? Parent, List<ErrorFieldDecl> Fields, int Start, int End) : Node(Start, End);
 
     internal sealed record ConstDeclNode(string Name, string? Type, Node Value, int Start, int End, int NameStart, int NameEnd) : Node(Start, End);
 
@@ -205,7 +228,7 @@ public static partial class NotePipeline
         }
         catch (SyntaxError e)
         {
-            errors.Add(new PipeIssue("syntax", e.Message, e.Start, e.End));
+            errors.Add(new PipeIssue(e.Id, e.Message, e.Start, e.End));
             return new PropertyResult(null, shape.Type, false, [], errors, warnings, "expression", null, null);
         }
 
@@ -323,7 +346,8 @@ public static partial class NotePipeline
             return depth == 0 && !inString;
         }
 
-        bool Wanted(Node n) => Descendants(n).Prepend(n).OfType<CallNode>().Any(c => IsClock(c) || (table.IsDynamicHelper(c.Name) && (includeNoParameterHelpers || table.ParamCount(c.Name) > 0)));
+        bool Wanted(Node n) => Descendants(n, includeObservation: false).Prepend(n).OfType<CallNode>()
+            .Any(c => IsClock(c) || (table.IsDynamicHelper(c.Name) && (includeNoParameterHelpers || table.ParamCount(c.Name) > 0)));
         void Walk(Node n)
         {
             if (n is BakeValueNode || !Wanted(n)) return;
@@ -348,11 +372,31 @@ public static partial class NotePipeline
         return (sites, left);
     }
 
+    private static readonly HashSet<string> ReservedWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "log", "debug", "trace", "warn", "assert", "require", "throw", "fail", "try", "catch", "finally", "error",
+    };
+
+    /// <summary>The name the quick fix of AMP6016 gives the declaration: the word with what it is (logHelper, warnValue, failError), made unique in the file.</summary>
+    private static string ReservedRename(Node node, string name, HashSet<string> declared)
+    {
+        string stem = name + (node switch { ConstDeclNode => "Value", ErrorDeclNode => "Error", _ => "Helper" });
+        string candidate = stem;
+        for (int i = 2; declared.Contains(candidate); i++) candidate = stem + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return candidate;
+    }
+
+    private static string ReservedMessage(string name) =>
+        $"\"{name}\" is a word that AMPLE reserves for statements (log, debug, trace, warn, assert, require, throw, fail, try, catch, finally, error): "
+        + "a statement written with it will not call this helper or constant, so give it another name";
+
     private static readonly string[] Volatile = ["currentTime", "currentDate", "osRandom", "environment"];
 
-    private static readonly string[] LangFunctions = ["Int", "Float", "Round", "Floor", "Ceil", "Truncate", "count", "span", "min", "max", "abs", "at", "len", "Note", "emptyNotes", "currentTime", "currentDate", "osRandom", "environment", "random", "choose", "chance", "stable", "random-seed"];
+    private static readonly string[] LangFunctions = ["Error", "RequirementError", "Int", "Float", "Round", "Floor", "Ceil", "Truncate", "count",
+        "span", "min", "max", "abs", "at", "len", "Note", "emptyNotes", "String", "sprintf", "currentTime", "currentDate", "osRandom", "environment", "random", "choose", "chance", "stable", "random-seed"];
 
-    private static readonly string[] BuiltinTypes = ["Int", "Float", "Number", "Bool", "String", "Length", "Time", "Duration", "Interval", "Gain", "Percent", "Notes", "Note", "RandomSource", "Seed", "StableSeed", "RandomStream", "Text"];
+    private static readonly string[] BuiltinTypes = ["Error", "RequirementError", "Record", "Int", "Float", "Number", "Bool", "String", "Length", "Time", "Duration", "Interval",
+        "Gain", "Percent", "Notes", "Note", "RandomSource", "Seed", "StableSeed", "RandomStream", "Text"];
 
     private static IEnumerable<Node> Children(Node node)
     {
@@ -377,19 +421,184 @@ public static partial class NotePipeline
             case RepeatStmt rs: yield return rs.Count; yield return rs.Body; break;
             case WhileStmt ws: yield return ws.Cond; if (ws.Max is not null) yield return ws.Max; yield return ws.Body; break;
             case ReturnStmt rt: if (rt.Value is not null) yield return rt.Value; break;
+            case TryStmt ts: yield return ts.Body; foreach (CatchClause cc in ts.Catches) yield return cc.Body; if (ts.Finally is not null) yield return ts.Finally; break;
             case EmitStmt em: yield return em.Value; break;
             case ExprStmt ex: yield return ex.Value; break;
+            case ObserveStmt os: foreach (Node a in os.Args) yield return a; break;
+            case RecordNode rn: foreach (RecordField rf in rn.Fields) yield return rf.Value; break;
             case HelperDeclNode h: foreach (ParamNode pn in h.Params) if (pn.Default is not null) yield return pn.Default; if (h.Baked is not null) yield return h.Baked; yield return h.Body; break;
             case ConstDeclNode cd: yield return cd.Value; break;
         }
     }
 
-    private static IEnumerable<Node> Descendants(Node node)
+    /// <summary>The text of a declaration with its observation and assert statements blanked (same offsets), or null when it has none.</summary>
+    private static string? BlankObservation(Node root, string clean)
     {
+        List<ObserveStmt> found = [.. Descendants(root).OfType<ObserveStmt>().Where(s => !s.Semantic)];
+        if (found.Count == 0) return null;
+        char[] chars = clean.ToCharArray();
+        foreach (ObserveStmt s in found)
+        {
+            for (int i = Math.Max(0, s.Start); i < Math.Min(chars.Length, s.End); i++)
+            {
+                if (chars[i] != '\n') chars[i] = ' ';
+            }
+        }
+
+        return new string(chars);
+    }
+
+    /// <summary>Reads one observation statement written on one line (the audio process uses the same parser as the Notes language): its kind and the text of its arguments.</summary>
+    /// <param name="statement">The statement.</param>
+    /// <param name="problem">What is wrong with it (also a feature that is off), or null.</param>
+    /// <returns>The kind, the positional arguments and the named ones as written, or null.</returns>
+    internal static (string Kind, string[] Positional, (string Name, string Text)[] Named)? ReadObservation(string statement, out string? problem)
+    {
+        problem = null;
+        try
+        {
+            string clean = StripComments(statement).Trim();
+            ObserveStmt? parsed = new ExprParser(clean, Tokenize(clean)).TryObservation();
+            if (parsed is null) { problem = "This is not an observation statement."; return null; }
+            return (parsed.Kind, [.. parsed.Positional.Select(n => clean[n.Start..n.End])], [.. parsed.Named.Select(n => (n.Name, clean[n.Value.Start..n.Value.End]))]);
+        }
+        catch (SyntaxError e)
+        {
+            problem = e.Message;
+            return null;
+        }
+    }
+
+    /// <summary>One statement of an audio process as the shared parser reads it: the line in the body (0 is the first), the kind (<c>let</c>, <c>emit</c>, <c>observe</c>, <c>if</c>, <c>elseif</c>, <c>else</c>, <c>end</c>, or <c>other</c> for a statement an audio process does not have) and its text (the lines of a statement joined by one space, without the keyword for <c>let</c> and <c>emit</c>, the condition for <c>if</c> and <c>elseif</c>).</summary>
+    internal sealed record AudioStatement(int BodyLine, string Kind, string Text);
+
+    /// <summary>Reads the statements of the process of an audio component with the shared parser.</summary>
+    /// <param name="body">The lines of the process, joined by newlines.</param>
+    /// <returns>The statements in order, or null when the text does not parse (the caller reports it line by line).</returns>
+    internal static List<AudioStatement>? ReadAudioProcess(string body)
+    {
+        const string head = "helper __p() {\n";
+        string wrapped = head + StripComments(body) + "\n}";
+        HelperDeclNode helper;
+        try
+        {
+            if (new ExprParser(wrapped, Tokenize(wrapped)) { AudioProcess = true }.ParseDeclaration() is not HelperDeclNode h) return null;
+            helper = h;
+        }
+        catch (SyntaxError)
+        {
+            return null;
+        }
+
+        List<AudioStatement> result = [];
+        int LineOf(int offset) => wrapped.AsSpan(0, Math.Min(offset, wrapped.Length)).Count('\n') - 1;
+        string Slice(int start, int end) => string.Join(' ', wrapped[start..end].Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0));
+        void Walk(StmtBlock block)
+        {
+            foreach (Node s in block.Statements)
+            {
+                int line = LineOf(s.Start);
+                switch (s)
+                {
+                    case LetStmt { Mutable: false } when wrapped.AsSpan(s.Start).StartsWith("let", StringComparison.Ordinal):
+                        result.Add(new AudioStatement(line, "let", Slice(s.Start + 3, s.End)));
+                        break;
+                    case EmitStmt:
+                        result.Add(new AudioStatement(line, "emit", Slice(s.Start + 4, s.End)));
+                        break;
+                    case ObserveStmt { Semantic: false }:
+                        result.Add(new AudioStatement(line, "observe", Slice(s.Start, s.End)));
+                        break;
+                    case ObserveStmt { Kind: "fail" or "require" } check:
+                        result.Add(new AudioStatement(line, check.Kind, Slice(s.Start, s.End)));
+                        break;
+                    case TryStmt t:
+                        result.Add(new AudioStatement(line, "try", string.Empty));
+                        Walk(t.Body);
+                        foreach (CatchClause c in t.Catches)
+                        {
+                            result.Add(new AudioStatement(LineOf(c.Start), "catch", c.Type is null ? c.Name : c.Type + " " + c.Name));
+                            Walk(c.Body);
+                        }
+
+                        if (t.Finally is { } always)
+                        {
+                            result.Add(new AudioStatement(LineOf(always.Start), "finally", string.Empty));
+                            Walk(always);
+                        }
+
+                        result.Add(new AudioStatement(LineOf(t.End - 1), "end", string.Empty));
+                        break;
+                    case IfStmt i:
+                        for (int b = 0; b < i.Branches.Count; b++)
+                        {
+                            (Node cond, StmtBlock branch) = i.Branches[b];
+                            int keyword = wrapped.LastIndexOf("if", cond.Start - 1, StringComparison.Ordinal) + 2;
+                            result.Add(new AudioStatement(LineOf(cond.Start), b == 0 ? "if" : "elseif", Slice(keyword, branch.Start)));
+                            Walk(branch);
+                        }
+
+                        if (i.Otherwise is { } otherwise)
+                        {
+                            result.Add(new AudioStatement(LineOf(otherwise.Start), "else", string.Empty));
+                            Walk(otherwise);
+                        }
+
+                        result.Add(new AudioStatement(LineOf(i.End - 1), "end", string.Empty));
+                        break;
+                    default:
+                        result.Add(new AudioStatement(line, "other", Slice(s.Start, s.End)));
+                        break;
+                }
+            }
+        }
+
+        Walk(helper.Body);
+        return result;
+    }
+
+    /// <summary>The statements of a block (the process of a component) with their observation and assert statements blanked, or null when there are none or the text does not parse.</summary>
+    /// <param name="body">The statements.</param>
+    /// <returns>The blanked text (same length and lines), or null.</returns>
+    internal static string? BlankObservationStatements(string body)
+    {
+        const string head = "helper __p() {\n";
+        string clean = StripComments(body);
+        string wrapped = head + clean + "\n}";
+        using IDisposable scope = SyntaxGate.Use(SyntaxFeatures.Observe | SyntaxFeatures.Assert | SyntaxFeatures.Record);   // a hash reads what is written, whatever is switched on
+        Node node;
+        try
+        {
+            node = new ExprParser(wrapped, Tokenize(wrapped)).ParseDeclaration();
+        }
+        catch (SyntaxError)
+        {
+            return null;
+        }
+
+        List<ObserveStmt> found = [.. Descendants(node).OfType<ObserveStmt>().Where(s => !s.Semantic)];
+        if (found.Count == 0) return null;
+        char[] chars = clean.ToCharArray();
+        foreach (ObserveStmt s in found)
+        {
+            for (int i = Math.Max(0, s.Start - head.Length); i < Math.Min(chars.Length, s.End - head.Length); i++)
+            {
+                if (chars[i] != '\n') chars[i] = ' ';
+            }
+        }
+
+        return new string(chars);
+    }
+
+    private static IEnumerable<Node> Descendants(Node node) => Descendants(node, includeObservation: true);
+
+    private static IEnumerable<Node> Descendants(Node node, bool includeObservation)
+    {
+        if (!includeObservation && node is ObserveStmt { Semantic: false }) yield break;
         foreach (Node child in Children(node))
         {
             yield return child;
-            foreach (Node deeper in Descendants(child)) yield return deeper;
+            foreach (Node deeper in Descendants(child, includeObservation)) yield return deeper;
         }
     }
 
@@ -402,11 +611,18 @@ public static partial class NotePipeline
     {
         private readonly Dictionary<string, Decl> helpers = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, TypeDeclNode> types = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ErrorDeclNode> errors = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Decl> constants = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> failed = new(StringComparer.OrdinalIgnoreCase);
 
         private sealed record Decl(Node Node, string Name, string Hash, string Text, int Line, bool IsDynamic)
         {
+            /// <summary>The hash of the whole text, observation and assert statements included (the source tier; <see cref="Hash"/> is the semantic tier that the recipe uses).</summary>
+            public string SourceHash { get; init; } = Hash;
+
+            /// <summary>The text without observation and assert statements (blanked, same offsets).</summary>
+            public string SemanticText { get; init; } = Text;
+
             public string Effect { get; set; } = "pure";
         }
 
@@ -423,7 +639,7 @@ public static partial class NotePipeline
             List<(int, int, int, string, string)> found = [];
             foreach (Decl d in helpers.Values.Concat(constants.Values))
             {
-                foreach (CallNode c in Descendants(d.Node).OfType<CallNode>())
+                foreach (CallNode c in Descendants(d.Node, includeObservation: false).OfType<CallNode>())
                 {
                     string lower = c.Name.ToLowerInvariant();
                     if (lower is "currenttime" or "currentdate") found.Add((d.Line, c.Start, c.NameEnd, c.Name, "clock"));
@@ -454,9 +670,23 @@ public static partial class NotePipeline
         /// <param name="issues">Receives the problems.</param>
         /// <returns>The table.</returns>
         public static HelperTable Build(IEnumerable<(string Text, int Line)> sources, List<HelperIssue> issues)
+            => Build(sources, issues, []);
+
+        internal static HelperTable Build(
+            IEnumerable<(string Text, int Line)> sources, List<HelperIssue> issues, IReadOnlyList<ComponentDefinition> components)
         {
             HelperTable table = new();
+            foreach (ComponentDefinition component in components.Where(c => !c.IsAudio && c.PrivateProperties.Count > 0))
+            {
+                HashSet<string> used = ComponentHelper.UsedPrivate(component).Select(property => property.Name).ToHashSet(StringComparer.Ordinal);
+                table.observerProperties.TryAdd(component.HelperName,
+                    component.PrivateProperties.Where(property => !used.Contains(property.Name)).ToDictionary(
+                        property => property.Name, StringComparer.Ordinal));
+            }
             List<Decl> all = [];
+            // every name declared in the file (compared ignoring case), so the rename of a reserved name does not take one of them
+            HashSet<string> declared = new(sources.Select(s => Regex.Match(StripComments(s.Text), @"^\s*(?:dynamic\s+)?(?:helper|let|error|type)\s+([A-Za-z_][\w-]*)", RegexOptions.None, TimeSpan.FromSeconds(1)))
+                .Where(m => m.Success).Select(m => m.Groups[1].Value), StringComparer.OrdinalIgnoreCase);
             foreach ((string text, int line) in sources)
             {
                 string clean = StripComments(text);
@@ -467,18 +697,30 @@ public static partial class NotePipeline
                 }
                 catch (SyntaxError e)
                 {
-                    issues.Add(new HelperIssue(line, new PipeIssue("syntax", e.Message, e.Start, e.End)));
+                    issues.Add(new HelperIssue(line, new PipeIssue(e.Id, e.Message, e.Start, e.End)));
                     if (Regex.Match(clean, @"^\s*(?:dynamic\s+)?helper\s+([A-Za-z_][\w-]*)", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } broken) table.failed.Add(broken.Groups[1].Value);
                     continue;
                 }
 
-                string name = node switch { HelperDeclNode h => h.Name, TypeDeclNode t => t.Name, ConstDeclNode c => c.Name, _ => string.Empty };
+                string name = node switch { HelperDeclNode h => h.Name, TypeDeclNode t => t.Name, ErrorDeclNode e => e.Name, ConstDeclNode c => c.Name, _ => string.Empty };
                 int nameStart = node switch { HelperDeclNode h => h.NameStart, ConstDeclNode c => c.NameStart, _ => node.Start };
                 int nameEnd = node switch { HelperDeclNode h => h.NameEnd, ConstDeclNode c => c.NameEnd, _ => node.End };
-                bool dup = node switch { TypeDeclNode => table.types.ContainsKey(name), ConstDeclNode => table.constants.ContainsKey(name) || table.helpers.ContainsKey(name), _ => table.helpers.ContainsKey(name) || table.constants.ContainsKey(name) };
+                bool dup = node switch
+                {
+                    ErrorDeclNode => table.errors.ContainsKey(name) || table.types.ContainsKey(name) || name is "Error" or "RequirementError",
+                    TypeDeclNode => table.types.ContainsKey(name) || table.errors.ContainsKey(name),
+                    ConstDeclNode => table.constants.ContainsKey(name) || table.helpers.ContainsKey(name),
+                    _ => table.helpers.ContainsKey(name) || table.constants.ContainsKey(name),
+                };
+                if (node is HelperDeclNode or ConstDeclNode or ErrorDeclNode && ReservedWords.Contains(name))
+                    issues.Add(new HelperIssue(line, new PipeIssue("reserved-name", ReservedMessage(name), nameStart, nameEnd, ReservedRename(node, name, declared))));
                 if (dup) { issues.Add(new HelperIssue(line, new PipeIssue("duplicate-helper", $"\"{name}\" is declared twice (names are compared ignoring case)", nameStart, nameEnd))); continue; }
-                Decl decl = new(node, name, "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("ample-helper/1\n" + Collapse(text)))), text, line, node is HelperDeclNode { Dynamic: true });
+                string full = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("ample-helper/1\n" + Collapse(text))));
+                string? blanked = BlankObservation(node, clean);
+                string semantic = blanked is null ? full : "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("ample-helper/1\n" + Collapse(blanked))));
+                Decl decl = new(node, name, semantic, text, line, node is HelperDeclNode { Dynamic: true }) { SourceHash = full, SemanticText = blanked ?? text };
                 if (node is TypeDeclNode td) table.types[name] = td;
+                else if (node is ErrorDeclNode ed) table.errors[name] = ed;
                 else if (node is ConstDeclNode) table.constants[name] = decl;
                 else table.helpers[name] = decl;
                 all.Add(decl);
@@ -501,6 +743,16 @@ public static partial class NotePipeline
             return true;
         }
 
+        /// <summary>The text of a helper declaration (the offsets of its nodes belong to it), or null.</summary>
+        internal string? TextOf(string name) => helpers.TryGetValue(name, out Decl? d) ? d.Text : null;
+
+        internal int LineOf(string name) => helpers.TryGetValue(name, out Decl? d) ? Math.Max(0, d.Line) : 0;
+
+        private readonly Dictionary<string, Dictionary<string, ComponentProperty>> observerProperties = new(StringComparer.OrdinalIgnoreCase);
+
+        internal IReadOnlyDictionary<string, ComponentProperty>? ObservationProperties(string helper)
+            => observerProperties.GetValueOrDefault(helper);
+
         internal bool TryConst(string name, out ConstDeclNode node, out string hash)
         {
             node = null!;
@@ -509,6 +761,124 @@ public static partial class NotePipeline
             node = (ConstDeclNode)d.Node;
             hash = d.Hash;
             return true;
+        }
+
+        /// <summary>The error type with its chain (the type first, then its parents, ending in Error) and all fields, parents first; false when the name is not an error type.</summary>
+        internal bool TryErrorSpec(string name, out List<string> chain, out List<ErrorFieldDecl> fields)
+        {
+            chain = [];
+            fields = [];
+            if (name.Equals("Error", StringComparison.Ordinal)) { chain = ["Error"]; return true; }
+            if (name.Equals("RequirementError", StringComparison.Ordinal)) { chain = ["RequirementError", "Error"]; return true; }
+            string? at = name;
+            while (at is not null && errors.TryGetValue(at, out ErrorDeclNode? node))
+            {
+                if (chain.Contains(node.Name, StringComparer.OrdinalIgnoreCase)) return false;   // a cycle: reported by the declaration check
+                chain.Add(node.Name);
+                fields.InsertRange(0, node.Fields);
+                at = node.Parent;
+            }
+
+            if (chain.Count == 0) return false;
+            if (at is not null && at.Equals("RequirementError", StringComparison.Ordinal)) chain.Add("RequirementError");
+            chain.Add("Error");
+            return true;
+        }
+
+        internal bool IsErrorType(string name) => name is "Error" or "RequirementError" || errors.ContainsKey(name);
+
+        /// <summary>Whether a type of an error (itself or a type that extends it) declares this field as dynamic: a value of that type may carry it.</summary>
+        private bool MayHaveDynamicField(string type, string field)
+        {
+            if (!IsErrorType(type)) return false;   // a record, a number, notes ...: not an error, so no declared field
+            foreach (ErrorDeclNode e in errors.Values)
+            {
+                if (TryErrorSpec(e.Name, out List<string> chain, out List<ErrorFieldDecl> fields) && chain.Contains(type, StringComparer.OrdinalIgnoreCase)
+                    && fields.Any(f => f.Dynamic && f.Name == field)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether a helper reads a field that an error declaration marked dynamic (plan D32). The type of the receiver decides when it is known
+        /// (a parameter, a typed or constructed variable, a catch variable, an alias of one of them): a record or an unrelated error does not count,
+        /// a type that a dynamic field can belong to does. When the receiver's type cannot be established the field name decides: it can only ask for dynamic once too often, never once too little.
+        /// </summary>
+        private bool ReadsDynamicField(Decl d, HashSet<string> dynamicFields)
+        {
+            Dictionary<string, string?> types = new(StringComparer.Ordinal);
+            void Note(string name, string? type)
+            {
+                if (!types.TryGetValue(name, out string? known)) types[name] = type;
+                else if (!string.Equals(known, type, StringComparison.OrdinalIgnoreCase)) types[name] = null;   // two meanings: unknown
+            }
+
+            string? Infer(Node? value) => value switch
+            {
+                CallNode c when IsErrorType(c.Name) => c.Name,
+                RecordNode => "Record",
+                WordNode w when types.TryGetValue(w.Text, out string? known) => known,
+                StringNode or QuantityNode or BoolNode or ListNode => "Value",
+                _ => null,
+            };
+
+            if (d.Node is HelperDeclNode helper)
+            {
+                foreach (ParamNode p in helper.Params) Note(p.Name, p.Type);
+            }
+
+            List<Node> nodes = [.. Descendants(d.Node, includeObservation: false)];
+            foreach (Node n in nodes)
+            {
+                switch (n)
+                {
+                    case LetStmt l: Note(l.Name, l.Type ?? Infer(l.Value)); break;
+                    case AssignStmt a: Note(a.Name, Infer(a.Value)); break;
+                    case TryStmt t: foreach (CatchClause clause in t.Catches) Note(clause.Name, clause.Type ?? "Error"); break;
+                    case ForStmt f: Note(f.Var, null); break;
+                }
+            }
+
+            bool Reads(string? variable, string field)
+            {
+                if (!dynamicFields.Contains(field)) return false;
+                string? type = variable is not null && types.TryGetValue(variable, out string? known) ? known : null;
+                return type is null || MayHaveDynamicField(type, field);
+            }
+
+            return nodes.Any(n => n switch
+            {
+                FieldNode f => Reads((f.Target as WordNode)?.Text, f.Name),
+                RefNode r => Reads(r.Block, r.Port),
+                _ => false,
+            });
+        }
+
+        private static readonly HashSet<string> ErrorMembers = new(StringComparer.Ordinal) { "type", "message", "code", "hint", "origin", "context",
+            "cause", "suppressed", "suppressedCount" };
+
+        private void CheckErrorDeclarations(List<Decl> all, List<HelperIssue> issues)
+        {
+            foreach (Decl d in all.Where(x => x.Node is ErrorDeclNode))
+            {
+                ErrorDeclNode e = (ErrorDeclNode)d.Node;
+                void Problem(string message) => issues.Add(new HelperIssue(d.Line, new PipeIssue("error-decl", message, e.Start, e.End)));
+                if (e.Parent is not null && !IsErrorType(e.Parent))
+                    Problem($"\"{e.Name}\" extends \"{e.Parent}\", which is not an error type (Error, RequirementError or an error of this file)");
+                else if (!TryErrorSpec(e.Name, out _, out List<ErrorFieldDecl> all2)) Problem($"\"{e.Name}\" extends itself through its parents");
+                else
+                {
+                    foreach (IGrouping<string, ErrorFieldDecl> group in all2.GroupBy(f => f.Name,
+                        StringComparer.Ordinal).Where(g => g.Count() > 1)) Problem($"The field \"{group.Key}\" is declared twice (also by a parent)");
+                }
+
+                foreach (ErrorFieldDecl field in e.Fields)
+                {
+                    if (ErrorMembers.Contains(field.Name)) Problem($"\"{field.Name}\" is a member every error has: choose another field name");
+                    CheckType(d, field.Type, field.Start, field.End, issues);
+                }
+            }
         }
 
         internal bool TryType(string name, out List<string> members)
@@ -536,13 +906,39 @@ public static partial class NotePipeline
                 foreach (Match m in Regex.Matches(StripComments(t), @"[A-Za-z_][\w-]*", RegexOptions.None, TimeSpan.FromSeconds(1)))
                 {
                     if (!seen.Add(m.Value)) continue;
-                    if (helpers.TryGetValue(m.Value, out Decl? h) && !h.Name.StartsWith("__c_", StringComparison.Ordinal)) { hashes.Add(h.Hash); Visit(h.Text); }
-                    else if (constants.TryGetValue(m.Value, out Decl? c)) { hashes.Add(c.Hash); Visit(c.Text); }
+                    if (helpers.TryGetValue(m.Value, out Decl? h) && !h.Name.StartsWith("__c_", StringComparison.Ordinal)) { hashes.Add(h.Hash); Visit(h.SemanticText); }
+                    else if (constants.TryGetValue(m.Value, out Decl? c)) { hashes.Add(c.Hash); Visit(c.SemanticText); }
                 }
             }
 
-            Visit(text);
+            Visit(BlankObservationStatements(text) ?? text);
             hashes.Sort(StringComparer.Ordinal);
+
+            // the source tier (plan R1.1): what only the observation or assert statements reach, and helpers whose full text differs
+            // from the semantic one, are listed with the mark "source:"; only the payload hash reads them
+            HashSet<string> seenSource = new(StringComparer.OrdinalIgnoreCase);
+            List<string> extras = [];
+            void VisitSource(string t)
+            {
+                foreach (Match m in Regex.Matches(StripComments(t), @"[A-Za-z_][\w-]*", RegexOptions.None, TimeSpan.FromSeconds(1)))
+                {
+                    if (!seenSource.Add(m.Value)) continue;
+                    if (helpers.TryGetValue(m.Value, out Decl? h) && !h.Name.StartsWith("__c_", StringComparison.Ordinal))
+                    {
+                        if (h.SourceHash != h.Hash || !seen.Contains(m.Value)) extras.Add("source:" + h.SourceHash);
+                        VisitSource(h.Text);
+                    }
+                    else if (constants.TryGetValue(m.Value, out Decl? c))
+                    {
+                        if (c.SourceHash != c.Hash || !seen.Contains(m.Value)) extras.Add("source:" + c.SourceHash);
+                        VisitSource(c.Text);
+                    }
+                }
+            }
+
+            VisitSource(text);
+            extras.Sort(StringComparer.Ordinal);
+            hashes.AddRange(extras);
             return hashes;
         }
 
@@ -565,18 +961,28 @@ public static partial class NotePipeline
 
         private void Analyze(List<Decl> all, List<HelperIssue> issues)
         {
-            IEnumerable<string> known = LangFunctions.Concat(OperatorNames).Concat(helpers.Values.Select(h => h.Name)).Concat(["bars", "beats", "time"]);
+            IEnumerable<string> known = LangFunctions.Concat(OperatorNames).Concat(helpers.Values.Select(h => h.Name)).Concat(errors.Keys).Concat(["bars", "beats", "time"]);
             Dictionary<string, HashSet<string>> calls = new(StringComparer.OrdinalIgnoreCase);
             foreach (Decl d in all)
             {
                 HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
-                foreach (Node n in Descendants(d.Node))
+                foreach (Node n in Descendants(d.Node, includeObservation: false))
                 {
                     if (n is CallNode c) names.Add(c.Name);
                     if (n is WordNode or RefNode && n is WordNode w && constants.ContainsKey(w.Text)) names.Add(w.Text);
                 }
 
                 calls[d.Name] = names;
+            }
+
+            HashSet<string> dynamicFields = new(errors.Values.SelectMany(e => e.Fields.Where(f => f.Dynamic).Select(f => f.Name)), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> readsDynamicField = new(StringComparer.OrdinalIgnoreCase);
+            if (dynamicFields.Count > 0)
+            {
+                foreach (Decl d in all)
+                {
+                    if (ReadsDynamicField(d, dynamicFields)) readsDynamicField.Add(d.Name);
+                }
             }
 
             // the effect: a helper is dynamic when it calls a volatile built-in or a dynamic helper (a baked helper is pure for its callers)
@@ -586,7 +992,9 @@ public static partial class NotePipeline
                 changed = false;
                 foreach (Decl d in all.Where(x => x.Effect == "pure" && !IsBaked(x)))
                 {
-                    if (calls[d.Name].Any(n => Volatile.Contains(n, StringComparer.OrdinalIgnoreCase) || (helpers.TryGetValue(n, out Decl? callee) && callee.Effect == "dynamic") || (constants.TryGetValue(n, out Decl? k) && k.Effect == "dynamic"))) { d.Effect = "dynamic"; changed = true; }
+                    if (readsDynamicField.Contains(d.Name) || calls[d.Name].Any(n => Volatile.Contains(n,
+                        StringComparer.OrdinalIgnoreCase) || (helpers.TryGetValue(n,
+                        out Decl? callee) && callee.Effect == "dynamic") || (constants.TryGetValue(n, out Decl? k) && k.Effect == "dynamic"))) { d.Effect = "dynamic"; changed = true; }
                 }
             }
 
@@ -602,6 +1010,7 @@ public static partial class NotePipeline
                 }
             }
 
+            CheckErrorDeclarations(all, issues);
             foreach (Decl d in all.Where(x => x.Node is TypeDeclNode))
             {
                 foreach (string member in ((TypeDeclNode)d.Node).Members) CheckType(d, member, d.Node.Start, d.Node.End, issues);
@@ -611,7 +1020,7 @@ public static partial class NotePipeline
             foreach (Decl d in all)
             {
                 HashSet<string> direct = new(StringComparer.Ordinal);
-                foreach (Node n in Descendants(d.Node))
+                foreach (Node n in Descendants(d.Node, includeObservation: false))
                 {
                     if (n is CallNode c)
                     {
@@ -620,6 +1029,7 @@ public static partial class NotePipeline
                         if (lower is "random" or "choose" or "chance" or "humanize" or "randomize" or "thin" or "scramble" or "walk" or "stable" or "random-seed") direct.Add("random");
                         if (lower is "currenttime" or "currentdate") direct.Add("clock");
                         if (lower == "osrandom") direct.Add("os-random");
+                        if (lower == "environment") direct.Add("environment");
                     }
 
                     if (n is QuantityNode { Unit: "s" or "ms" }) direct.Add("tempo");
@@ -643,10 +1053,36 @@ public static partial class NotePipeline
                 }
             }
 
+            foreach (Decl declaration in all)
+            {
+                foreach (ObserveStmt statement in Descendants(declaration.Node).OfType<ObserveStmt>().Where(s => !s.Semantic))
+                {
+                    bool assertion = statement.Kind == "assert";
+                    foreach (Node expression in statement.Args.SelectMany(arg => Descendants(arg).Prepend(arg)))
+                    {
+                        string? name = expression switch { CallNode call => call.Name, WordNode word => word.Text, _ => null };
+                        if (name is null) continue;
+                        string lower = name.ToLowerInvariant();
+                        bool forbidden = expression is CallNode && (lower is "osrandom" or "environment"
+                            || (assertion && lower is "currenttime" or "currentdate"));
+                        if (deps.TryGetValue(name, out HashSet<string>? sources))
+                        {
+                            forbidden |= sources.Contains("os-random") || sources.Contains("environment");
+                            forbidden |= assertion && (sources.Contains("clock")
+                                || helpers.GetValueOrDefault(name)?.Effect == "dynamic" || constants.GetValueOrDefault(name)?.Effect == "dynamic");
+                        }
+                        if (!forbidden) continue;
+                        const string message = "This volatile operation is not available in this diagnostic expression";
+                        issues.Add(new HelperIssue(declaration.Line, new PipeIssue("diagnostic-volatile", message, expression.Start, expression.End)));
+                    }
+                }
+            }
+
             Infos = [.. all.Select(d => d.Node switch
             {
                 HelperDeclNode h => new HelperInfo(d.Name, "helper", h.Dynamic, d.Effect, [.. h.Params.Select(p => new HelperParamInfo(p.Name, p.Type, p.Default is null ? null : Collapse(d.Text[p.Default.Start..Math.Min(p.Default.End, d.Text.Length)])))], h.Returns, d.Line),
                 TypeDeclNode t => new HelperInfo(d.Name, "type", false, "pure", [], string.Join(" | ", t.Members), d.Line),
+                ErrorDeclNode e => new HelperInfo(d.Name, "error", false, "pure", [], e.Parent ?? "Error", d.Line),
                 ConstDeclNode c => new HelperInfo(d.Name, "const", false, d.Effect, [], c.Type, d.Line),
                 _ => new HelperInfo(d.Name, "?", false, "pure", [], null, d.Line),
             } with { Dependencies = [.. deps[d.Name].Order(StringComparer.Ordinal)], Baked = d.Node is HelperDeclNode { Baked: not null } })];
@@ -655,7 +1091,7 @@ public static partial class NotePipeline
         private void CheckType(Decl d, string type, int start, int end, List<HelperIssue> issues)
         {
             string name = type.StartsWith("List<", StringComparison.Ordinal) || type.StartsWith("Range<", StringComparison.Ordinal) ? type[(type.IndexOf('<', StringComparison.Ordinal) + 1)..^1] : type;
-            if (BuiltinTypes.Contains(name) || NoteCatalog.Types.ContainsKey(name) || types.ContainsKey(name) || name is "List" or "Range") return;
+            if (BuiltinTypes.Contains(name) || NoteCatalog.Types.ContainsKey(name) || types.ContainsKey(name) || errors.ContainsKey(name) || name is "List" or "Range") return;
             string? near = Nearest(name, BuiltinTypes.Concat(NoteCatalog.Types.Keys).Concat(types.Values.Select(t => t.Name)));
             issues.Add(new HelperIssue(d.Line, new PipeIssue("unknown-type", $"\"{name}\" is not a type", start, end, near)));
         }
@@ -725,6 +1161,7 @@ public static partial class NotePipeline
             List<Dictionary<string, Local>> scopes = [new Dictionary<string, Local>(StringComparer.Ordinal)];
             foreach (ParamNode p in h.Params) scopes[0][p.Name] = new Local(false) { Used = true };
             List<(string Name, Node At, Local Local)> variables = [];
+            bool observing = false;
 
             bool KnownWord(string w) => Vocabulary.Value.Contains(w) || Regex.IsMatch(w, "^[A-G][#b]?(-?[0-9])?$", RegexOptions.None, TimeSpan.FromSeconds(1)) || constants.ContainsKey(w) || helpers.ContainsKey(w) || types.ContainsKey(w) || types.Values.Any(t => t.Members.Contains(w, StringComparer.OrdinalIgnoreCase)) || BuiltinTypes.Contains(w) || NoteCatalog.Types.ContainsKey(w) || w is "true" or "false";
             Local? Find(string name) { for (int i = scopes.Count - 1; i >= 0; i--) if (scopes[i].TryGetValue(name, out Local? l)) return l; return null; }
@@ -744,7 +1181,11 @@ public static partial class NotePipeline
                     case null: return;
                     case WordNode w:
                         if (Find(w.Text) is { } local) local.Used = true;
+                        else if (observing && ObservationProperties(h.Name)?.ContainsKey(w.Text) == true) return;
                         else if ((arithmetic || !KnownWord(w.Text)) && !w.Escaped && !w.Text.Contains('-', StringComparison.Ordinal)) Undefined(w, arithmetic);   // a hyphenated word is reported by the hyphen rule (AMP2074)   // in a calculation a plain word (even a pitch class like b) is never a number
+                        return;
+                    case RefNode r when Find(r.Block) is { } holder:   // r.steps: a field of a variable
+                        holder.Used = true;
                         return;
                     case CallNode c:
                         foreach (Node a in c.Args) Expr(a is NamedNode named ? named.Value : a);
@@ -812,12 +1253,27 @@ public static partial class NotePipeline
                         case ReturnStmt r:
                             Expr(r.Value);
                             break;
+                        case TryStmt ts:
+                            Block(ts.Body);
+                            foreach (CatchClause cc in ts.Catches)
+                            {
+                                if (cc.Type is not null) CheckType(d, cc.Type, cc.Start, cc.End, issues);
+                                Block(cc.Body, cc.Name);
+                            }
+
+                            if (ts.Finally is not null) Block(ts.Finally);
+                            break;
                         case EmitStmt em:
                             Expr(em.Value);
                             break;
+                        case ObserveStmt os:
+                            observing = os.Kind != "assert" && !os.Semantic;
+                            foreach (Node a in os.Args) Expr(a);
+                            observing = false;
+                            break;
                         case ExprStmt ex:
                             Expr(ex.Value);
-                            bool last = i == block.Statements.Count - 1;
+                            bool last = block.Statements.Skip(i + 1).All(x => x is ObserveStmt { Semantic: false });
                             if (!last && !Descendants(ex.Value).Prepend(ex.Value).Any(x => x is CallNode or PipelineNode or MethodNode))
                                 issues.Add(new HelperIssue(d.Line, new PipeIssue("no-effect", "This statement does nothing: its value is not used. Write return, emit or let in front of it, or remove it", ex.Start, ex.End)));
                             break;
@@ -851,13 +1307,15 @@ public static partial class NotePipeline
         /// <summary>Whether every path of the block ends with a value: a return with a value, an expression, or an if with an else where every branch does.</summary>
         private static bool Yields(StmtBlock block)
         {
-            Node? last = block.Statements.LastOrDefault();
+            Node? last = block.Statements.LastOrDefault(x => x is not ObserveStmt { Semantic: false });
             return last switch
             {
                 ReturnStmt r => r.Value is not null,
                 ExprStmt => true,
                 EmitStmt => true,
+                ObserveStmt { Kind: "fail" or "throw" } => true,   // the path ends the evaluation (a thrown error goes to a catch or ends it): it never needs a value
                 IfStmt { Otherwise: not null } f => f.Branches.All(b => Yields(b.Body)) && Yields(f.Otherwise),
+                TryStmt t => Yields(t.Body) && t.Catches.All(c => Yields(c.Body)),
                 _ => false,
             };
         }
@@ -882,9 +1340,18 @@ public static partial class NotePipeline
 
     // ---------- values
 
+    [Flags]
+    private enum ValueMarks { None = 0, Dynamic = 1, Sensitive = 2 }
+
     private abstract record Val
     {
-        public bool Tainted { get; init; }
+        public ValueMarks Marks { get; init; }
+
+        public bool Tainted
+        {
+            get => (Marks & ValueMarks.Dynamic) != 0;
+            init => Marks = value ? Marks | ValueMarks.Dynamic : Marks & ~ValueMarks.Dynamic;
+        }
     }
 
     private sealed record IntV(BigInteger V, string? Brand = null) : Val;
@@ -900,6 +1367,9 @@ public static partial class NotePipeline
     private sealed record NotesV(PipeValue V, string Recipe) : Val;
 
     private sealed record ListV(List<Val> Items) : Val;
+
+    /// <summary>A record: fields in the order they were written; immutable; never part of a recipe (an operator cannot take one).</summary>
+    private sealed record RecordV(List<(string Key, Val Value)> Fields) : Val;
 
     private sealed record RangeV(Val From, Val To, bool Inclusive) : Val;
 
@@ -920,6 +1390,24 @@ public static partial class NotePipeline
         public string Id { get; } = id;
 
         public Node? Node { get; } = node;
+
+        /// <summary>Gets the error value of a throw, when there is one.</summary>
+        internal ErrorV? Error { get; init; }
+
+        /// <summary>Gets or sets the marks of the decisions that led here: a catch that handles it runs under them.</summary>
+        internal ValueMarks Marks { get; set; }
+
+        internal List<FailureSummary> Suppressed { get; } = [];
+
+        internal int SuppressedTotal { get; set; }
+
+        internal List<LangFailure> Displaced { get; } = [];
+
+        /// <summary>Gets or sets the steps of the unwind reserve that the finally blocks of this failure have used so far (one reserve for the whole unwinding).</summary>
+        internal long ReserveUsed { get; set; }
+
+        /// <summary>Gets or sets the call stack at the place where the failure was raised (innermost first, bounded).</summary>
+        internal IReadOnlyList<StackFrameInfo>? Frames { get; set; }
     }
 
     private static Rat RatOfDouble(double d)
@@ -940,7 +1428,8 @@ public static partial class NotePipeline
 
     private static double DoubleOfRat(Rat r) => (double)r.N / (double)r.D;
 
-    private static bool IsVolatileNode(Node root, HelperTable table) => Descendants(root).Prepend(root).Any(n => n is CallNode c && (Volatile.Contains(c.Name, StringComparer.OrdinalIgnoreCase) || table.IsDynamicHelper(c.Name)));
+    private static bool IsVolatileNode(Node root, HelperTable table) => Descendants(root, includeObservation: false).Prepend(root)
+        .Any(n => n is CallNode c && (Volatile.Contains(c.Name, StringComparer.OrdinalIgnoreCase) || table.IsDynamicHelper(c.Name)));
 
     /// <summary>Whether an expression needs the language layer (helpers, variables, arithmetic, control flow) and not only the operators of a pipeline.</summary>
     private static bool NeedsLang(Node root, Context context)

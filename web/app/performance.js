@@ -103,8 +103,7 @@ export function createPerformance({ now, play, bpm = 120, beatsPerBar = 4, quant
       lanes.get(laneName).clips.set(clip.id, clip);
     },
     /**
-     * Takes a clip off a lane while the set plays (the live mode): a queued launch of it is taken back and a clip that plays plays out to the end of
-     * the bar, so there is no cut. Returns whether it was there.
+     * Takes a clip off a lane while the set plays (the live mode): a queued launch of it is taken back and a clip that plays plays out to the end of the bar, so there is no cut. Returns whether it was there.
      */
     removeClip(laneName, clipId) {
       tick();

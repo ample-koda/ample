@@ -40,9 +40,9 @@ test('Checkpoint from the menu opens the checkpoint dialog, and the menu is keyb
   await page.locator('#btn-more').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#more-popup [role=menuitem]').first()).toBeFocused();
-  await page.keyboard.press('ArrowDown');
-  await expect(page.locator('#more-popup [role=menuitem]').nth(1)).toBeFocused();
-  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#more-popup [role=menuitem]', { hasText: 'Save' })).toBeDisabled();   // nothing changed yet
+  await page.keyboard.press('ArrowDown');   // a disabled item takes no focus: the arrow skips Save
+  await expect(page.locator('#more-popup [role=menuitem]', { hasText: 'Checkpoint' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#more-popup')).toBeHidden();
   await expect(page.locator('dialog[open]')).toBeVisible();

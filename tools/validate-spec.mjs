@@ -77,8 +77,10 @@ for (const f of walk(path.join(tests, 'invalid')).filter(x => x.endsWith('.ample
 for (const f of walk(path.join(tests, 'valid')).filter(x => x.endsWith('.amplet'))) { const e = f.replace(/\.amplet$/, '.expected.json'); if (!fs.existsSync(e)) fail(rel(f), 'missing .expected.json'); else readJson(e); }
 for (const f of walk(path.join(tests, 'format')).filter(x => x.endsWith('.in.amplet'))) if (!fs.existsSync(f.replace(/\.in\.amplet$/, '.out.amplet'))) fail(rel(f), 'missing .out.amplet');
 for (const f of walk(path.join(tests, 'recovery')).filter(x => x.endsWith('.amplet'))) if (!fs.existsSync(f.replace(/\.amplet$/, '.expected.json'))) fail(rel(f), 'missing .expected.json');
-if (diag) for (const d of diag.diagnostics) if (!d.retired && d.stage !== 'runtime' && !covered.has(d.code)) fail('spec-tests/invalid', `no invalid case produces ${d.code}`);
-if (lint) for (const r of lint.rules) if (!covered.has(r.code)) fail('spec-tests/invalid', `no case produces lint rule ${r.code}`);
+// A code is also covered by its own wrongExample (ample docs check proves that the example produces the code) and, for a lint rule, by a unit test of the language that names it.
+const testSource = walk(path.join(root, 'tests', 'Ample.Language.Tests')).filter(x => x.endsWith('.cs')).map(x => fs.readFileSync(x, 'utf8')).join(' ');
+if (diag) for (const d of diag.diagnostics) if (!d.retired && d.stage !== 'runtime' && !covered.has(d.code) && !d.wrongExample) fail('spec-tests/invalid', `no invalid case or wrong example produces ${d.code}`);
+if (lint) for (const r of lint.rules) if (!covered.has(r.code) && !testSource.includes(r.code)) fail('spec-tests/invalid', `no case or unit test produces lint rule ${r.code}`);
 
 if (errors.length) { console.error(errors.map(e => '  ' + e).join('\n')); console.error(`validate-spec: ${errors.length} problem(s)`); process.exit(1); }
 console.log(`validate-spec: ok (${templates.length} templates, ${diag?.diagnostics.length ?? 0} diagnostics, ${lint?.rules.length ?? 0} lint rules)`);

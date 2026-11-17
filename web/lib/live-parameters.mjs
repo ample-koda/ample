@@ -26,7 +26,7 @@ export const LIVE_PARAMETERS = {
   master: only('limiter'),
   deesser: only('frequency', 'threshold', 'ratio'),
   bitcrusher: only('bits', 'downsample', 'mix'),
-  mixer: only('gains', 'pan'),
+  mixer: only('gains', 'pan', 'mutes', 'solos'),
   send: only('levels'),
   bus: only('gains', 'pan', 'gain', 'mute', 'solo'),
   // made again in the browser (live chain, live-local.js): every knob re-renders the block, a moment after you stop

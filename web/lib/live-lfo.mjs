@@ -2,10 +2,13 @@
 // The live graph plays them from a looping buffer that starts with the loop, so the sweep of a chorus, flanger, phaser, tremolo or filter LFO has the phase it has in the render
 // (an OscillatorNode starts wherever the graph was built). Values are -1..1, the same signal the oscillator had.
 
-/** The triangle of ModDelay and the phaser: period in whole samples, 0 at the start rising to 1 at half a period; as -1..1 it starts at -1. */
+/**
+ * The integer triangle of ModDelay (chorus, flanger) exactly as the server reads it: t = 0..32767 rising over half a period, the delay moves by (t - 16384) / 16384 of the depth
+ * (so the top is 0.99994, not 1). Period in whole samples; starts at -1.
+ */
 export function triangleWave(periodSamples, offset = 0) {
   const period = Math.max(2, Math.floor(periodSamples)), half = Math.max(1, Math.floor(period / 2));
-  return (i) => { const phase = (i + offset) % period; return (phase < half ? phase / half : (period - phase) / half) * 2 - 1; };
+  return (i) => { const phase = (i + offset) % period, t = Math.trunc(phase < half ? phase * 32767 / half : (period - phase) * 32767 / half); return (t - 16384) / 16384; };
 }
 
 /** The phaser's integer triangle (0..32767 truncated), as -1..1. */

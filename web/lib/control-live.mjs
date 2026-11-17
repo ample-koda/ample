@@ -55,7 +55,7 @@ export function controlTargets(nodes, links, targets) {
       chain.unshift(at.id);
       if (at.tpl === 'curve' || at.tpl === 'follow') break;
       if (at.tpl !== 'map') { at = null; break; }
-      const up = links.find((l) => l.to === at.id && l.type === 'control' && l.inName === 'in' && !l.disabled);
+      const up = links.find((l) => l.to === at.id && l.type === 'control' && (l.inName === 'input' || l.inName === 'in') && !l.disabled);   // the port of map is `input`
       at = up && byId.get(up.from); out = up?.outName || 'level';
     }
     if (at?.tpl === 'curve' || at?.tpl === 'follow') found.push({ target: link.to, param: link.inName, chain, out });

@@ -12,7 +12,7 @@ const ample = path.join(here, '..');
 const run = root => spawnSync(process.execPath, [path.join(here, 'validate-spec.mjs')], { env: { ...process.env, AMPLE_ROOT: root }, encoding: 'utf8' });
 const copy = () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ample-spec-'));
-  for (const d of ['spec', 'spec-tests', path.join('docs', 'language')]) fs.cpSync(path.join(ample, d), path.join(tmp, d), { recursive: true });
+  for (const d of ['spec', 'spec-tests', path.join('docs', 'language'), path.join('tests', 'Ample.Language.Tests')]) fs.cpSync(path.join(ample, d), path.join(tmp, d), { recursive: true });
   return tmp;
 };
 
@@ -27,8 +27,10 @@ test('a duplicate diagnostic code is reported', () => {
   const r = run(tmp); assert.notEqual(r.status, 0); assert.match(r.stderr, /duplicate code/);
 });
 
-test('a code without an invalid case is reported', () => {
-  const tmp = copy(); fs.rmSync(path.join(tmp, 'spec-tests', 'invalid', 'AMP2010-cycle.expected-diagnostics.json'));
+test('a code without an invalid case or a wrong example is reported', () => {
+  const tmp = copy(); const catalog = path.join(tmp, 'spec', 'diagnostics.json'), j = JSON.parse(fs.readFileSync(catalog, 'utf8'));
+  j.diagnostics.find((d) => d.code === 'AMP2010').wrongExample = ''; fs.writeFileSync(catalog, JSON.stringify(j));
+  fs.rmSync(path.join(tmp, 'spec-tests', 'invalid', 'AMP2010-cycle.expected-diagnostics.json'));
   fs.rmSync(path.join(tmp, 'spec-tests', 'invalid', 'AMP2010-cycle.amplet'));
   const r = run(tmp); assert.notEqual(r.status, 0); assert.match(r.stderr, /AMP2010/);
 });

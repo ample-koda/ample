@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Pulls the record back like a DJ: the music stops, only the scratch is heard (for example 2 s), and the music goes on from an earlier place of the same sound (for example 5 s back). Times are those of the block, as you hear it. Several events work in one pass. Connect a real scratch sample to fx for the most realistic sound.",
   "inputs": [

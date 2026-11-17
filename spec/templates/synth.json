@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "A small subtractive synth: oscillator, ADSR envelope, optional detune and a low-pass filter. Compact notes support per-note pan, fine pitch, release, cutoff and slide without a second attack.",
   "inputs": [

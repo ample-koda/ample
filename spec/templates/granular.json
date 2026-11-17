@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Cuts the sound into short windowed grains and scatters them along its length (with a little pitch variation): a longer, never repeating texture from a short sound.",
   "inputs": [

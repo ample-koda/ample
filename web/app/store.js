@@ -74,6 +74,7 @@ const progressListeners = new Set();
 export const subscribeProgress = (f) => { progressListeners.add(f); return () => progressListeners.delete(f); };
 export function onBlockProgress(e) {
   if (stale(e)) return;
+  if (e.listen && e.buildId !== buildAbortController?.buildId) return;   // a Live Preview build that this page is not running (another page's): not the build of this one
   const block = e.block ?? e.Block;
   const live = S.build.live || (S.build.live = {});
   const before = live[block];
@@ -399,16 +400,24 @@ export function setDoc(doc) {
 export const tplOf = (n) => templateForVersion(S.tpl[n.tpl], n.ver);
 
 /** An audio component instance is built as the blocks "<instance>__<node>"; the instance itself plays with the take of the processor that gives its first output. */
-export function aliasComponentTakes() {
+export function aliasComponentTakes(takes = S.build.takes, status = S.build.status) {
   for (const b of S.doc?.blocks || []) {
     const t = S.tpl[b.type];
     if (!t?.component || t.kind === 'Notes') continue;
     const node = Object.values(t.outputNodes || {})[0];
     if (!node) continue;
     const part = `${b.name}__${node}`;
-    if (S.build.takes[part]) S.build.takes[b.name] = S.build.takes[part]; else delete S.build.takes[b.name];
-    if (S.build.status[part]) S.build.status[b.name] = S.build.status[part];
+    if (takes[part]) takes[b.name] = takes[part]; else delete takes[b.name];
+    if (status?.[part]) status[b.name] = status[part];
   }
+}
+
+/** The takes of a build report by block (component instances included), without touching the build state: the takes of a Live Preview build. */
+export function reportTakes(report) {
+  const takes = {};
+  for (const b of report?.blocks || []) { const take = b.takeId ?? b.TakeId; if (take) takes[b.block ?? b.Block] = take; }
+  aliasComponentTakes(takes, null);
+  return takes;
 }
 
 let statusTimer = null, statusSeq = 0;
@@ -696,21 +705,30 @@ export const editSerial = () => editCount;
 export async function undo() {
   if (S.peek) { toast('History previews are read-only. Return to the current work before undoing.'); return; }
   for (const hook of undoHooks) if (await hook('undo')) return;
-  if (!S.undo.length) { toast('Nothing to undo.'); return; }
-  const text = S.undo.pop();
-  if (text && typeof text === 'object') { swapGroups(text, S.redo); return; }
-  S.redo.push(S.moduleStack.length && S.moduleDoc ? S.moduleDoc.text : S.doc.text);
-  try { await putText(text); } catch (e) { fail(e); }
+  return queueStep(S.undo, S.redo, 'Nothing to undo.');
 }
 
 export async function redo() {
   if (S.peek) { toast('History previews are read-only. Return to the current work before redoing.'); return; }
   for (const hook of undoHooks) if (await hook('redo')) return;
-  if (!S.redo.length) { toast('Nothing to redo.'); return; }
-  const text = S.redo.pop();
-  if (text && typeof text === 'object') { swapGroups(text, S.undo); return; }
-  S.undo.push(S.moduleStack.length && S.moduleDoc ? S.moduleDoc.text : S.doc.text);
-  try { await putText(text); } catch (e) { fail(e); }
+  return queueStep(S.redo, S.undo, 'Nothing to redo.');
+}
+
+/**
+ * One undo or redo step, on the edit chain: an edit that is still on its way pushes its own undo step only when the server answers,
+ * so a step taken before that would take the step before it (and lose the edit); a quick Ctrl+Z right after a knob move did that (#745).
+ * The hooks above run first and outside the chain, because a hook may make an edit of its own.
+ */
+function queueStep(from, to, nothing) {
+  const step = chain.then(async () => {
+    if (!from.length) { toast(nothing); return; }
+    const text = from.pop();
+    if (text && typeof text === 'object') { swapGroups(text, to); return; }
+    to.push(S.moduleStack.length && S.moduleDoc ? S.moduleDoc.text : S.doc.text);
+    try { await putText(text); } catch (e) { fail(e); }
+  });
+  chain = step.catch(() => {});
+  return step;
 }
 
 export function editHistory() {
@@ -856,7 +874,9 @@ export async function saveForCheckpoint() {
 }
 
 /** Builds the song (or one block, or a bar range). Returns the report, or null when it failed or was refused. */
-export async function build(only, range, intent, forceRender) {
+/** options.keepPlaying: a whole-song build that does not stop what plays (the Live Preview of the code editor swaps the new take in at its loop boundary). */
+/** options.separate: a Live Preview build: its takes stay in its report (reportTakes); the takes, status, master, clock and red marks of the normal build are not touched (plan/live-preview 6.1). */
+export async function build(only, range, intent, forceRender, options = {}) {
   if (S.build.running) return null;
   await flushViewSave();
   if (S.build.running) return null;
@@ -865,10 +885,16 @@ export async function build(only, range, intent, forceRender) {
   if (S.peek) { toast('Read-only: a state that is only being looked at cannot be built.'); return null; }
   buildAbortController = new AbortController();
   const buildId = `b${Date.now().toString(36)}-${++buildCounter}`;
+  const textAtStart = S.doc?.text ?? null;   // the master of a whole build belongs to this text (S.build.master)
   buildAbortController.buildId = buildId;
-  S.build = { running: true, clockAt: S.build.clockAt, clockPath: S.build.clockPath, intent: intent || '', startedAt: performance.now(), only: only || null, status: only ? { ...S.build.status } : {}, takes: S.build.takes || {}, sig: S.build.sig, inputs: null, files: S.build.files, follows: S.build.follows, log: S.build.log, live: {}, queued: new Set(), completed: new Set() };
-  S.buildErrors = null;   // the red marks in the code belong to the last build: they go when the next one starts
-  appendBuildLog(`Build started${only ? ` (only ${only})` : ''}${range ? ` (bars ${range.firstBar} to ${range.firstBar + range.bars - 1})` : ''}.`);
+  S.build = {
+    running: true, clockAt: S.build.clockAt, clockPath: S.build.clockPath, intent: intent || '', startedAt: performance.now(), only: only || null,
+    status: options.separate ? S.build.status || {} : only ? { ...S.build.status } : {}, takes: S.build.takes || {}, separate: !!options.separate,
+    sig: S.build.sig, inputs: null, files: S.build.files, follows: S.build.follows, log: S.build.log,
+    live: {}, queued: new Set(), completed: new Set(), master: S.build.master,
+  };
+  if (!options.separate) S.buildErrors = null;   // the red marks in the code belong to the last build: they go when the next one starts
+  appendBuildLog(`${options.separate ? 'Live Preview build' : 'Build'} started${only ? ` (only ${only})` : ''}${range ? ` (bars ${range.firstBar} to ${range.firstBar + range.bars - 1})` : ''}.`);
   notify();
   let report = null;
   try {
@@ -881,7 +907,7 @@ export async function build(only, range, intent, forceRender) {
       S.build.follows = inputs.followsMaster || S.build.follows;
     } catch { /* the build itself checks inputs */ }
     buildAbortController.signal.throwIfAborted();
-    if (!only && !range) {
+    if (!only && !range && !options.keepPlaying) {
       stop();
       if (S.aiPlaying) (await import('./ai.js')).stopPreview();
     }
@@ -906,9 +932,11 @@ export async function build(only, range, intent, forceRender) {
     if (range) body.range = range;
     if (intent) body.intent = intent;
     if (forceRender === true) body.forceRender = true;
+    if (options.separate) body.listen = true;   // the server leaves the song clock, the preview-build flag and the build statistics alone (plan/live-preview 6.2)
     buildAbortController.signal.throwIfAborted();
     report = await api.post('/api/build', body, buildAbortController.signal);
-    if (report.clockAt) { S.build.clockAt = report.clockAt; S.build.clockPath = S.path; }   // the clock the build read: what the roll and the preview show must be made with the same one
+    // the clock the build read: what the roll and the preview show must be made with the same one (a Live Preview build keeps the clock of the normal build)
+    if (report.clockAt && !options.separate) { S.build.clockAt = report.clockAt; S.build.clockPath = S.path; }
     appendBuildLog(`Build done: ${report.hits ?? report.Hits} cached, ${report.misses ?? report.Misses} rendered.`);
     if (report.timings) appendBuildLog(report.timings);   // where the time went, also for a build that only read the cache (issue 291)
     if (report.builtWithErrors) {
@@ -920,19 +948,23 @@ export async function build(only, range, intent, forceRender) {
       const st = b.status ?? b.Status;
       if (st === 'failed' || st === 'skipped') appendBuildLog(`${b.block ?? b.Block}: ${st}: ${b.message ?? b.Message ?? ''}`);
     }
-    for (const b of report.blocks || []) {
-      const name = b.block ?? b.Block;
-      S.build.status[name] = { status: b.status ?? b.Status, message: b.message ?? b.Message, at: Date.now() };
-      const take = b.takeId ?? b.TakeId;
-      if (take) S.build.takes[name] = take;
+    if (!options.separate) {   // a Live Preview build keeps its takes in its report: the players and the transport keep the takes of the normal build
+      for (const b of report.blocks || []) {
+        const name = b.block ?? b.Block;
+        S.build.status[name] = { status: b.status ?? b.Status, message: b.message ?? b.Message, at: Date.now() };
+        const take = b.takeId ?? b.TakeId;
+        if (take) S.build.takes[name] = take;
+      }
+      aliasComponentTakes();
+      // what the master take is made of: a whole song or a range, from which text, at which quality (the Live Preview cuts bars out of a whole, current render only)
+      if (!only) S.build.master = { range: range || null, text: textAtStart, intent: intent || "bake" };
+      S.buildErrors = { path: S.path, items: collectBuildErrors(report, S.doc, (S.doc?.text ?? '').split('\n')) };
     }
-    aliasComponentTakes();
-    S.buildErrors = { path: S.path, items: collectBuildErrors(report, S.doc, (S.doc?.text ?? '').split('\n')) };
     const summary = buildSummary(report, false, 0);
-    if (summary) { appendBuildLog(summary); toast(summary); }
+    if (summary) { appendBuildLog(summary); if (!options.separate) toast(summary); }
   } catch (e) {
     if (e.name === 'AbortError') { const kept = Object.keys(S.build.takes || {}).length; appendBuildLog(buildSummary(null, true, kept)); toast(buildSummary(null, true, kept)); }
-    else { appendBuildLog(`Build failed: ${e.message}`); fail(e); }
+    else { S.build.error = e.message; appendBuildLog(`Build failed: ${e.message}`); fail(e); }   // error: a failed build, told apart from a cancelled one (Live Preview)
   }
   buildAbortController = null;
   S.build.running = false;
@@ -1077,7 +1109,9 @@ export async function goLine(line) {
 export function onBuildProgress(e) {
   if (stale(e)) return;
   const block = e.block ?? e.Block;
-  S.build.status[block] = { status: e.status ?? e.Status };
+  // a Live Preview build (this page's or another page's) does not change the state of the normal build
+  const ownSeparate = S.build.separate && e.buildId && e.buildId === buildAbortController?.buildId;
+  if (!e.listen && !ownSeparate) S.build.status[block] = { status: e.status ?? e.Status };
   S.build.queued?.add(block);
   S.build.completed?.add(block);
   if (S.build.live) delete S.build.live[block];

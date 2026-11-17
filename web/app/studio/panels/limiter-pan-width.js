@@ -1,4 +1,5 @@
 // Studio panels of the limiter, the pan and the width effects (plan X03).
+import { infoNote } from './info.js';
 import { el } from '../../ui.js';
 import { control, controls, number, transferCurve } from './helpers.js';
 import { registerStudioPanel } from './registry.js';
@@ -19,11 +20,11 @@ function limiterPanel(context) {
   let ceiling = number(params, 'ceiling', -1);
   const graph = transferCurve('Limiter input and output level curve', (input) => Math.min(input, ceiling), { reference: () => ({ db: ceiling, label: 'ceiling' }) });
   const controlsRow = controls([
-    control(context, params, 'ceiling', 'Ceiling', -24, 0, 'dB', 'linear', 112, (next) => { ceiling = next; graph.redraw(); }),
+    control(context, params, 'ceiling', 'Ceiling', -24, 0, 'dB', 'linear', 82, (next) => { ceiling = next; graph.redraw(); }),
     control(context, params, 'release', 'Release', 10, 1000, 'ms', 'log'),
     control(context, params, 'lookahead', 'Look-ahead', 1, 20, 'ms'),
   ]);
-  return el('section', { className: 'studio-effect-panel studio-limiter-panel', 'aria-label': 'Limiter controls' }, [graph, controlsRow, el('p', { className: 'note', textContent: 'Nothing passes the ceiling. The sound is delayed by the look-ahead inside the block and realigned, so the timing stays the same.' })]);
+  return el('section', { className: 'studio-effect-panel studio-limiter-panel', 'aria-label': 'Limiter controls' }, [graph, controlsRow, infoNote('Nothing passes the ceiling. The sound is delayed by the look-ahead inside the block and realigned, so the timing stays the same.')]);
 }
 
 function panPanel(context) {

@@ -25,7 +25,11 @@ public sealed record LiteDiagnostic(string Code, string Severity, int Line, int 
 /// <param name="Seconds">How long the build took.</param>
 /// <param name="AudioSeconds">The length of the audio.</param>
 /// <param name="Bytes">The size of the audio.</param>
-public sealed record LiteBuildResult(bool Ok, IReadOnlyList<LiteDiagnostic> Diagnostics, string? OutputId, double Seconds, double AudioSeconds, long Bytes);
+/// <param name="Observations">The events of the log view (log, debug, trace, warn) in the order they happened, bounded by the budgets of the sink; empty when the song logs nothing at its level.</param>
+public sealed record LiteBuildResult(bool Ok, IReadOnlyList<LiteDiagnostic> Diagnostics, string? OutputId, double Seconds, double AudioSeconds, long Bytes, IReadOnlyList<LiteObservation>? Observations = null);
+
+/// <summary>One event of the log view of a Remix build: the level, the event code, the message and hint as text (already redacted and cut), the context as JSON, where it happened (the origin is song or component:name, the line 1-based) and the call stack.</summary>
+public sealed record LiteObservation(long Seq, string Level, string? Code, string Message, string? Hint, System.Text.Json.JsonElement? Context, string? Origin, int Line, int Col, IReadOnlyList<string> Stack);
 
 /// <summary>
 /// Builds a Lite project: a private workspace with the files of the page, no user library, no plugin host, a takebank inside the workspace, a time limit, and the workspace gone
@@ -47,7 +51,8 @@ public static partial class LiteBuilder
     /// <param name="log">Told, step by step, what the build is doing: a line of text and how far the whole build is (0 to 1, or -1 when unchanged). Called from build threads.</param>
     /// <returns>The outcome.</returns>
     /// <exception cref="LiteRejectedException">The project is not acceptable.</exception>
-    public static async Task<LiteBuildResult> BuildAsync(SpecData spec, string libraryHome, string entry, IReadOnlyList<LiteFile> files, LiteLimits limits, LiteOutputs outputs, CancellationToken cancellationToken, Action<string, double>? log = null)
+    /// <param name="observation">The observation options of this build (the session layer: logging.level, diagnostics.assertions), or null.</param>
+    public static async Task<LiteBuildResult> BuildAsync(SpecData spec, string libraryHome, string entry, IReadOnlyList<LiteFile> files, LiteLimits limits, LiteOutputs outputs, CancellationToken cancellationToken, Action<string, double>? log = null, IReadOnlyDictionary<string, string>? observation = null)
     {
         ArgumentNullException.ThrowIfNull(spec);
         ArgumentNullException.ThrowIfNull(files);
@@ -62,18 +67,21 @@ public static partial class LiteBuilder
         if (limits.BuildSeconds <= 0) limit.Cancel();
         else limit.CancelAfter(TimeSpan.FromSeconds(limits.BuildSeconds));
         List<LiteDiagnostic> found = [];
+        List<LiteObservation> events = [];
         try
         {
             Dictionary<string, string> texts = files.Where(f => LitePolicy.IsText(f.Path)).ToDictionary(f => f.Path, f => Encoding.UTF8.GetString(f.Data), StringComparer.Ordinal);
             PhysicalFileSystem fs = new();
             SystemClock time = new();
             using OpenProject open = await ProjectStore.CreateAsync(fs, time, new GuidV7Generator(), workspace.Root, "lite", 1UL, limit.Token).ConfigureAwait(false);
-            using Ample.Engine.Modules.ModuleService modules = new(workspace.Root, (Ample.Storage.Library.Library?)null);
+            // the options of this build (the page's choices): the session layer, over the song, never written to a file and never part of the music
+            using Ample.Engine.Modules.ModuleService modules = new(workspace.Root, (Ample.Storage.Library.Library?)null) { ObservationSession = observation ?? new Dictionary<string, string>(StringComparer.Ordinal) };
             log?.Invoke($"Reading {entry} and the components it uses.", 0.04);
             AmpleDocument doc = modules.ParseExpanded(texts[entry], spec);
             log?.Invoke($"Read the song: {doc.Blocks.Count} blocks.", 0.08);
             found.AddRange(doc.Diagnostics.Where(d => d.Severity != Severity.Info || d.Code.StartsWith("AMP", StringComparison.Ordinal)).Take(200).Select(d => Map(d, workspace.Root)));
-            if (doc.Diagnostics.Any(d => d.Severity == Severity.Error)) return Result(false, found, null, clock, 0, 0);
+            events.AddRange(doc.Observations.Take(200).Select(e => Observe(e, workspace.Root)));
+            if (doc.Diagnostics.Any(d => d.Severity == Severity.Error)) return Result(events, false, found, null, clock, 0, 0);
             LitePolicy.CheckSong(texts, doc, spec, limits);
             Takebank bank = Takebank.Open(fs, time, workspace.Root);
             log?.Invoke("The song passes the Remix rules. Rendering the blocks (2 at a time).", 0.1);
@@ -95,7 +103,7 @@ public static partial class LiteBuilder
             if (report.MasterTakeId is null || found.Any(d => d.Severity == "error" && d.Code == "AMPL920"))
             {
                 if (report.MasterTakeId is null && found.All(d => d.Severity != "error")) found.Add(new LiteDiagnostic("AMPL921", "error", 0, 0, "The song makes no sound: add a master block that listens to something."));
-                return Result(false, found, null, clock, 0, 0);
+                return Result(events, false, found, null, clock, 0, 0);
             }
 
             TakeRecord take = bank.GetTake(report.MasterTakeId);
@@ -107,22 +115,22 @@ public static partial class LiteBuilder
             if (seconds > limits.MaxOutputSeconds)
             {
                 found.Add(new LiteDiagnostic("AMPL922", "error", 0, 0, $"The song is {seconds:0} seconds long; Remix builds at most {limits.MaxOutputSeconds} seconds."));
-                return Result(false, found, null, clock, seconds, 0);
+                return Result(events, false, found, null, clock, seconds, 0);
             }
 
             log?.Invoke($"Master is {seconds:0.0} seconds long ({wav.LongLength / 1024} KB). Keeping it for playback.", 0.98);
             string id = outputs.Put(wav, limits);
-            return Result(true, found, id, clock, seconds, wav.LongLength);
+            return Result(events, true, found, id, clock, seconds, wav.LongLength);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             found.Add(new LiteDiagnostic("AMPL923", "error", 0, 0, $"The build took longer than {limits.BuildSeconds} seconds and was stopped."));
-            return Result(false, found, null, clock, 0, 0);
+            return Result(events, false, found, null, clock, 0, 0);
         }
         catch (AmpleException ex)
         {
             found.Add(new LiteDiagnostic(ex.DiagnosticCode, "error", 0, 0, Clean(ex.Message, workspace.Root)));
-            return Result(false, found, null, clock, 0, 0);
+            return Result(events, false, found, null, clock, 0, 0);
         }
     }
 
@@ -168,7 +176,28 @@ public static partial class LiteBuilder
 
     private static double Overall(Dictionary<string, double> shown, int total) => 0.1 + (0.8 * Math.Min(1.0, shown.Values.Sum() / Math.Max(1, total)));
 
-    private static LiteBuildResult Result(bool ok, List<LiteDiagnostic> found, string? id, Stopwatch clock, double audio, long bytes) => new(ok, found, id, Math.Round(clock.Elapsed.TotalSeconds, 2), Math.Round(audio, 2), bytes);
+    private static LiteBuildResult Result(List<LiteObservation> events, bool ok, List<LiteDiagnostic> found, string? id, Stopwatch clock, double audio, long bytes) => new(ok, found, id, Math.Round(clock.Elapsed.TotalSeconds, 2), Math.Round(audio, 2), bytes, events);
+
+    private static LiteObservation Observe(LogEvent e, string root) => new(e.Seq, e.Level.ToString().ToLowerInvariant(), e.Code, Clean(e.Message, root), e.Hint is null ? null : Clean(e.Hint, root),
+        ObsRedactor.ParseContext(e.ContextJson), e.Site?.Origin, e.Site?.Line ?? 0, e.Site?.Col ?? 0, [.. e.Stack.Select(f => f.Name + (f.Instance is null ? string.Empty : " in " + f.Instance))]);
+
+    /// <summary>Reads the options of a build from the manifest (<c>options</c>: logging.level, diagnostics.assertions and the other observation options); a wrong one is refused, so a build never runs with an option it did not ask for.</summary>
+    /// <param name="options">The options object, or null.</param>
+    /// <returns>The options, empty when there are none.</returns>
+    public static Dictionary<string, string> ObservationOptions(System.Text.Json.JsonElement? options)
+    {
+        Dictionary<string, string> values = new(StringComparer.Ordinal);
+        if (options is not { ValueKind: System.Text.Json.JsonValueKind.Object } given) return values;
+        foreach (System.Text.Json.JsonProperty p in given.EnumerateObject())
+        {
+            string value = p.Value.ValueKind == System.Text.Json.JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText();
+            if (!ObservationConfig.IsOption(p.Name)) throw new LiteRejectedException("AMP6030", 400, $"{p.Name} is not a logging or diagnostics option.");
+            if (ObservationConfig.Validate(p.Name, value) is { } problem) throw new LiteRejectedException("AMP6030", 400, problem);
+            values[p.Name] = value;
+        }
+
+        return values;
+    }
 
     private static LiteDiagnostic Map(Diagnostic d, string root) => new(d.Code, d.Severity.ToString().ToLowerInvariant(), d.Line, d.Col, Clean(d.Message, root));
 

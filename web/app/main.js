@@ -91,7 +91,7 @@ function renderTransport() {
   play.disabled = p.disabled;
   play.dataset.action = p.action;
   const bake = $('#btn-bake-dyn');
-  // the command lives in the More menu (the main row keeps Build, Play and Stop): the button stays out of sight and says whether it can be used
+  // the command lives in the More menu on a phone and in the menu of the empty canvas on a desktop (the main row keeps Build, Play and Stop): the button stays out of sight and says whether it can be used
   if (bake) bake.disabled = !(!S.peek && !S.build.running && Object.keys(S.build.status || {}).length && S.doc?.bakeableClock);
   const clientPreview = $('#btn-build-play-preview');
   if (clientPreview) clientPreview.disabled = p.disabled || clientPreviewRunning() || !!S.peek;

@@ -12,11 +12,20 @@ const theme = corpus.defaults.theme;
 const fill = (s) => (s === undefined ? s : s.replaceAll('${T}', theme));
 
 const run = (c, expr) => {
-  const table = helperTableFrom((c.decls ?? []).map((text, i) => ({ text, line: i * 20 })));
+  const features = c.features ? ['Record', ...c.features] : undefined;
+  const table = helperTableFrom((c.decls ?? []).map((text, i) => ({ text, line: i * 20 })), features);
   assert.deepEqual(table.issues, [], c.id + ': the declarations are fine');
   const clock = new Date(c.clock ?? corpus.defaults.clock);
   const sources = { theme: { events: evaluate(theme).value.events, span: 4 * 1_000_000 } };
-  return evaluate(expr, { sources, tempo: corpus.defaults.tempo, helpers: table, clock: () => clock, capabilities: c.denied || c.envAllow ? { allowed: (name) => !(name in (c.denied ?? {})), why: (name) => (c.denied ?? {})[name], allowLists: () => (c.envAllow ? [c.envAllow] : []), nameAllowed: (cap, name) => cap !== 'environment' || !c.envAllow || c.envAllow.some((p) => (p === '*' ? true : p.startsWith('*') ? name.endsWith(p.slice(1)) : p.endsWith('*') ? name.startsWith(p.slice(0, -1)) : p === name)) } : null, environment: c.env ? (name) => c.env[name] : null, limits: { ...limitsFrom({}), ...(c.limits ?? {}) } });
+  const assertions = !!c.assertions;
+  return evaluate(expr, { sources, tempo: corpus.defaults.tempo, helpers: table, clock: () => clock, assertions,
+    capabilities: c.denied || c.envAllow ? { allowed: (name) => !(name in (c.denied ?? {})),
+      why: (name) => (c.denied ?? {})[name],
+      allowLists: () => (c.envAllow ? [c.envAllow] : []),
+      nameAllowed: (cap, name) => cap !== 'environment' || !c.envAllow
+        || c.envAllow.some((p) => (p === '*' ? true : p.startsWith('*') ? name.endsWith(p.slice(1)) : p.endsWith('*') ? name.startsWith(p.slice(0, -1)) : p === name)) } : null,
+    environment: c.env ? (name) => c.env[name] : null,
+    limits: { ...limitsFrom({}), ...(c.limits ?? {}) } });
 };
 
 for (const c of corpus.cases) {
@@ -33,6 +42,7 @@ for (const c of corpus.cases) {
     }
     if (c.count !== undefined) assert.equal(result.notes.split(' ').length, c.count, c.id + ': note count');
     if (c.dynamic !== undefined) assert.equal(result.dynamic, c.dynamic, c.id + ': dynamic');
+    if (c.tainted !== undefined) assert.equal(result.tainted, c.tainted, c.id + ': tainted');
   });
 }
 

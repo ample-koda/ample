@@ -1,0 +1,173 @@
+composition "Sugar Rush" { ample 1  tempo 170  master-seed 170170 }
+
+# SUGAR RUSH: happy hardcore at 170 BPM, 32 bars (about 45 seconds) in F major: I - V - vi - IV, all the way up.
+#
+#   bars  1- 8  warm-up     kick, clap, the offbeat bass and the piano stabs
+#   bars  9-16  rush        + the supersaw chords and the lead
+#   bars 17-20  breakdown   no drums: the chords arpeggiated (the arp operator)
+#   bars 21-24  build       a snare roll that gets faster, every bar twice as dense
+#   bars 25-32  drop        everything, the lead an octave higher
+#
+# The sound of the style: saw waves detuned against each other (a "supersaw"), and the whole mix ducking under every kick
+# (the pump block): that is what makes it bounce.
+#
+# TRY: depth 10 dB in the block pump to 4 dB for a calmer groove, or 14 dB for a hard pump.
+# TRY: detune 30 in the block superSaw to 0 and hear how thin a single saw is.
+
+/**
+ * A snare roll for one bar: the cell played 1, 2, 4 or 8 times (each twice as dense as the one before).
+ * @param hit one snare hit at the start of a bar
+ * @param density 1, 2, 4 or 8 hits in the bar
+ */
+helper roll(Notes hit, Int density) -> Notes {
+  require density == 1 || density == 2 || density == 4 || density == 8, "a roll has 1, 2, 4 or 8 hits a bar"
+  let step = 4beats / density
+  for i in 0..density {
+    emit hit |> shift(step * i)
+  }
+}
+
+# ---- the chords: F, C, Dm, Bb, one bar each ----------------------------------------------------------
+midi-clip chords at 1 for 4 {
+  notes "1:0:4:53:88 1:0:4:57:88 1:0:4:60:88 1:0:4:65:88 2:0:4:52:88 2:0:4:55:88 2:0:4:60:88 2:0:4:64:88 3:0:4:50:88 3:0:4:53:88 3:0:4:57:88 3:0:4:62:88 4:0:4:50:88 4:0:4:53:88 4:0:4:58:88 4:0:4:62:88"
+}
+# the piano stabs: the chord on the beat, just before two, between two and three, and so on (the bounce)
+midi-clip stabs at 1 for 4 {
+  notes "1:0:0.3:65:104 1:0:0.3:69:104 1:0:0.3:72:104 1:0.75:0.3:65:90 1:0.75:0.3:69:90 1:0.75:0.3:72:90 1:1.5:0.3:65:100 1:1.5:0.3:69:100 1:1.5:0.3:72:100 1:2.5:0.3:65:92 1:2.5:0.3:69:92 1:2.5:0.3:72:92 1:3:0.3:65:100 1:3:0.3:69:100 1:3:0.3:72:100 2:0:0.3:64:104 2:0:0.3:67:104 2:0:0.3:72:104 2:0.75:0.3:64:90 2:0.75:0.3:67:90 2:0.75:0.3:72:90 2:1.5:0.3:64:100 2:1.5:0.3:67:100 2:1.5:0.3:72:100 2:2.5:0.3:64:92 2:2.5:0.3:67:92 2:2.5:0.3:72:92 2:3:0.3:64:100 2:3:0.3:67:100 2:3:0.3:72:100 3:0:0.3:62:104 3:0:0.3:65:104 3:0:0.3:69:104 3:0.75:0.3:62:90 3:0.75:0.3:65:90 3:0.75:0.3:69:90 3:1.5:0.3:62:100 3:1.5:0.3:65:100 3:1.5:0.3:69:100 3:2.5:0.3:62:92 3:2.5:0.3:65:92 3:2.5:0.3:69:92 3:3:0.3:62:100 3:3:0.3:65:100 3:3:0.3:69:100 4:0:0.3:62:104 4:0:0.3:65:104 4:0:0.3:70:104 4:0.75:0.3:62:90 4:0.75:0.3:65:90 4:0.75:0.3:70:90 4:1.5:0.3:62:100 4:1.5:0.3:65:100 4:1.5:0.3:70:100 4:2.5:0.3:62:92 4:2.5:0.3:65:92 4:2.5:0.3:70:92 4:3:0.3:62:100 4:3:0.3:65:100 4:3:0.3:70:100"
+}
+# the bass between the kicks (the offbeat)
+midi-clip bass at 1 for 4 {
+  notes "1:0.5:0.4:41:110 1:1.5:0.4:41:110 1:2.5:0.4:41:110 1:3.5:0.4:41:110 2:0.5:0.4:36:110 2:1.5:0.4:36:110 2:2.5:0.4:36:110 2:3.5:0.4:36:110 3:0.5:0.4:38:110 3:1.5:0.4:38:110 3:2.5:0.4:38:110 3:3.5:0.4:38:110 4:0.5:0.4:34:110 4:1.5:0.4:34:110 4:2.5:0.4:34:110 4:3.5:0.4:34:110"
+}
+# the lead: four bars
+midi-clip lead at 1 for 4 {
+  notes "1:0:0.5:77:110 1:0.5:0.5:76:96 1:1:0.5:77:104 1:1.5:0.5:81:100 1:2:1:84:112 1:3:0.5:81:98 1:3.5:0.5:79:96 2:0:1:79:108 2:1:0.5:76:96 2:1.5:0.5:72:96 2:2:1.5:76:104 2:3.5:0.5:79:96 3:0:0.5:77:110 3:0.5:0.5:76:96 3:1:0.5:74:100 3:1.5:0.5:77:100 3:2:1:81:112 3:3:1:77:100 4:0:1:74:108 4:1:0.5:77:98 4:1.5:0.5:79:100 4:2:2:77:110"
+}
+# one bar of drums: kick on every beat, clap on two and four, the open hat between
+midi-clip beat at 1 for 1 {
+  notes "1:0:0.25:36:124 1:1:0.25:36:124 1:2:0.25:36:124 1:3:0.25:36:124 1:1:0.25:39:104 1:3:0.25:39:104 1:0.5:0.25:46:80 1:1.5:0.25:46:80 1:2.5:0.25:46:80 1:3.5:0.25:46:80"
+}
+midi-clip snareHit at 1 for 1 {
+  notes "1:0:0.2:38:100"
+}
+
+# ---- the arrangement ------------------------------------------------------------------------------
+midi-clip drumPart at 1 for 32 {
+  notes beat.notes |> repeat(16) |> merge(beat.notes |> repeat(8) |> shift(24bars))
+}
+midi-clip buildPart at 21 for 4 {
+  notes roll(snareHit.notes, 1) |> concat(roll(snareHit.notes, 2)) |> concat(roll(snareHit.notes, 4)) |> concat(roll(snareHit.notes, 8))
+}
+midi-clip bassPart at 1 for 32 {
+  notes bass.notes |> repeat(4) |> merge(bass.notes |> repeat(2) |> shift(24bars))
+}
+midi-clip stabPart at 1 for 32 {
+  notes stabs.notes |> repeat(4) |> merge(stabs.notes |> repeat(2) |> shift(24bars))
+}
+midi-clip sawPart at 9 for 24 {
+  notes chords.notes |> repeat(2) |> merge(chords.notes |> repeat(2) |> shift(16bars))
+}
+midi-clip arpPart at 17 for 8 {
+  notes chords.notes |> transpose(12) |> arp(0.25beat) |> repeat(2)
+}
+midi-clip leadPart at 9 for 24 {
+  notes lead.notes |> repeat(2) |> merge(lead.notes |> transpose(12) |> repeat(2) |> shift(16bars))
+}
+
+# ---- the instruments ------------------------------------------------------------------------------
+synth superSaw at 9 for 24 {
+  wave saw
+  detune 30
+  attack 20 ms
+  decay 300 ms
+  sustain 75
+  release 300 ms
+  cutoff 6000 Hz
+  gain -20 dB
+  from sawPart.notes -> notes
+}
+synth arpSaw at 17 for 8 {
+  wave saw
+  detune 18
+  attack 2 ms
+  decay 120 ms
+  sustain 30
+  release 80 ms
+  cutoff 5000 Hz
+  gain -20 dB
+  from arpPart.notes -> notes
+}
+synth leadSaw at 9 for 24 {
+  wave saw
+  detune 12
+  attack 5 ms
+  decay 160 ms
+  sustain 70
+  release 120 ms
+  cutoff 8000 Hz
+  gain -16 dB
+  from leadPart.notes -> notes
+}
+synth bassSaw at 1 for 32 {
+  wave saw
+  attack 2 ms
+  decay 120 ms
+  sustain 50
+  release 60 ms
+  cutoff 1400 Hz
+  gain -12 dB
+  from bassPart.notes -> notes
+}
+gm piano at 1 for 32 {
+  file pack:musescore-general
+  program 0
+  gain -12 dB
+  from stabPart.notes -> notes
+}
+gm drums at 1 for 32 {
+  file pack:musescore-general
+  program 0
+  channel 9
+  gain -6 dB
+  from drumPart.notes -> notes
+}
+gm snares at 21 for 4 {
+  file pack:musescore-general
+  program 0
+  channel 9
+  gain -10 dB
+  from buildPart.notes -> notes
+}
+
+# ---- the bounce: everything but the drums ducks under every kick --------------------------------
+mixer music {
+  inputs 5
+  gains "0 0 0 0 0"
+  from superSaw.audio -> audio1
+  from arpSaw.audio -> audio2
+  from leadSaw.audio -> audio3
+  from bassSaw.audio -> audio4
+  from piano.audio -> audio5
+}
+duck pump {
+  depth 10 dB
+  release 110 ms
+  pattern x...x...x...x...
+  from music.audio -> audio
+}
+reverb air {
+  size 45%
+  decay 40%
+  mix 14%
+  from pump.audio -> audio
+}
+mixer all {
+  inputs 3
+  gains "0 0 0"
+  from air.audio -> audio1
+  from drums.audio -> audio2
+  from snares.audio -> audio3
+}
+master out {
+  from all.audio -> audio
+}

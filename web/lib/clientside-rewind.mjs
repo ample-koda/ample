@@ -108,10 +108,11 @@ export function rewindChannel(src, fx, events, params, rate, signal) {
 }
 
 /** Rewinds every channel of a decoded audio: { sampleRate, channels }. `fx` is a decoded scratch sample or null. Returns the audio and the scratches alone as a second audio. */
-export function rewindAudio(audio, params, samplesPerBar, fx, signal) {
+export function rewindAudio(audio, params, samplesPerBar, fx, signal, windowOffset = 0) {
   params = Object.fromEntries(Object.entries(params || {}).map(([k, v]) => [k, typeof v === 'string' ? v.trim().replace(/^"|"$/g, '').trim() : v]));   // the song text may keep the quotes
   if (params.enabled === 'off') return { audio, region: { sampleRate: audio.sampleRate, channels: audio.channels.map((c) => new Float32Array(c.length)) } };
-  const events = parseRewindEvents(params.events, audio.sampleRate, samplesPerBar);
+  // a window of a long song starts windowOffset samples into the block, and the events are read from the block start: they move back, those before the window are not heard
+  const events = parseRewindEvents(params.events, audio.sampleRate, samplesPerBar).map((e) => ({ ...e, at: e.at - windowOffset })).filter((e) => e.at >= 0);
   if (!events.length) return { audio, region: { sampleRate: audio.sampleRate, channels: audio.channels.map((c) => new Float32Array(c.length)) } };
   if (params.sound === 'fx' && !fx) throw new Error('A rewind block with sound fx needs a sample on its fx input.');
   const done = audio.channels.map((channel, i) => rewindChannel(channel, fx ? fx.channels[Math.min(i, fx.channels.length - 1)] : null, events, params, audio.sampleRate, signal));

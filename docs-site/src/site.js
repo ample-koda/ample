@@ -3,6 +3,8 @@
 (function () {
   const AMPLE_VERSION = 'ample 1.0'; // the spec's own value (spec version 1.0, status provisional; every block since 1.0)
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  /* the line above the code of an example: what it needs (HTML; free files are links, see example-assets/ATTRIBUTION.md) */
+  const exNote = (b) => { const x = b.exa || {}; if (x.files && x.files.length) return 'Needs these free files (CC0). Download each one and save it in your project at the path shown: ' + x.files.map((f) => '<a href="example-assets/' + esc(f.from) + '" download="' + esc(f.to.split('/').pop()) + '">' + esc(f.to) + '</a>').join(', ') + (x.note ? '. ' + esc(x.note) : ''); if (x.note) return esc(x.note); return b.needs.length ? 'Needs: ' + esc(b.needs.join(' ')) : 'No extra files needed'; };
   const toast = (t) => { let e = document.getElementById('toast'); if (!e) { e = document.createElement('div'); e.id = 'toast'; e.setAttribute('role', 'status'); document.body.appendChild(e); } e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), 2600); };
 
   /* ---------- Learn: two tracks. "music" = music itself (needs no AMPLE), "ample" = making it in AMPLE ---------- */
@@ -24,10 +26,11 @@
     const same = BLOCKS.filter((x) => x.category === b.category && x.id !== b.id).slice(0, 4);
     const ps = b.params.filter((p) => p.n !== 'enabled');
     return `<div class="crumbs">Blocks › ${b.category}</div><h1><code style="font-size:inherit">${b.id}</code></h1>
-<div class="sig"><span class="badge ${b.cls === 'stable' ? 'ok' : ''}">${b.cls} ${b.version}</span><span class="badge">since ${AMPLE_VERSION}</span><span class="badge">${b.status}</span></div>
+<div class="sig"><span class="badge ${b.cls === 'stable' ? 'ok' : ''}">${b.cls} ${b.version}</span><span class="badge">since ${AMPLE_VERSION}</span><span class="badge">${b.status}</span>${b.shots ? '<span class="badge ok">has an editor</span>' : ''}</div>
 <p class="lead">${esc(b.description)}</p>
 ${PV[b.id] ? pv(b.title + ' on a sound', PV[b.id], b.id, {}, 'Rough browser preview of ' + b.title + '. The real block sounds richer.') : ''}
-${b.ex ? `<h2 id="x">Example song</h2><p>A complete song that uses this block. Copy it into AMPLE as it is: it carries its own seed, so it sounds the same every time.</p><div class="pv-src" data-code="${encodeURIComponent(b.ex)}" data-title="${esc(b.n)} example" data-note="${b.needs.length ? 'Needs: ' + esc(b.needs.join(' ')) : 'No extra files needed'}"></div>` : b.needs.length ? `<div class="note"><b>Needs</b> ${esc(b.needs.join(' '))}</div>` : ''}
+${b.shots ? `<h2 id="ed">The editor</h2>${b.shots.map((s) => `<figure class="shot"><img src="shots/${s.f}.png" alt="${esc(s.alt)}" loading="lazy"><figcaption>${esc(s.cap)}</figcaption></figure>`).join('')}` : ''}
+${b.ex ? `<h2 id="x">Example song</h2><p>A complete song that uses this block. Copy it into AMPLE as it is: it carries its own seed, so it sounds the same every time.</p><div class="pv-src" data-code="${encodeURIComponent(b.ex)}" data-title="${esc(b.n)} example"${b.exAudio ? ` data-audio="${b.exAudio.id}" data-bpm="${b.exAudio.bpm}" data-secs="${b.exAudio.seconds}"${b.exAudio.cut ? ` data-cut="${b.exAudio.cut}"` : ''}` : ''} data-note="${esc(exNote(b))}"${b.exa && b.exa.noRemix ? ' data-noremix="1"' : ''}></div>` : b.needs.length ? `<div class="note"><b>Needs</b> ${esc(b.needs.join(' '))}</div>` : ''}
 <h2 id="i">Inputs and outputs</h2><div class="portgrid">${ports(b.inputs, 'Inputs')}${ports(b.outputs, 'Outputs')}</div>
 ${ps.length ? `<h2 id="p">Parameters</h2><table class="paramtable"><tr><th>Name</th><th>Default</th><th>Range</th><th>What it does</th></tr>${ps.map((p) => `<tr><td><code>${p.n}</code>${p.a ? ' <span class="tag new">auto</span>' : ''}</td><td>${esc(p.d)}</td><td>${range(p)}</td><td>${esc(p.doc)}</td></tr>`).join('')}</table>` : ''}
 ${same.length ? `<div class="note"><b>See also</b> ${same.map((x) => `<a href="#/blocks/${x.id}"><code>${x.id}</code></a>`).join(' · ')}</div>` : ''}

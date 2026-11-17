@@ -9,7 +9,7 @@ public sealed class LaneCompletionTests
 
     private static (string Song, int Line, int Col) Mixer(string last)
     {
-        string song = Head + "synth a at 1 for 2 {\n  wave sine\n}\n\nsynth b at 1 for 2 {\n  wave saw\n}\n\nmixer m {\n  from a.audio -> in1\n" + last + "\n}\n";
+        string song = Head + "synth a at 1 for 2 {\n  wave sine\n}\n\nsynth b at 1 for 2 {\n  wave saw\n}\n\nmixer m {\n  from a.audio -> audio1\n" + last + "\n}\n";
         int line = song.Split('\n').Length - 2;   // the last line before the closing brace
         return (song, line, last.TrimEnd('\n').Length + 1);
     }
@@ -19,8 +19,9 @@ public sealed class LaneCompletionTests
     {
         (string song, int line, int col) = Mixer("  from b.audio -> ");
         IReadOnlyList<string> names = [.. At(song, line, col).Where(c => c.Kind == "input").Select(c => c.Label)];
-        Assert.Contains("in2", names);
-        Assert.DoesNotContain("in1", names);   // it has a source already
+        Assert.Contains("audio2", names);
+        Assert.DoesNotContain("audio1", names);   // it has a source already
+        Assert.DoesNotContain(names, n => n.StartsWith("in", StringComparison.Ordinal));   // the internal names (in1, in2) are not what a song writes (owner report, 2026-11-17)
     }
 
     [Fact]
@@ -28,8 +29,9 @@ public sealed class LaneCompletionTests
     {
         (string song, int line, int col) = Mixer("  from b.audio -");
         IReadOnlyList<CompletionItem> lanes = [.. At(song, line, col).Where(c => c.Kind == "lane")];
-        Assert.Contains(lanes, c => c.Label == "-> in2" && c.Insert == "-> in2");
-        Assert.DoesNotContain(lanes, c => c.Label == "-> in1");
+        Assert.Contains(lanes, c => c.Label == "-> audio2" && c.Insert == "-> audio2");
+        Assert.DoesNotContain(lanes, c => c.Label == "-> audio1");
+        Assert.DoesNotContain(lanes, c => c.Label.StartsWith("-> in", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -37,7 +39,23 @@ public sealed class LaneCompletionTests
     {
         (string song, int line, int col) = Mixer("  -");
         IReadOnlyList<CompletionItem> lanes = [.. At(song, line, col).Where(c => c.Kind == "lane")];
-        Assert.Contains(lanes, c => c.Insert == "from b.audio -> in2");
-        Assert.DoesNotContain(lanes, c => c.Insert!.EndsWith("-> in1", StringComparison.Ordinal));   // taken
+        Assert.Contains(lanes, c => c.Insert == "from b.audio -> audio2");
+        Assert.DoesNotContain(lanes, c => c.Insert!.EndsWith("-> audio1", StringComparison.Ordinal));   // taken
+        Assert.DoesNotContain(lanes, c => c.Insert!.Contains("-> in", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_outputs_after_a_dot_are_the_names_a_song_writes_and_the_inserted_connection_checks_clean()
+    {
+        (string song, int line, int col) = Mixer("  from m.");
+        IReadOnlyList<string> outputs = [.. At(song, line, col).Where(c => c.Kind == "output").Select(c => c.Label)];
+        Assert.Contains("audio", outputs);   // the mixer's output is internally "mix"
+        Assert.DoesNotContain("mix", outputs);
+
+        // what the completion inserts is accepted by the checker
+        (string dashed, int dashLine, int dashCol) = Mixer("  -");
+        string insert = At(dashed, dashLine, dashCol).First(c => c.Kind == "lane" && c.Insert!.StartsWith("from b.", StringComparison.Ordinal)).Insert!;
+        string written = dashed.Replace("  -\n}", "  " + insert + "\n}", StringComparison.Ordinal);
+        Assert.DoesNotContain(Parser.Parse(written, Corpus.Spec).Diagnostics, d => d.Severity == Severity.Error);
     }
 }

@@ -41,10 +41,10 @@ function autotunePanel(context) {
   const loopButton = el('button', { type: 'button', textContent: '↻ Loop', title: 'Repeat the sound', 'aria-pressed': String(live.loop), className: live.loop ? 'on' : '' });
   const abButton = el('button', { type: 'button', textContent: 'A/B', title: 'Hear the voice as it was sung, without the autotune', 'aria-pressed': String(live.original), className: live.original ? 'on' : '' });
   const fitButton = el('button', { type: 'button', className: 'autotune-fit', textContent: 'Fit', title: 'Show all of the sound and the notes that are sung' });
-  const range = el('input', { type: 'number', className: 'autotune-range', min: 2, max: 30, step: 1, title: 'How many semitones above and below the middle are shown (Ctrl+wheel zooms too, Alt+wheel moves)', 'aria-label': 'Range in semitones above and below the middle' });
+  const range = el('input', { type: 'number', className: 'autotune-range', placeholder: 'auto', min: 2, max: 30, step: 1, title: 'How many semitones above and below the middle are shown (Ctrl+wheel zooms too, Alt+wheel moves)', 'aria-label': 'Range in semitones above and below the middle' });
   const time = el('output', { className: 'autotune-time', textContent: '0:00.0' });
   const keyOut = el('output', { className: 'autotune-key' });
-  let audioDirty = true, audioTimer = 0, height = 320;
+  let audioDirty = true, audioTimer = 0, height = 320, noVoice = false;   // noVoice: nothing to draw yet, so the graph stays a small strip
   let duration = 0, rate = 0, allChannels = [], tunedChannels = [], track = null, correction = null, runs = [], fixes = [], scrubTo = null, frame = 0, scale = [], width = 640;
   let view = views.get(context.block) || null;
   const tempo = Number(context.tempo) || Number(S.doc?.project?.tempo) || 120;
@@ -140,7 +140,7 @@ function autotunePanel(context) {
     // the height: what the window has left under the rack and the bars (at least 220 px), so a taller window gives a taller graph
     const body = root.closest('.studio-dialog-body'), resizable = root.closest('.studio-resizable');
     const others = [...root.children].filter((child) => child !== canvas).reduce((sum, child) => sum + child.offsetHeight, 0);
-    height = resizable && body ? Math.max(220, Math.floor(body.clientHeight - others - 48)) : 320;
+    height = noVoice ? 150 : resizable && body ? Math.max(220, Math.floor(body.clientHeight - others - 48)) : 320;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
@@ -302,7 +302,7 @@ function autotunePanel(context) {
   };
 
   Promise.resolve(context.inputBuffer?.()).then(async (buffer) => {
-    if (!buffer) { readout.textContent = 'Connect a voice to the input and build it to see its pitch here.'; draw(); return; }
+    if (!buffer) { noVoice = true; readout.hidden = true; readout.textContent = 'Connect a voice to the input and build it to see its pitch here.'; resize(); return; }
     await new Promise((resolve) => setTimeout(resolve, 30));   // the window and its "reading" word are drawn before the pitch is worked out
     duration = buffer.duration; rate = buffer.sampleRate;
     allChannels = Array.from({ length: Math.min(2, buffer.numberOfChannels) }, (_, i) => buffer.getChannelData(i));
@@ -446,7 +446,7 @@ function autotunePanel(context) {
     dial('vibrato', 'Vibrato', vibratoNow, 0, 100, '%', (v) => (v >= 100 ? 'keep' : v <= 0 ? 'flatten' : `${v}%`), 'How much of the vibrato of the voice stays: 100% keeps it, 0% holds every note straight'),
   ]);
 
-  const bar = el('div', { className: 'rewind-bar autotune-bar' }, [play, auditionLabel('live', 'the tuned sound'), loopButton, abButton, time, el('span', { className: 'autotune-gap' }), fitButton, el('label', { className: 'autotune-range-label' }, ['± ', range, ' st']), keyOut]);
+  const bar = el('div', { className: 'rewind-bar autotune-bar' }, [play, auditionLabel('live', 'the tuned sound'), loopButton, abButton, time, el('span', { className: 'autotune-gap' }), fitButton, el('label', { className: 'autotune-range-label', title: 'How many semitones above and below the middle are shown' }, ['Range ±', range, 'semitones']), keyOut]);
   const legend = el('div', { className: 'autotune-legend', 'aria-hidden': 'true' }, [el('span', { className: 'sung', textContent: 'as sung' }), el('span', { className: 'tuned', textContent: 'tuned' }), el('span', { className: 'note', textContent: 'note' }), el('span', { className: 'fix', textContent: 'fix' })]);
   root.append(rack, bar, canvas, el('div', { className: 'autotune-under' }, [readout, legend]), rows);
   readout.textContent = 'Reading the pitch of the voice…';

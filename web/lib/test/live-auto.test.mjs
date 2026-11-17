@@ -6,10 +6,10 @@ const bar = 60 / 84 * 4;
 test('auto with seconds joins the points by straight lines and holds the ends', () => {
   const t = 'auto(0s:0, 238s:0, 241s:-18)';
   assert.equal(gainAtSeconds(t, 0, bar), 0); assert.equal(gainAtSeconds(t, 100, bar), 0);
-  assert.ok(Math.abs(gainAtSeconds(t, 239.5, bar) + 9) < 1e-9); assert.equal(gainAtSeconds(t, 250, bar), -18);
+  assert.ok(Math.abs(gainAtSeconds(t, 239.5, bar) - 20 * Math.log10((1 + 10 ** (-18 / 20)) / 2)) < 1e-9, "straight line in the gain like Automation.CurveAt: about -5 dB halfway, not -9"); assert.equal(gainAtSeconds(t, 250, bar), -18);
 });
 test('auto with bars: bar 1 is the start', () => {
-  assert.ok(Math.abs(gainAtSeconds('auto(1:-10, 3:0)', bar, bar) + 5) < 1e-9);
+  assert.ok(Math.abs(gainAtSeconds('auto(1:-10, 3:0)', bar, bar) - 20 * Math.log10((10 ** (-10 / 20) + 1) / 2)) < 1e-9);   // halfway in the gain (Automation.CurveAt), -3.6 dB
 });
 test('fadein and fadeout follow the server shapes', () => {
   assert.ok(Math.abs(gainAtSeconds('fadein(5.714286s, 0.8s, lin)', 6.114286, bar) - 20 * Math.log10(.5)) < 1e-6);

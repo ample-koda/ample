@@ -4,6 +4,7 @@ using Ample.Core.Abstractions;
 using Ample.Engine.Library;
 using Ample.Language;
 using Ample.Storage.Library;
+using Ample.Storage.Projects;
 
 namespace Ample.Engine.Modules;
 
@@ -28,8 +29,28 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     public static ModuleService WithUserLibrary(string projectRoot, IClock clock)
     {
         ModuleService? self = null;
-        self = new ModuleService(projectRoot, () => self!.opened ??= Ample.Storage.Library.Library.Open(Ample.Storage.Library.Library.DefaultHome(), clock));
+        // the project layers (capabilities and observation options) come from the project file, as in the server
+        ProjectSettings? project = ProjectSettingsAt(projectRoot);
+        self = new ModuleService(projectRoot, () => self!.opened ??= Ample.Storage.Library.Library.Open(Ample.Storage.Library.Library.DefaultHome(), clock))
+        {
+            ProjectCapabilities = project?.Capabilities,
+            ObservationProject = project?.Observation ?? new Dictionary<string, string>(StringComparer.Ordinal),
+        };
         return self;
+    }
+
+    /// <summary>The settings of the project file in a folder, or null when there is none or it cannot be read (then no project layer applies, as before).</summary>
+    private static ProjectSettings? ProjectSettingsAt(string projectRoot)
+    {
+        string file = Path.Combine(projectRoot, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile);
+        try
+        {
+            return File.Exists(file) ? ProjectFile.Parse(File.ReadAllText(file)).Settings : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or AmpleException)
+        {
+            return null;
+        }
     }
 
     /// <inheritdoc />
@@ -138,7 +159,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     public ExpandedSong Expand(string songText, SpecData spec)
     {
         ComponentRegistryResult registry = Components(songText, spec);
-        ExpandedSong plain = ModuleExpander.Expand(songText, spec, Find, registry.Sources);
+        ExpandedSong plain = ModuleExpander.Expand(songText, spec, Find, registry.Sources, SessionLayer(), ProjectLayer());
         ExpandedSong expanded = LatencyCompensation.Apply(plain, spec);
         if (!string.Equals(expanded.Text, plain.Text, StringComparison.Ordinal)) expanded = expanded with { Text = AmpleMigration.RenamePorts(expanded.Text, spec) };   // the compensation writes the internal port name too
         if (registry.Issues.Count == 0) return expanded;
@@ -193,7 +214,10 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
             return Parser.Parse(text, spec, BuildOptions());
         }
 
-        AmpleDocument x = Parser.Parse(expanded.Text, spec, BuildOptions());
+        ParseOptions buildOptions = BuildOptions();
+        buildOptions.InstanceDirectives = expanded.Directives;
+        buildOptions.ObservationHelperSites = expanded.ObservationHelperSites;
+        AmpleDocument x = Parser.Parse(expanded.Text, spec, buildOptions);
         List<Diagnostic> all = [];
         foreach (Diagnostic d in x.Diagnostics)
         {
@@ -238,6 +262,7 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
             Layout = x.Layout,
             Settings = x.Settings,
             SettingsLine = x.SettingsLine,
+            Observations = [.. x.Observations, .. expanded.Observations.Select((e, i) => e with { Seq = x.Observations.Count + i + 1 })],
             Diagnostics = [.. all.Select((d, i) => (d, i)).OrderBy(p => p.d.Line).ThenBy(p => p.d.Col).ThenBy(p => p.i).Select(p => p.d)],
         };
     }
@@ -250,12 +275,30 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
     /// <returns>The text of the new lock file, or null when there is nothing to add.</returns>
     public string? LockWithNewComponents(ExpandedSong expanded)
     {
+        IReadOnlyList<LockEntry> added = MissingComponentPins(expanded);
+        if (added.Count == 0) return null;
+        return Ample.Engine.Library.LockFile.Serialize([.. ReadLock(), .. added]);
+    }
+
+    /// <summary>
+    /// The component entries a song would add to ample.lock (id@version with the semantic hash), without writing anything: what the next normal build pins.
+    /// A Live Preview build reports them instead of pinning (plan/live-preview 6.3). A damaged lock file throws AMP5296, as for the pin itself.
+    /// </summary>
+    /// <param name="expanded">The expanded song.</param>
+    /// <returns>The missing entries; empty when every component is pinned or the song uses none.</returns>
+    public IReadOnlyList<LockEntry> MissingComponentPins(ExpandedSong expanded)
+    {
         ArgumentNullException.ThrowIfNull(expanded);
-        if (expanded.Components is not { Count: > 0 } used) return null;
+        if (expanded.Components is not { Count: > 0 } used) return [];
+        List<LockEntry> entries = ReadLock();
+        IEnumerable<ModuleUsage> usages = used.Select(c => new ModuleUsage(ExpandedSong.ComponentPrefix + c.Id, c.Version, c.Semantic, c.Origin, 0));
+        return [.. Pins(usages).Where(p => !entries.Any(e => e.Section == "component" && e.Id == p.Id))];
+    }
+
+    private List<LockEntry> ReadLock()
+    {
         string lockFile = System.IO.Path.Combine(projectRoot, Ample.Engine.Library.LockFile.FileName);
-        List<LockEntry> entries = File.Exists(lockFile) ? [.. Ample.Engine.Library.LockFile.Parse(File.ReadAllText(lockFile))] : [];
-        List<LockEntry> added = [.. Pins(used.Select(c => new ModuleUsage(ExpandedSong.ComponentPrefix + c.Id, c.Version, c.Semantic, c.Origin, 0))).Where(p => !entries.Any(e => e.Section == "component" && e.Id == p.Id))];
-        return added.Count == 0 ? null : Ample.Engine.Library.LockFile.Serialize([.. entries, .. added]);
+        return File.Exists(lockFile) ? [.. Ample.Engine.Library.LockFile.Parse(File.ReadAllText(lockFile))] : [];
     }
 
     /// <summary>What the song should know about the components it used (requirement R-A): a component whose code changed since it was pinned (AMP2203), a seal that no longer matches (AMP2210), an unsealed one (AMP2211) and a deprecated version (AMP2220).</summary>
@@ -324,8 +367,35 @@ public sealed class ModuleService(string projectRoot, Func<Ample.Storage.Library
         }
     }
 
+    /// <summary>
+    /// Gets or sets the session layer of the observation options (<c>logging.level</c>, <c>diagnostics.assertions</c> ...): a temporary override of the editor,
+    /// the command line or an API call. It wins over the song and the instances, never changes the music, and is not written anywhere.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? ObservationSession { get; set; }
+
+    /// <summary>The session layer as the parser takes it (for a host that parses without expanding), or null when nothing is set.</summary>
+    public ConfigLayerInput? SessionLayerInput => SessionLayer();
+
+    /// <summary>Gets or sets the project defaults of the observation options (settings.observation of the project file): the layer under the song.</summary>
+    public IReadOnlyDictionary<string, string> ObservationProject { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>Gets or sets the capabilities of the project (settings.capabilities of the project file), or null when this service has no project layer. They are passed to each parse of this service and never shared.</summary>
+    public IReadOnlyDictionary<string, string>? ProjectCapabilities { get; init; }
+
+    /// <summary>The project layer as the parser takes it, or null when the project sets nothing.</summary>
+    public ConfigLayerInput? ProjectLayerInput => ProjectLayer();
+
+    private ConfigLayerInput? ProjectLayer() => ObservationProject is not { Count: > 0 } project ? null
+        : new ConfigLayerInput(new ConfigSource(ConfigLayer.Project, ".ample/project.json"), project.ToDictionary(p => p.Key, p => (p.Value, 0), StringComparer.Ordinal));
+
+    private ConfigLayerInput? SessionLayer() => ObservationSession is not { Count: > 0 } session ? null
+        : new ConfigLayerInput(new ConfigSource(ConfigLayer.Session, "session"), session.ToDictionary(p => p.Key, p => (p.Value, 0), StringComparer.Ordinal));
+
     private ParseOptions BuildOptions() => new()
     {
+        ObservationOverride = SessionLayer(),
+        ObservationDefaults = ProjectLayer() is { } projectLayer ? [projectLayer] : [],
+        ProjectCapabilities = ProjectCapabilities,
         Preflight = (blocks, lines) => Ample.Audio.Engine.DrumPreflight.Check(projectRoot, blocks, lines),
         ApplyNoteFlow = true,
         NoteLimit = NotePipeline.DefaultBuildLimit,

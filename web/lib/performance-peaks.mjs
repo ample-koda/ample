@@ -1,4 +1,4 @@
-// The shape of a clip for its pad (phase 3): the loudest value of every column of a sound, and the loop position as a fraction. Pure, so node --test checks it.
+// The shape of a clip for its pad (plan/performance-live.md, phase 3): the loudest value of every column of a sound, and the loop position as a fraction. Pure, so node --test checks it.
 
 /** `columns` peaks, 0..1: the largest absolute value of every channel in each column of the sound. */
 export function peaksOf(channels, columns) {

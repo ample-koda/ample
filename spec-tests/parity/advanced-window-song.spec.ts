@@ -32,6 +32,9 @@ freshServer({
 
 test('the Advanced window closes when another song is opened, and the other song opens its own', async ({ page }) => {
   await openApp(page, { reset: false });
+  // with no last song the app opens the first of the list, and second.amplet sorts before song.amplet: start from the first song on purpose
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('ample:open', { detail: 'song.amplet' })));
+  await expect.poll(async () => page.evaluate(() => (window as any).AMPLE_STATE.path)).toBe('song.amplet');
   await node(page, 'master').locator('.studio-advanced-node').click();
   await expect(page.locator('.studio-dialog')).toHaveCount(1);
 

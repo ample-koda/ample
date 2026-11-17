@@ -43,7 +43,10 @@ test('@audio the key input drives the reduction of the live compressor', async (
       const clicks = Float32Array.from({ length: frames }, (_, i) => ((i % (rate / 2)) < rate * .02 ? .9 * Math.sin(2 * Math.PI * 1000 * i / rate) : 0));
       for (let c = 0; c < 2; c++) { program.copyToChannel(tone, c); key.copyToChannel(clicks, c); }
       const source = context.createBufferSource(), keySource = context.createBufferSource(), out = context.createGain(); source.buffer = program; keySource.buffer = key; out.connect(context.destination);
-      const graph = liveEffectGraph(context, source, out, 'compressor', { threshold: '-18 dB', ratio: '20', attack: '1 ms', release: '150 ms', makeup: '0 dB', keyFilter: '0 Hz', enabled: 'on' }, 120, null);
+      // the envelope steps in whole 16-bit units as on the server and stops about release-samples / 32768 above zero: at 150 ms that is above
+      // the threshold, so the compression would be held between the clicks; at 60 ms (about -21 dBFS) the program comes back
+      const params = { threshold: '-18 dB', ratio: '20', attack: '1 ms', release: '60 ms', makeup: '0 dB', keyFilter: '0 Hz', enabled: 'on' };
+      const graph = liveEffectGraph(context, source, out, 'compressor', params, 120, null);
       if (useKey) { keySource.connect(graph.keyInput); graph.setKey(true); }
       // the message to the worklet needs a moment of real time to arrive before the render starts
       context.suspend(0).then(async () => { await new Promise((resolve) => setTimeout(resolve, 100)); context.resume(); });

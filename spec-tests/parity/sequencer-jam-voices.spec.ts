@@ -28,7 +28,7 @@ test('the head of the pattern opens the Jam on the first voice with notes', asyn
   await page.locator('#sq-jam-all').click();
   const panel = page.locator('dialog.mls-panel');
   await expect(panel).toBeVisible();
-  await expect(panel).toHaveAttribute('data-block', /sq-lead/);
+  await expect(panel).toHaveAttribute('data-block', 'sq-sq·lead·verse');   // a Jam per block, voice and pattern
   await expect(panel).toHaveAttribute('data-ghosts', '1');
 });
 

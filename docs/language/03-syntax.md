@@ -75,7 +75,49 @@ module-decl = "module" , module-ref , "version" , version , eol ;
 param-decl  = "param" , identifier , value-text , eol ;
 input-decl  = "input" , identifier , eol ;
 output-decl = "output" , identifier , name , "." , name , eol ;
+
+(* A conditional in the code of a helper and in the process of an audio component. The condition is written with the
+   parentheses around the whole of it or without: "if (a > 5) {" and "if a > 5 {" are the same conditional, and so are
+   "} else if (b) {" and "} else if b {". The parentheses of the whole condition are told from the ones inside it by matching
+   them outside strings (so "if (a) && (b) {" is one condition without outer parentheses). The formatter writes the
+   parenthesized form; the empty condition "()" and a missing condition are errors. *)
+conditional   = if-head , body , { else-if-head , body } , [ else-head , body ] , "}" ;
+if-head       = "if" , condition , "{" ;
+else-if-head  = "}" , "else" , "if" , condition , "{" ;
+else-head     = "}" , "else" , "{" ;
+condition     = "(" , expression , ")" | expression ;
+
+(* A record literal: an immutable value with named fields, in the order written; a field is read with a dot (r.steps, r.inner.a). The type is Record. A record is never a recipe input: an operator cannot take one. *)
+record-literal = "{" , [ record-field , { "," , record-field } , [ "," ] ] , "}" ;
+record-field   = ( identifier | string ) , ":" , expression ;
+
+(* Observation statements: they look at a value and never change the music. The call form and the keyword form are the same statement. *)
+observe-statement = ( "log" | "debug" | "trace" | "warn" ) , ( "(" , observe-args , ")" | observe-args ) ;
+observe-args      = expression , { "," , observe-named } ;
+observe-named     = ( "code" | "hint" | "context" ) , "=" , expression ;
+
+(* fail and require decide the outcome (they are not observations): fail stops the evaluation, require stops it when its condition is false. Named argument: hint only. *)
+fail-statement    = "fail" , ( "(" , expression , [ "," , "hint" , "=" , expression ] , ")" | expression , [ "," , "hint" , "=" , expression ] ) ;
+require-statement = "require" , ( "(" , require-args , ")" | require-args ) ;
+require-args      = expression , [ "," , expression ] , [ "," , "hint" , "=" , expression ] ;
+
+(* throw raises an error: a message, an Error(...) or an error that was caught. try handles it; a try has a catch or a finally. A finally block cannot return, emit or throw. *)
+throw-statement = "throw" , ( "(" , expression , ")" | expression ) ;
+try-statement   = "try" , block , { catch-clause } , [ "finally" , block ] ;
+catch-clause    = "catch" , "(" , [ type-name ] , identifier , ")" , block ;
+
+(* An error declaration: a kind of error with typed fields; one parent (Error by default); a field may be marked dynamic. It is made with the message first and the fields as named arguments. *)
+error-declaration = "error" , identifier , [ "extends" , identifier ] , "{" , [ error-field , { [ "," ] , error-field } ] , "}" ;
+error-field       = [ "dynamic" ] , type-name , identifier ;
+
+(* assert is an observation: it never changes the music. With assertions off nothing of it is evaluated. *)
+assert-statement = "assert" , ( "(" , assert-args , ")" | assert-args ) ;
+assert-args      = expression , [ "," , expression ] ;
 ```
+
+## Text in expressions
+
+`+` joins a text with a text or a number (`"Bar " + 4`), `String(value)` turns a single value into text and `sprintf("Bar %03d", 4)` formats one; they are ordinary expressions and calls, so the grammar has no rule of its own for them. The rules are in doc 14, "Text: joining with +, String(value) and sprintf".
 
 ## Statements
 | Statement | Shape | Notes |
@@ -162,6 +204,17 @@ A **control** is a number over time that comes out of a block (`follow`, `curve`
 - **Connection.** `from traffic.level -> cutoff` connects a control to the parameter named like the input. A parameter has one source: an expression and a connection together are `AMP2254`.
 - **Build.** The block that reads a control waits for the block that makes it (cycles are `AMP2010`). The control is a take of its own (`CTL1`: 1000 integer values per second from the first bar of its source); before the renderer runs, a parameter that reads a control is turned into the points of an automation curve, so every renderer follows it like `auto(...)`.
 - **Components.** A component port may be `Control` or `Control<unit>`, `follow` and `map` are stages of an audio pipeline (`emit audio |> follow(band="low") |> map(unit="Hz", out_high=4000) -> traffic`), `curve` starts a control from nothing (`emit curve(value="auto(1:0, 4:1000)") -> sweep`) and `fire` turns a control into notes that an instrument plays (`emit audio |> follow(band="low") |> fire(note=36) |> piano() -> audio`).
+
+## The process of an audio component
+
+The process of an audio component is read by the same grammar as the body of a helper, with two forms of its own:
+
+```ebnf
+audio-emit  = "emit" , pipeline , [ "->" , identifier ] ;            (* the output it gives; needed when there are several *)
+audio-stage = identifier , { "." , identifier } , [ "@" , version ] , "(" , [ arguments ] , ")" ;   (* a processor, or a nested component like koda.fx.echo@1.0.0(...) *)
+```
+
+Its statements are `let` (an audio value, a value, or a record), `emit`, `if` / `else if` / `else`, `log` / `debug` / `trace` / `warn`, `fail`, `require` and `try` / `catch` / `finally` (only `catch (e)` or `catch (Error e)`); a statement may span lines. Any other statement of a helper (`for`, `while`, an assignment, `throw` ...) is `AMP2231` on its line. The process is built once, when the instance is expanded, so these run over the values of that instance (doc 19).
 
 ## repeat in the process of an audio component
 `audio |> repeat(times=cars, delay=2bar, length=24bar)` makes the sound again and again and mixes the copies into one sound. `times` is a whole number from 1 to 16 and may be a property (`property cars: Int = 4`), so the component decides how many copies there are; `delay` is the time before the first copy (default none); the copies are spread evenly over what is left of `length` (the first at `delay`, then every `(length - delay) / times`), or at a fixed distance with `every=4bar` instead of `length`. Times are written with a unit (`bar`, `beat`, `s`, `ms`) and may be calculated from properties. Example: `demo-projects/components/components/street-cars.amplec` (cars that pass a street, with the road also as an output of its own to tweak).

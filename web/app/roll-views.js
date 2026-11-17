@@ -6,7 +6,7 @@ import { api } from './api.js';
 import { ask, toast } from './ui.js';
 import { readViews, writeViews } from '../lib/lite-flow.mjs';
 import { editables, evaluate, isExpression } from '../lib/note-pipeline.mjs';
-import { helpersOfText } from './song-helpers.js';
+import { assertionsForSong, helpersOfText } from './song-helpers.js';
 import { barBeats } from '../lib/meter.mjs';
 
 const storeKey = () => `ample.rollview:${S.project ? S.project.id : ''}:${S.path}`;
@@ -50,16 +50,26 @@ export const streamsOf = (node) => Object.fromEntries(Object.entries(node?.param
 
 /** What the evaluator needs to know about the song: the notes of every clip (with its streams when it is a pipeline), the tempo and the master-seed. */
 export function pipelineSources() {
-  return Object.fromEntries(flat().nodes.filter((n) => n.tpl === 'midi-clip').map((n) => [n.id, isExpression(n.params.notes ?? '') ? { notes: n.params.notes ?? '', streams: streamsOf(n) } : (n.params.notes ?? '')]));
+  // a clip written with a melody or chords (no notes) is read by the server, with the renderer's own code (ClipShorthand): never as an empty clip here
+  const shorthand = (n) => n.params.notes === undefined && Boolean(String(n.params.melody ?? '').trim() || String(n.params.chords ?? '').trim());
+  return Object.fromEntries(flat().nodes.filter((n) => n.tpl === 'midi-clip').map((n) => [n.id, shorthand(n) ? { needsServer: true }
+    : isExpression(n.params.notes ?? '') ? { notes: n.params.notes ?? '', streams: streamsOf(n) } : (n.params.notes ?? '')]));
 }
 export const masterSeedOfSong = () => { try { return BigInt(String(S.doc?.project?.masterSeed ?? '0').replace(/\D/g, '') || '0'); } catch { return 0n; } };
 
 /** The helpers of the song as a table for the evaluator (built again only when the song text changed). */
 export const songHelpers = () => helpersOfText(S.doc?.text ?? '');
 
+/** Whether assertions are on for the block (its notes expression) that is evaluated in the browser. */
+export const songAssertions = (node = null) => assertionsForSong(S.doc?.text ?? '', node);
+
 export async function pipelineNotes(node) {
   const sources = pipelineSources();
-  const result = evaluate(node.params.notes, { sources, tempo: Number(S.doc?.project?.tempo) || 120, beatsPerBar: Number(S.doc?.project?.beatsPerBar) || 4, master: masterSeedOfSong(), streams: streamsOf(node), helpers: songHelpers(), clock: songClock() ? () => songClock() : null });
+  const result = evaluate(node.params.notes, {
+    sources, tempo: Number(S.doc?.project?.tempo) || 120, beatsPerBar: Number(S.doc?.project?.beatsPerBar) || 4,
+    master: masterSeedOfSong(), streams: streamsOf(node), helpers: songHelpers(), assertions: songAssertions(node),
+    clock: songClock() ? () => songClock() : null,
+  });
   if (!result.errors.length) return { text: result.notes, problems: result.warnings };
   if (result.errors.every((e) => e.id === 'needs-server')) {
     const data = await api.post('/api/midi/clip-notes', { path: S.path, block: node.id });

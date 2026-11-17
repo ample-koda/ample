@@ -841,7 +841,7 @@ function showResultNow(kind, subject, result) {
       if (node) { node.inert = false; node.classList.remove('deciding'); }
       document.querySelectorAll('.koda-details').forEach((o) => { o.inert = false; });
     };
-    const keep0 = async () => {
+    const keep0 = async (anyway = false) => {
       // the song changed since the draft was made: it would overwrite that change
       if (result.baseText !== undefined && result.baseText !== activeText()) { finish(); result.discard?.(); openNote({ kind: 'warn', label: tx('stale.label'), text: tx('stale.text'), emotion: 'confused', buttons: result.asked ? [{ label: tx('stale.again'), primary: true, value: 'again' }, { label: tx('choice.ok'), quiet: true, value: 'ok' }] : [{ label: tx('choice.ok'), primary: true }] }, (v) => { if (v === 'again' && result.asked) askModel(kind, subject, result.asked); else closeBubble(); }); return; }
       if (result.proposed && off.size) {
@@ -858,12 +858,18 @@ function showResultNow(kind, subject, result) {
       // the draft is dismissed only when the proposal was really applied
       let ok;
       let reason = '';
-      try { ok = await result.apply?.(); } catch (error) { ok = false; reason = error?.message || String(error); }
+      try { ok = await result.apply?.({ anyway }); } catch (error) { ok = false; reason = error?.message || String(error); }
+      // the project does not build with the proposal: Let's go is refused, so the person is asked whether to put it in anyway (the same as Accept anyway of the assistant)
+      if (ok === false && !anyway && /does not build/i.test(reason)) {
+        unlock();
+        openNote({ kind: 'warn', label: tx('nobuild.label'), text: tx('nobuild.text'), emotion: 'confused', buttons: [{ label: tx('nobuild.anyway'), primary: true, value: 'anyway' }, { label: tx('nobuild.no'), quiet: true, value: 'no' }] }, (v) => { if (v === 'anyway') { lock(); keep0(true); } else { finish(); result.discard?.(); closeBubble(); } });
+        return;
+      }
       if (ok === false) { unlock(); toast(reason || tx('kept.failed.text'), 'error'); return; }
       finish();
       keptBubble(subject, result.taskId);
     };
-    const keep = async () => { if (deciding) return; lock(); return keep0(); };
+    const keep = async () => { if (deciding) return; lock(); return keep0(false); };
     const again = () => { if (deciding) return; finish(); setBubble('choice', choiceBubble({ title: tx('again.title'), text: tx('again.text'), options: [], placeholder: tx('again.placeholder'), submit: tx('do.submit') }, (text) => askModel('run', subject, text), () => closeBubble()), 'asking'); };
     const drop = () => { if (deciding) return; finish(); result.discard?.(); closeBubble(); };
     // in the source editor the suggestion is shown in the text itself (Tab keeps it, Esc throws it away, the little field talks it over)

@@ -21,6 +21,7 @@ import { openProjects } from './projects.js';
 import { seedDice } from './seed-dice.js';
 import { openLibrary } from './libraryui.js';
 import { api } from './api.js';
+import { eventRows, sessionTools } from './song-log.js';
 import { chooseControl } from './control-choice.js';
 import { appendHistoryStructure } from './history.js';
 import { renderDrumGrid, renderStrum } from './stepseq.js';
@@ -757,7 +758,7 @@ export function renderBottom() {
       const line = (a.range?.start.line ?? a.line - 1) - (b.range?.start.line ?? b.line - 1);
       return line || (a.range?.start.character ?? a.col - 1) - (b.range?.start.character ?? b.col - 1);
     });
-  songLogBox.replaceChildren();
+  songLogBox.replaceChildren(sessionTools());
   if (!diagnostics.length) songLogBox.append(el('div', { className: 'song-log-empty', textContent: S.path ? 'No warnings or errors in the current song.' : 'Open a song to see its warnings and errors.' }));
   diagnostics.forEach((diagnostic) => {
     const error = diagnostic.severity === 'error' || diagnostic.severity === 1;
@@ -772,6 +773,7 @@ export function renderBottom() {
     row.onkeydown = (event) => { if (event.key === 'Enter') { event.preventDefault(); open(); } };
     songLogBox.append(row);
   });
+  songLogBox.append(...eventRows());
 }
 
 export function renderStructure() {

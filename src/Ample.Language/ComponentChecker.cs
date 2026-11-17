@@ -155,7 +155,8 @@ public static class ComponentChecker
 
         // names in the contract: inputs and properties are the parameters of the process, so they share one list of names
         HashSet<string> taken = new(StringComparer.Ordinal);
-        foreach ((string name, int line, string kind) in d.Inputs.Select(p => (p.Name, p.Line, "input")).Concat(d.Properties.Select(p => (p.Name, p.Line, "property"))))
+        foreach ((string name, int line, string kind) in d.Inputs.Select(p => (p.Name, p.Line, "input")).Concat(d.Properties.Select(p => (p.Name,
+            p.Line, "property"))).Concat(d.PrivateProperties.Select(p => (p.Name, p.Line, "private property"))))
         {
             if (Words.Contains(name)) issues.Add(new ComponentIssue(line, 0, 1, "AMP2201", Severity.Error, $"\"{name}\" is a word of the component language: it cannot be the name of an {kind}.", string.Empty));
             else if (!taken.Add(name)) issues.Add(new ComponentIssue(line, 0, 1, "AMP2201", Severity.Error, $"The name \"{name}\" is used twice in this component (inputs and properties share their names).", "Rename one of them."));
@@ -201,9 +202,43 @@ public static class ComponentChecker
             CheckRange(p, issues);
         }
 
+        CheckPrivate(d, issues);
         _ = headerEnd;
         ComponentUiReader.Check(d, issues);
         return issues;
+    }
+
+    private static void CheckPrivate(ComponentDefinition d, List<ComponentIssue> issues)
+    {
+        if (d.PrivateProperties.Count == 0) return;
+        if (d.IsAudio) issues.Add(new ComponentIssue(d.PrivateProperties[0].Line, 0, 1, "AMP2263", Severity.Error,
+            "A private property is not available in an audio component yet.", "Use a public property for now."));
+        for (int k = 0; k < d.PrivateProperties.Count; k++)
+        {
+            ComponentProperty p = d.PrivateProperties[k];
+            if (!IsPublicType(p.Type)) issues.Add(new ComponentIssue(p.Line, 0, 1, "AMP2202", Severity.Error,
+                $"\"{p.Type}\" is not a type a component can use for a property.", "Use a type of the musical type model."));
+            if (p.Default is null)
+            {
+                issues.Add(new ComponentIssue(p.Line, 0, 1, "AMP2260", Severity.Error,
+                    $"The private property \"{p.Name}\" needs a value: nobody outside the component can give it one.", $"Write private property {p.Name}: {p.Type} = <value>."));
+                continue;
+            }
+
+            HashSet<string> later = [.. d.PrivateProperties.Skip(k).Select(o => o.Name)];
+            string value = Regex.Replace(NotePipeline.StripComments(p.Default), "\"[^\"]*\"", " ", RegexOptions.None, TimeSpan.FromSeconds(1));
+            foreach (Match m in Regex.Matches(value, @"[A-Za-z_][\w-]*", RegexOptions.None, TimeSpan.FromSeconds(1)))
+            {
+                if (!later.Contains(m.Value)) continue;
+                if (m.Index > 0 && value[m.Index - 1] == '.') continue;   // a field of something else (currentTime().hour), not the property of that name
+                int after = m.Index + m.Length;
+                while (after < value.Length && value[after] == ' ') after++;
+                if (after < value.Length - 1 && value[after] == '=' && value[after + 1] != '=') continue;   // the label of a named argument (seed=...), not a use
+                issues.Add(new ComponentIssue(p.Line, 0, 1, "AMP2262", Severity.Error,
+                    $"The private property \"{p.Name}\" uses \"{m.Value}\", which is defined at the same place or below it.", "A private property can only use the ones above it."));
+                break;
+            }
+        }
     }
 
     private static void CheckRange(ComponentProperty p, List<ComponentIssue> issues)

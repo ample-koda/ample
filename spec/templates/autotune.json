@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Pulls a voice (one singer, or one monophonic instrument) to the right notes. Every moment gets the note it should be: a note of the key, the note the melody on target plays at that time, or a fix from the window. Speed 0 ms is the hard robot sound, 20 to 200 ms a natural correction. The vowels keep their colour (PSOLA).",
   "inputs": [

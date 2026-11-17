@@ -60,7 +60,7 @@ settings {
 
 **Allow-lists (built for `environment`):** `capabilities.environment.allow "TZ, AMPLE_*"` lists the names `environment()` may read (patterns: `NAME`, `PREFIX*`, `*SUFFIX`, `*PART*`, `*`). Every scope can add a list (server: `ample serve --environment-allow TZ,AMPLE_*`; project and song: the setting above) and a name must match **every** list, so a lower scope can only narrow, never widen. A name outside the lists is `capability-denied` at the call (`AMP2077`) with the lists named. Any other capability has no allow-list yet (`capabilities.network.allow` is the same idea for hosts, later).
 
-**The project layer is built:** `ProjectSettings.Capabilities` in `.ample/project.json` (`{ "environment": "off", "environment.allow": "AMPLE_*" }`) is read when the project opens and sits between the server and the song for every parse.
+**The project layer:** `.ample/project.json`, `settings.capabilities` (`{ "environment": "off", "environment.allow": "AMPLE_*" }`), is read when the project opens (the server) or when a command runs in the project folder (the CLI) and sits between the server and the song for every parse, by the same monotone rule: it can never switch on what the server forbids, its `off` locks the capability for every song of the project, and a song can still narrow. Without the setting nothing changes. A wrong name or value is `AMP2076` at the top of every song, with "In the project file" in the message, and nothing of it is applied. A capability that is off by default and that the project switches on is shown in every song as `AMP2097` (info), so it is never silent. The file is edited by hand by the owner: the project settings API does not change it, and the assistant cannot write inside `.ample`.
 
 ## 4. Diagnostics and tooling
 
@@ -79,7 +79,7 @@ settings {
 | C# evaluator | `Context.Capabilities`; `currentTime`, `currentDate`, `osRandom`, `environment` check it and fail with the reason; a denied call never reads anything |
 | JS twin | the same option, the same errors; `environment` reads an injected function (the browser has no environment: it returns "needs-server") |
 | LSP / web | hover, completion detail and the signature note use `Document.Capabilities` |
-| Server | passes the **server policy** (ceiling and default) into every parse; a public playground sets `forbid` for everything sensitive and ignores song text that tries otherwise; a future project policy file feeds the project level |
+| Server | passes the **server policy** (ceiling and default) into every parse; a public playground sets `forbid` for everything sensitive and ignores song text that tries otherwise; the project file feeds the project level (the CLI reads the same file) |
 | Sandboxing | capabilities are the *language-level* gate; OS-level isolation (process limits, no network namespace) stays the host's job: the policy is a contract for the evaluator, not a replacement for a sandbox |
 
 ## 6. Open questions

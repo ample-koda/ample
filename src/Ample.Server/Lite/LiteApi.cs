@@ -37,7 +37,7 @@ public static class LiteApi
     public static IReadOnlyList<ApiOperation> Operations { get; } =
     [
         new("GET", "/api/remix/limits", "lite", "The limits of AMPLE Remix: files, sizes, build time, output length.", false, true),
-        new("POST", "/api/remix/build", "lite", "Builds the text and sound files the page sends (multipart: a manifest and the parts f0..fn) in a private temporary workspace and returns the diagnostics and an output id.", false, true),
+        new("POST", "/api/remix/build", "lite", "Builds the text and sound files the page sends (multipart: a manifest and the parts f0..fn) in a private temporary workspace and returns the diagnostics, the events of the log view and an output id. The manifest may hold options for this build only (logging.level, diagnostics.assertions): they win over the song and are never written anywhere.", false, true),
         new("GET", "/api/remix/output/{id}", "lite", "The audio of a Remix build, kept for a few minutes: WAV as it is, or MP3 / FLAC with ?format= (encoded on demand; counted per client, queued and size-limited, 429 with Retry-After when a limit is passed).", false, true),
         new("DELETE", "/api/remix/output/{id}", "lite", "Removes a Remix build output.", false, true),
         new("POST", "/api/remix/blobs/missing", "lite", "Which of these file hashes (SHA-256) the server does not have: it knows the files of the demos and keeps the files of earlier builds for an hour, so a build only has to send what is missing.", false, true),
@@ -127,12 +127,12 @@ public static class LiteApi
             {
                 // the rate limits first (cheap, before the files are read), then the files, then the place in the queue
                 governor.Spend("build", keys, [(TimeSpan.FromMinutes(1), lim.BuildsPerMinute, "a minute"), (TimeSpan.FromMinutes(5), lim.BuildsPerFiveMinutes, "5 minutes"), (TimeSpan.FromMinutes(15), lim.BuildsPerFifteenMinutes, "15 minutes"), (TimeSpan.FromHours(1), lim.BuildsPerHour, "an hour")]);
-                (string entry, List<LiteFile> files) = await Read(context, lim, blobs).ConfigureAwait(false);
-                if (context.Request.Query["stream"] == "1") return await StreamBuild(context, spec, libraryHome, entry, files, lim, outputs, governor, keys, isolation).ConfigureAwait(false);
+                (string entry, List<LiteFile> files, Dictionary<string, string> options) = await Read(context, lim, blobs).ConfigureAwait(false);
+                if (context.Request.Query["stream"] == "1") return await StreamBuild(context, spec, libraryHome, entry, files, options, lim, outputs, governor, keys, isolation).ConfigureAwait(false);
                 using IDisposable slot = await governor.EnterBuildAsync(keys, null, context.RequestAborted).ConfigureAwait(false);
                 LiteBuildResult result = isolation is not null
-                    ? await isolation.BuildAsync(libraryHome, entry, files, lim, outputs, null, context.RequestAborted).ConfigureAwait(false)
-                    : await LiteBuilder.BuildAsync(spec, libraryHome, entry, files, lim, outputs, context.RequestAborted).ConfigureAwait(false);
+                    ? await isolation.BuildAsync(libraryHome, entry, files, lim, outputs, null, context.RequestAborted, options).ConfigureAwait(false)
+                    : await LiteBuilder.BuildAsync(spec, libraryHome, entry, files, lim, outputs, context.RequestAborted, null, options).ConfigureAwait(false);
                 return Results.Json(Shape(result), Json);
             }
             catch (LiteRejectedException rejected)
@@ -189,10 +189,10 @@ public static class LiteApi
         app.MapDelete("/api/remix/output/{id}", (string id) => outputs.Remove(id) ? Results.NoContent() : Results.NotFound());
     }
 
-    private static object Shape(LiteBuildResult result) => new { ok = result.Ok, diagnostics = result.Diagnostics, outputId = result.OutputId, seconds = result.Seconds, audioSeconds = result.AudioSeconds, bytes = result.Bytes };
+    private static object Shape(LiteBuildResult result) => new { ok = result.Ok, diagnostics = result.Diagnostics, observations = result.Observations ?? [], outputId = result.OutputId, seconds = result.Seconds, audioSeconds = result.AudioSeconds, bytes = result.Bytes };
 
     /// <summary>A build that tells the page what it does: one JSON object per line (<c>log</c> with text and how far the build is, then <c>result</c>). The page cancels by closing the request.</summary>
-    private static async Task<IResult> StreamBuild(HttpContext context, SpecData spec, string libraryHome, string entry, List<LiteFile> files, LiteLimits lim, LiteOutputs outputs, LiteGovernor governor, IReadOnlyList<string> keys, LiteIsolation? isolation)
+    private static async Task<IResult> StreamBuild(HttpContext context, SpecData spec, string libraryHome, string entry, List<LiteFile> files, Dictionary<string, string> options, LiteLimits lim, LiteOutputs outputs, LiteGovernor governor, IReadOnlyList<string> keys, LiteIsolation? isolation)
     {
         context.Response.ContentType = "application/x-ndjson";
         context.Response.Headers.CacheControl = "no-store";
@@ -233,8 +233,8 @@ public static class LiteApi
                 }
 
                 return isolation is not null
-                    ? await isolation.BuildAsync(libraryHome, entry, files, lim, outputs, Told, context.RequestAborted).ConfigureAwait(false)
-                    : await LiteBuilder.BuildAsync(spec, libraryHome, entry, files, lim, outputs, context.RequestAborted, Told).ConfigureAwait(false);
+                    ? await isolation.BuildAsync(libraryHome, entry, files, lim, outputs, Told, context.RequestAborted, options).ConfigureAwait(false)
+                    : await LiteBuilder.BuildAsync(spec, libraryHome, entry, files, lim, outputs, context.RequestAborted, Told, options).ConfigureAwait(false);
             }
             finally
             {
@@ -277,16 +277,18 @@ public static class LiteApi
         return Results.Json(new { error = new { code, message, retryAfter } }, Json, statusCode: status);
     }
 
-    private static async Task<(string Entry, List<LiteFile> Files)> Read(HttpContext context, LiteLimits limits, LiteBlobs blobs)
+    private static async Task<(string Entry, List<LiteFile> Files, Dictionary<string, string> Options)> Read(HttpContext context, LiteLimits limits, LiteBlobs blobs)
     {
         IFormCollection form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
         if (!form.TryGetValue("manifest", out Microsoft.Extensions.Primitives.StringValues text) || text.Count != 1) throw new LiteRejectedException("AMPL900", 400, "The manifest is missing.");
         string entry;
+        Dictionary<string, string> options;
         List<(string Path, string? Hash)> names;
         try
         {
             using JsonDocument manifest = JsonDocument.Parse(text.ToString());
             entry = manifest.RootElement.GetProperty("entry").GetString() ?? string.Empty;
+            options = LiteBuilder.ObservationOptions(manifest.RootElement.TryGetProperty("options", out JsonElement given) ? given : null);
             // a file is a path, or {"path", "sha256"}: with a hash its part may be left out when the server has that content already (a demo file, or a file of an earlier build)
             names = [.. manifest.RootElement.GetProperty("files").EnumerateArray().Select(e => e.ValueKind == JsonValueKind.String
                 ? (e.GetString() ?? string.Empty, (string?)null)
@@ -324,7 +326,7 @@ public static class LiteApi
 
         // a hash that the server no longer knows (it keeps uploads for an hour): the page sends the build again with every file
         if (anyGone) throw new LiteRejectedException("AMPL942", 409, "Some files are no longer on the server (it keeps them for an hour): send the build again with all files.");
-        return (entry, files);
+        return (entry, files, options);
     }
 
     private static System.Text.Json.Nodes.JsonObject WithPublic(this System.Text.Json.Nodes.JsonObject limits, bool publicMode)

@@ -59,6 +59,89 @@
 /* 0.1.18 review: snapshots on one or two lines (snap-compact) */
 .snapshot-bar{flex-wrap:wrap;gap:4px 6px;padding:4px 8px;margin-top:8px;font-size:12px}.snapshot-bar button,.snapshot-bar select,.snapshot-bar input{padding:1px 6px;min-height:0}.snapshot-bar .snap-morph{min-width:100px}
 .snapshot-bar select{width:auto;min-width:0;max-width:4.5em;flex:none}.snapshot-bar .snap-morph{flex:1 1 90px;min-width:90px}
+
+/* the Advanced windows have the window controls and the metal frame of AMPLE Jam (web/app/window-chrome.js, .metal-window of skin.css) */
+.studio-dialog.metal-window{min-width:380px;min-height:260px}
+.studio-dialog.metal-window .studio-dialog-body,.studio-dialog.metal-window .studio-preview-slot{background:var(--panel);color:var(--text)}
+.studio-dialog.metal-window .studio-dialog-body{border-radius:0 0 0 0}
+.studio-dialog.metal-window .studio-preview-slot{border-radius:0 0 7px 7px}
+.studio-dialog.metal-window .studio-dialog-header{padding:6px 10px;border-radius:7px 7px 0 0;cursor:move}
+.studio-dialog.metal-window .studio-dialog-header strong{color:var(--metal-text);letter-spacing:.12em}
+.studio-dialog.metal-window .studio-dialog-bypass{margin-left:auto}
+.studio-dialog.studio-sized[open],.studio-dialog[open][data-window="max"]{display:flex;flex-direction:column;max-width:98vw;max-height:98vh}
+.studio-dialog.studio-sized .studio-dialog-body,.studio-dialog[data-window="max"] .studio-dialog-body{flex:1 1 auto;max-height:none;min-height:0}
+.studio-dialog.studio-sized .studio-preview-slot,.studio-dialog[data-window="max"] .studio-preview-slot{flex:none}
+dialog.studio-dialog[data-window="collapsed"]{height:auto!important;min-height:0!important;width:max-content!important;min-width:0!important;resize:none}
+dialog.studio-dialog[data-window="collapsed"]>:not(.studio-dialog-header){display:none!important}
+dialog.studio-dialog[data-window="collapsed"] .studio-dialog-header{border-bottom:0}
+dialog.studio-dialog[data-window="max"]{left:8px!important;top:8px!important;width:calc(100vw - 16px)!important;height:calc(100vh - 16px)!important;max-width:none!important;max-height:none!important;z-index:1001!important;transform:none!important}
+dialog.studio-dialog[data-window="max"] .studio-dialog-header{cursor:default}
+dialog.studio-dialog[data-window="max"] .mls-collapse{display:none}
+/* the live / build / off badge and the menu of the title bar */
+.studio-dialog-bypass{display:inline-flex;align-items:center;gap:8px}
+.studio-power{width:22px;height:22px;display:inline-grid;place-items:center;font-size:13px;line-height:1;color:var(--metal-text,#cfd6df)}
+.studio-power.on{color:#d7ffe6}
+.studio-state-text{font-size:11px;letter-spacing:.03em;cursor:help;display:inline-flex;align-items:center;gap:5px;color:var(--metal-text,#cfd6df)}
+.studio-state-text:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.studio-state-text.state-live{color:#7fe3a3}.studio-state-text.state-build{color:#e8c85a}.studio-state-text.state-off{color:#a2abb7}
+.studio-dialog .studio-menu{top:44px;right:8px}
+.studio-menu .snapshot-bar{flex-wrap:wrap;padding:4px 6px}.studio-menu-snapshots{padding:2px 4px 6px}
+.studio-menu .mls-menu-item:disabled,.studio-menu .mls-menu-head:disabled{opacity:.5;cursor:default}
+/* the transport is a compact toolbar row at the top of the window body; the window is a column whose body scrolls, so nothing at the bottom is cut off */
+.studio-dialog.metal-window[open]{display:flex;flex-direction:column;max-width:98vw;max-height:96vh}
+.studio-dialog.metal-window .studio-dialog-body{flex:1 1 auto;max-height:none;min-height:0}
+.studio-dialog.metal-window .studio-preview-slot{flex:none;min-height:0;padding:6px 10px;gap:8px;border-top:0;border-bottom:1px solid var(--line);border-radius:0}
+.studio-preview-slot .studio-meter{width:12px;height:28px}
+.studio-preview-slot>.note{flex:1 1 100%;margin:0;line-height:1.25}
+.studio-preview-slot .studio-ab{padding:3px 10px}
+.studio-ab:disabled{display:none}   /* a greyed A/B that cannot work yet is not shown */
+/* one label per knob (the name under the knob), the live state of a parameter is a small dot with a tooltip, explanations are behind an (i) */
+.studio-panel-control:has(.studio-knob)>span:first-child{display:none}
+.studio-panel-control{position:relative}
+.studio-panel-control>.live-badge{position:absolute;top:7px;right:7px;width:8px;height:8px;margin:0;padding:0;border-radius:50%;overflow:hidden;font-size:0;color:transparent;background:var(--dim);cursor:help}
+.studio-panel-control>.live-badge.live-param{background:var(--ok)}.studio-panel-control>.live-badge.live-rebuild{background:var(--acc)}.studio-panel-control>.live-badge.live-offline{background:var(--dim)}
+.studio-info{grid-column:1/-1;font-size:12px;color:var(--dim)}
+.studio-dialog-info{display:inline-flex;position:relative}.studio-dialog-info:empty{display:none}
+.studio-dialog-info .studio-info{position:static}
+.studio-dialog-info .studio-info-body{position:absolute;right:0;top:30px;z-index:30;width:min(46ch,calc(100vw - 40px));max-height:60vh;overflow:auto;padding:8px 10px;margin:0;background:var(--panel);color:var(--text);border:1px solid var(--line-strong,var(--line));border-radius:8px;box-shadow:var(--shadow-2)}
+.studio-dialog-info .studio-info.live-badge-summary{display:block}
+.studio-dialog.metal-window .studio-dialog-info .studio-info>summary{color:var(--metal-text,#cfd6df)}
+.studio-info>summary{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--line-strong,var(--line));border-radius:50%;cursor:pointer;list-style:none;font-size:13px;line-height:1;color:var(--dim)}
+.studio-info>summary::-webkit-details-marker{display:none}
+.studio-info[open]>summary{color:var(--acc);border-color:var(--acc)}
+.studio-info-body{margin-top:6px;max-width:70ch}.studio-info-body p{margin:0 0 4px}
+.studio-info.live-badge-summary{display:block;margin:0}
+.studio-info>summary{font:italic 700 13px Georgia,serif}
+.studio-info-body .live-badge{display:block;margin:0 0 3px;font-size:12px}
+.studio-dynamics-curve,.studio-duck-curve,.studio-effect-plot{margin-inline:auto}
+
+/* Advanced windows, neat pass: graphs fill their panel; one knob size; selectors do not stretch; no dead room */
+.studio-dialog .studio-effect-plot,.studio-dialog .studio-dynamics-curve,.studio-dialog .studio-duck-curve,.studio-dialog .studio-response-graph{width:100%;max-width:none;max-height:none;height:clamp(180px,30vh,340px)}
+.studio-dialog .studio-dynamics-curve{height:clamp(200px,34vh,380px)}
+.studio-dialog .studio-duck-curve{height:clamp(100px,16vh,170px)}
+.studio-dialog .studio-compressor-waveform{width:100%;max-height:none;height:clamp(90px,16vh,170px)}
+.studio-stretch :is(line,path,rect,polyline,circle){vector-effect:non-scaling-stroke}
+.studio-stretch :is(.studio-dot,.studio-response-handle,.studio-curve-point,text){transform-box:fill-box;transform-origin:center;transform:scale(calc(1/var(--sx,1)),calc(1/var(--sy,1)))}
+.studio-panel-control{align-content:center}
+.studio-panel-control>.studio-selector{width:100%;max-width:180px;align-self:center}
+.studio-filter-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.note-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.note-row .studio-info{grid-column:auto}
+.studio-preview-slot>.note.inline{flex:1 1 auto}
+.studio-filter-controls{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* the title bar never clips its buttons: the title shrinks with an ellipsis, then the block name and the words of the status give way */
+.studio-dialog.metal-window .studio-dialog-header{container-type:inline-size;flex-wrap:nowrap;min-width:0}
+.studio-dialog[data-window="collapsed"] .studio-dialog-header{container-type:normal}
+.studio-dialog-header>strong,.studio-dialog-header>.note{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio-dialog-header>button,.studio-dialog-header>.studio-dialog-bypass,.studio-dialog-header>.studio-dialog-info{flex:none}
+@container (max-width:620px){.studio-dialog-header>.note{display:none}}
+@container (max-width:470px){.studio-state-text{font-size:0;gap:0}.studio-state-text:before{width:9px;height:9px}}
+@media (max-width:700px){.studio-dialog .studio-menu-btn{display:inline-block}}   /* the Jam window buttons are hidden on a phone, but the menu (snapshots, reset, help, copy) must stay */
+
+/* neat pass 2: no stray line above the (i) (the global details rule), cards of one row line up, roomier autotune transport row */
+.studio-info{border-top:0}
+.studio-filter-controls{align-items:stretch}
+.autotune-bar{gap:8px 10px;align-items:center}.autotune-bar .autotune-range-label{white-space:nowrap}.autotune-bar .autotune-gap{min-width:8px}
+.autotune-readout[hidden]{display:none}
 .studio-knob-value{background:none;border:0;padding:0;cursor:text;border-bottom:1px dotted var(--dim)}
 .studio-knob-value:disabled{cursor:default;border-bottom-color:transparent}
 .studio-knob-entry.invalid{outline:2px solid var(--bad,#c0392b)}

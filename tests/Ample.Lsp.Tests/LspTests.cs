@@ -328,4 +328,18 @@ public sealed class LspTests
         Assert.True(diag < 1000, $"diagnostics took {diag} ms");
         Assert.True(completion < 500, $"completion took {completion} ms");
     }
+
+    [Fact]
+    public async Task The_session_layer_of_the_server_decides_whether_an_assert_is_checked_in_the_editor()
+    {
+        const string song = "composition \"demo\" { ample 1  tempo 92  master-seed 424242 }\n\nhelper checked(Notes n) -> Notes {\n  assert 1 > 2, \"never true\"\n  return n\n}\n\nmidi-clip melody at 1 for 1 {\n  notes \"1:0:1:60:100\"\n}\n\nmidi-clip checkedclip at 2 for auto {\n  notes melody.notes |> checked()\n}\n";
+        await using (LspClient off = await LspClient.StartAsync())
+        {
+            Assert.DoesNotContain(await off.DiagnosticsAfterOpenAsync(Uri, song), x => (string?)x!["code"] == "AMP6004");
+        }
+
+        ConfigLayerInput on = new(new ConfigSource(ConfigLayer.Session, "session"), new Dictionary<string, (string, int)> { ["diagnostics.assertions"] = ("on", 0) });
+        await using LspClient checking = await LspClient.StartAsync(observationSession: () => on);
+        Assert.Contains(await checking.DiagnosticsAfterOpenAsync(Uri, song), x => (string?)x!["code"] == "AMP6004");
+    }
 }

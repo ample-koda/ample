@@ -34,24 +34,59 @@ const gainsOf = async () => {
   return String(doc.blocks.find((b: { name: string }) => b.name === 'mix')?.parameters.find((p: { name: string }) => p.name === 'gains')?.value ?? '').replace(/"/g, '').trim().split(/\s+/);
 };
 
-test('mute puts an input at -60 dB and a second click puts the level back', async ({ page }) => {
-  const before = (await gainsOf())[0];
+const flagsOf = async (name: string) => {
+  const doc = await api('/api/doc?path=song.amplet');
+  return String(doc.blocks.find((b: { name: string }) => b.name === 'mix')?.parameters.find((p: { name: string }) => p.name === name)?.value ?? '').replace(/"/g, '').trim();
+};
+
+test('mute writes mutes on for that input, keeps the gain, and a second click writes off again; Undo is one step', async ({ page }) => {
+  const gains = (await gainsOf()).join(' ');
   await page.locator('#b-mixer .mixstrip[data-block="mix"] .mixmute').first().click();
-  await expect.poll(async () => (await gainsOf())[0]).toBe('-60');
+  await expect.poll(() => flagsOf('mutes')).toBe('on off off off');
+  expect((await gainsOf()).join(' ')).toBe(gains);
+  await expect(page.locator('#b-mixer .mixstrip[data-block="mix"] .mixmute').first()).toHaveClass(/on/);
+  await page.locator('#btn-undo').click();
+  await expect.poll(() => flagsOf('mutes')).not.toContain('on');
+  await page.locator('#btn-redo').click();
+  await expect.poll(() => flagsOf('mutes')).toBe('on off off off');
   await page.locator('#b-mixer .mixstrip[data-block="mix"] .mixmute').first().click();
-  await expect.poll(async () => (await gainsOf())[0]).toBe(before);
+  await expect.poll(() => flagsOf('mutes')).toBe('off off off off');
 });
 
-test('solo mutes the other inputs and a second click brings them back', async ({ page }) => {
-  const before = await gainsOf();
+test('solo writes solos on for that input only; the other inputs are drawn silent and keep their gain', async ({ page }) => {
+  const gains = (await gainsOf()).join(' ');
   await page.locator('#b-mixer .mixstrip[data-block="mix"] .mixsolo').nth(1).click();
-  await expect.poll(async () => (await gainsOf()).join(' ')).toBe([before[0] ? '-60' : '-60', before[1], '-60', '-60'].join(' '));
+  await expect.poll(() => flagsOf('solos')).toBe('off on off off');
+  expect((await gainsOf()).join(' ')).toBe(gains);
+  const lanes = page.locator('#b-mixer .mixstrip[data-block="mix"] .mixchan');
+  await expect(lanes.nth(0)).toHaveClass(/muted/);
+  await expect(lanes.nth(1)).not.toHaveClass(/muted/);
   await page.locator('#b-mixer .mixstrip[data-block="mix"] .mixsolo').nth(1).click();
-  await expect.poll(async () => (await gainsOf()).join(' ')).toBe(before.join(' '));
+  await expect.poll(() => flagsOf('solos')).toBe('off off off off');
 });
 
-test('every input has a small meter', async ({ page }) => {
-  await expect(page.locator('#b-mixer .mixstrip[data-block="mix"] .mixchm')).toHaveCount(4);
+test('every shown input has a small meter; the empty input at the end is behind a toggle', async ({ page }) => {
+  const meters = page.locator('#b-mixer .mixstrip[data-block="mix"] .mixchm');
+  await expect(meters).toHaveCount(3);
+  const toggle = page.getByRole('button', { name: 'mix show 1 empty inputs' });
+  await expect(toggle).toHaveText('+ 1 empty input');
+  await toggle.click();
+  await expect(meters).toHaveCount(4);
+  await page.getByRole('button', { name: 'mix hide 1 empty inputs' }).click();
+  await expect(meters).toHaveCount(3);
+});
+
+test('the mixer picker is a compact control above the row, not a column', async ({ page }) => {
+  const picker = await page.locator('#b-mixer .mixscope').boundingBox();
+  const first = await page.locator('#b-mixer .mixstrip').first().boundingBox();
+  expect(picker!.height).toBeLessThan(40);
+  expect(picker!.y + picker!.height).toBeLessThanOrEqual(first!.y);
+});
+
+test('the bottom panel is tall enough for a whole strip by default', async ({ page }) => {
+  const strip = await page.locator('#b-mixer .mixstrip[data-block="mix"]').boundingBox();
+  const view = await page.locator('#b-mixer .mixview').boundingBox();
+  expect(strip!.y + strip!.height).toBeLessThanOrEqual(view!.y + view!.height + 1);
 });
 
 test('choosing one mixer in the list shows only that mixer, and All mixers shows them all again', async ({ page }) => {

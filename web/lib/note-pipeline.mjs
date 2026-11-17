@@ -108,15 +108,24 @@ function tokenize(text, errors) {
   return tokens;
 }
 
+/**
+ * The syntax features that are on in a shipped build (plan/diagnostics/PLAN.md, D17). The C# twin is SyntaxGate.Shipped; spec-tests/note-lang/feature-gate.json holds the shared set and both
+ * runtimes compare themselves with it. A word of a feature that is off is recognized and reported (AMP6020), never ignored.
+ */
+export const SYNTAX_FEATURES = ['Observe', 'Record', 'Fail', 'Require', 'Throw', 'TryCatch', 'ErrorDecl', 'Assert'];
+
+const STATEMENT_WORDS = { log: 'Observe', debug: 'Observe', trace: 'Observe', warn: 'Observe', assert: 'Assert', require: 'Require', throw: 'Throw', fail: 'Fail' };
+
 /** Parses the text of an expression into { ast, errors }. */
 export function parseExpression(source, options = {}) {
   const errors = [];
+  const features = options.syntaxFeatures ?? SYNTAX_FEATURES;
   const text = stripComments(source);
   const tokens = tokenize(text, errors);
   if (!tokens) return { ast: null, errors };
   let p = 0;
   const peek = (k = 0) => tokens[p + k];
-  const fail = (message, token = peek() || tokens[tokens.length - 1]) => { errors.push({ id: 'syntax', message, start: token?.start ?? 0, end: token?.end ?? text.length }); throw errors; };
+  const fail = (message, token = peek() || tokens[tokens.length - 1], id = 'syntax') => { errors.push({ id, message, start: token?.start ?? 0, end: token?.end ?? text.length }); throw errors; };
   const expect = (t) => { const k = peek(); if (!k || k.t !== t) fail(`Expected "${t}"`, k); p++; return k; };
 
   const quantity = () => {
@@ -201,6 +210,27 @@ export function parseExpression(source, options = {}) {
     }
     return node;
   };
+  const isRecordStart = () => peek()?.t === '{' && ((['ident', 'string'].includes(peek(1)?.t) && peek(2)?.t === ':') || peek(1)?.t === '}');
+  const recordLiteral = () => {
+    const open = expect('{');
+    if (!features.includes('Record')) fail('Record literals are not supported yet in this AMPLE version', open, 'feature-off');
+    const fields = [];
+    while (peek()?.t !== '}') {
+      const key = peek();
+      if (!key) fail('The record is not closed', open);
+      if (!['ident', 'string'].includes(key.t)) fail('Expected the name of a field', key);
+      p++;
+      expect(':');
+      const value = pipeline();
+      if (fields.some((f) => f.name === key.v)) fail(`The field "${key.v}" is given twice`, key);
+      fields.push({ name: key.v, value, start: key.start, end: key.end });
+      if (peek()?.t === ',') { p++; continue; }
+      if (peek()?.t !== '}') fail('Expected "," or "}" in the record', peek() ?? key);
+    }
+    const close = expect('}');
+    return { kind: 'record', fields, start: open.start, end: close.end };
+  };
+
   const atom = () => {
     const k = peek();
     if (!k) fail('An expression is empty');
@@ -214,6 +244,7 @@ export function parseExpression(source, options = {}) {
     if (k.t === 'number') return quantity();
     if (k.t === 'string') { p++; return { kind: 'string', value: k.v, start: k.start, end: k.end }; }
     if (k.t === '[') return listLiteral();
+    if (k.t === '{' && isRecordStart()) return postfix(recordLiteral());
     if (k.t === 'ident' && (k.v === 'true' || k.v === 'false')) { p++; return postfix({ kind: 'bool', value: k.v === 'true', start: k.start, end: k.end }); }
     if (k.t === 'ident' && k.v === 'bake') return bakeValue();
     if (k.t === '(' && peek(1)?.t === 'ident' && peek(1).v.includes('-') && peek(2)?.t === ')') {
@@ -246,7 +277,7 @@ export function parseExpression(source, options = {}) {
         const block = k; p += 2;
         const port = expect('ident');
         if (peek()?.t === '(') { const { args, close } = parseArgs(); return postfix({ kind: 'method', target: { kind: 'word', text: block.v, start: block.start, end: block.end }, name: port.v, args, start: block.start, end: close.end }); }
-        return { kind: 'reference', block: block.v, port: port.v, start: block.start, end: port.end };
+        return postfix({ kind: 'reference', block: block.v, port: port.v, start: block.start, end: port.end });   // r.inner.a: a field of a field
       }
       if (peek(1)?.t === '(') return postfix(call());
       p++;
@@ -333,7 +364,9 @@ export function parseExpression(source, options = {}) {
       if (!k) fail('The block is not closed', open);
       if (k.t === '}') { p++; return { kind: 'block', statements, start: open.start, end: k.end }; }
       // two statements on one line need a ";" between them (a statement that ends with a block, like if or for, ends there by itself): "re turn 3" is a typo, not three statements
-      if (previous && !['if', 'for', 'repeat', 'while'].includes(previous.kind) && !separated && previous.end <= k.start && !text.slice(previous.end, k.start).includes('\n')) fail('Statements on one line are separated by ";": write ";" before "' + (k.v ?? k.text ?? '') + '", or put it on a new line', k);
+      if (previous && !['if', 'for', 'repeat', 'while',
+          'try'].includes(previous.kind) && !separated && previous.end <= k.start && !text.slice(previous.end,
+          k.start).includes('\n')) fail('Statements on one line are separated by ";": write ";" before "' + (k.v ?? k.text ?? '') + '", or put it on a new line', k);
       previous = statement();
       statements.push(previous);
     }
@@ -356,8 +389,93 @@ export function parseExpression(source, options = {}) {
     }
     return { kind: 'if', branches, otherwise, start: start.start, end };
   };
+  const observation = (word) => {
+    p++;
+    const endsStatement = (previous, next) =>
+      !next || ['}', ';'].includes(next.t) || text.slice(previous.end, next.start).includes('\n');
+    let call = false;
+    if (peek()?.t === '(') {
+      let depth = 1, close = p + 1;
+      while (close < tokens.length && depth > 0) {
+        if (tokens[close].t === '(') depth++;
+        if (tokens[close].t === ')') depth--;
+        if (depth > 0) close++;
+      }
+      if (depth !== 0) fail('This "(" is never closed', peek());
+      call = endsStatement(tokens[close], tokens[close + 1]);
+    }
+    if (call) p++;
+    else if (endsStatement(word, peek())) fail(word.v + ' needs a message after it', word);
+    const positional = [];
+    const named = [];
+    while (!call || peek()?.t !== ')') {
+      if (peek()?.t === 'ident' && peek(1)?.t === '=') {
+        const key = peek();
+        const allowed = ['fail', 'require'].includes(word.v) ? ['hint'] : word.v === 'throw' ? [] : ['code', 'hint', 'context'];
+        if (!allowed.includes(key.v)) fail(word.v + ' has no argument "' + key.v + '" (it has: ' + (allowed.join(', ') || 'none: put code, hint and context in Error(...)') + ')', key);
+        if (named.some((arg) => arg.name === key.v)) fail('"' + key.v + '" is given twice', key);
+        p += 2;
+        const value = pipeline();
+        named.push({ kind: 'named', name: key.v, value, start: key.start, end: value.end });
+      } else {
+        if (named.length) fail('The named arguments come after the message', peek());
+        positional.push(pipeline());
+      }
+      if (peek()?.t !== ',') break;
+      p++;
+    }
+    const end = call ? expect(')').end : tokens[p - 1].end;
+    const conditional = word.v === 'assert' || word.v === 'require';
+    if (conditional ? positional.length < 1 || positional.length > 2 : positional.length !== 1) fail(conditional ? word.v
+        + ' takes a condition and an optional message' : word.v + ' takes one message or value', { start: word.start, end });
+    const node = { kind: 'observe', name: word.v, positional, named, start: word.start, end };
+    if (word.v === 'require' || word.v === 'assert') node.conditionText = text.slice(positional[0].start, positional[0].end).replace(/\s+/g, ' ').trim();
+    return node;
+  };
+  const tryStatement = () => {
+    const word = peek();
+    p++;
+    const body = blockOf();
+    const catches = [];
+    let last = null;
+    let end = body.end;
+    while (peek()?.t === 'ident' && peek().v === 'catch') {
+      const keyword = peek();
+      p++;
+      expect('(');
+      const first = expect('ident');
+      let type = null;
+      let name = first;
+      if (peek()?.t === 'ident') { type = first.v; name = expect('ident'); }
+      expect(')');
+      const handler = blockOf();
+      catches.push({ kind: 'catch', type, name: name.v, body: handler, start: keyword.start, end: handler.end });
+      end = handler.end;
+    }
+    if (peek()?.t === 'ident' && peek().v === 'finally') {
+      p++;
+      last = blockOf();
+      end = last.end;
+      const walk = (n) => {
+        if (!n || typeof n !== 'object') return;
+        const outcome = n.kind === 'return' || n.kind === 'emit' || (n.kind === 'observe' && n.name === 'throw');
+        if (outcome) {
+          fail('A finally block cannot return, emit or throw: it can only observe, check and clean up, '
+            + 'so it can never replace the outcome of the try', n, 'finally-flow');
+        }
+        for (const value of Object.values(n)) { if (Array.isArray(value)) value.forEach(walk); else if (value && typeof value === 'object' && value.kind) walk(value); }
+      };
+      walk(last);
+    }
+    if (!catches.length && !last) fail('try needs a catch or a finally', word);
+    return { kind: 'try', body, catches, finally: last, start: word.start, end };
+  };
   const statement = () => {
     const k = peek();
+    if (k.t === 'ident' && k.v === 'try' && peek(1)?.t === '{' && features.includes('TryCatch')) return tryStatement();
+    const isWord = k.t === 'ident' && (STATEMENT_WORDS[k.v] || (k.v === 'try' && peek(1)?.t === '{')) && !['=', '.', ':'].includes(peek(1)?.t);
+    if (isWord && features.includes(STATEMENT_WORDS[k.v])) return observation(k);
+    if (isWord) fail(`"${k.v}" is not supported yet in this AMPLE version`, k, 'feature-off');
     if (k.t === 'ident') {
       switch (k.v) {
         case 'let': case 'var': {
@@ -450,7 +568,27 @@ export function parseExpression(source, options = {}) {
       expect('=');
       const value = pipeline();
       result = { kind: 'constdecl', name: name.v, type, value, start: first.start, end: value.end, nameStart: name.start, nameEnd: name.end };
-    } else fail('Expected helper, dynamic helper, type or let', kw);
+    } else if (kw.v === 'error' && !dynamic) {
+      if (!features.includes('ErrorDecl')) fail('"error" is not supported yet in this AMPLE version', kw, 'feature-off');
+      const name = expect('ident');
+      let parent = null;
+      if (peek()?.t === 'ident' && peek().v === 'extends') { p++; parent = expect('ident').v; }
+      const open = expect('{');
+      const fields = [];
+      while (peek()?.t !== '}') {
+        if (!peek()) fail('The error declaration is not closed', open);
+        const begin = peek();
+        let isDynamic = false;
+        if (begin.t === 'ident' && begin.v === 'dynamic' && peek(1)?.t === 'ident' && (peek(2)?.t === 'ident' || peek(2)?.t === '<')) { p++; isDynamic = true; }
+        const type = typeText();
+        const field = expect('ident');
+        if (fields.some((f) => f.name === field.v)) fail(`The field "${field.v}" is declared twice`, field);
+        fields.push({ dynamic: isDynamic, type, name: field.v, start: begin.start, end: field.end });
+        if (peek()?.t === ',') p++;
+      }
+      const close = expect('}');
+      result = { kind: 'errordecl', name: name.v, parent, fields, start: first.start, end: close.end };
+    } else fail('Expected helper, dynamic helper, type, error or let', kw);
     if (p < tokens.length) fail('Unexpected input after the declaration', peek());
     return result;
   };
@@ -484,7 +622,9 @@ export function parseExpression(source, options = {}) {
 export const parseDeclaration = (text) => parseExpression(text, { declaration: true });
 
 /** The helpers, type aliases and constants of a file as a table for evaluate(): sources is [{ text, line }]. */
-export const helperTableFrom = (sources) => buildHelperTable(sources, parseDeclaration);
+export const helperTableFrom = (sources, syntaxFeatures) => buildHelperTable(
+  sources, (text) => parseExpression(text, { declaration: true, syntaxFeatures }),
+);
 
 // ---------- the values
 
@@ -572,7 +712,10 @@ export function evaluate(text, options = {}) {
   try { return evaluateCore(text, options); } finally { BAR = previous; }
 }
 
-function evaluateCore(text, { sources = {}, tempo = 120, limit = MAX_EVENTS, guard = new Set(), master = 0, streams: streamDefinitions = null, helpers = null, limits = null, clock = null, osRandom = null, capabilities = null, environment = null } = {}) {
+function evaluateCore(text, {
+  sources = {}, tempo = 120, limit = MAX_EVENTS, guard = new Set(), master = 0, streams: streamDefinitions = null, helpers = null,
+  limits = null, clock = null, osRandom = null, capabilities = null, environment = null, assertions = false,
+} = {}) {
   const parsed = parseExpression(text);
   const errors = [...parsed.errors], warnings = [];
   if (!parsed.ast) return { notes: null, span: null, warnings, errors, value: null };
@@ -588,14 +731,14 @@ function evaluateCore(text, { sources = {}, tempo = 120, limit = MAX_EVENTS, gua
       if (src && typeof src === 'object' && typeof src.notes === 'string' && isExpression(src.notes)) {
         if (guard.has(key)) { problem(errors, 'reference-cycle', `"${key}" reads itself through its notes`, node); return null; }
         guard.add(key);
-        const inner = evaluate(src.notes, { sources, tempo, limit, guard, master, streams: src.streams || null, helpers, limits, clock, osRandom, capabilities, environment });
+        const inner = evaluate(src.notes, { sources, tempo, limit, guard, master, streams: src.streams || null, helpers, limits, clock, osRandom, capabilities, environment, assertions });
         guard.delete(key);
         if (inner.errors.length) { problem(errors, 'unknown-reference', `The notes of "${key}" have problems`, node); return null; }
         cache.set(key, { events: inner.value.events, span: inner.span });
       } else if (typeof src === 'string' && isExpression(src)) {
         if (guard.has(key)) { problem(errors, 'reference-cycle', `"${key}" reads itself through its notes`, node); return null; }
         guard.add(key);
-        const inner = evaluate(src, { sources, tempo, limit, guard, master, helpers, limits, clock, osRandom, capabilities, environment });
+        const inner = evaluate(src, { sources, tempo, limit, guard, master, helpers, limits, clock, osRandom, capabilities, environment, assertions });
         guard.delete(key);
         if (inner.errors.length) { problem(errors, 'unknown-reference', `The notes of "${key}" have problems`, node); return null; }
         cache.set(key, { events: inner.value.events, span: inner.span });
@@ -1251,6 +1394,7 @@ function evaluateCore(text, { sources = {}, tempo = 120, limit = MAX_EVENTS, gua
     const kit = {
       errors, warnings, bpm, table, text, limit, BEAT,
       limits: limits || {},
+      assertions: !!assertions,
       clock, osRandom, capabilities, environment,
       math: { rat, mul, add, sub, isInt, roundHalfEven, parseDecimal, toMicro },
       operatorNames: names,
@@ -1269,7 +1413,9 @@ function evaluateCore(text, { sources = {}, tempo = 120, limit = MAX_EVENTS, gua
     value = lang.value;
   } else value = evalNode(parsed.ast);
   finish();
-  const langInfo = lang ? { dynamic: lang.dynamic, bakedDynamic: lang.bakedDynamic, dynamicInputs: lang.dynamicInputs, fuel: lang.fuel } : { dynamic: false, bakedDynamic: false, dynamicInputs: [], fuel: 0 };
+  const langInfo = lang
+    ? { dynamic: lang.dynamic, tainted: lang.tainted, bakedDynamic: lang.bakedDynamic, dynamicInputs: lang.dynamicInputs, fuel: lang.fuel }
+    : { dynamic: false, tainted: false, bakedDynamic: false, dynamicInputs: [], fuel: 0 };
   if (errors.length || !value) return { notes: null, span: null, warnings, errors, value: null, ...provenance(), ...langInfo };
   return { notes: writeNotes(value.events), span: value.span, warnings, errors, value, ...provenance(), ...langInfo };
 }

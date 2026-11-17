@@ -37,7 +37,7 @@ export function midiChain(id, byId, links) {
     if (!from) return null;
     if (from.tpl === 'midi-clip') return { clip: from.id, transforms: transforms.reverse() };
     if (from.tpl === 'fire') {   // notes made from a control (a follow of a sound, or a curve): plan 2.8
-      const control = links.find((l) => l.to === from.id && l.type === 'control' && l.inName === 'in' && !l.disabled);
+      const control = links.find((l) => l.to === from.id && l.type === 'control' && (l.inName === 'input' || l.inName === 'in') && !l.disabled);   // the port of map is `input`
       const source = control && byId.get(control.from);
       if (!source || !['follow', 'curve'].includes(source.tpl)) return null;
       return { clip: from.id, fire: { source: source.id, tpl: source.tpl }, transforms: transforms.reverse() };

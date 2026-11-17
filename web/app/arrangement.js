@@ -72,6 +72,8 @@ function playlistEntry() {
   return el('button', {
     type: 'button',
     id: 'arr-playlist',
+    'data-icon': '\u25A4',   // an icon on a phone, like the other arrangement tools (mobile.css)
+    'aria-label': enabled ? 'Playlist' : 'Playlist (beta)',
     textContent: enabled ? 'Playlist' : 'Playlist (beta)',
     title: enabled ? 'Open the Playlist: the song as tracks with their effect chains' : 'Turn on the beta Playlist view: the song as tracks with their effect chains',
     onclick: async () => {

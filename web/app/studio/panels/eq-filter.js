@@ -1,3 +1,4 @@
+import { infoNote } from './info.js';
 import { biquadMagnitude, filterPasses, clamp, equalizerResponse, normalize, denormalize, spectrumBins } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
@@ -130,7 +131,7 @@ function eqPanel(context) {
     const value = number(params, name, name === 'low_hz' ? 250 : name === 'high_hz' ? 3000 : 0);
     controls.append(line(label, knob({ learn: context.block ? { block: context.block, name } : null, label, value, min, max, unit, scale: unit === 'Hz' ? 'log' : 'linear', disabled: context.readOnly, onPreview: (next) => { graph.updateParameter(name, next); context.preview?.(name, next); }, onCommit: (next) => commit(context, name, next, unit) })));
   });
-  root.append(controls, el('p', { className: 'note', textContent: context.inputBuffer ? 'Input spectrum is an approximate estimate from the built input; the response curve is a model.' : 'Build the upstream input to show its approximate spectrum. The response curve is a model.' }));
+  root.append(controls, infoNote(context.inputBuffer ? 'Input spectrum is an approximate estimate from the built input; the response curve is a model.' : 'Build the upstream input to show its approximate spectrum. The response curve is a model.'));
   return root;
 }
 
@@ -139,9 +140,9 @@ function filterPanel(context) {
   const root = el('section', { className: 'studio-effect-panel studio-filter-panel', 'aria-label': 'Filter controls' });
   const cutoff = number(params, 'cutoff', 1000);
   const graph = responseGraph('filter', params, context);
-  root.append(graph, el('div', { className: 'studio-filter-controls' }, [
-    knob({ learn: context.block ? { block: context.block, name: 'cutoff' } : null, label: 'Cutoff', value: cutoff, min: 20, max: 20000, unit: 'Hz', scale: 'log', size: 112, disabled: context.readOnly, onPreview: (next) => { graph.updateParameter('cutoff', next); context.preview?.('cutoff', next); }, onCommit: (next) => commit(context, 'cutoff', next, 'Hz') }),
-    control(context, params, 'resonance', 'Resonance', 0, 100, '%', 'linear', 112),   // next to the cutoff (issue 172)
+  root.append(graph, el('div', { className: 'studio-eq-controls studio-filter-controls' }, [
+    line('Cutoff', knob({ learn: context.block ? { block: context.block, name: 'cutoff' } : null, label: 'Cutoff', value: cutoff, min: 20, max: 20000, unit: 'Hz', scale: 'log', size: 82, disabled: context.readOnly, onPreview: (next) => { graph.updateParameter('cutoff', next); context.preview?.('cutoff', next); }, onCommit: (next) => commit(context, 'cutoff', next, 'Hz') })),
+    line('Resonance', control(context, params, 'resonance', 'Resonance', 0, 100, '%', 'linear', 82)),   // next to the cutoff (issue 172)
     line('Slope', selector({ label: 'Filter slope', value: String(params.slope || '12'), disabled: context.readOnly, choices: ['12', '24', '36', '48'].map((value) => ({ value, label: `${value} dB/oct` })), onCommit: (next) => { graph.updateParameter('slope', next); context.commit('slope', next); } })),
     line('Type', selector({ label: 'Filter type', value: params.type || 'lowpass', disabled: context.readOnly, choices: [{ value: 'lowpass', label: 'Low pass' }, { value: 'highpass', label: 'High pass' }, { value: 'bandpass', label: 'Band pass' }, { value: 'notch', label: 'Notch' }], onCommit: (next) => context.commit('type', next) })),
   ]));

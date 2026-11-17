@@ -81,3 +81,30 @@ if-head       = "if" , condition , "{" ;
 else-if-head  = "}" , "else" , "if" , condition , "{" ;
 else-head     = "}" , "else" , "{" ;
 condition     = "(" , expression , ")" | expression ;
+
+(* A record literal: an immutable value with named fields, in the order written; a field is read with a dot (r.steps, r.inner.a). The type is Record. A record is never a recipe input: an operator cannot take one. *)
+record-literal = "{" , [ record-field , { "," , record-field } , [ "," ] ] , "}" ;
+record-field   = ( identifier | string ) , ":" , expression ;
+
+(* Observation statements: they look at a value and never change the music. The call form and the keyword form are the same statement. *)
+observe-statement = ( "log" | "debug" | "trace" | "warn" ) , ( "(" , observe-args , ")" | observe-args ) ;
+observe-args      = expression , { "," , observe-named } ;
+observe-named     = ( "code" | "hint" | "context" ) , "=" , expression ;
+
+(* fail and require decide the outcome (they are not observations): fail stops the evaluation, require stops it when its condition is false. Named argument: hint only. *)
+fail-statement    = "fail" , ( "(" , expression , [ "," , "hint" , "=" , expression ] , ")" | expression , [ "," , "hint" , "=" , expression ] ) ;
+require-statement = "require" , ( "(" , require-args , ")" | require-args ) ;
+require-args      = expression , [ "," , expression ] , [ "," , "hint" , "=" , expression ] ;
+
+(* throw raises an error: a message, an Error(...) or an error that was caught. try handles it; a try has a catch or a finally. A finally block cannot return, emit or throw. *)
+throw-statement = "throw" , ( "(" , expression , ")" | expression ) ;
+try-statement   = "try" , block , { catch-clause } , [ "finally" , block ] ;
+catch-clause    = "catch" , "(" , [ type-name ] , identifier , ")" , block ;
+
+(* An error declaration: a kind of error with typed fields; one parent (Error by default); a field may be marked dynamic. It is made with the message first and the fields as named arguments. *)
+error-declaration = "error" , identifier , [ "extends" , identifier ] , "{" , [ error-field , { [ "," ] , error-field } ] , "}" ;
+error-field       = [ "dynamic" ] , type-name , identifier ;
+
+(* assert is an observation: it never changes the music. With assertions off nothing of it is evaluated. *)
+assert-statement = "assert" , ( "(" , assert-args , ")" | assert-args ) ;
+assert-args      = expression , [ "," , expression ] ;

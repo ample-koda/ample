@@ -6,6 +6,7 @@
   "version": "1.0",
   "dynamic": false,
   "livePreview": true,
+  "clientPreview": true,
   "plugin": null,
   "description": "Puts the sound in a real space: it is convolved with an impulse response (a WAV file of the project), for example a room, a plate or a street.",
   "inputs": [

@@ -87,6 +87,7 @@ public sealed class ConformanceTests
     [MemberData(nameof(Invalid))]
     public void Invalid_programs_produce_exactly_the_expected_diagnostics(string file)
     {
+        using IDisposable? gate = file.StartsWith("AMP6020", StringComparison.Ordinal) ? SyntaxGate.Use(SyntaxFeatures.None) : null;   // every feature is shipped: this one shows a feature that is off
         string text = Corpus.Read("spec-tests/invalid/" + file);
         AmpleDocument doc = Parser.Parse(text, Corpus.Spec);
         using JsonDocument expected = JsonDocument.Parse(Corpus.Read("spec-tests/invalid/" + file.Replace(".amplet", ".expected-diagnostics.json", StringComparison.Ordinal)));

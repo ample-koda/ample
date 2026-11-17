@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Plays one sample (a WAV file of the project) on the notes it receives, moved in pitch from a root note. It needs a file and notes, and gives audio.",
   "inputs": [

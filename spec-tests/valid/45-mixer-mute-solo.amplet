@@ -1,0 +1,21 @@
+# A mixer with one input muted and another one soloed (per-input mutes and solos).
+composition "demo" { ample 1  tempo 92  master-seed 424242 }
+midi-clip chords {
+  chords Am F C G
+}
+piano piano pinned@2.1 {
+  from chords.notes -> notes
+}
+bass bass {
+  from chords.notes -> notes
+}
+mixer mix {
+  gains 0 -6
+  mutes off on
+  solos off off
+  from piano.audio -> audio1
+  from bass.audio -> audio2
+}
+master master bake {
+  from mix.audio -> audio
+}
