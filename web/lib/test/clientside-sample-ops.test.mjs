@@ -60,3 +60,11 @@ test('splitter exposes independent mono channels and duplicates mono input', () 
   const mono = splitAudio({ sampleRate: 4, channels: [Float32Array.of(0.3, 0.4)] });
   assert.deepEqual([...mono.left.channels[0]], [...mono.right.channels[0]]);
 });
+
+test('shift beats is a plain number of beats (a quarter of a bar), as the server reads it: "38.5" is 38.5 beats, not seconds', async () => {
+  const audio = { sampleRate: 1000, channels: [new Float32Array(10000).fill(0.5)] }, signal = new AbortController().signal;
+  const moved = await shiftAudio(audio, { seconds: '0s', beats: '2' }, 60, 0, signal);   // 60 bpm in 4/4: a bar is 4000 samples, a beat 1000
+  assert.equal(moved.channels[0][1999], 0); assert.equal(moved.channels[0][2000], 0.5);
+  const both = await shiftAudio(audio, { seconds: '0.5s', beats: '1' }, 60, 0, signal);
+  assert.equal(both.channels[0][1499], 0); assert.equal(both.channels[0][1500], 0.5);
+});

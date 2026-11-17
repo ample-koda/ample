@@ -122,6 +122,22 @@ public sealed class ComponentServiceTests : IDisposable
     }
 
     [Fact]
+    public void The_missing_pins_are_listed_without_writing_the_lock()
+    {
+        using ModuleService service = Service(Comp());
+        string lockPath = Path.Combine(folder, LockFile.FileName);
+        ExpandedSong song = service.Expand(Song(), EngineRig.Spec);
+        LockEntry missing = Assert.Single(service.MissingComponentPins(song));
+        Assert.Equal("com.demo.twice@1.0.0", missing.Id);
+        Assert.False(File.Exists(lockPath), "listing the missing pins writes nothing");
+        // the pin a normal build writes is the same entry, and afterwards nothing is missing
+        string pinned = Assert.IsType<string>(service.LockWithNewComponents(song));
+        Assert.Contains("com.demo.twice@1.0.0", pinned, StringComparison.Ordinal);
+        File.WriteAllText(lockPath, pinned);
+        Assert.Empty(service.MissingComponentPins(service.Expand(Song(), EngineRig.Spec)));
+    }
+
+    [Fact]
     public void A_sealed_component_is_trusted_until_it_changes_and_a_changed_one_says_so()
     {
         string text = Comp();

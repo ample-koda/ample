@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Input a fades out while input b fades in over the same stretch, in bars or seconds. Equal power by default.",
   "inputs": [

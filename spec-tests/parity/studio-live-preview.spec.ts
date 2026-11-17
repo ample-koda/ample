@@ -282,7 +282,7 @@ test('an effect node Advanced opens its own controls and an unconnected generato
   await effectDialog.getByRole('button', { name: 'Close advanced controls' }).click();
 
   await addTemplateBlock(page, 'drums', 'unconnected-generator');
-  await page.locator('.node[data-id="unconnected-generator"]').getByRole('button', { name: 'Advanced', exact: true }).click();
+  await page.locator('.node[data-id="unconnected-generator"]').getByRole('button', { name: 'Show properties', exact: true }).click();   // a block without its own window shows its properties
   await expect(page.locator('#props input').first()).toHaveValue('unconnected-generator');
   await expect(page.locator('#studio')).toHaveCount(0);
   await page.locator('#props .studio-advanced-props').click();
@@ -292,7 +292,7 @@ test('an effect node Advanced opens its own controls and an unconnected generato
   await expect(generatorDialog.locator('footer button').filter({ hasText: /^Play block$/ })).toBeDisabled();
   await expect(generatorDialog.getByRole('button', { name: 'Live local preview' })).toHaveCount(0);
   await expect(generatorDialog.getByRole('button', { name: 'Play rendered effect' })).toHaveCount(0);
-  await expect(generatorDialog.getByRole('button', { name: 'A/B' })).toBeDisabled();   // nothing to compare before a build
+  await expect(generatorDialog.getByRole('button', { name: 'A/B bypass' })).toHaveCount(0);   // a generator has no effect to bypass, so the window offers no A/B
   const buildBlock = generatorDialog.getByRole('button', { name: 'Build block' });
   await buildBlock.click();
   const playBlock = generatorDialog.locator('footer button').filter({ hasText: /^Play block$/ });

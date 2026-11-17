@@ -1,5 +1,6 @@
 // Studio panel of the chop block: the recording with its slices (click to add a cut, right-click to take one away), the pattern as steps, a play bar that works the sound out in the browser (a knob is heard
 // while it plays) and a knob for every setting. @ample:chop
+import { infoNote } from './info.js';
 import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
 import { barBeats } from '../../../lib/meter.mjs';
@@ -165,7 +166,7 @@ function chopPanel(context) {
       control(context, params, 'fit', 'Fit', 0, 100, '%', 'linear', 82, change('fit')),
       control(context, params, 'repeat', 'Repeat', 1, 64, '', 'log', 82, change('repeat')),
     ]),
-    el('p', { className: 'note', textContent: 'The recording is cut where the words are (or where you click) and the slices are put on the beat in the order of the pattern: 1 2 3 4 plays them in turn, - is a rest, 3*2 plays slice 3 twice inside its step. Through a vocoder this gives a rhythmic robot voice.' }),
+    infoNote('The recording is cut where the words are (or where you click) and the slices are put on the beat in the order of the pattern: 1 2 3 4 plays them in turn, - is a rest, 3*2 plays slice 3 twice inside its step. Through a vocoder this gives a rhythmic robot voice.'),
   ]);
 }
 

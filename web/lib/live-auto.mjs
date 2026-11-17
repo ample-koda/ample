@@ -36,7 +36,9 @@ export function gainAtSeconds(text, seconds, barSeconds) {
     let i = 0;
     while (points[i + 1].at <= seconds) i++;
     const a = points[i], b = points[i + 1];
-    return a.value + (b.value - a.value) * (seconds - a.at) / Math.max(1e-9, b.at - a.at);
+    // the server joins the points by straight lines in the gain (Automation.CurveAt over the linear gain of each point, points clamped to -60 dB), not in dB: halfway between 0 and -18 dB is -5.0 dB, not -9
+    const gainOf = (v) => 10 ** (Math.max(-60, v) / 20), t = (seconds - a.at) / Math.max(1e-9, b.at - a.at);
+    return toDb(gainOf(a.value) + (gainOf(b.value) - gainOf(a.value)) * t);
   }
   if (parts.length < 2 || parts.length > 3) return null;
   const start = position(parts[0], barSeconds), span = length(parts[1], barSeconds), shape = (parts[2] || 'lin').toLowerCase();

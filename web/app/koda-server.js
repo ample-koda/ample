@@ -212,7 +212,7 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
       await reloadDoc();
       return true;
     },
-    async apply() {
+    async apply(options = {}) {
       // the other files Koda changed or made (a score, a component, a note) are not written: each comes into the editor as unsaved text and opens in a tab, so the person looks at it and saves it (Save all) or reverts it
       // a proposal that deletes a file is not handled as unsaved text (a deleted file would come in empty): it goes through Accept
       const split = splitChanges(task.changes, activePath());
@@ -228,7 +228,7 @@ async function resultOf(task, subject, instruction, fromQuestion = false) {
         }
       }
       let r;
-      try { r = await api.post(`/api/ai/tasks/${task.id}/accept`, { activeSong: S.path }); } catch (error) {
+      try { r = await api.post(`/api/ai/tasks/${task.id}/accept`, { activeSong: S.path, anyway: options.anyway === true }); } catch (error) {
         // bare metal: the song in the editor already holds what the model made (the live view), so the project no longer matches the base of the proposal and Accept can refuse:
         // the proposed text is then put in the song itself and the proposal is put aside (files other than the song are not carried along in this case)
         if (!lastLive || !proposed) throw error;

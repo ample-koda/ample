@@ -10,7 +10,7 @@ piano keys at 1 for 4 {
 }
 
 delay echo {
-  time 0.75 beat
+  time 469 ms
   feedback 45%
   mix 100%
   from keys.audio -> audio

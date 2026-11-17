@@ -75,9 +75,9 @@ internal sealed class LspClient : IAsyncDisposable
 
     public int? ExitCode { get; private set; }
 
-    public static async Task<LspClient> StartAsync(string helpBase = "/help")
+    public static async Task<LspClient> StartAsync(string helpBase = "/help", Func<ConfigLayerInput?>? observationSession = null)
     {
-        LspClient c = new(new LspServer(Root.Spec));
+        LspClient c = new(new LspServer(Root.Spec, observationSession: observationSession));
         await c.RequestAsync("initialize", new { processId = (object?)null, rootUri = (object?)null, capabilities = new { }, initializationOptions = new { helpBase } });
         await c.NotifyAsync("initialized", new { });
         return c;

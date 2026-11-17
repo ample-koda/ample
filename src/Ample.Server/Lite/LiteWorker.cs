@@ -23,7 +23,8 @@ public static class LiteWorker
     /// <param name="limits">The limits that hold for this build.</param>
     /// <param name="cancellationToken">Cancelled when the build is given up.</param>
     /// <returns>A task that ends when everything is written.</returns>
-    public static async Task WriteRequestAsync(Stream output, string entry, IReadOnlyList<LiteFile> files, LiteLimits limits, CancellationToken cancellationToken)
+    /// <param name="options">The observation options of this build, or null.</param>
+    public static async Task WriteRequestAsync(Stream output, string entry, IReadOnlyList<LiteFile> files, LiteLimits limits, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? options = null)
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(files);
@@ -33,6 +34,7 @@ public static class LiteWorker
             w.Write(Magic);
             w.Write(entry);
             w.Write(JsonSerializer.Serialize(limits, Json));
+            w.Write(JsonSerializer.Serialize(options ?? new Dictionary<string, string>(), Json));   // the observation options of this build
             w.Write(files.Count);
             foreach (LiteFile file in files)
             {
@@ -63,6 +65,7 @@ public static class LiteWorker
         if (reader.ReadInt32() != Magic) return 2;
         string entry = reader.ReadString();
         LiteLimits limits = JsonSerializer.Deserialize<LiteLimits>(reader.ReadString(), Json) ?? LiteLimits.Default;
+        Dictionary<string, string> options = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadString(), Json) ?? [];
         int count = reader.ReadInt32();
         if (count < 0 || count > limits.FilesAccepted + 8) return 2;
         List<LiteFile> files = new(count);
@@ -87,7 +90,7 @@ public static class LiteWorker
         LiteOutputs kept = new();
         try
         {
-            LiteBuildResult result = await LiteBuilder.BuildAsync(spec, work, entry, files, limits, kept, cancellationToken, (text, fraction) => Send(new { t = "log", text, fraction })).ConfigureAwait(false);
+            LiteBuildResult result = await LiteBuilder.BuildAsync(spec, work, entry, files, limits, kept, cancellationToken, (text, fraction) => Send(new { t = "log", text, fraction }), options).ConfigureAwait(false);
             if (result.OutputId is not null && kept.Get(result.OutputId) is { } wav) await File.WriteAllBytesAsync(Path.Combine(work, "out.wav"), wav, cancellationToken).ConfigureAwait(false);
             Send(new { t = "result", result });
         }

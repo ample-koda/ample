@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Plays recorded guitar notes from a sample set of the project as a strummed chord pattern. It needs a sample set and notes, and gives audio.",
   "inputs": [

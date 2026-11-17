@@ -42,7 +42,7 @@ The graph keeps its blocks (`transpose`, `quantize`, `midi-humanize`...) for liv
 
 | Kind | Operators | Meaning |
 | --- | --- | --- |
-| source | `block.port`, literal entries, `editable { ... }` | `take.notes` reads the `notes` output of a block (same spelling as `from take.notes -> in`) |
+| source | `block.port`, literal entries, `editable { ... }` | `take.notes` reads the `notes` output of a block (same spelling as `from take.notes -> in`). A midi-clip written with `melody "..."` or `chords ...` (and no `notes`) is a source too: the pipeline reads exactly the notes the clip plays (bars of the clip from 1; the clip's `bars`, else the length of its first part, limits a melody and repeats chords; without either a melody runs to its end and chords play their list once) |
 | select | `bars`, `beats`, `time`, `mask` (range arguments of `remove`, `cut`, `replace` and `mask` are written like the select steps: `bars(1..2)`, `beats(..)`, `time(..)`) | `bars/beats/time(range)` keep the notes that **start** inside the window, shorten those that run past its end, and move the window start to the origin; the span becomes the window length. `mask(range)` does the same but keeps positions and the span |
 | delete/insert | `remove(range)`, `cut(range)`, `replace(range, notes)` | `remove` deletes the notes starting in the range and leaves a gap; `cut` also closes the gap (later notes move earlier, span shrinks); `replace` removes the range and puts the given notes there (rebased to the start of the range) |
 | transform | `transpose(st)`, `shift(length)` | `transpose` clamps pitch to 0..127 and semitones to +-48, exactly like the block; `shift` moves every note (negative allowed; notes moved before the start are dropped with a warning) |

@@ -1,0 +1,188 @@
+{
+  "$comment": "How each failure ends an evaluation (plan/diagnostics/PLAN.md, D7, D24, D18). T1: a catch may handle it and finally runs. T2: no catch, finally runs under the unwind reserve. T3: a safety stop, no user code runs after it. S: a deliberate early stop. C# (FailureClassTable) and JS read this file; a test fails when an id raised by either evaluator is missing. \"refine\" marks a default that the raise sites narrow (type-mismatch and bad-argument are raised both for programming errors and for data problems). \"code\" is the stable text a program may compare; messages are never an API.",
+  "classes": {
+    "T1": "catchable",
+    "T2": "controlled fatal",
+    "T3": "safety stop",
+    "S": "early stop"
+  },
+  "failures": [
+    {
+      "id": "divide-by-zero",
+      "class": "T1",
+      "code": "DIV_ZERO",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "unknown-field",
+      "class": "T1",
+      "code": "UNKNOWN_FIELD",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "conversion",
+      "class": "T1",
+      "code": "CONVERSION",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "throw",
+      "class": "T1",
+      "code": "THROW",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "require",
+      "class": "T1",
+      "code": "REQUIRE",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "type-mismatch",
+      "class": "T2",
+      "runtimes": ["csharp", "js"],
+      "refine": true
+    },
+    {
+      "id": "bad-argument",
+      "class": "T2",
+      "runtimes": ["csharp", "js"],
+      "refine": true
+    },
+    {
+      "id": "reported",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "unknown-name",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "unknown-operator",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "undefined-variable",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "immutable-variable",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "duplicate-variable",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "helper-broken",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "ambiguous-name",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "capability-denied",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "wrong-unit",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "missing-unit",
+      "class": "T2",
+      "runtimes": ["csharp"]
+    },
+    {
+      "id": "cycle",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "seed-error",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "needs-server",
+      "class": "T2",
+      "runtimes": ["js"]
+    },
+    {
+      "id": "nit",
+      "class": "T2",
+      "runtimes": ["js"]
+    },
+    {
+      "id": "fail",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "assert",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "assert-unavailable",
+      "class": "T2",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "fuel",
+      "class": "T3",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "loop-limit",
+      "class": "T3",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "while-limit",
+      "class": "T3",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "stack-depth",
+      "class": "T3",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "memory",
+      "class": "T3",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "cap-events",
+      "class": "T3",
+      "runtimes": ["csharp", "js"]
+    },
+    {
+      "id": "cap-time",
+      "class": "T3",
+      "runtimes": ["csharp"]
+    },
+    {
+      "id": "cancelled",
+      "class": "T3",
+      "runtimes": ["csharp"]
+    },
+    {
+      "id": "stop-at",
+      "class": "S",
+      "runtimes": ["csharp"]
+    }
+  ]
+}

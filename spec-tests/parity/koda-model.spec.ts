@@ -3,7 +3,8 @@ import { openApp } from '../../web/tests/support';
 
 // The context menu of Koda: the model and the thinking level of this Koda session. A choice is an override (shown by a chip), "Use default" removes it, "Set as default for Koda" saves it; Koda looks the part.
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/ai/models', (route) => route.fulfill({ json: { default: 'gpt-5-codex', models: [
+  // the app asks /api/ai/models?koda=1 (the models Koda can use): the route matches with or without a query
+  await page.route(/\/api\/ai\/models(\?.*)?$/, (route) => route.fulfill({ json: { default: 'gpt-5-codex', models: [
     { id: 'gpt-5-codex', name: 'GPT-5 Codex', description: 'the standard model', efforts: ['low', 'medium', 'high'], defaultEffort: 'medium', isDefault: true },
     { id: 'gpt-5-codex-mini', name: 'GPT-5 Codex mini', description: 'small and fast', efforts: ['low', 'medium'], defaultEffort: 'low' },
     { id: 'gpt-6-pro', name: 'GPT-6 Pro', description: 'the most capable model', efforts: ['low', 'medium', 'high', 'xhigh'], defaultEffort: 'high' },

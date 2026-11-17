@@ -19,6 +19,8 @@ const menuItem = (page: Page, text: string) => page
 const dialogButton = (page: Page, name: string) => page.locator('#dlg-btns button', { hasText: name });
 
 test.beforeEach(async ({ page }) => {
+  // the tests share one server: the Save test above leaves a third channel in the file, so every test starts from the original text
+  await api('/api/file', { method: 'PUT', body: { path: 'sequences/a.seq', text: SEQ } });
   await api('/api/doc/save', { method: 'POST', body: { path: 'song.amplet' } });
   await openApp(page, { reset: false });
   await page.getByRole('button', { name: 'Fit', exact: true }).click();

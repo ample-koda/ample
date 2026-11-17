@@ -92,7 +92,7 @@ internal static partial class ComponentLibrary
     /// <param name="songText">The text of the song the "imported" marks are for (empty: none).</param>
     /// <param name="refresh">True to read every file again.</param>
     /// <returns>The files, the entries and the cache figures.</returns>
-    public static object Build(ProjectSession s, string songText, bool refresh) => Build(new ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")), s.Root, s.Spec, songText, refresh);
+    public static object Build(ProjectSession s, string songText, bool refresh) => Build(s.Modules(), s.Root, s.Spec, songText, refresh);
 
     /// <summary>The same for any folder of components (the project, or the working copy of an assistant task).</summary>
     /// <param name="service">The module service of that folder.</param>

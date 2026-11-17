@@ -6,7 +6,7 @@
 import { noteOpItems } from '../lib/note-ops.mjs';
 import { NOTE_SIGNATURES, NOTE_TYPES } from '../lib/note-catalog.mjs';
 import { activeParam, argumentNote, callContext, signatureOf, typedCompletion } from '../lib/note-typed.mjs';
-import { helperItems, helpersOfText } from './song-helpers.js';
+import { assertionsForSong, helperItems, helpersOfText } from './song-helpers.js';
 import { helperDiagnostics } from '../lib/note-lang.mjs';
 import { lengthDiagnostics } from '../lib/block-length.mjs';
 import { withoutSilenced } from '../lib/ignore-comments.mjs';
@@ -30,6 +30,7 @@ import { UPLOAD_FOLDER, draggedFile, outsideDragKind } from './dragfile.js';
 import { uploadProjectFiles, openProjectFilePicker } from './filepicker.js';
 import { rankFiles } from '../lib/fuzzy.mjs';
 import { liveMarks } from '../lib/build-errors.mjs';
+import { buildTargetNow, connectEditor, flushListening, listenBar, toggleListening } from './listen.js';
 import { beforeSave, createSaveControl, refreshSaveControls, typedProbe } from './savecontrol.js';
 import { resolveTypedConflict } from './typed-conflict.js';
 import { seqDiagnostics } from '../lib/seq-diagnostics.mjs';
@@ -508,6 +509,7 @@ async function build() {
     const { installTouchMenu, installKeyboardGuard } = await import('./editor-touch-menu.js');
     if (made?.view) { installTouchMenu(made.view); installKeyboardGuard(made.view, closeComp); }   // a long press on a phone: copy, cut, paste, select all; selecting text brings no keyboard and closes the suggestions
   } finally { editorMade(); }
+  connectEditor({ setMarks: setPlaybackMarks, text: () => ($('#se-ta') ? $('#se-ta').value : SE.text) });
   ta.oninput = () => { setTimeout(updateSig, 0); setTimeout(updateBakeCall, 0); SE.text = ta.value; saveSourceDraftSoon(); syncSoon(); refreshSeqDiagnostics(); gutter(); overlay(); status(); refreshSaveControls(); if (isSong()) { S.sourceEditMessage = 'Checking source...'; scheduleSourceSync(); notifySelection(); } clearTimeout(SE.timer); SE.timer = setTimeout(() => { SE.timer = 0; if (isSong() && SE.offline) localDiagnostics(); else if (isSong() && SE.lsp) { SE.sentText = ta.value; SE.lsp.change(ta.value).catch(() => {}); } }, 250); };
   ta.onselectionchange = syncSourceCursor;
   ta.onscroll = () => { gut.scrollTop = ta.scrollTop; hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; lk.scrollTop = ta.scrollTop; lk.scrollLeft = ta.scrollLeft; ghost.scrollTop = ta.scrollTop; ghost.scrollLeft = ta.scrollLeft; };
@@ -540,7 +542,10 @@ async function build() {
       if (e.key === 'Backspace' || e.key === 'Delete') setTimeout(() => refreshComp().catch(closeComp), 0);
     }
     if (e.key === 'Tab') { e.preventDefault(); ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end'); ta.oninput(); }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); apply(); }
+    // Live Preview (plan/live-preview): Ctrl+Shift+Enter runs the waiting build at once, Ctrl+Enter applies and builds what is listened to, Ctrl+Shift+Space listens or stops
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') { e.preventDefault(); flushListening(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); apply().then((ok) => { if (ok !== false && isSong()) buildTargetNow(); }); return; }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Space') { e.preventDefault(); if (isSong()) toggleListening(); return; }
     if ((e.ctrlKey || e.metaKey) && e.code === 'Space') { e.preventDefault(); SE.quiet = null; hideGhost(); openComp(); }
     if (e.key === 'F2') { e.preventDefault(); renameAtCaret(); }
   };
@@ -582,7 +587,7 @@ async function build() {
     el('span', { className: 'note', id: 'se-status', style: 'margin:0' }),
   );
   const prob = el('div', { className: 'seprob', id: 'se-prob' });
-  ed.append(bar, body, el('div', { id: 'se-comp' }), el('div', { id: 'se-sig' }), problemGrip(prob), prob);
+  ed.append(bar, listenBar(), body, el('div', { id: 'se-comp' }), el('div', { id: 'se-sig' }), problemGrip(prob), prob);
   se.append(ed);
 }
 
@@ -995,6 +1000,13 @@ function showTimeTip(e) {
 
 // The marks are handed to the editor in the next frame: a change of the editor in the middle of its own input event disturbs what is being typed, and several changes of the text in one frame need one set of marks.
 let markFrame = 0, latestMarks = null;
+/** The marks of the Live Preview (web/app/listen.js): the block that is listened to and what plays now; only in the song (other files have other offsets). */
+function setPlaybackMarks(marks) {
+  SE.playMarks = isSong() ? marks : [];
+  const ta = $('#se-ta');
+  if (ta && typeof ta.setMarks === 'function') applyMarks(ta, (SE.diagMarks || []).concat(SE.linkMarks || [], SE.playMarks));
+}
+
 function applyMarks(ta, marks) {
   latestMarks = marks;
   if (markFrame) return;
@@ -1027,7 +1039,7 @@ function overlay() {
       offset += t.length + 1;
     });
     SE.diagMarks = marks;
-    applyMarks(ta, marks.concat(SE.linkMarks || []));
+    applyMarks(ta, marks.concat(SE.linkMarks || [], SE.playMarks || []));
     hl.textContent = '';
   } else hl.innerHTML = texts.map((t0, i) => {
     const rs = by[i];
@@ -1293,7 +1305,7 @@ function paintLinks() {
     }
     if (marks.length === 0 && !(SE.linkMarks || []).length) return;
     SE.linkMarks = marks;
-    applyMarks(ta, (SE.diagMarks || []).concat(marks));
+    applyMarks(ta, (SE.diagMarks || []).concat(marks, SE.playMarks || []));
     return;
   }
   if (!SE.ctrl || !isSong()) { lk.innerHTML = ''; return; }
@@ -1530,7 +1542,7 @@ function clipBarsOf(block, text) {
     const sources = Object.fromEntries(clips.filter((b) => b.name !== block.name && value(b)).map((b) => [b.name, value(b)]));
     const own = value(block);
     if (!own) return null;
-    const r = evaluate(own, { sources, tempo: S.doc?.project?.tempo ?? 120, beatsPerBar: Number(S.doc?.project?.beatsPerBar) || 4, helpers: helpersOfText(text) });
+    const r = evaluate(own, { sources, tempo: S.doc?.project?.tempo ?? 120, beatsPerBar: Number(S.doc?.project?.beatsPerBar) || 4, helpers: helpersOfText(text), assertions: assertionsForSong(text) });
     return r.errors.length ? null : Math.max(1, Math.ceil(r.span / 4_000_000));
   } catch { return null; }
 }

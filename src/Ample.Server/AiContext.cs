@@ -374,7 +374,7 @@ internal static class AiContext
                         return new JsonObject { ["found"] = false, ["note"] = "There is no song to look at." };
                     }
 
-                    AmpleDocument doc = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(songText, s.Spec);
+                    AmpleDocument doc = s.Modules().ParseExpanded(songText, s.Spec);
                     Dictionary<string, BlockNode> by = doc.Blocks.Where(b => !b.Skipped).GroupBy(b => b.Name).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
                     if (string.IsNullOrWhiteSpace(name) || !by.TryGetValue(name, out BlockNode? start))
                     {
@@ -499,7 +499,7 @@ internal static class AiContext
     /// <summary>The arrangement of a song as text: tempo, where every block that reaches the master sits (in bars and in seconds), the slice of the master, and the length that comes out.</summary>
     public static JsonObject Arrangement(ProjectSession s, string songText)
     {
-        AmpleDocument doc = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(songText, s.Spec);
+        AmpleDocument doc = s.Modules().ParseExpanded(songText, s.Spec);
         double tempo = doc.Project?.Tempo is > 0 ? doc.Project.Tempo : 120;
         double bar = 240.0 / tempo;
         Dictionary<string, BlockNode> by = doc.Blocks.Where(b => !b.Skipped).GroupBy(b => b.Name).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -590,8 +590,17 @@ internal static class AiContext
             "The project tempo is one number for the whole song: it cannot change over time, and tempo is not automatable. A sound can be played slower or faster with the stretch block: speed in percent (25 to 400; 50 is half speed and keeps pitch). For a gradual speed ramp, use speed auto(bar:percent, ...), for example speed auto(1:100, 9:50); the curve moves linearly between bars while the rendered block keeps its length. This is a stretch-speed ramp, not a project-wide tempo change. A sequencer or a loop has its own speed in its text."),
         (["section", "cut", "slice", "part", "repeat", "loop", "arrangement", "place", "at", "for", "bars", "length", "shorter", "longer"], "Placing and cutting parts",
             "A block is placed with at <bar> for <bars> (bars count from 1): several placements are allowed (at 1 for 4 at 9 for 4). A cut block keeps a stretch of its audio input (start, end in seconds, or the first or last seconds, optionally repeated). The master can cut one part of the arrangement out with slice_from and slice_to (bars). ample_arrangement tells where everything sits and how long the result is."),
-        (["pause", "gap", "silence", "silent", "later", "start later", "wait", "between", "timing", "offset", "seconds", "beats", "spoken", "tik", "walking", "join", "sequence of clips"], "A pause, a gap, or starting a sound a little later",
-            "A placement is in WHOLE bars only (at 1 for 4; at 1.8 or at 2.42 is not valid). To put something a few seconds or beats later, or to leave a pause: (1) a shift block after the sound: seconds and/or beats later (a minus moves it earlier), the sound keeps its length plus the shift; (2) a join block: in1, in2, in3 ... are played one after the other with a gap (seconds plus beats) between them, for spoken phrases with a pause; (3) in the text of a voice-clone block write [pause 800 ms] or [pause 1.2 s] between the words: the voice is made per piece and AMPLE puts the silence between. A delay block is not needed for this."),
+        (["pause", "gap", "silence", "silent", "later", "start later", "wait", "between", "timing", "offset", "seconds", "beats", "spoken", "tik",
+            "walking", "join", "sequence of clips", "notes later", "move the notes", "delay the notes", "melody later"],
+            "A pause, a gap, or starting a sound a little later",
+            "A placement is in WHOLE bars only (at 1 for 4; at 1.8 or at 2.42 is not valid). MIDI NOTES (a midi-clip, a note pipeline, a helper) need no block: " +
+            "the Notes operator shift(length) moves every note in time by a musical length, for example notes theme.notes |> shift(3beats) starts the whole melody " +
+            "three beats later (bars, beats, s, ms or ticks; a minus moves it earlier). The source may be a midi-clip with notes, a melody (melody \"c4:1 d4:1 " +
+            "...\") or chords: a pipeline reads the notes the clip plays. " +
+            "For AUDIO, to put something a few seconds or beats later, or to leave a pause: (1) a shift block after the sound: seconds and/or beats later (a minus " +
+            "moves it earlier), the sound keeps its length plus the shift; (2) a join block: in1, in2, in3 ... are played one after the other with a gap (seconds " +
+            "plus beats) between them, for spoken phrases with a pause; (3) in the text of a voice-clone block write [pause 800 ms] or [pause 1.2 s] between the " +
+            "words: the voice is made per piece and AMPLE puts the silence between. A delay block is not needed for this."),
         (["sidechain", "duck", "pump", "key"], "Sidechain and ducking",
             "The compressor has a key input: connect the block whose level should push the sound down (from kick.audio -> key). A duck block does it with a simple amount. See the compressor and duck block types."),
         (["sample set", "instrument from", "own instrument", "soundfont", "sampler", "make an instrument", "layers", "velocity layer", "round robin", "envelope", "attack", "release", "sustain loop", "loop point", "preview"], "Building an instrument from samples",
@@ -602,9 +611,52 @@ internal static class AiContext
             "delay-llama is an instrument that SINGS notes with a formant voice (FOF synthesis, in the spirit of the classic Delay Lama): connect notes to it (from melody.notes -> notes). vowel is 0 to 100 (a 0, e 25, i 50, o 75, u 100) or a letter, voice is the size of the singer (low = big and deep), mouth how open (closed is a hum); all three may be curves, vowel auto(1:0, 4:100) moves the mouth over the song. " +
             "It is monophonic: the last note wins and notes that touch glide (glide in ms). vibrato and vibrato_rate, breath, unison (1 to 7 voices) with detune and spread, an ADSR (attack, decay, sustain, release), echo 0-100% (the classic stereo echo), gain and leveler (0-100%, default 50: turns down what gets too loud, never up). The pitch bend of the notes (bend on the midi-clip, ;bend= on a note) is sung natively. " +
             "In a sequencer a channel of type llama sings its notes rows the same way (channel choir llama vowel=30 voice=60 glide=120 unison=3 echo=20). The window of the block (Advanced) has a vowel pad, the knobs and the singing llama (character off hides it)."),
-        (["note pipeline", "pipeline", "|>", "bake", "notes expression", "formula notes", "derived notes", "for auto", "concat", "merge notes", "transpose the notes", "bars(", "editable"],
-            "A midi-clip's notes can be a PIPELINE instead of a literal: notes take.notes |> bars(1..=4) |> transpose(+12) (a source, then steps joined by |>). Sources: another midi-clip's notes (name.notes), a literal list of entries, or editable { notes 1:0:1:60:100 ... } for a piece that is edited by hand. Operators: bars, beats and time (a..b) keep a range and move it to the start (half-open: bars(1..5) is four bars, bars(1..=4) includes bar 4; a fractional bar only gives a warning; time takes s or ms and uses the song tempo), mask(range), remove(range), cut(range), replace(range, other.notes), transpose(+12), shift(+250ms) (a length needs a unit: bars, beats, s, ms or ticks), concat(other.notes), merge(other.notes), reverse(), stretch(2), legato(), quantize(0.25beat), humanize(timing=20ms, velocity=4, seed=7) (a seed is required), repeat(4), arp(0.5beat), where(pitch=48..72), set(pitch=\"38 50 45\", velocity=\"105 82\") (any setting of a note, as a value or a list that cycles over the notes), and euclid(5, 8, pitch=36, step=0.5beat) as a source; arguments may be named. A midi block is a source too (song.notes). Randomness is always seeded and reproducible: seed=stable(\"verse\") follows the song master-seed, seed=stable(\"verse\").fork(\"drums\") is a branch, seed=123456 is pinned; random(0..100, seed=S, round=0), choose(a, b, c, seed=S, round=1) and chance(0.25, seed=S, round=2) are values, per-note operators (humanize, randomize(velocity=70..=95), thin(0.25), scramble) draw per note, walk(C, major, steps=16, seed=S) makes a melody; random-stream NAME SEED is a clip line with a cursor read as NAME.next() (never inline); seed=randomSeed() must be picked first (the editor writes the number). Generators: chords(\"Am F C G\"), scale(C, major); helpers: clamp(48..=72), fold(48..=71), snap(C, major), keep(C, major), avoid(C, major). The language also has helpers: a top-level helper canonVoice(Notes source, Interval by) -> Notes { ... } in lowerCamelCase (any order in the file), let constants, if / else if / else, for i in 0..n, repeat N, while cond max N [stop], return, emit (Notes only; a bare return ends early), bake EXPR as VALUE [@hash] [override], and numeric block properties may be expressions (gain quiet(theme.notes), program pickProgram(5)). A helper that reads currentTime(), currentDate(), osRandom() or environment(name) must be declared dynamic helper (an unmarked one is an error); a value made as an Octave is not a Program. Pitfalls: a division gives a Float, and a Float is not an Int (a fork label, a loop count, a program number): write Floor(a / b), Round(a / b) or Int(a / b) (there is no .floor() method), or use %; two statements on one line need a \";\" between them; a seed derived from the clock is a dynamic helper returning a RandomSource, for example dynamic helper sectionSeed(RandomSource s) -> RandomSource { return s.fork(Floor(currentTime().minute / 4)) }, and a stable(\"name\") inside a helper is shared by every call, so pass the seed in as a parameter. Types: Int, Float, Notes, Interval (+7st, -1oct), Duration (0.5beat, 250ms), PitchClass (C, F#), ScaleMode (minor), Octave, Velocity, Pitch (C4), Probability (25%), RandomSource. A hyphen inside an expression is part of a name: write a - b or (a-b) to subtract and [a-b] for the symbol. Capabilities (clock, os-random, environment, network, filesystem, external-process, external-plugin) are permissions set in settings lines and by the server: NEVER write capabilities.<name> on, NEVER remove or weaken a capabilities.<name> off line and NEVER raise a limit (limits.fuel and the other limits); the server refuses such a draft for good. Explain a denied capability to the user instead of working around it. A line may continue on the next line starting with |>, and # starts a comment (/* ... */ is a block comment, over several lines too). Write a doc comment above every helper, let constant or block you add: /** ... */ (or lines that start with ##) directly above it, with a summary and the tags @param name text (or @param {Interval|Int} name text with a type or a union), @return {Notes} text, @example code and @deprecated text; the editor shows it when the name is hovered. A part may say at 1 for auto (the length of the notes).",
+        (["note pipeline", "pipeline", "|>", "bake", "notes expression", "formula notes", "derived notes", "for auto", "concat", "merge notes",
+            "transpose the notes", "bars(", "editable", "shift notes", "shift("], "Note pipelines: a midi-clip's notes as an expression",
+            "A midi-clip's notes can be a PIPELINE instead of a literal: notes take.notes |> bars(1..=4) |> transpose(+12) (a source, then steps joined by |>). " +
+            "Sources: another midi-clip's notes (name.notes), a literal list of entries, or editable { notes 1:0:1:60:100 ... } for a piece that is edited by " +
+            "hand. Operators: bars, beats and time (a..b) keep a range and move it to the start (half-open: bars(1..5) is four bars, bars(1..=4) includes bar 4; a " +
+            "fractional bar only gives a warning; time takes s or ms and uses the song tempo), mask(range), remove(range), cut(range), replace(range, " +
+            "other.notes), transpose(+12), shift(+250ms) (a length needs a unit: bars, beats, s, ms or ticks), concat(other.notes), merge(other.notes), reverse(), " +
+            "stretch(2), legato(), quantize(0.25beat), humanize(timing=20ms, velocity=4, seed=7) (a seed is required), repeat(4), arp(0.5beat), " +
+            "where(pitch=48..72), set(pitch=\"38 50 45\", velocity=\"105 82\") (any setting of a note, as a value or a list that cycles over the notes), and " +
+            "euclid(5, 8, pitch=36, step=0.5beat) as a source; arguments may be named. A midi block is a source too (song.notes). Randomness is always seeded and " +
+            "reproducible: seed=stable(\"verse\") follows the song master-seed, seed=stable(\"verse\").fork(\"drums\") is a branch, seed=123456 is pinned; " +
+            "random(0..100, seed=S, round=0), choose(a, b, c, seed=S, round=1) and chance(0.25, seed=S, round=2) are values, per-note operators (humanize, " +
+            "randomize(velocity=70..=95), thin(0.25), scramble) draw per note, walk(C, major, steps=16, seed=S) makes a melody; random-stream NAME SEED is a clip " +
+            "line with a cursor read as NAME.next() (never inline); seed=randomSeed() must be picked first (the editor writes the number). Generators: chords(\"Am " +
+            "F C G\"), scale(C, major); helpers: clamp(48..=72), fold(48..=71), snap(C, major), keep(C, major), avoid(C, major). The language also has helpers: a " +
+            "top-level helper canonVoice(Notes source, Interval by) -> Notes { ... } in lowerCamelCase (any order in the file), let constants, if / else if / " +
+            "else, for i in 0..n, repeat N, while cond max N [stop], return, emit (Notes only; a bare return ends early), bake EXPR as VALUE [@hash] [override], " +
+            "and numeric block properties may be expressions (gain quiet(theme.notes), program pickProgram(5)). A helper that reads currentTime(), currentDate(), " +
+            "osRandom() or environment(name) must be declared dynamic helper (an unmarked one is an error); a value made as an Octave is not a Program. Pitfalls: " +
+            "a division gives a Float, and a Float is not an Int (a fork label, a loop count, a program number): write Floor(a / b), Round(a / b) or Int(a / b) " +
+            "(there is no .floor() method), or use %; two statements on one line need a \";\" between them; a seed derived from the clock is a dynamic helper " +
+            "returning a RandomSource, for example dynamic helper sectionSeed(RandomSource s) -> RandomSource { return s.fork(Floor(currentTime().minute / 4)) }, " +
+            "and a stable(\"name\") inside a helper is shared by every call, so pass the seed in as a parameter. Types: Int, Float, Notes, Interval (+7st, -1oct), " +
+            "Duration (0.5beat, 250ms), PitchClass (C, F#), ScaleMode (minor), Octave, Velocity, Pitch (C4), Probability (25%), RandomSource. A hyphen inside an " +
+            "expression is part of a name: write a - b or (a-b) to subtract and [a-b] for the symbol. Capabilities (clock, os-random, environment, network, " +
+            "filesystem, external-process, external-plugin) are permissions set in settings lines and by the server: NEVER write capabilities.<name> on, NEVER " +
+            "remove or weaken a capabilities.<name> off line and NEVER raise a limit (limits.fuel and the other limits); the server refuses such a draft for good. " +
+            "Explain a denied capability to the user instead of working around it. A line may continue on the next line starting with |>, and # starts a comment " +
+            "(/* ... */ is a block comment, over several lines too). Write a doc comment above every helper, let constant or block you add: /** ... */ (or lines " +
+            "that start with ##) directly above it, with a summary and the tags @param name text (or @param {Interval|Int} name text with a type or a union), " +
+            "@return {Notes} text, @example code and @deprecated text; the editor shows it when the name is hovered. A part may say at 1 for auto (the length of " +
+            "the notes). " +
+            "shift(length) is a Notes operator, not the audio shift block: it moves every note of the value in time by a musical length (shift(3beats), " +
+            "shift(2bars), shift(-250ms)). A helper may use it: helper canonVoice(Notes source, Number interval, Duration delay) -> Notes { source |> " +
+            "transpose(interval) |> shift(delay) } (language/14-helpers-types-and-dynamic). " +
             "|> bake name { ... } stores the notes made so far, signed: input-hash and notes-hash are written by AMPLE (the Bake item of the roll menu, the bake button of the error tooltip, or ample bake-notes), never by hand. Do not edit the notes of a bake by hand: change the pipeline and bake again, or turn the pipeline into plain notes. Notes inside editable { } may be edited freely. The roll shows a pipeline read-only."),
+        (["canon", "round", "imitation", "second voice", "delayed copy", "follow the melody", "echo the melody", "midi delay", "note delay",
+            "delay the melody"], "A canon, or a delayed copy of a melody (notes)",
+            "Existing Notes operators express it; do not propose a new MIDI delay block. The source may be a midi-clip with notes, a melody (melody \"c4:1 d4:1 " +
+            "...\") or chords: a pipeline reads the notes the clip plays. Keep three things apart: (1) MOVE an existing note sequence in time: theme.notes |> " +
+            "shift(2bars) (shift(3beats) is three beats later, every note moves); (2) TRANSPOSE a voice: |> transpose(+7); " +
+            "(3) COMBINE voices: one midi-clip per voice (each voice its own instrument), or layered in one clip with merge(...). A helper makes a voice reusable: " +
+            "helper canonVoice(Notes source, Number interval, Duration delay) -> Notes { source |> transpose(interval) |> shift(delay) }, used as notes " +
+            "canonVoice(theme.notes, +7, 2bars); " +
+            "several voices with emit inside a for loop (language/14-helpers-types-and-dynamic, language/12-note-pipelines). A delay effect makes echoes of the " +
+            "SOUND, not a second voice of notes. Check the song with ample_check and listen."),
         (["pitch bend", "bend", "pitch wheel", "pitch curve", "pitch range", "glide", "riser", "tape stop", "pitch up", "pitch down", "dive", "whammy", "pitch automation"], "Pitch bend and pitch curves",
             "Three ways, pick by what should bend. (1) The notes of a midi-clip, like a pitch wheel: write bend auto(1:0, 2:100, 3:0) on the midi-clip (values are percent of bend_range; 100 is all the way up, -100 all the way down) and bend_range 2 (the usual wheel; 7, 12 for an octave, 24); the block that plays the notes (synth, sampler, piano, gm... every instrument) bends its sound with it. A whole chord under it bends together. " +
             "(2) One note: add ;bend=<cents> to that note in the notes text (1:0:2:60:100;bend=200 glides two semitones up over the note, ;bend=-1200 dives an octave); it also works in the notes rows of a sequencer channel. On a single line this is exactly that note. " +
@@ -802,7 +854,7 @@ internal static class AiContext
         path = Norm(path);
         DocSession? d = proposal is null ? await s.DocAsync(path, ct).ConfigureAwait(false) : null;
         string shown = proposal ?? d!.Text;
-        AmpleDocument doc = proposal is null ? s.ParseExpanded(d!) : new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(proposal, s.Spec);
+        AmpleDocument doc = proposal is null ? s.ParseExpanded(d!) : s.Modules().ParseExpanded(proposal, s.Spec);
         return new JsonObject
         {
             ["path"] = path,
@@ -819,7 +871,7 @@ internal static class AiContext
     public static async Task<JsonObject> BlockAsync(ProjectSession s, string path, string name, CancellationToken ct, string? proposal = null)
     {
         path = Norm(path);
-        AmpleDocument doc = proposal is null ? s.ParseExpanded(await s.DocAsync(path, ct).ConfigureAwait(false)) : new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(proposal, s.Spec);
+        AmpleDocument doc = proposal is null ? s.ParseExpanded(await s.DocAsync(path, ct).ConfigureAwait(false)) : s.Modules().ParseExpanded(proposal, s.Spec);
         BlockNode b = doc.Blocks.FirstOrDefault(x => !x.Skipped && x.Name == name) ?? throw new AmpleException("AMP5458", $"There is no block called {name} in {path}.");
         JsonObject o = BlockOf(doc, b);
         o["text"] = string.Join('\n', doc.Lines.Skip(b.Line).Take((b.CloseLine < 0 ? b.Line : b.CloseLine) - b.Line + 1));

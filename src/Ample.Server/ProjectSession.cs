@@ -107,7 +107,6 @@ public sealed class ProjectSession : IAsyncDisposable
             return;
         }
 
-        Ample.Language.ServerCapabilities.Project = Manifest.Settings.Capabilities is { Count: > 0 } projectCapabilities ? projectCapabilities : null;
         string root = Root;
         backupHook = (c, ct) =>
         {
@@ -218,13 +217,63 @@ public sealed class ProjectSession : IAsyncDisposable
         }
     }
 
+    /// <summary>Gets or sets the session layer of the observation options of this project session (the toggles of the editor): in memory only, never written to a file.</summary>
+    internal IReadOnlyDictionary<string, string> ObservationSession { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>A module service of this project that carries the session layer.</summary>
+    internal Ample.Engine.Modules.ModuleService Modules() => Modules(Root);
+
+    /// <summary>A module service of this project over another folder (a stage of the assistant) that carries the session layer too.</summary>
+    internal Ample.Engine.Modules.ModuleService Modules(string root)
+    {
+        ProjectSettings settings = LiveSettings();
+        return new(root, () => Library, Manifest.Id.ToString("D")) { ObservationSession = ObservationSession, ObservationProject = settings.Observation, ProjectCapabilities = settings.Capabilities };
+    }
+
+    private readonly Lock liveGate = new();
+
+    private ProjectSettings? liveSettings;
+
+    private DateTime liveStamp;
+
+    /// <summary>
+    /// The settings of project.json as the file is now: read again when the file changed (a hand edit counts at the next parse, no reopen needed), for the project
+    /// layers of every parse (capabilities, logging and assertion options). A file that cannot be read keeps the settings read last, so a broken edit never
+    /// changes the policy by accident. Every parse of this project is given these settings explicitly: nothing of them is kept in shared state.
+    /// </summary>
+    internal ProjectSettings LiveSettings()
+    {
+        string file = Path.Combine(Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile);
+        lock (liveGate)
+        {
+            try
+            {
+                DateTime stamp = File.GetLastWriteTimeUtc(file);
+                if (liveSettings is null || stamp != liveStamp)
+                {
+                    liveSettings = ProjectFile.Parse(File.ReadAllText(file)).Settings;
+                    liveStamp = stamp;
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or AmpleException)
+            {
+                liveSettings ??= Manifest.Settings;
+            }
+
+            return liveSettings;
+        }
+    }
+
     internal AmpleDocument Parse(DocSession session)
     {
         ParseOptions options = ParseOptions.Editor;
+        options.ObservationOverride = Modules().SessionLayerInput;
+        options.ProjectCapabilities = LiveSettings().Capabilities;
+        if (Modules().ProjectLayerInput is { } projectLayer) options.ObservationDefaults = [projectLayer];
         options.ReadFile = ReadProjectText;
         options.Preflight = (blocks, lines) => Ample.Audio.Engine.DrumPreflight.Check(Root, blocks, lines);
         // the components the song imports are block types of the editors too (their problems are shown at the import line)
-        (IReadOnlyList<ComponentDefinition> components, IReadOnlyList<Diagnostic> extra) = new Ample.Engine.Modules.ModuleService(Root, () => Library, Manifest.Id.ToString("D")).ComponentsForEditors(session.Text, Spec);
+        (IReadOnlyList<ComponentDefinition> components, IReadOnlyList<Diagnostic> extra) = Modules().ComponentsForEditors(session.Text, Spec);
         options.Components = components;
         options.ExtraDiagnostics = extra;
         return Parser.Parse(session.Text, Spec, options);
@@ -236,6 +285,7 @@ public sealed class ProjectSession : IAsyncDisposable
     {
         ParseOptions options = ParseOptions.Editor;
         options.ReadFile = relative => files.TryGetValue(relative.Replace('\\', '/'), out string? text) ? text : null;
+        options.ProjectCapabilities = LiveSettings().Capabilities;   // the policy of this project, as for every other parse of it
         (IReadOnlyList<ComponentDefinition> components, IReadOnlyList<Diagnostic> extra) = Ample.Engine.Modules.ModuleService.ComponentsForEditors(
             session.Text,
             Spec,
@@ -301,7 +351,7 @@ public sealed class ProjectSession : IAsyncDisposable
     }
 
     /// <summary>Parses a song for building: module instances are expanded into their blocks.</summary>
-    internal AmpleDocument ParseExpanded(DocSession session) => new Ample.Engine.Modules.ModuleService(Root, () => Library, Manifest.Id.ToString("D")).ParseExpanded(session.Text, Spec);
+    internal AmpleDocument ParseExpanded(DocSession session) => Modules().ParseExpanded(session.Text, Spec);
 
     internal void ForgetDocs()
     {

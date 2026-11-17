@@ -1,9 +1,7 @@
 import { modDelayAudio } from './clientside-mod-delay.mjs';
+import { serverInt } from './server-int.mjs';
 
-const number = (value, fallback) => {
-  const parsed = Number.parseFloat(String(value ?? '').replace(/ms|%/gi, '').trim());
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+const number = serverInt;   // the server reads whole numbers: "5.5 ms" is 5
 
 /** AMPLE chorus: 20 ms base, 1–15 ms triangle modulation, no feedback. */
 export function chorusAudio(audio, params, signal) {

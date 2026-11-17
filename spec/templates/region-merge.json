@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "The one block that turns a region back into audio. Connect the body of a loop (optional) and the region (after its effects): the output is body plus region. With only the region connected it gives the processed region alone.",
   "inputs": [

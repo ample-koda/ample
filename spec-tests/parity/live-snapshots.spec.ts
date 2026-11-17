@@ -14,6 +14,8 @@ test('@audio store two snapshots of an EQ, recall one, morph halfway', async ({ 
   await setHigh('-12 dB');
   await page.reload(); await page.waitForSelector('body[data-ready="1"]');
   await page.locator('.node[data-id="tone"]').getByRole('button', { name: 'Advanced', exact: true }).click();
+  await page.locator('#studio').getByRole('button', { name: 'Menu', exact: true }).click();   // the snapshots are in the menu of the title bar
+  await page.locator('#studio .studio-menu').getByRole('menuitem', { name: 'Snapshots' }).click();
   const bar = page.locator('#studio .snapshot-bar');
   await expect(bar).toBeVisible();
   const high = () => page.evaluate(() => import('/app/store.js').then((s) => s.flat().nodes.find((n) => n.id === 'tone')?.params?.high));

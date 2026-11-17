@@ -8,7 +8,7 @@ const isNumber = (t) => t === 'Int' || t === 'Float';
 const shorten = (text) => { const one = String(text).replace(/\s+/g, ' ').trim(); return one.length > 90 ? one.slice(0, 90) + ' …' : one; };
 
 function combine(op, a, b) {
-  if (op === '+' && a === 'String' && b === 'String') return 'String';
+  if (op === '+' && ((a === 'String' && (b === 'String' || isNumber(b))) || (isNumber(a) && b === 'String'))) return 'String';   // + with a text and a number joins them
   if (isNumber(a) && isNumber(b)) return op === '/' ? 'Float' : a === 'Float' || b === 'Float' ? 'Float' : 'Int';
   const qa = QUANTITIES.includes(a), qb = QUANTITIES.includes(b);
   if (qa && isNumber(b) && (op === '*' || op === '/')) return a;

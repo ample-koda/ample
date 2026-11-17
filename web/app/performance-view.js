@@ -46,7 +46,7 @@ const UI_KEY = 'performanceLayout';
 let layout = emptyLayout();
 let session = null;      // { ctx, engine, player } while a performance is on
 let entering = false;
-let mode = 'takes';   // how the next Enter goes: 'takes' (the built takes of the server) or 'live' (also the live chains); remembered in the project
+let mode = 'takes';   // how the next Enter goes: 'takes' (the built takes of the server) or 'live' (also the live chains); remembered in the project (plan/performance-live.md)
 let loadingState = null;   // while the takes are made ready: { cancelled, text } (the button and the header Stop cancel it)
 const CLIP_TIMEOUT_MS = 240000;
 let timer = 0;
@@ -218,7 +218,7 @@ const pendingKey = (lane, id) => `${lane}\u0000${id}`;
 const hasClip = (lane, id) => layout.lanes.some((l) => l.name === lane && l.clips.some((c) => c.id === id));
 
 /**
- * A live session follows the layout (phase 2): a clip that is taken off stops (at the end of its bar), a new clip is made ready (an unbuilt block is built first, in the background) and
+ * A live session follows the layout (plan/performance-live.md, phase 2): a clip that is taken off stops (at the end of its bar), a new clip is made ready (an unbuilt block is built first, in the background) and
  * then added to the engine, a new lane gets its bus. Called after every change of the layout.
  */
 function syncSession() {
@@ -367,17 +367,15 @@ async function enter() {
       for (const c of lane.clips.filter((x) => clipPlaysIn(x.id, mode))) accents.configure(c.id, { mode: lane.mode, length: lane.mode === 'oneshot' ? (buffers.get(c.id)?.duration ?? 0) : 0 });
     }
 
-    session = { ctx, engine, player, scenes, accents, buses, mode, buffers, accentLane, pending: new Map(), snapshot: serializeLayout(layout),
-      recording: false, beatsPerBar, accentLog: [], heard: createHeardRecorder(ctx) };
-    session.engine.start([]);   // the whole set is recorded from here: at the end it can be saved as a song (phase 4)
+    session = { ctx, engine, player, scenes, accents, buses, mode, buffers, accentLane, pending: new Map(), snapshot: serializeLayout(layout), recording: false, beatsPerBar, accentLog: [], heard: createHeardRecorder(ctx) };
+    session.engine.start([]);   // the whole set is recorded from here: at the end it can be saved as a song (phase 4 of plan/performance-live.md)
     session.recording = true;
     // what is done with the faders is logged too, on the same clock as the launches (it is saved as automation, phase 5)
     session.beatSec = 60 / bpm; session.t0 = ctx.currentTime; session.mixLog = createMixLog();
     session.logMix = () => { if (session?.mixLog) session.mixLog.record((ctx.currentTime - session.t0) / session.beatSec, laneMix.settings(laneNames())); };
     session.unsubMix = laneMix.subscribe(session.logMix);
     session.logMix();
-    if (liveOnly.length) toast(`${liveOnly.map((c) => c.label).join(', ')} ${liveOnly.length === 1 ? 'is a live chain and stays off' : 'are live chains and stay off'} in this session.`,
-      { label: 'Enter Live Performance', run: async () => { await leave(); enterAs('live'); } });
+    if (liveOnly.length) toast(`${liveOnly.map((c) => c.label).join(', ')} ${liveOnly.length === 1 ? 'is a live chain and stays off' : 'are live chains and stay off'} in this session.`, { label: 'Enter Live Performance', run: async () => { await leave(); enterAs('live'); } });
     buses.apply(laneMix.settings(laneNames()));
     watchLoad(ctx);
     // pads and keys launch the same way the buttons do: through launchAction
@@ -550,8 +548,7 @@ function paint() {
 
 /** Record: from now on the launches that the clock confirms are kept; stopping offers to put the run in the Playlist (issue 279). */
 /**
- * The voices of one-shot and momentary lanes are logged as they start and as they are stopped (a momentary sound when the pad is let go, a one-shot
- * that is played again before it ended): the runs of the saved song,
+ * The voices of one-shot and momentary lanes are logged as they start and as they are stopped (a momentary sound when the pad is let go, a one-shot that is played again before it ended): the runs of the saved song,
  * in beats from the start of the take. A sound that ran to its end has no cut; one that was stopped early says how much of it was heard (`endSeconds`).
  */
 function recordVoice(id, handle, when) {
@@ -598,9 +595,7 @@ async function leaveSession() {
   const heard = s.heard?.stop() ?? null;
   if (capture) capture.accents = accentRuns(s, finishedAt);
   s.recording = false;
-  const kept = { heard, t0: s.t0, beatSec: s.beatSec, mixSnapshots: s.mixLog?.snapshots() ?? [], buffers: new Map(s.buffers),
-    labels: new Map(layout.lanes.flatMap((lane) => lane.clips.map((c) => [c.id, c.label]))),
-    accents: layout.lanes.some((lane) => lane.mode !== 'loop') };
+  const kept = { heard, t0: s.t0, beatSec: s.beatSec, mixSnapshots: s.mixLog?.snapshots() ?? [], buffers: new Map(s.buffers), labels: new Map(layout.lanes.flatMap((lane) => lane.clips.map((c) => [c.id, c.label]))), accents: layout.lanes.some((lane) => lane.mode !== 'loop') };
   leave();
   if (capture) await offerToKeep(capture, kept);
 }
@@ -629,20 +624,16 @@ async function offerToKeep(capture, kept) {
       ? `The sum of the set went past full scale in ${barList(clipped.bars)} (up to +${clipped.peakDb.toFixed(1)} dB). `
         + 'The browser softens that when you listen; the saved song has no limiter and clips there. Turn a lane down, or add a master.'
       : '',
-    kept.heard?.full ? `Only the first ${Math.round(heardSeconds / 60)} minutes of what you heard were kept for the comparison.` : '',
   ].filter(Boolean);
   const bars = Math.max(...model.runs.map((r) => r.bar + r.bars - 1));
   const played = `You played ${model.runs.length} launch${model.runs.length === 1 ? '' : 'es'} of ${clips.length} clip${clips.length === 1 ? '' : 's'}`
     + ` on ${lanes.length} lane${lanes.length === 1 ? '' : 's'} over ${bars} bars.`;
   const text = `${played}${notes.length ? `${NL}${NL}${notes.join(NL)}` : ''}`;
-  const choice = await ask('Keep this performance?',
-    `${text}${NL}${NL}A song holds every clip as you heard it, on the bars where it played (the clips are saved next to it as audio). Or put it in the Playlist of this song.`,
-    [
+  const choice = await ask('Keep this performance?', `${text}${NL}${NL}A song holds every clip as you heard it, on the bars where it played (the clips are saved next to it as audio). Or put it in the Playlist of this song.`, [
     { label: 'Save as a song', value: 'song', primary: true },
     { label: 'Put it in the Playlist', value: 'playlist' },
     { label: 'Do not keep', value: false },
-  ], [el('label', { className: 'untitled-row' }, ['name ', name]), ...(heardMb > 0 ? [el('label', { className: 'untitled-row' }, [keep,
-    ` also keep what you heard as a WAV file to compare with (${heardMb} MB)`])] : [])]);
+  ], [el('label', { className: 'untitled-row' }, ['name ', name]), ...(heardMb > 0 ? [el('label', { className: 'untitled-row' }, [keep, ` also keep what you heard as a WAV file to compare with (${heardMb} MB)`])] : [])]);
   if (choice === 'song') await saveSetAsSong(model, kept, slug(name.value, 'live-set'), mix, { keepHeard: keep.checked });
   else if (choice === 'playlist') await putSetInPlaylist(capture);
 }
@@ -741,14 +732,10 @@ async function compareWithHeard(path, model, kept) {
   const heardDb = barLevels(heard.chunks, startSample, barSec * rate, bars);
   const savedDb = barLevels([{ l: saved.getChannelData(0), r: saved.getChannelData(saved.numberOfChannels > 1 ? 1 : 0) }], 0, barSec * saved.sampleRate, bars);
   const result = compareBars(heardDb, savedDb);
-  for (const b of result.bars) logProject('performance', Math.abs(b.diff) > 1 ? 'failed' : 'ok',
-    `bar ${b.bar}: heard ${b.heard.toFixed(1)} dB, saved ${b.saved.toFixed(1)} dB (${b.diff > 0 ? '+' : ''}${b.diff.toFixed(1)})`);
+  for (const b of result.bars) logProject('performance', Math.abs(b.diff) > 1 ? 'failed' : 'ok', `bar ${b.bar}: heard ${b.heard.toFixed(1)} dB, saved ${b.saved.toFixed(1)} dB (${b.diff > 0 ? '+' : ''}${b.diff.toFixed(1)})`);
   const off = result.bars.filter((b) => Math.abs(b.diff) > 1);
-  const detail = off.length ? `${NL}${NL}Bars that differ: ${off.slice(0, 8).map((b) => `${b.bar} (${b.diff > 0 ? '+' : ''}${b.diff.toFixed(1)} dB)`).join(', ')}${off.length > 8 ? ' and more' : ''}.`
-    : '';
-  await ask('Heard against saved',
-    `${compareText(result)}${detail}${NL}${NL}Compared over ${bars} bar${bars === 1 ? '' : 's'}; every bar is in the log of the project.`, [{
-    label: 'OK', value: true, primary: true }]);
+  const detail = off.length ? `${NL}${NL}Bars that differ: ${off.slice(0, 8).map((b) => `${b.bar} (${b.diff > 0 ? '+' : ''}${b.diff.toFixed(1)} dB)`).join(', ')}${off.length > 8 ? ' and more' : ''}.` : '';
+  await ask('Heard against saved', `${compareText(result)}${detail}${NL}${NL}Compared over ${bars} bar${bars === 1 ? '' : 's'}; every bar is in the log of the project.`, [{ label: 'OK', value: true, primary: true }]);
 }
 
 /** The older way: the launches as Playlist parts of the blocks of this song (a checkpoint first, one undo step). */
@@ -845,9 +832,7 @@ function clipCell(lane, clip) {
     className: 'perf-clip',
     title: `Launch at the next ${grid}; press again while queued to take it back`,
     onclick: () => { if (!isAccent(lane.name)) clickClip(lane.name, clip.id); },
-  }, [el('strong', { textContent: clip.label }), el('span', { className: 'perf-state', textContent: statusText(status) }), el('canvas', {
-    className: 'perf-wave', width: 112, height: 22, 'aria-hidden': 'true' }), el('i', { className: 'perf-progress' }), el('i', {
-    className: 'perf-playhead' })]);
+  }, [el('strong', { textContent: clip.label }), el('span', { className: 'perf-state', textContent: statusText(status) }), el('canvas', { className: 'perf-wave', width: 112, height: 22, 'aria-hidden': 'true' }), el('i', { className: 'perf-progress' }), el('i', { className: 'perf-playhead' })]);
   Object.assign(button.dataset, { lane: lane.name, clip: clip.id, label: clip.label, status });
   drawWave(button.querySelector('canvas'), session?.buffers.get(clip.id) ?? null);
   const pending = session?.pending.get(pendingKey(lane.name, clip.id));
@@ -1156,8 +1141,7 @@ export function render() {
   const options = [...clipOptions(flat().nodes, S.build.takes || {}), ...patternOptions(flat().nodes, patternNames), ...chainOptions(flat().nodes)];
   if (session?.mode === 'live') {   // the block of a clip that is not built yet can be put on a lane: it is built in the background
     const have = new Set(options.map((o) => o.id));
-    for (const n of flat().nodes) if (!have.has(n.id) && !(S.build.takes || {})[n.id] && !['midi', 'data', 'visual',
-      'unknown'].includes(liveClassOf(n.tpl))) options.push({ id: n.id, label: n.title || n.id, unbuilt: true });
+    for (const n of flat().nodes) if (!have.has(n.id) && !(S.build.takes || {})[n.id] && !['midi', 'data', 'visual', 'unknown'].includes(liveClassOf(n.tpl))) options.push({ id: n.id, label: n.title || n.id, unbuilt: true });
   }
 
   const empty = S.doc ? 'Add a lane, then put built blocks on it.' : 'Open a song to set up its lanes.';

@@ -214,6 +214,17 @@ public static partial class Formatter
         }
 
         string text = ConditionSyntax.Parse(code) is { Problem: null } head ? ConditionSyntax.Format(head) : code;
+        if (parens == 0 && !pipeCarry && NotePipeline.FormatObservation(text, Math.Max(0, depth) * 2) is { } observed)
+        {
+            for (int i = 0; i < observed.Count; i++)
+            {
+                bool middle = i > 0 && i < observed.Count - 1;
+                output.Add(Pad(depth + (middle ? 1 : 0)) + observed[i] + (i == observed.Count - 1 && comment.Length > 0 ? "  " + comment : string.Empty));
+            }
+
+            return;
+        }
+
         Scan(text, parens, out int leading, out int delta, out int parensAfter);
         bool continuation = parens > 0 || pipeCarry || text.StartsWith("|>", StringComparison.Ordinal);
         bool closer = parens > 0 && text[0] is ')' or ']';

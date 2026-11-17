@@ -1,3 +1,4 @@
+import { infoNote } from './info.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
 import { registerStudioPanel } from './registry.js';
@@ -19,7 +20,7 @@ function mixerPanel(context) {
     const pan = knob({ label: `Input ${index + 1} pan`, value: panValue, min: -100, max: 100, step: 100, disabled: context.readOnly, format: (next) => next < 0 ? 'Left' : next > 0 ? 'Right' : 'Centre', onCommit: (next) => { pans[index] = next < 0 ? 'l' : next > 0 ? 'r' : 'c'; context.commit('pan', pans.join(' ')); } });
     strips.append(el('div', { className: 'studio-mixer-strip' }, [el('strong', { textContent: `Input ${index + 1}` }), range, readout, pan]));   // no meter until a level is measured (issue 194)
   }
-  root.append(strips, el('p', { className: 'note', textContent: 'Each fader and pan edit is journaled.' }));
+  root.append(strips, infoNote('Each fader and pan edit is journaled.'));
   return root;
 }
 

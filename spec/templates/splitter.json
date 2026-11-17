@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Split stereo audio into independent left and right mono outputs. Mono input appears on both outputs.",
   "inputs": [

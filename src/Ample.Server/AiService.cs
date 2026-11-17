@@ -1425,7 +1425,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         public string? LoginId { get; set; }
     }
 
-    private const string KodaProfile = """
+    internal const string KodaProfile = """
 
 
 ## You are Koda
@@ -1441,6 +1441,10 @@ You are Koda, a small friendly helper inside AMPLE. The user asked about one blo
 - Several alternatives (variants, other instruments, beats): make all of them in this one working copy, each as copies of the source blocks (follow a compressor or EQ back to the instrument or sequencer) under new names, leave the original, change a sequencer's sound inside its `sequence { }` or `file` (never as loose song lines), keep every variant ready to use at normal level (never muted or turned down to keep the mix as it was), then call `ample_offer_variants` once.
 - A sequencer whose notes are in a `file` (a .ampleseq): its instruments are the `channel` lines at the top of that file. To change an instrument give the .ampleseq as the `path` of ample_edit and use `{"op":"sequence_channel","channel":"violin1","text":"program=42"}` (settings alone change only those settings; a type with settings, like `gm program=42 vol=-6`, replaces the rest of the line; no block). One call with all the channels changes them all. In a song that keeps its sequence inside (`sequence { }`) the same op takes the `block`. When you rotate or swap instruments, read the old programs first and give every channel its new one in the same call. The `lanes` line of the sequencer in the song (`lane1=violin1 ...`) names the CHANNELS of the file: never write an instrument name there that is not a channel (a `contrabass` lane stops the build); rename nothing, change the `program` of the channel instead.
 - A sequencer: change only the channel, pattern or row the user asked about, with the edits sequence_row and sequence_channel of ample_edit (never rewrite the whole sequence). Keep every other channel, pattern, clip and row exactly as it is, never write into the row of a channel you were not asked about (a gm or notes row is a melody: leave it), a note of a gm or notes row is bar:beat:length:pitch:velocity with the beat from 0 to 3.99 (the next bar starts with 2:0, never 1:4), so check every row you write; and when you add a channel or a beat, also connect its output (a lane or the block output) the way the other channels are, so it is heard.
+- MIDI notes later in time (a melody that starts later, a canon, a delayed copy, a second voice): never a `shift` block, that block moves AUDIO.
+  Change the notes of the clip with the Notes operator: `notes theme.notes |> shift(3beats)` moves every note three beats (also when `theme` is written
+  with `melody "..."` or `chords`); a canon voice is `theme.notes |> transpose(+7) |> shift(2bars)` or the helper `canonVoice`; combine voices with
+  `merge(...)` or one clip per voice. Do not propose a MIDI delay block. `ample_lookup topic=howto query=canon` explains more; run ample_check.
 - A singing voice from notes (a chant, ooh/aah, a choir of hums): the `delay-llama` block (notes in; `vowel` a letter, 0-100 or a curve; `voice`, `mouth`, `glide`, `unison`, `echo`), or a sequencer channel of type `llama`.
 - Pitch bend: a midi-clip has `bend auto(...)` (percent of `bend_range`, 2 by default) and a note can have `;bend=<cents>`; every instrument that plays the notes bends with it. Any audio bends with a `pitch` block whose `semitones` is a curve, `auto(1:0, 4:12)` (or percent with `range`).
 - A voice that makes a chord or a synth speak (vocoder, talking robot, Daft Punk): the `vocoder` block, the voice on `modulator` and a rich chord sound (a gm sawtooth lead, strings, a pad) on `carrier`.
@@ -2335,7 +2339,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         return text.ToString();
     }
 
-    private const string SkillText = """
+    internal const string SkillText = """
         ---
         name: ample
         description: Use when editing an AMPLE music project (.amplet songs, .ampleseq or .seq sequences, lyrics, modules): how the language works, which block types exist, how to look at the project, the song and a block, and how to write valid AMPLE.
@@ -2380,7 +2384,11 @@ Answer in English, whatever language the question is in, unless the user asks fo
         - Automated browser tools require owner permission: 30 minutes, this task, always in this project, or deny. Project permission can be revoked in Project > assistant permissions. The owner handles credentials. Use these tools only for external public sites the owner asked to inspect; never open AMPLE itself, localhost, or a local app in Playwright. Use numbered controls; no arbitrary click. ample_browser_mouse_move only hovers at viewport coordinates. ample_browser_screenshot captures the visible page only on request. ample_browser_network_stats returns recent sanitized console messages, and aggregate counts. Other network URLs, headers and bodies are omitted. ample_browser_media_mute changes HTML audio/video elements, not the browser tab/system audio. Purchase-related clicks remain blocked.
         - Before picking an unfamiliar royalty-free/CC0 audio source yourself (a bed, a loop, an SFX), read `reference/sound-sources.md` first: it lists which sources are actually safe for a commercial release and which are not. Also check `ample_project`'s `catalogs`: a sample already reachable through an already-linked catalog is always preferable to fetching a new one-off file or installing a new pack. Prefer a source from that list, an already-linked catalog, or a pack install over a one-off fetch; say which source you chose and why. A fetch of anything not in the request still needs the user's approval through `ample_fetch_url`. A non-commercial source (CC BY-NC and the rest marked "not suitable for releasing music" in that document) may still be used for a rough draft or exploratory overlay when the user is not asking for a release-ready result; say plainly that it is non-commercial/exploration-only and will need swapping before a release. Never use one silently or imply it is release-safe.
         - A new song of your own in the proposal (a request for the whole project, or for a new piece): the measuring tools (ample_listen, ample_build, ample_present, ample_arrangement) work on the song of the task unless you give `path` = the .amplet of your proposal. Give it; never put the new song into the file of the task to be able to measure it.
-        - Timing smaller than a bar (a pause between spoken words, a sound that starts a little later): a placement is in WHOLE bars only (`at 1.8` is invalid, AMP1104/AMP1105). Use a `shift` block (seconds and/or beats later), a `join` block (in1, in2, ... one after the other with a gap), or `[pause 800 ms]` inside the text of a voice-clone block. `ample_lookup topic=howto query=pause` says more.
+        - Timing smaller than a bar (a pause between spoken words, a sound that starts a little later): a placement is in WHOLE bars only (`at 1.8` is invalid,
+          AMP1104/AMP1105). MIDI notes need no block: the Notes operator `shift(length)` in a note pipeline or a helper moves every note (`notes theme.notes |>
+          shift(3beats)`; a canon is `ample_lookup topic=howto query=canon`). For audio use a `shift` block (seconds and/or beats later), a `join` block (in1,
+          in2, ... one after the other with a gap), or `[pause 800 ms]` inside the text of a voice-clone block. `ample_lookup topic=howto query=pause` says
+          more.
         - When a request asks for something that changes over time (a speed that slows down, an effect that grows, a fade) or something you cannot find: `ample_lookup topic=howto query=<word>` first (automation syntax and what accepts it, fades, speed, sections, sidechain), then `topic=diagnostic`/`search`. If it is not possible directly, do the closest workable thing and say plainly what it is; do not give up with "the docs have no syntax".
         - `ample_present`: let the user HEAR something: choose a musically useful slice of a block or master when that is the clearest preview; use the full render when the user asks for the full song or when a full listen is the sensible comparison. Slices use from/to in seconds or unit=bars. Present either the proposal (source=proposal) or the current project (source=current). The requested range is returned without an arbitrary duration cap, so never silently truncate a requested full-song preview. It appears in the task window as a card with a player; give it a label and say why, including the selected range when it is a slice. Use it when you are not sure which instrument, block or part the user means (present the candidates and say which you chose), to let them compare before and after, or to let them check a result. What you presented is remembered: ample_history lists it.
         - `ample_history`: what the user asked before in this project, what came out and whether it was accepted (the user may say "like before", "continue what we did", "undo that last thing"): `ample_history` lists the newest, `id=<id>` gives one in full with its changes. Look there before you say you do not know what they mean.
@@ -2866,7 +2874,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     private Dictionary<string, string> ProblemsOf(AiTask task, string text)
     {
         string root = Path.Combine(task.Workspace, "project");
-        AmpleDocument doc = new Ample.Engine.Modules.ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(text, s.Spec);
+        AmpleDocument doc = s.Modules(root).ParseExpanded(text, s.Spec);
         Dictionary<string, string> found = new(StringComparer.Ordinal);
         foreach (Diagnostic d in doc.Diagnostics.Where(d => d.Severity is Severity.Error or Severity.Warning))
         {
@@ -3232,7 +3240,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         string file = ProjectPath.Resolve(task.ProjectDir, rel);
         if (!File.Exists(file)) throw new AmpleException("AMP5458", $"There is no song '{rel}' in the proposal (check the path with ample_project).");
         string root = Path.Combine(task.Workspace, "project");
-        AmpleDocument doc = new Ample.Engine.Modules.ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(File.ReadAllText(file), s.Spec);
+        AmpleDocument doc = s.Modules(root).ParseExpanded(File.ReadAllText(file), s.Spec);
         JsonObject result = ArrangementLint.Lint(doc);
         result["path"] = rel;
         return result;
@@ -4170,7 +4178,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 task.ListenKey = key;
             }
 
-            AmpleDocument parsed = new Ample.Engine.Modules.ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(proposed.TryGetValue(song, out string? text) ? text : string.Empty, s.Spec);
+            AmpleDocument parsed = s.Modules(root).ParseExpanded(proposed.TryGetValue(song, out string? text) ? text : string.Empty, s.Spec);
             if (parsed.Diagnostics.Any(d => d.Severity == Severity.Error))
             {
                 return new JsonObject { ["ok"] = false, ["built"] = false, ["why"] = "The proposed song has errors, so it cannot be built.", ["errors"] = new JsonArray([.. parsed.Diagnostics.Where(d => d.Severity == Severity.Error).Take(12).Select(d => (JsonNode)$"line {d.Line}: {d.Code} {d.Message}{(string.IsNullOrWhiteSpace(d.Hint) ? string.Empty : " Hint: " + d.Hint)}")]) };
@@ -4341,7 +4349,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                     task.CurrentListenKey = key;
                 }
 
-                AmpleDocument staged = new Ample.Engine.Modules.ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(d.Text, s.Spec);
+                AmpleDocument staged = s.Modules(root).ParseExpanded(d.Text, s.Spec);
                 Takebank bank = Takebank.Open(s.Fs, s.Clock, root);
                 bool exposeCache = ProjectFile.Parse(await File.ReadAllTextAsync(Path.Combine(s.Root, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile), ct).ConfigureAwait(false)).Settings.Ai.ExposeTakebankCache;
                 Takebank? sourceCache = exposeCache && File.Exists(Path.Combine(s.Root, ProjectLayout.AmpleFolder, "history.db")) ? Takebank.OpenReadOnly(s.Fs, s.Clock, s.Root) : null;
@@ -5169,7 +5177,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             }
 
             string song = SongForBuild(task);
-            AmpleDocument parsed = new Ample.Engine.Modules.ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(ProposedText(task, song), s.Spec);
+            AmpleDocument parsed = s.Modules(root).ParseExpanded(ProposedText(task, song), s.Spec);
             if (parsed.Diagnostics.Any(d => d.Severity == Severity.Error))
             {
                 task.BuildStatus = "failed";
@@ -5319,7 +5327,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             File.Copy(file, target, true);
         }
 
-        AmpleDocument parsed = new Ample.Engine.Modules.ModuleService(stage, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(songText, s.Spec);
+        AmpleDocument parsed = s.Modules(stage).ParseExpanded(songText, s.Spec);
         if (parsed.Diagnostics.Any(d => d.Severity == Severity.Error))
         {
             throw new AmpleException("AMP5462", "The song of the package has errors, so it cannot be built to listen to.");

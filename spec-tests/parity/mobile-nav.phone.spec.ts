@@ -43,11 +43,11 @@ test('the handle closes the sheet by tap and resizes it by dragging', async ({ p
   await expect(page.locator('#bbody')).toBeHidden();
 });
 
-test('More lists Variants, Assistant and Log and opens the chosen panel; keyboard works', async ({ page }) => {
+test('More lists Variants, Mixer, Assistant and Log and opens the chosen panel; keyboard works', async ({ page }) => {
   const more = page.locator('#b-more');
   await more.tap();
   await expect(more).toHaveAttribute('aria-expanded', 'true');
-  expect(await page.locator('#more-tabs [role=menuitem]').allTextContents()).toEqual(['Variants', 'Assistant', 'Log']);
+  expect(await page.locator('#more-tabs [role=menuitem]').allTextContents()).toEqual(['Variants', 'Mixer', 'Assistant', 'Log']);
   await page.locator('#more-tabs [role=menuitem]', { hasText: 'Log' }).tap();
   await expect(page.locator('#b-log')).toBeVisible();
   await expect(more).toHaveClass(/on/);

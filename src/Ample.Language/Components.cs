@@ -200,6 +200,12 @@ public sealed class ComponentDefinition
     /// <summary>Gets a value indicating whether the component has an Audio port: its <c>process</c> is then a graph of audio processors (see AudioGraphBuilder) and not Notes code.</summary>
     public bool IsAudio => Inputs.Concat(Outputs).Any(p => p.Type.TrimEnd('?') == "Audio");
 
+    /// <summary>
+    /// Gets the private properties (<c>private property x: Type = value</c>): values of the definition that only its own process reads. They are never part of
+    /// <see cref="Properties"/>, so nothing that lists or sets the properties of an instance can see them.
+    /// </summary>
+    public IReadOnlyList<ComponentProperty> PrivateProperties { get; init; } = [];
+
     /// <summary>Gets a property by name.</summary>
     /// <param name="name">The property name.</param>
     /// <returns>The property, or null.</returns>
@@ -251,6 +257,9 @@ public static partial class ComponentReader
 
     [GeneratedRegex(@"^(input|output)\s+([A-Za-z_][\w-]*)\s*:\s*([^{]+?)\s*(\{.*)?$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PortPattern();
+
+    [GeneratedRegex(@"^\s*private\s+(?=property\b)", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex PrivatePrefix();
 
     [GeneratedRegex(@"^property\s+([A-Za-z_][\w-]*)\s*:\s*([^={]+?)\s*(?:=\s*([^{]*?))?\s*(\{.*)?$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PropertyPattern();
@@ -510,6 +519,7 @@ public static partial class ComponentReader
 
         List<ComponentPort> inputs = [], outputs = [];
         List<ComponentProperty> properties = [];
+        List<ComponentProperty> privateProperties = [];
         List<string> requires = [];
         List<string> processBody = [];
         int processLine = -1;
@@ -572,6 +582,24 @@ public static partial class ComponentReader
                         string? fallback = Regex.Match(options, @"\bfallback\s+([A-Za-z_][\w-]*)", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } fm ? fm.Groups[1].Value : null;
                         ComponentPort port = new(pm.Groups[2].Value, pm.Groups[3].Value.Trim(), optional, fallback, i, [.. pendingAttrs], doc);
                         (word == "input" ? inputs : outputs).Add(port);
+                        break;
+                    }
+
+                case "private":
+                    {
+                        string joined = JoinLines(lines, i, stmtEnd, raw);
+                        Match pm = PropertyPattern().Match(PrivatePrefix().Replace(joined, string.Empty, 1));
+                        if (!PrivatePrefix().IsMatch(joined) || !pm.Success)
+                        {
+                            issues.Add(new ComponentIssue(i, baseCol, lines[i].Length, "AMP2200", Severity.Error,
+                                "Expected: private property <name>: <Type> = <value> (for example private property gain: Gain = -3dB).", string.Empty));
+                            break;
+                        }
+
+                        string options = pm.Groups[4].Success ? pm.Groups[4].Value : string.Empty;
+                        string? editor = Regex.Match(options, @"\beditor\s+([A-Za-z_][\w-]*)", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } em ? em.Groups[1].Value : null;
+                        string? def = pm.Groups[3].Success && pm.Groups[3].Value.Trim().Length > 0 ? pm.Groups[3].Value.Trim() : null;
+                        privateProperties.Add(new ComponentProperty(pm.Groups[1].Value, pm.Groups[2].Value.Trim(), def, editor, i, [.. pendingAttrs], doc));
                         break;
                     }
 
@@ -642,7 +670,7 @@ public static partial class ComponentReader
                     break;
             }
 
-            if (word is "input" or "output" or "property" or "process" or "ui" or "deprecated" or "migrate" or "seal") pendingAttrs.Clear();
+            if (word is "input" or "output" or "property" or "private" or "process" or "ui" or "deprecated" or "migrate" or "seal") pendingAttrs.Clear();
             i = stmtEnd;
             _ = bodyDepth;
         }
@@ -671,6 +699,7 @@ public static partial class ComponentReader
             Inputs = inputs,
             Outputs = outputs,
             Properties = properties,
+            PrivateProperties = privateProperties,
             Attributes = attributes,
             Requires = requires,
             ProcessBody = processBody,

@@ -23,6 +23,9 @@ public sealed class NoteLangCorpusTests
         using JsonDocument doc = JsonDocument.Parse(System.IO.File.ReadAllText(File));
         JsonElement defaults = doc.RootElement.GetProperty("defaults");
         JsonElement c = doc.RootElement.GetProperty("cases").EnumerateArray().First(x => x.GetProperty("id").GetString() == id);
+        SyntaxFeatures features = SyntaxGate.Shipped;
+        foreach (string feature in Strings(c, "features")) features |= Enum.Parse<SyntaxFeatures>(feature);
+        using IDisposable gate = SyntaxGate.Use(features);
         string theme = defaults.GetProperty("theme").GetString()!;
         string Fill(string s) => s.Replace("${T}", theme, StringComparison.Ordinal);
         List<HelperIssue> issues = [];
@@ -37,11 +40,15 @@ public sealed class NoteLangCorpusTests
         }
 
         DateTime clock = DateTime.Parse(c.TryGetProperty("clock", out JsonElement cl) ? cl.GetString()! : defaults.GetProperty("clock").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        static ObservationConfig AssertionsOn() => ObservationConfig.Resolve([new ConfigLayerInput(new ConfigSource(ConfigLayer.Song, "song", 1),
+            new Dictionary<string, (string, int)> { ["diagnostics.assertions"] = ("on", 1) })]);
         NotePipeline.Context Context(bool lang) => new()
         {
             Tempo = defaults.GetProperty("tempo").GetRawText(),
             Helpers = lang ? table : null,
+            Observations = lang && c.TryGetProperty("features", out _) ? new ObservationSink(level: LogLevel.Trace) : null,
             Clock = () => clock,
+            ObservationOptions = lang && c.TryGetProperty("assertions", out _) ? AssertionsOn() : null,
             Limits = limits,
             Capabilities = c.TryGetProperty("denied", out JsonElement denied) || c.TryGetProperty("envAllow", out _) ? CapabilityPolicy.Denying(c.TryGetProperty("denied", out JsonElement deniedNow) ? deniedNow.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!) : [], c.TryGetProperty("envAllow", out JsonElement allow) ? [.. allow.EnumerateArray().Select(x => x.GetString()!)] : null) : null,
             Environment = c.TryGetProperty("env", out JsonElement env) ? name => env.TryGetProperty(name, out JsonElement v) ? v.GetString() : null : null,
@@ -61,5 +68,6 @@ public sealed class NoteLangCorpusTests
 
         if (c.TryGetProperty("count", out JsonElement count)) Assert.Equal(count.GetInt32(), result.Notes!.Split(' ').Length);
         if (c.TryGetProperty("dynamic", out JsonElement dynamic)) Assert.Equal(dynamic.GetBoolean(), result.Dynamic);
+        if (c.TryGetProperty("tainted", out JsonElement tainted)) Assert.Equal(tainted.GetBoolean(), result.Tainted);
     }
 }

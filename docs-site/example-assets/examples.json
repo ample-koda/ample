@@ -1,0 +1,16 @@
+{
+ "ambience": { "files": { "recordings/room-tone.wav": "rain-room.wav" } },
+ "import-audio": { "files": { "recordings/preview.wav": "minuet-synth.wav" },
+ "rev": "2" },
+ "sampler": { "files": { "recordings/sampler-preview.wav": "guitar-note-c4.wav" } },
+ "midi": { "files": { "midi/input.mid": "minuet-g.mid" },
+ "rev": "2" },
+ "midi-render": { "files": { "midi/input.mid": "minuet-g.mid" },
+ "note": "Needs the MuseScore General SoundFont (MIT, the default sound pack of AMPLE): ample packs install soundfont", "rev": "2" },
+ "gm": { "note": "Needs the MuseScore General SoundFont (MIT, the default sound pack of AMPLE): ample packs install soundfont", "noRemix": true },
+ "guitar": { "files": { "samples/guitar/": "guitar/" } },
+ "convolution": { "note": "Needs the free impulse-responses pack (CC0, made for AMPLE): ample packs install impulse-responses", "noRemix": true },
+ "bass": { "note": "No extra files needed: set analog-808 is a built-in sound. Name a folder of your own recordings there to play those instead." },
+ "piano": { "note": "No extra files needed: set felt-piano is a built-in sound. Name a folder of your own recordings there to play those instead." },
+ "mood-scene": { "noDemo": true }
+}

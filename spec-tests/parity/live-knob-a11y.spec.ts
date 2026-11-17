@@ -13,17 +13,20 @@ test('@audio a knob moves by keyboard (arrow = fine, PageUp/PageDown = coarse, H
   const now = async () => Number(await knob.getAttribute('aria-valuenow'));
   await knob.focus();
   await expect(knob).toHaveAttribute('aria-valuetext', /\d\s*ms/);
+  // Every key press commits the value and the panel redraws from the song a moment later; a redraw of an EARLIER commit can still land after the next key press
+  // and show the old value for a moment. So each step waits for its value (auto-retrying) before the next key goes, and the key that follows always starts from a settled knob.
   await knob.press('Home');
-  const min = await now();
+  const min = Number(await knob.getAttribute('aria-valuemin'));
+  await expect.poll(now).toBe(min);
   await knob.press('ArrowUp');
+  await expect.poll(now).toBeGreaterThan(min);
   const fine = (await now()) - min;
-  expect(fine).toBeGreaterThan(0);
   await knob.press('Home');
+  await expect.poll(now).toBe(min);
   await knob.press('PageUp');
-  const coarse = (await now()) - min;
-  expect(coarse).toBeGreaterThan(fine * 3);
+  await expect.poll(async () => (await now()) - min).toBeGreaterThan(fine * 3);
   await knob.press('PageDown');
-  expect(await now()).toBe(min);
+  await expect.poll(now).toBe(min);
   await knob.press('End');
-  expect(await now()).toBe(Number(await knob.getAttribute('aria-valuemax')));
+  await expect.poll(async () => now()).toBe(Number(await knob.getAttribute('aria-valuemax')));
 });

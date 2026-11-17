@@ -172,9 +172,10 @@ public sealed class ComponentAudioTests
         // no built-in processor delays its signal (the limiter looks ahead over a whole file); one that declares a latency is counted
         Assert.Equal(0, Graph(Process("    emit audio |> limiter(ceiling=-1dB)")).LatencyMs);
         Assert.Equal(5, Delayed(Process("    emit audio |> limiter(ceiling=-1dB)")).LatencyMs);
-        AudioGraph noPreview = Graph(Process("    emit audio |> denoise()"));
-        Assert.False(noPreview.ClientPreview);
-        Assert.Contains("denoise", noPreview.NoPreview);
+        // the browser renders denoise, distortion, duck and silence too (their templates say clientPreview); the General MIDI SoundFont is rendered by the server only
+        Assert.True(Graph(Process("    emit audio |> denoise() |> distortion() |> duck()")).ClientPreview);
+        Assert.True(Graph(Process("    emit silence()")).ClientPreview);
+        Assert.False(AudioProcessors.Instruments(Corpus.Spec)["gm"].ClientPreview);
     }
 
     [Fact]

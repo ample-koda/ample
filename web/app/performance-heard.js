@@ -1,6 +1,5 @@
-// What the DJ heard, kept while the set is played ("heard = saved"): the sound that leaves the output of the page (after the safety stage, before the listening volume) as 16-bit stereo blocks,
-// and the peak of the sum before the safety stage. When the set is saved as a song the saved song is rendered and compared bar by bar with this
-// recording; with Keep it is also saved as a WAV next to the song.
+// What the DJ heard, kept while the set is played (plan/performance-live.md, "heard = saved"): the sound that leaves the output of the page (after the safety stage, before the listening volume) as 16-bit stereo blocks,
+// and the peak of the sum before the safety stage. When the set is saved as a song the saved song is rendered and compared bar by bar with this recording; with Keep it is also saved as a WAV next to the song.
 // A ScriptProcessor does the listening in: it is the one way that works in every browser the page runs in without a separate worklet file.
 import { playbackTap } from './playback-volume.js';
 
@@ -19,8 +18,7 @@ export function createHeardRecorder(ctx, { maxMinutes = MAX_MINUTES } = {}) {
 
   let chunks = [], peaks = [], firstTime = null, samples = 0, full = false, running = true;
   const limit = maxMinutes * 60 * ctx.sampleRate;
-  const int16 = (data) => { const out = new Int16Array(data.length); for (let i = 0; i < data.length; i++) { const v = data[i];
-    out[i] = v <= -1 ? -32768 : v >= 1 ? 32767 : Math.round(v * 32767); } return out; };
+  const int16 = (data) => { const out = new Int16Array(data.length); for (let i = 0; i < data.length; i++) { const v = data[i]; out[i] = v <= -1 ? -32768 : v >= 1 ? 32767 : Math.round(v * 32767); } return out; };
   processor.onaudioprocess = (event) => {
     if (!running) return;
     const input = event.inputBuffer, time = event.playbackTime ?? ctx.currentTime;

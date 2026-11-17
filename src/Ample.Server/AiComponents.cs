@@ -22,7 +22,7 @@ internal sealed partial class AiService
         string file = ProjectPath.Resolve(task.ProjectDir, rel);
         if (!File.Exists(file)) throw new Ample.Core.Abstractions.AmpleException("AMP5458", $"There is no song '{rel}' in the proposal (check the path with ample_project).");
         string root = Path.Combine(task.Workspace, "project");
-        (IReadOnlyList<ComponentListing> components, IReadOnlyList<Diagnostic> issues) = ComponentCatalog.List(new ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")), File.ReadAllText(file), s.Spec);
+        (IReadOnlyList<ComponentListing> components, IReadOnlyList<Diagnostic> issues) = ComponentCatalog.List(s.Modules(root), File.ReadAllText(file), s.Spec);
         JsonArray list = [];
         foreach (ComponentListing c in components)
         {
@@ -85,7 +85,7 @@ internal sealed partial class AiService
         string file = ProjectPath.Resolve(task.ProjectDir, rel);
         string root = Path.Combine(task.Workspace, "project");
         string songText = File.Exists(file) ? File.ReadAllText(file) : string.Empty;
-        JsonNode library = JsonSerializer.SerializeToNode(ComponentLibrary.Build(new ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")), root, s.Spec, songText, refresh: false))!;
+        JsonNode library = JsonSerializer.SerializeToNode(ComponentLibrary.Build(s.Modules(root), root, s.Spec, songText, refresh: false))!;
         string[] words = (query ?? string.Empty).ToLowerInvariant().Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
         string wantedTag = (tag ?? string.Empty).Trim().TrimStart('#').ToLowerInvariant();
         JsonArray found = [];

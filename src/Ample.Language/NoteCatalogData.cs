@@ -237,7 +237,7 @@ internal static class NoteCatalogData
       "version": "1",
       "deterministic": true,
       "cost": "linear",
-      "doc": "Move every note in time by a length (negative allowed).",
+      "doc": "Move every note in time by a musical length (negative allowed), for example shift(3beats). This is the Notes operator; the shift block moves audio.",
       "status": "provisional",
       "receiver": "Notes",
       "returns": "Notes"
@@ -1349,6 +1349,40 @@ internal static class NoteCatalogData
       "doc": "A decimal number."
     },
     {
+      "id": "String",
+      "kind": "function",
+      "returns": "String",
+      "params": [
+        {
+          "name": "value",
+          "type": "Values",
+          "required": true,
+          "doc": "A text, a number, a Bool or a quantity (40%, -6dB, 2bars)."
+        }
+      ],
+      "doc": "The value as text, written the way the log shows it (3, 0.5, true, 40%, -6dB; a length in ticks). A list, record, notes or error is refused."
+    },
+    {
+      "id": "sprintf",
+      "kind": "function",
+      "returns": "String",
+      "params": [
+        {
+          "name": "format",
+          "type": "String",
+          "required": true,
+          "doc": "The text with placeholders: %s (any single value), %d (an Int), %f or %.2f (a number), %% (a percent sign); an optional - or 0 and a width, like %03d."
+        },
+        {
+          "name": "values",
+          "type": "Values",
+          "required": false,
+          "doc": "One value for each placeholder, in order: no more, no less."
+        }
+      ],
+      "doc": "Builds a text from a format and values, like sprintf(\"Bar %03d at %.1f%%\", 4, 75.5). Culture independent; %f rounds half to even."
+    },
+    {
       "id": "Round",
       "kind": "function",
       "returns": "Int",
@@ -1729,6 +1763,66 @@ internal static class NoteCatalogData
       "id": "while",
       "kind": "keyword",
       "doc": "while condition max N { ... }: a loop with a guard; reaching max is an error unless it says stop."
+    },
+    {
+      "id": "log",
+      "kind": "keyword",
+      "doc": "log \"message\", context={...}: an info event of the log view (kept when logging.level is info, debug or trace). It never changes the notes or the music."
+    },
+    {
+      "id": "debug",
+      "kind": "keyword",
+      "doc": "debug value: a debug event of the log view (kept when logging.level is debug or trace)."
+    },
+    {
+      "id": "trace",
+      "kind": "keyword",
+      "doc": "trace value: the finest event of the log view (kept only at logging.level trace)."
+    },
+    {
+      "id": "warn",
+      "kind": "keyword",
+      "doc": "warn \"message\", code=\"NAME\": a warning of the song (AMP6001) and an event of the log view; always kept."
+    },
+    {
+      "id": "assert",
+      "kind": "keyword",
+      "doc": "assert condition, \"message\": checked only when diagnostics.assertions is on (the song, a block or the session); a false condition fails the song (AMP6004) and cannot be caught."
+    },
+    {
+      "id": "require",
+      "kind": "keyword",
+      "doc": "require condition, \"message\": a condition the caller must meet; when it is false the helper fails (AMP6005), and a try can catch it."
+    },
+    {
+      "id": "fail",
+      "kind": "keyword",
+      "doc": "fail \"message\": stops the helper with an error (AMP6002) that a try can catch."
+    },
+    {
+      "id": "throw",
+      "kind": "keyword",
+      "doc": "throw ErrorType(\"message\", field=value): raises a declared error (error Name { ... }); uncaught it is AMP6003."
+    },
+    {
+      "id": "try",
+      "kind": "keyword",
+      "doc": "try { ... } catch (e) { ... } finally { ... }: runs the body; an error of a fail, require, throw or a failing call goes to the first catch that matches; finally always runs."
+    },
+    {
+      "id": "catch",
+      "kind": "keyword",
+      "doc": "catch (e) or catch (ErrorType e): takes the error of the try body; e has type, message, code and its declared fields."
+    },
+    {
+      "id": "finally",
+      "kind": "keyword",
+      "doc": "finally { ... }: runs after the try and its catch, also when the error is not caught."
+    },
+    {
+      "id": "error",
+      "kind": "keyword",
+      "doc": "error Name { String field ... }: declares an error type (with an optional parent: error Name extends Parent { ... }) for throw and catch."
     },
     {
       "id": "if",

@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Finds where the sound of a recording really is and cuts the silence before and after it, so a car that passes in a long recording starts at its first sound. When the recording holds several stretches of sound it says so and uses the first, the last, or everything from the start of the first to the end of the last.",
   "inputs": [

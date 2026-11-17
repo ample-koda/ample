@@ -39,9 +39,11 @@ export async function withHashes(files) {
  * A file with a hash is listed as {path, sha256}; when `missing` is a Set of hashes, only the files whose hash is in it are sent (the server has the others: the files of the
  * demos, and what an earlier build sent in the last hour). Without `missing` every file is sent.
  */
-export function buildForm(entry, files, missing = null) {
+/** The multipart body of a build; `options` (logging.level, diagnostics.assertions) are for this build only and are left out when there are none. */
+export function buildForm(entry, files, missing = null, options = null) {
   const form = new FormData();
-  form.append('manifest', JSON.stringify({ entry, files: files.map((f) => (f.sha256 ? { path: f.path, sha256: f.sha256 } : f.path)) }));
+  const chosen = Object.fromEntries(Object.entries(options ?? {}).filter(([, value]) => value));
+  form.append('manifest', JSON.stringify({ entry, files: files.map((f) => (f.sha256 ? { path: f.path, sha256: f.sha256 } : f.path)), ...(Object.keys(chosen).length ? { options: chosen } : {}) }));
   files.forEach((f, i) => {
     if (missing && f.sha256 && !missing.has(f.sha256)) return;
     form.append(`f${i}`, f.blob ?? new Blob([f.text], { type: 'text/plain' }), 'file');

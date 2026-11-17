@@ -1,0 +1,18 @@
+[
+  {
+    "code": "AMP6016",
+    "severity": "warning",
+    "line": 3,
+    "col": 8,
+    "endCol": 11,
+    "message": "\"log\" is a word that AMPLE reserves for statements (log, debug, trace, warn, assert, require, throw, fail, try, catch, finally, error): a statement written with it will not call this helper or constant, so give it another name."
+  },
+  {
+    "code": "L001",
+    "severity": "info",
+    "line": 11,
+    "col": 11,
+    "endCol": 12,
+    "message": "The output of \"b\" is not used by any block.  [unused-output]"
+  }
+]

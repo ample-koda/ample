@@ -1,9 +1,7 @@
 import { modDelayAudio } from './clientside-mod-delay.mjs';
+import { serverInt } from './server-int.mjs';
 
-const number = (value, fallback) => {
-  const parsed = Number.parseFloat(String(value ?? '').replace(/ms|%/gi, '').trim());
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+const number = serverInt;   // the server reads whole numbers: "5.5 ms" is 5
 
 /** AMPLE flanger: 3 ms base, 1–3 ms triangle modulation and bounded feedback. */
 export function flangerAudio(audio, params, signal) {

@@ -5,6 +5,7 @@
   "class": "pinned",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Plays the notes it receives with a piano from a sample set of the project (for example felt-piano); the sample set is pinned by its content hash so the song always sounds the same. It needs a sample set and gives audio.",
   "inputs": [

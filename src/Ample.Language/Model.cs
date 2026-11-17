@@ -84,6 +84,16 @@ public sealed record FromLine(string Block, string Output, string Input, int Lin
 }
 
 /// <summary>A block: header, parameters and connections.</summary>
+/// <summary>
+/// A <c>logging.*</c> or <c>diagnostics.*</c> line inside a component instance: an option of observation, not a property of the music. It is kept apart
+/// from the parameters of the block, so it can never enter a fingerprint, a plan or a recipe.
+/// </summary>
+/// <param name="Name">The option (<c>logging.level</c>).</param>
+/// <param name="Value">The value as written.</param>
+/// <param name="Line">The 1-based line.</param>
+public sealed record BlockDirective(string Name, string Value, int Line);
+
+/// <summary>A block of a song.</summary>
 public sealed class BlockNode
 {
     /// <summary>Gets or sets the block type (first header word).</summary>
@@ -112,6 +122,9 @@ public sealed class BlockNode
 
     /// <summary>Gets the parameters in source order.</summary>
     public List<Parameter> Parameters { get; } = [];
+
+    /// <summary>Gets the observation options of a component instance (<c>logging.level trace</c>), apart from the parameters.</summary>
+    public List<BlockDirective> Directives { get; } = [];
 
     /// <summary>Gets the connections in source order.</summary>
     public List<FromLine> Froms { get; } = [];
@@ -225,6 +238,12 @@ public sealed class AmpleDocument
 
     /// <summary>Gets the plugin settings of this song from the settings line, by <c>plugin.name</c> (the text as written).</summary>
     public IReadOnlyDictionary<string, string> Settings { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>Gets the 1-based line of every key of <see cref="Settings"/>.</summary>
+    public IReadOnlyDictionary<string, int> SettingLines { get; init; } = new Dictionary<string, int>();
+
+    /// <summary>Gets the bounded observations made during Notes evaluation.</summary>
+    public IReadOnlyList<LogEvent> Observations { get; init; } = [];
 
     /// <summary>Gets the helpers of the song as the evaluator uses them (for tools that evaluate pipelines: bake, provenance).</summary>
     public NotePipeline.HelperTable HelperTable { get; init; } = NotePipeline.HelperTable.Empty;

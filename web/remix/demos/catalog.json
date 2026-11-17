@@ -1144,6 +1144,161 @@
     "assets": []
   },
   {
+    "id": "watch-it-think",
+    "name": "Watch it think: logging and checks",
+    "description": "A warm groove whose helpers explain themselves: log, debug and trace show up in the Song log at their level, warn is always kept, assert is checked when Assertions is on, require guards a helper and try / catch picks plan B. The music is the same whatever you choose to see.",
+    "category": "Advanced",
+    "level": "Intermediate",
+    "tags": [
+      "diagnostics",
+      "logging",
+      "log",
+      "debug",
+      "trace",
+      "warn",
+      "assert",
+      "require",
+      "try",
+      "catch",
+      "helpers",
+      "components"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "pixel-quest",
+    "name": "Pixel Quest",
+    "description": "An 8-bit adventure tune at 150 BPM with no samples at all: a square-wave lead, a triangle bass and a noise channel for the drums. One bar of arpeggio becomes a whole chord progression through a helper.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "chiptune",
+      "8-bit",
+      "game",
+      "synth",
+      "square",
+      "noise",
+      "arpeggio",
+      "helpers"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "salt-and-rope",
+    "name": "Salt and Rope",
+    "description": "A sea shanty of our own in 6/8: a fiddle, a squeezebox, a tuba on the swings and the whole crew singing along, with the classic key lift in the last verse (a helper with require).",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "shanty",
+      "folk",
+      "6/8",
+      "meter",
+      "general midi",
+      "humanize",
+      "helpers"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "sugar-rush",
+    "name": "Sugar Rush",
+    "description": "Happy hardcore at 170 BPM: detuned supersaws, bouncing piano stabs, an offbeat bass, a sidechain pump under every kick, an arpeggiated breakdown and a snare roll that doubles every bar.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "happy hardcore",
+      "rave",
+      "supersaw",
+      "sidechain",
+      "duck",
+      "arp",
+      "helpers"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "iron-furnace",
+    "name": "Iron Furnace",
+    "description": "Heavy metal in E minor: galloping riffs written as single notes and turned into power chords by a helper, distortion, double kick, a singing lead and a broken euclid kick in the bridge.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "metal",
+      "rock",
+      "distortion",
+      "power chords",
+      "euclid",
+      "general midi",
+      "helpers"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "lanterns",
+    "name": "Lanterns on the Water",
+    "description": "A slow waltz in 3/4: a piano whose broken chords come from the arp operator, a cello and a flute sharing the tune, soft strings, an echo, a large hall and a fade into the night. The tune helper carries an assert.",
+    "category": "Genres",
+    "level": "Beginner",
+    "tags": [
+      "waltz",
+      "romantic",
+      "ambient",
+      "3/4",
+      "meter",
+      "arp",
+      "fade",
+      "assert"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "backroom-groove",
+    "name": "Backroom Groove",
+    "description": "A funk vamp in E minor: slap bass, Rhodes, a chicken-scratch guitar, horns and drums with ghost notes; the hats get their groove from a cycle of velocities (the set operator). The vamp helper logs what it repeats.",
+    "category": "Genres",
+    "level": "Intermediate",
+    "tags": [
+      "funk",
+      "jazz",
+      "groove",
+      "ghost notes",
+      "set",
+      "humanize",
+      "log",
+      "general midi"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
     "id": "all-demos",
     "name": "All demos in one project",
     "description": "Every demo of Remix in one project, with Welcome to AMPLE open: one folder for each demo, the sounds shared. Browse the file list, open any song and play it.",
@@ -1271,6 +1426,13 @@
       "cars-and-music/song.amplet",
       "fantasy-score/song.amplet",
       "library-sounds/song.amplet",
+      "watch-it-think/song.amplet",
+      "pixel-quest/song.amplet",
+      "salt-and-rope/song.amplet",
+      "sugar-rush/song.amplet",
+      "iron-furnace/song.amplet",
+      "lanterns/song.amplet",
+      "backroom-groove/song.amplet",
       "README.md"
     ],
     "assets": [

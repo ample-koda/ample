@@ -3,6 +3,8 @@
 // approximations show how far they are, so the word "approximate" is a measurement. Advisory; nothing is written. @ample:live-parity
 import { liveEffectGraph, prepareWorklets } from './studio/preview/audio.js';
 import { PARITY_REFERENCES, testSignal, RATE } from '../lib/dsp-references.mjs';
+import { automationFocus } from '../lib/volume-auto.mjs';
+import { barBeats } from '../lib/meter.mjs';
 export { PARITY_REFERENCES, testSignal };
 
 /** A word for the distance between live and render, in dB of the difference against the render (more negative is closer). */
@@ -15,7 +17,7 @@ export function describeDeviation(db) {
 }
 
 /** Renders a signal ({ sampleRate, channels }) through the live graph of one block offline. Returns { channels (Float32Array[]), latencySamples }. */
-export async function renderLive(type, params, signal, tempo = 120) {
+export async function renderLive(type, params, signal, tempo = 120, { firstBar = 1 } = {}) {
   const frames = signal.channels[0].length;
   const context = new OfflineAudioContext(2, frames, signal.sampleRate), buffer = context.createBuffer(2, frames, signal.sampleRate);
   signal.channels.forEach((channel, c) => buffer.copyToChannel(channel, c));
@@ -23,7 +25,7 @@ export async function renderLive(type, params, signal, tempo = 120) {
   const source = context.createBufferSource(), out = context.createGain();
   source.buffer = buffer; out.connect(context.destination);
   // the LFOs start with the sound, as in the render they are compared with
-  const graph = liveEffectGraph(context, source, out, type, params, tempo, undefined, { position: () => context.currentTime, loop: () => frames / signal.sampleRate });
+  const graph = liveEffectGraph(context, source, out, type, params, tempo, undefined, { position: () => context.currentTime, loop: () => frames / signal.sampleRate, firstBar: () => firstBar });
   source.start();
   const live = await context.startRendering(), latencySamples = Math.round((graph.latency || 0) * signal.sampleRate);
   graph.dispose();
@@ -35,6 +37,9 @@ const cache = new Map();
 export async function parityCheck(type, params, { tempo = 120, seconds = 2 } = {}) {
   const reference = PARITY_REFERENCES[type];
   if (!reference) return null;
+  // a volume that moves over the song (auto, lfo, env, fade) is tested where it first moves (a window starting a quarter second before it), not in the first two seconds where it is often still
+  const samplesPerBar = Math.floor(barBeats() * 60 * RATE / Math.max(1, Number(tempo) || 120)), focus = type === 'volume' ? automationFocus(params.gain, samplesPerBar, RATE) : 0;
+  const firstBar = 1 + Math.max(0, focus - RATE / 4) / samplesPerBar;
   const key = JSON.stringify([type, params, tempo]);
   if (cache.has(key)) return cache.get(key);
   const signal = testSignal(seconds), frames = signal.channels[0].length;
@@ -44,11 +49,11 @@ export async function parityCheck(type, params, { tempo = 120, seconds = 2 } = {
   const source = context.createBufferSource(), out = context.createGain();
   source.buffer = buffer; out.connect(context.destination);
   // the LFOs start with the sound, as in the render they are compared with
-  const graph = liveEffectGraph(context, source, out, type, params, tempo, undefined, { position: () => context.currentTime, loop: () => frames / RATE });
+  const graph = liveEffectGraph(context, source, out, type, params, tempo, undefined, { position: () => context.currentTime, loop: () => frames / RATE, firstBar: () => firstBar });
   source.start();
   const live = await context.startRendering(), delay = Math.round((graph.latency || 0) * RATE);
   graph.dispose();
-  const rendered = await reference({ sampleRate: RATE, channels: signal.channels.map((c) => c.slice()) }, params, tempo);
+  const rendered = await reference({ sampleRate: RATE, channels: signal.channels.map((c) => c.slice()) }, params, tempo, firstBar);
   let difference = 0, energy = 0;
   const skip = Math.floor(RATE * .05);   // the first 50 ms: the smoothing of the knobs settles
   for (let c = 0; c < 2; c++) {

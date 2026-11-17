@@ -64,6 +64,39 @@ public static partial class ComponentHelper
         return list;
     }
 
+    [GeneratedRegex("\"[^\"]*\"", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex StringLiteral();
+
+    [GeneratedRegex(@"[A-Za-z_][\w-]*", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex Word();
+
+    /// <summary>
+    /// The private properties that the music reads: named in the process (observation statements and strings do not count) or in the value
+    /// of a private property that is itself read. The others are metadata: they are
+    /// validated but never run, so they cannot add a side effect, a capability need, a runtime error or a dynamic dependency (plan 11h H.5).
+    /// </summary>
+    /// <param name="d">The component.</param>
+    /// <returns>The used private properties in declaration order.</returns>
+    public static IReadOnlyList<ComponentProperty> UsedPrivate(ComponentDefinition d)
+    {
+        ArgumentNullException.ThrowIfNull(d);
+        if (d.PrivateProperties.Count == 0) return [];
+        string body = string.Join('\n', d.ProcessBody);
+        string text = StringLiteral().Replace(NotePipeline.BlankObservationStatements(body) ?? NotePipeline.StripComments(body), " ");
+        HashSet<string> used = [.. Word().Matches(text).Select(m => m.Value)];
+        bool grew = true;
+        while (grew)
+        {
+            grew = false;
+            foreach (ComponentProperty p in d.PrivateProperties.Where(p => used.Contains(p.Name) && p.Default is not null))
+            {
+                foreach (Match m in Word().Matches(StringLiteral().Replace(NotePipeline.StripComments(p.Default!), " "))) grew |= used.Add(m.Value);
+            }
+        }
+
+        return [.. d.PrivateProperties.Where(p => used.Contains(p.Name))];
+    }
+
     /// <summary>The text of the helper. Its first line stands where the <c>process</c> line stands and its body is the process body as written, so that the line of a problem in the helper is the line of the component.</summary>
     /// <param name="d">The component.</param>
     /// <param name="all">The components that are visible (a call of another Notes component is written as the call of its helper), or null.</param>
@@ -72,7 +105,9 @@ public static partial class ComponentHelper
     public static string Text(ComponentDefinition d, IReadOnlyList<ComponentDefinition>? all = null, List<NestIssue>? issues = null)
     {
         ArgumentNullException.ThrowIfNull(d);
-        string head = $"helper {d.HelperName}({string.Join(", ", Parameters(d).Select(p => p.Type + " " + p.Name))}) -> Notes {{";
+        // the private properties that the music reads are lets at the start of the helper, on the line of the head so that no line of the process moves
+        string lets = string.Concat(UsedPrivate(d).Select(p => $" let {p.Type.TrimEnd('?')} {p.Name} = {p.Default};"));
+        string head = $"helper {d.HelperName}({string.Join(", ", Parameters(d).Select(p => p.Type + " " + p.Name))}) -> Notes {{{lets}";
         List<string> body = [head];
         foreach (string line in all is null ? d.ProcessBody : ComponentNesting.Rewrite(d, all, issues))
         {

@@ -4275,6 +4275,54 @@
         }
       }
     },
+    "/api/diagnostics/session": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "The temporary overrides of the logging and assertion options of this session (logging.level, diagnostics.assertions ...): they win over the song, are kept in memory only and never change the music.",
+        "description": "Read only.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Sets the temporary overrides (values: an object of option and value; an empty object clears them). A value that is not valid for its option is refused.",
+        "description": "Changes state: journaled in AMPLE Redux as a command.",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (JSON, or the raw data for /api/data)."
+          },
+          "default": {
+            "description": "Problem details (RFC 9457) with the AMP code in \u0027code\u0027.",
+            "content": {
+              "application/problem\u002Bjson": {}
+            }
+          }
+        }
+      }
+    },
     "/api/doc": {
       "get": {
         "tags": [
@@ -7677,7 +7725,7 @@
         "tags": [
           "lite"
         ],
-        "summary": "Builds the text and sound files the page sends (multipart: a manifest and the parts f0..fn) in a private temporary workspace and returns the diagnostics and an output id.",
+        "summary": "Builds the text and sound files the page sends (multipart: a manifest and the parts f0..fn) in a private temporary workspace and returns the diagnostics, the events of the log view and an output id. The manifest may hold options for this build only (logging.level, diagnostics.assertions): they win over the song and are never written anywhere.",
         "description": "Read only.",
         "security": [
           {

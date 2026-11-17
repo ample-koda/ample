@@ -16,6 +16,13 @@ namespace Ample.Language;
 /// <param name="Line">The 0-based line of the call in the source.</param>
 public sealed record AudioNode(string Id, string Processor, string Template, string Class, string Version, IReadOnlyList<(string Name, string Value)> Parameters, IReadOnlyList<(string Port, string Source)> Inputs, string OutputPort, int Line);
 
+/// <summary>An observation statement (log, debug, trace or warn) of an audio process that ran.</summary>
+/// <param name="Line">The 1-based line of the statement in the file of the component.</param>
+/// <param name="Message">The message.</param>
+/// <param name="Code">The event code of the statement, or null.</param>
+/// <param name="Level">The level of the event (warn is a warning).</param>
+public sealed record AudioWarning(int Line, string Message, string? Code, EventLevel Level = EventLevel.Warning);
+
 /// <summary>The internal graph of an audio component: a reusable typed subgraph. The user sees one block; the engine keeps this.</summary>
 /// <param name="Nodes">The processors that an output needs, in the order they are made.</param>
 /// <param name="Outputs">For each output of the component, where it comes from (<c>node:reverb1</c> or <c>in:audio</c>).</param>
@@ -25,6 +32,12 @@ public sealed record AudioNode(string Id, string Processor, string Template, str
 /// <param name="NoPreview">The processors that cannot.</param>
 public sealed record AudioGraph(IReadOnlyList<AudioNode> Nodes, IReadOnlyDictionary<string, string> Outputs, IReadOnlyList<ComponentIssue> Issues, double LatencyMs, bool ClientPreview, IReadOnlyList<string> NoPreview)
 {
+    /// <summary>Gets the warnings that the process gave (<c>warn</c> statements that ran): they belong to the instance, not to the music.</summary>
+    public IReadOnlyList<AudioWarning> Warnings { get; init; } = [];
+
+    /// <summary>Gets how many more warnings the process made than were kept.</summary>
+    public int SuppressedWarnings { get; init; }
+
     /// <summary>Gets the dependencies a semantic hash must contain: every processor with the version of its block.</summary>
     public IReadOnlyList<string> Dependencies => [.. Nodes.Select(n => $"processor={n.Template}@{n.Version}").Concat(NestedDependencies).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
 
@@ -52,6 +65,11 @@ public static partial class AudioGraphBuilder
 
     private sealed record Statement(int Line, string Kind, string Text, bool Broken = false);
 
+    /// <summary>At most this many warnings of one audio process are kept (a statement runs once, so this bounds the statements, not the loops).</summary>
+    internal const int MaxWarnings = 20;
+
+    private static readonly HashSet<string> ObservationWords = new(StringComparer.Ordinal) { "log", "debug", "trace", "warn" };
+
     private sealed class State
     {
         public required ComponentDefinition Definition { get; init; }
@@ -69,8 +87,54 @@ public static partial class AudioGraphBuilder
         public Dictionary<string, string> AudioNames { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, int> Counts { get; } = new(StringComparer.Ordinal);
         public List<ComponentIssue> Issues { get; } = [];
+        public List<AudioWarning> Warnings { get; } = [];
+        public int SuppressedWarnings { get; set; }
         public int Line { get; set; }
+
+        /// <summary>Gets the value lets whose value comes from a secret-named property (their fields too): they stay redacted in every message.</summary>
+        public HashSet<string> Sensitive { get; } = new(StringComparer.Ordinal);
     }
+
+    /// <summary>What a try body may undo: the state of the build before it.</summary>
+    private sealed record Snapshot(int Nodes, int Issues, int NestedDeps, Dictionary<string, string> AudioNames, Dictionary<string, int> Counts, HashSet<string> NotesSources, Dictionary<string, string> Scope, Dictionary<string, string> Outputs, HashSet<string> Sensitive);
+
+    /// <summary>A try that is being built: where its body started, and whether a catch took its error.</summary>
+    private sealed class TryFrame(Snapshot before, int depth)
+    {
+        public Snapshot Before { get; } = before;
+
+        public int Depth { get; } = depth;
+
+        public bool InBody { get; set; } = true;
+
+        public (string Code, string Message)? Error { get; set; }
+
+        public bool Taken { get; set; }
+    }
+
+    /// <summary>An error of the build that a catch can take: everything but a text that is wrong (AMP2231).</summary>
+    private static bool Catchable(ComponentIssue issue) => issue.Severity == Severity.Error && issue.Code != "AMP2231";
+
+    private static Snapshot Take(State st, Dictionary<string, string> outputs) => new(st.Nodes.Count, st.Issues.Count, st.NestedDeps.Count, new(st.AudioNames, StringComparer.Ordinal), new(st.Counts, StringComparer.Ordinal),
+        new(st.NotesSources, StringComparer.Ordinal), new(st.Scope, StringComparer.Ordinal), new(outputs, StringComparer.Ordinal), new(st.Sensitive, StringComparer.Ordinal));
+
+    private static void Restore(State st, Dictionary<string, string> outputs, Snapshot s)
+    {
+        st.Nodes.RemoveRange(s.Nodes, st.Nodes.Count - s.Nodes);
+        st.Issues.RemoveRange(s.Issues, st.Issues.Count - s.Issues);
+        st.NestedDeps.RemoveRange(s.NestedDeps, st.NestedDeps.Count - s.NestedDeps);
+        static void Reset<TK, TV>(Dictionary<TK, TV> target, Dictionary<TK, TV> source) where TK : notnull { target.Clear(); foreach ((TK k, TV v) in source) target[k] = v; }
+        Reset(st.AudioNames, s.AudioNames);
+        Reset(st.Counts, s.Counts);
+        Reset(st.Scope, s.Scope);
+        Reset(outputs, s.Outputs);
+        st.NotesSources.Clear();
+        st.NotesSources.UnionWith(s.NotesSources);
+        st.Sensitive.Clear();
+        st.Sensitive.UnionWith(s.Sensitive);
+    }
+
+    private static string FirstWord(string line) => new([.. line.TakeWhile(c => char.IsLetter(c))]);
 
     private static string Strip(string line)
     {
@@ -86,6 +150,22 @@ public static partial class AudioGraphBuilder
 
     private static List<Statement> Statements(ComponentDefinition d, List<ComponentIssue> issues)
     {
+        // the shared parser reads the process (statements over several lines in any shape); a text it cannot read is reported line by line below
+        bool elseAlone = d.ProcessBody.Any(l => ConditionSyntax.Parse(Strip(l).Trim()) is { Kind: not ConditionSyntax.HeadKind.If, Closes: false });
+        if (!elseAlone && NotePipeline.ReadAudioProcess(string.Join('\n', d.ProcessBody)) is { } parsed)
+        {
+            List<Statement> read = [];
+            foreach (NotePipeline.AudioStatement s in parsed)
+            {
+                int absolute = d.ProcessLine + 1 + s.BodyLine;
+                if (s.Kind != "other") { read.Add(new Statement(absolute, s.Kind, s.Text)); continue; }
+                string first = s.BodyLine < d.ProcessBody.Count ? d.ProcessBody[s.BodyLine] : string.Empty;
+                issues.Add(new ComponentIssue(absolute, 0, first.Length, "AMP2231", Severity.Error, $"\"{s.Text}\" is not a statement of an audio process (let name = ..., emit ...).", "Write let name = audio |> processor(...) or emit audio |> processor(...)."));
+            }
+
+            return read;
+        }
+
         List<Statement> result = [];
         for (int i = 0; i < d.ProcessBody.Count; i++)
         {
@@ -116,6 +196,7 @@ public static partial class AudioGraphBuilder
             if (line == "}") { result.Add(new Statement(absolute, "end", string.Empty)); continue; }
             if (line.StartsWith("let ", StringComparison.Ordinal)) result.Add(new Statement(absolute, "let", line[4..].Trim()));
             else if (line.StartsWith("emit ", StringComparison.Ordinal)) result.Add(new Statement(absolute, "emit", line[5..].Trim()));
+            else if (ObservationWords.Contains(FirstWord(line)) && !line.StartsWith(FirstWord(line) + "=", StringComparison.Ordinal)) result.Add(new Statement(absolute, "observe", line));
             else if (result.Count > 0 && (line.StartsWith("|>", StringComparison.Ordinal) || line.StartsWith(')') || line.StartsWith(',') || result[^1].Text.EndsWith("|>", StringComparison.Ordinal) || result[^1].Text.EndsWith('(') || result[^1].Text.EndsWith(',')))
                 result[^1] = result[^1] with { Text = result[^1].Text + " " + line };
             else issues.Add(new ComponentIssue(absolute, 0, d.ProcessBody[i].Length, "AMP2231", Severity.Error, $"\"{line}\" is not a statement of an audio process (let name = ..., emit ...).", "Write let name = audio |> processor(...) or emit audio |> processor(...)."));
@@ -148,6 +229,7 @@ public static partial class AudioGraphBuilder
         Dictionary<string, string> outputs = new(StringComparer.Ordinal);
         List<Statement> statements = Statements(d, st.Issues);
         Stack<(bool ParentActive, bool Taken, bool Active)> branches = new();
+        Stack<TryFrame> tries = new();
         bool? Truth(string condition, int line)
         {
             string? value = ComponentMigrations.EvaluateScoped(condition, st.Scope, out string? why);
@@ -161,8 +243,53 @@ public static partial class AudioGraphBuilder
         foreach (Statement s in statements)
         {
             st.Line = s.Line;
+            if (s.Kind is "try" or "catch" or "finally")
+            {
+                bool active = branches.Count == 0 || branches.Peek().Active;
+                if (s.Kind == "try")
+                {
+                    branches.Push((active, false, active));
+                    tries.Push(new TryFrame(Take(st, outputs), branches.Count));
+                    continue;
+                }
+
+                (bool parent, _, bool ran) = branches.Pop();
+                TryFrame frame = tries.Peek();
+                if (frame.InBody)
+                {
+                    frame.InBody = false;
+                    // the first error of the body is the cause (what follows from it, like a name that is then unknown, goes with it); a text
+                    // that is wrong is reported when the process is read, before any try runs, so it is never caught
+                    if (parent && ran && st.Issues.Skip(frame.Before.Issues).FirstOrDefault(i => i.Severity == Severity.Error) is { } first && Catchable(first))
+                        frame.Error = (first.Code, first.Message);
+                }
+
+                bool take = false;
+                if (s.Kind == "finally") take = parent;
+                else if (frame.Error is { } error && !frame.Taken)
+                {
+                    string[] head = s.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (head.Length == 2 && head[0] != "Error") { st.Issues.Add(Issue(st, "AMP2231", $"An audio process has only the type Error to catch, not {head[0]}.", s.Text, "Write catch (e) or catch (Error e).")); }
+                    else
+                    {
+                        Restore(st, outputs, frame.Before);   // what the body built is gone, its events stay (they happened)
+                        string name = head.Length > 0 ? head[^1] : "e";
+                        string message = "\"" + error.Message.Replace('"', '\'') + "\"", code = "\"" + error.Code + "\"";
+                        st.Scope[name] = "{type: \"Error\", message: " + message + ", code: " + code + "}";
+                        st.Scope[name + ".type"] = "\"Error\"";
+                        st.Scope[name + ".message"] = message;
+                        st.Scope[name + ".code"] = code;
+                        frame.Taken = take = true;
+                    }
+                }
+
+                branches.Push((parent, true, take));
+                continue;
+            }
+
             if (s.Kind is "if" or "elseif" or "else" or "end")
             {
+                if (s.Kind == "end" && tries.Count > 0 && tries.Peek().Depth == branches.Count) tries.Pop();
                 if (s.Kind == "if")
                 {
                     bool parent = branches.Count == 0 || branches.Peek().Active;
@@ -182,11 +309,36 @@ public static partial class AudioGraphBuilder
             }
 
             if (branches.Count > 0 && !branches.Peek().Active) continue;
+            if (s.Kind == "observe")
+            {
+                Observe(st, s);
+                continue;
+            }
+
+            if (s.Kind is "fail" or "require")
+            {
+                string? failed = NotePipeline.EvaluateAudioCheck(s.Text, st.Scope, st.Sensitive, st.Tempo, out string? why);
+                if (why is not null) st.Issues.Add(Issue(st, "AMP2232", $"The {s.Kind} cannot be evaluated: {why}", s.Text));
+                else if (failed is not null) st.Issues.Add(Issue(st, s.Kind == "fail" ? "AMP6002" : "AMP6005", ObsRedactor.Cut(failed), s.Text));
+                continue;
+            }
+
             if (s.Kind == "let")
             {
                 Match m = Regex.Match(s.Text, @"^([A-Za-z_][\w-]*)\s*=\s*(.+)$", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
                 if (!m.Success) { st.Issues.Add(Issue(st, "AMP2231", "A let is written let name = expression.", s.Text)); continue; }
                 string name = m.Groups[1].Value, text = m.Groups[2].Value.Trim();
+                if (text.StartsWith('{'))   // a record: its fields can be read as name.field wherever a value is read
+                {
+                    if (NotePipeline.EvaluateAudioRecord(text, st.Scope, st.Sensitive, st.Tempo, out string? problem) is not { } record) { st.Issues.Add(Issue(st, "AMP2232", $"The value of {name} cannot be calculated: {problem}", text)); continue; }
+                    foreach (string old in st.Scope.Keys.Where(k => k.StartsWith(name + ".", StringComparison.Ordinal)).ToList()) st.Scope.Remove(old);
+                    st.Scope[name] = record.Literal;
+                    foreach ((string path, string value) in record.Fields) st.Scope[name + "." + path] = value;
+                    if (record.Sensitive) st.Sensitive.Add(name);
+                    else st.Sensitive.Remove(name);
+                    continue;
+                }
+
                 if (LooksAudio(st, text))
                 {
                     string? source = Pipe(st, text);
@@ -266,7 +418,17 @@ public static partial class AudioGraphBuilder
         string? liveSource = instruments.Count == 1 ? instruments[0].Id : null;
         string[] noLive = [.. kept.Where(n => n.Template != "bus" && n.Id != liveSource).Select(n => (Node: n, Processor: st.Catalog.Values.FirstOrDefault(p => p.Template == n.Template), Keyed: n.Inputs.Any(i => i.Port != "in"))).Where(x => x.Processor is null || !x.Processor.LivePreview || x.Keyed).Select(x => x.Processor?.Name ?? (x.Node.Template == "midi-clip" ? "a Notes call (" + x.Node.Processor + ") is not evaluated in the browser" : x.Node.Processor)).Distinct(StringComparer.Ordinal)];
         string[] noPreview = [.. kept.Select(n => st.Catalog.Values.FirstOrDefault(p => p.Template == n.Template)).Where(p => p is not null && !p.ClientPreview).Select(p => p!.Name).Distinct(StringComparer.Ordinal)];
-        return new AudioGraph(kept, outputs, st.Issues, outputs.Values.Where(v => v.StartsWith("node:", StringComparison.Ordinal)).Select(v => latency.GetValueOrDefault(v[5..])).DefaultIfEmpty(0).Max(), noPreview.Length == 0, noPreview) { NestedDependencies = [.. st.NestedDeps], LivePreview = noLive.Length == 0 && instruments.Count <= 1 && kept.Count > 0, NoLive = instruments.Count > 1 ? [.. noLive, "more than one instrument"] : noLive, LiveSource = liveSource };
+        double longest = outputs.Values.Where(v => v.StartsWith("node:", StringComparison.Ordinal))
+            .Select(v => latency.GetValueOrDefault(v[5..])).DefaultIfEmpty(0).Max();
+        return new AudioGraph(kept, outputs, st.Issues, longest, noPreview.Length == 0, noPreview)
+        {
+            NestedDependencies = [.. st.NestedDeps],
+            LivePreview = noLive.Length == 0 && instruments.Count <= 1 && kept.Count > 0,
+            NoLive = instruments.Count > 1 ? [.. noLive, "more than one instrument"] : noLive,
+            LiveSource = liveSource,
+            Warnings = st.Warnings,
+            SuppressedWarnings = st.SuppressedWarnings,
+        };
     }
 
     /// <summary>Latency compensation: where branches with different latencies meet (a mix, a key input), the shorter branches get a <c>shift</c> block of the difference, so the signals stay aligned. The nodes are named <c>align1</c>, <c>align2</c>, ... and are part of the graph (and of the hashes).</summary>
@@ -303,6 +465,31 @@ public static partial class AudioGraphBuilder
         }
 
         return result;
+    }
+
+    /// <summary>One <c>warn</c> of an audio process: the line, the message and the optional event code.</summary>
+    private static void Observe(State st, Statement s)
+    {
+        var read = NotePipeline.ReadObservation(s.Text, out string? problem);
+        if (read is null) { st.Issues.Add(Issue(st, "AMP2231", problem ?? "This statement cannot be read.", s.Text)); return; }
+        // the shared evaluator: the message is any expression over the properties and value lets (redacted and cut like every other event message)
+        if (NotePipeline.EvaluateAudioObservation(s.Text, st.Scope, st.Sensitive, st.Tempo, out string? why) is not { } evaluated)
+        {
+            if (why == NotePipeline.VolatileRead) { st.Issues.Add(Issue(st, "AMP6012", why, s.Text, "Read the value outside the statement.")); return; }
+            st.Issues.Add(Issue(st, "AMP6013", $"The message of {read.Value.Kind} in an audio process cannot be evaluated: {why}", s.Text,
+                "The message can read the properties and the value lets of the process, not the audio or other blocks."));
+            return;
+        }
+
+        string message = evaluated.Message;
+        string? code = evaluated.Code;
+        if (message.Length == 0) return;
+        if (st.Warnings.Count >= MaxWarnings) st.SuppressedWarnings++;
+        else
+        {
+            EventLevel level = read.Value.Kind switch { "warn" => EventLevel.Warning, "log" => EventLevel.Info, "debug" => EventLevel.Debug, _ => EventLevel.Trace };
+            st.Warnings.Add(new AudioWarning(s.Line, message, code, level));
+        }
     }
 
     private static ComponentIssue Issue(State st, string code, string message, string needle, string hint = "") =>

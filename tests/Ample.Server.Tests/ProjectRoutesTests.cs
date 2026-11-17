@@ -1008,6 +1008,262 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Equal(song, after.RootElement.GetProperty("text").GetString());
     }
 
+    // Live Preview (plan/live-preview 6.2): a listening build ({ listen: true }) gives the take it was asked for, from the same cache as a normal build, but the
+    // song clock (piano roll, baking of dynamic values), the preview-build flag and the build statistics stay as the last normal build left them.
+    private const string ListenSong =
+        "composition \"listen\" { ample 1  tempo 90 master-seed 1 }\n"
+        + "drums source at 1 for 1 {\n  kit samples/kit\n  pattern kick:x...............\n}\n"
+        + "master master {\n  from source.audio -> audio\n}\n";
+
+    private async Task WriteListenSong()
+    {
+        Directory.CreateDirectory(Path.Combine(folder, "samples", "kit"));
+        await File.WriteAllBytesAsync(Path.Combine(folder, "samples", "kit", "kick.wav"), Wav.Encode([12000, 6000, -8000, -4000], 44100));
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), ListenSong);
+    }
+
+    private async Task<JsonDocument> BuildSong(object body)
+    {
+        using HttpResponseMessage response = await Post("/api/build", body);
+        string json = await response.Content.ReadAsStringAsync(CancellationToken.None);
+        Assert.True(response.IsSuccessStatusCode, json);
+        return JsonDocument.Parse(json);
+    }
+
+    private static string TakeOf(JsonDocument report, string block) =>
+        report.RootElement.GetProperty("blocks").EnumerateArray()
+            .Single(b => b.GetProperty("block").GetString() == block)
+            .GetProperty("takeId").GetString()!;
+
+    private async Task<(string ClockAt, bool BuiltClock)> SongClock()
+    {
+        using JsonDocument doc = JsonDocument.Parse(await Text("/api/doc?path=song.amplet"));
+        return (doc.RootElement.GetProperty("clockAt").GetString()!, doc.RootElement.GetProperty("builtClock").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_listen_build_gives_its_take_and_leaves_the_song_clock_and_the_build_statistics_alone()
+    {
+        await WriteListenSong();
+        string stats = Path.Combine(folder, ".ample", "analysis", "build-stats.json");
+        byte[]? StatsBytes() => File.Exists(stats) ? File.ReadAllBytes(stats) : null;
+        Assert.False((await SongClock()).BuiltClock);
+
+        // before any normal build: the listening build renders, and the song still has no build clock and no statistics
+        using JsonDocument listened = await BuildSong(new { path = "song.amplet", intent = "preview", only = "source", listen = true });
+        string listenTake = TakeOf(listened, "source");
+        Assert.False((await SongClock()).BuiltClock, "a listening build must not set the clock of the song");
+        Assert.Null(StatsBytes());
+
+        // a normal build of the same request comes from the same cache entry (the flag is no part of the plan) and does set the clock
+        using JsonDocument normal = await BuildSong(new { path = "song.amplet", intent = "preview", only = "source" });
+        Assert.Equal(listenTake, TakeOf(normal, "source"));
+        (string clockAt, bool builtClock) = await SongClock();
+        Assert.True(builtClock);
+
+        // a listening build of changed text, a second later: it renders a new take, and the clock and the statistics of the normal build stay
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), ListenSong.Replace("kick:x...............", "kick:x.......x.......", StringComparison.Ordinal));
+        byte[]? statsBefore = StatsBytes();
+        await Task.Delay(1100);
+        using JsonDocument changed = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true });
+        Assert.NotEqual(listenTake, TakeOf(changed, "source"));
+        Assert.Contains(changed.RootElement.GetProperty("blocks").EnumerateArray(), b => b.GetProperty("status").GetString() == "rendered");
+        Assert.Equal((clockAt, true), await SongClock());
+        Assert.Equal(statsBefore, StatsBytes());
+
+        // control: the same build without the flag moves the clock, so the check above can fail
+        using JsonDocument again = await BuildSong(new { path = "song.amplet", intent = "preview" });
+        Assert.NotEqual(clockAt, (await SongClock()).ClockAt);
+    }
+
+    [Fact]
+    public async Task A_listen_build_leaves_the_flag_for_unsaved_input_as_the_last_normal_build_set_it()
+    {
+        await WriteListenSong();
+        await File.WriteAllTextAsync(Path.Combine(folder, "notes.txt"), "saved\n");
+        async Task<string> Freeze()
+        {
+            using JsonDocument doc = JsonDocument.Parse(await Text("/api/doc?path=song.amplet"));
+            int version = doc.RootElement.GetProperty("version").GetInt32();
+            object freeze = new { type = "setFreeze", block = "source", level = "plan" };
+            using HttpResponseMessage r = await Post("/api/doc/edit", new { path = "song.amplet", baseVersion = version, op = freeze });
+            return await r.Content.ReadAsStringAsync(CancellationToken.None);
+        }
+
+        async Task Unsaved(string text)
+        {
+            using HttpResponseMessage put = await Put("/api/wc", new { path = "notes.txt", text });
+            Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        }
+
+        const string refused = "its takes are preview takes";
+        using (JsonDocument clean = await BuildSong(new { path = "song.amplet", intent = "bake" })) { }
+        // an input file gets an unsaved change; a listening build does not mark the song as built from unsaved input
+        await Unsaved("unsaved\n");
+        using (JsonDocument listened = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true })) { }
+        Assert.DoesNotContain(refused, await Freeze(), StringComparison.Ordinal);
+
+        // control: a normal build with the unsaved input sets the flag; with the input back as saved, a listening build does not clear it, a normal build does
+        using (JsonDocument dirty = await BuildSong(new { path = "song.amplet", intent = "bake" })) { }
+        Assert.Contains(refused, await Freeze(), StringComparison.Ordinal);
+        await Unsaved("saved\n");
+        using (JsonDocument listened = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true })) { }
+        Assert.Contains(refused, await Freeze(), StringComparison.Ordinal);
+        using (JsonDocument normal = await BuildSong(new { path = "song.amplet", intent = "bake" })) { }
+        Assert.DoesNotContain(refused, await Freeze(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_listen_build_cannot_be_a_draft_or_a_forced_render()
+    {
+        await WriteListenSong();
+        using HttpResponseMessage draft = await Post("/api/build", new { path = "song.amplet", listen = true, @override = new { block = "source", name = "gain", value = "-3 dB" } });
+        Assert.Contains("AMP5607", await draft.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        using HttpResponseMessage forced = await Post("/api/build", new { path = "song.amplet", listen = true, only = "source", forceRender = true });
+        Assert.Contains("AMP5607", await forced.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+    }
+
+    // Live Preview (plan/live-preview 6.3): a listening build uses the resolver as it is and never writes ample.lock; it says which components a normal build
+    // would pin. The lock does not choose code: a pinned and an unpinned component render the same; the pin only records the hash for AMP2203.
+    private static string LockComponent(string name, string id) =>
+        $"component {name} version 1.0.0 {{\n  id \"{id}\"\n  input source: Notes\n  property copies: Int = 2\n  output notes: Notes\n"
+        + "  process {\n    for i in 0..copies {\n      emit source |> shift(i * 1bar)\n    }\n  }\n}\n";
+
+    private async Task WriteComponentSong(bool second = false)
+    {
+        Directory.CreateDirectory(Path.Combine(folder, "components"));
+        await File.WriteAllTextAsync(Path.Combine(folder, "components", "fx.amplec"), LockComponent("demo.fx.twice", "com.demo.twice"));
+        string song = "composition \"pins\" { ample 1  tempo 120  master-seed 7 }\nimport \"fx\"\n"
+            + (second ? "import \"more\"\n" : string.Empty)
+            + "midi-clip theme at 1 for 1 {\n  notes 1:0:1:60:100\n}\n"
+            + "demo.fx.twice twice at 2 for 3 {\n  from theme.notes -> source\n}\n"
+            + (second ? "demo.fx.more more at 2 for 3 {\n  from theme.notes -> source\n}\n" : string.Empty);
+        if (second)
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "components", "more.amplec"), LockComponent("demo.fx.more", "com.demo.more"));
+        }
+
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), song);
+    }
+
+    private static string[]? Unpinned(JsonDocument report) =>
+        report.RootElement.GetProperty("unpinnedComponents") is { ValueKind: JsonValueKind.Array } list
+            ? [.. list.EnumerateArray().Select(x => x.GetString()!)]
+            : null;
+
+    [Fact]
+    public async Task A_listen_build_never_writes_the_lock_file_for_a_component_that_is_not_pinned_yet()
+    {
+        await WriteComponentSong();
+        string lockPath = Path.Combine(folder, "ample.lock");
+        bool lockedBefore = File.Exists(lockPath);
+        using (JsonDocument listened = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true }))
+        {
+            Assert.Equal(["com.demo.twice@1.0.0"], Assert.IsType<string[]>(Unpinned(listened)));
+        }
+
+        Assert.Equal(lockedBefore, File.Exists(lockPath));
+        Assert.False(File.Exists(lockPath) && File.ReadAllText(lockPath).Contains("com.demo.twice", StringComparison.Ordinal), "a listening build must not pin");
+
+        // control: a normal build pins it, and says nothing about pins
+        using JsonDocument normal = await BuildSong(new { path = "song.amplet", intent = "preview" });
+        Assert.Null(Unpinned(normal));
+        Assert.Contains("com.demo.twice@1.0.0", await File.ReadAllTextAsync(lockPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_listen_build_leaves_an_existing_lock_file_byte_for_byte_and_reports_only_the_new_components()
+    {
+        await WriteComponentSong();
+        string lockPath = Path.Combine(folder, "ample.lock");
+        using (JsonDocument pinning = await BuildSong(new { path = "song.amplet", intent = "bake" })) { }
+        byte[] pinned = await File.ReadAllBytesAsync(lockPath);
+        DateTime written = File.GetLastWriteTimeUtc(lockPath);
+
+        // every component pinned: nothing to report, nothing written
+        using (JsonDocument listened = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true }))
+        {
+            Assert.Equal([], Assert.IsType<string[]>(Unpinned(listened)));
+        }
+
+        Assert.Equal(pinned, await File.ReadAllBytesAsync(lockPath));
+
+        // a pinned component whose code changed (AMP2203): the listening build follows the code as it is and leaves the pin alone
+        await File.WriteAllTextAsync(Path.Combine(folder, "components", "fx.amplec"), LockComponent("demo.fx.twice", "com.demo.twice").Replace("i * 1bar", "i * 2bars", StringComparison.Ordinal));
+        using (JsonDocument changed = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true }))
+        {
+            Assert.Equal([], Assert.IsType<string[]>(Unpinned(changed)));
+        }
+
+        Assert.Equal(pinned, await File.ReadAllBytesAsync(lockPath));
+
+        // a new component next to the pinned one: reported, not pinned
+        await WriteComponentSong(second: true);
+        using (JsonDocument added = await BuildSong(new { path = "song.amplet", intent = "preview", listen = true }))
+        {
+            Assert.Equal(["com.demo.more@1.0.0"], Assert.IsType<string[]>(Unpinned(added)));
+        }
+
+        Assert.Equal(pinned, await File.ReadAllBytesAsync(lockPath));
+        Assert.Equal(written, File.GetLastWriteTimeUtc(lockPath));
+
+        // control: a normal build pins the new one
+        using (JsonDocument normal = await BuildSong(new { path = "song.amplet", intent = "bake" })) { }
+        Assert.Contains("com.demo.more@1.0.0", await File.ReadAllTextAsync(lockPath), StringComparison.Ordinal);
+    }
+
+    // Live Preview, bars (plan/live-preview 6.4, decision 13): a build from bar 1 to one bar past the chosen bars gives every block the request frame of the
+    // whole song (melody, auto points, drum song, effect history), so the chosen bars of it are the same samples as those bars of a whole render.
+    private const string BarsSong =
+        "composition \"bars\" { ample 1  tempo 120  master-seed 7 }\n"
+        + "midi-clip tune at 1 for 6 {\n  melody \"c4:3 e4:3 g4:3 c5:3 e5:3 g5:3 c4:2 d4:2\"\n}\n"
+        + "synth lead {\n  wave triangle\n  gain -12 dB\n  from tune.notes -> notes\n}\n"
+        + "drums beat at 1 for 6 {\n  kit builtin\n  song beat-A beat-B\n}\n"
+        + "filter sweep {\n  cutoff auto(1:300, 6:6000)\n  from beat.audio -> audio\n}\n"
+        + "reverb room {\n  from lead.audio -> audio\n}\n"
+        + "mixer mix {\n  from room.audio -> audio1\n  from sweep.audio -> audio2\n}\n"
+        + "master out {\n  from mix.audio -> audio\n}\n";
+
+    private async Task<(short[] Samples, int Rate)> MasterOf(object body)
+    {
+        using JsonDocument report = await BuildSong(body);
+        string take = report.RootElement.GetProperty("masterTakeId").GetString()!;
+        byte[] wav = await http.GetByteArrayAsync($"/api/takes/{take}/download?format=wav", CancellationToken.None);
+        return Wav.Decode(wav);
+    }
+
+    private static int MaxDifference(short[] a, int aFrom, short[] b, int bFrom, int length)
+    {
+        int max = 0;
+        for (int i = 0; i < length; i++)
+        {
+            max = Math.Max(max, Math.Abs(a[aFrom + i] - b[bFrom + i]));
+        }
+
+        return max;
+    }
+
+    [Fact]
+    public async Task Bars_built_from_the_first_bar_sound_like_the_same_bars_of_the_whole_song()
+    {
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), BarsSong);
+        (short[] whole, int rate) = await MasterOf(new { path = "song.amplet", intent = "preview", listen = true });
+        (short[] fromStart, int rateFromStart) = await MasterOf(new { path = "song.amplet", intent = "preview", listen = true, range = new { firstBar = 1, bars = 6 } });
+        Assert.Equal(rate, rateFromStart);
+        int bar = FixedAudio.SamplesPerBar(rate, 120_000), length = 2 * bar;   // bars 4 and 5
+        Assert.True(whole.Length >= 6 * bar && fromStart.Length >= 6 * bar, $"lengths {whole.Length} {fromStart.Length}, bar {bar}");
+        Assert.True(whole.Skip(3 * bar).Take(length).Any(x => Math.Abs(x) > 1000), "the bars must sound");
+        int same = MaxDifference(whole, 3 * bar, fromStart, 3 * bar, length);
+        Assert.True(same == 0, $"bars 4-5 built from bar 1 (one bar past the range) differ from the whole song by {same}");
+
+        // controls, so the comparison can fail: the same bars one bar off differ (the timeline matters), and a build that ends with the chosen bars differs in
+        // the last milliseconds (the end of a take is processed as an end), which is why the route builds one bar more
+        Assert.True(MaxDifference(whole, 3 * bar, fromStart, 2 * bar, length) > 1000, "one bar off must differ");
+        (short[] endsAtRange, _) = await MasterOf(new { path = "song.amplet", intent = "preview", listen = true, range = new { firstBar = 1, bars = 5 } });
+        Assert.Equal(0, MaxDifference(whole, 3 * bar, endsAtRange, 3 * bar, length - (bar / 10)));
+        Assert.True(MaxDifference(whole, 3 * bar, endsAtRange, 3 * bar, length) > 0, "a take that ends with bar 5 is processed as an end there");
+    }
+
     private const string DiskSong = "project demo { tempo 90 master-seed 1 }\n# one\n# two\n# three\n# four\n";
 
     private async Task<JsonDocument> OpenDisk(string name)

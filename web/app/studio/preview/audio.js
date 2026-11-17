@@ -1,5 +1,8 @@
 import { getToken } from '../../api.js';
-import { filterPasses } from '../../../lib/studio-math.js';
+import { filterLaw, cutoffHz } from '../../../lib/live-filter-law.mjs';
+import { serverInt } from '../../../lib/server-int.mjs';
+import { gainQ15Wide, volumeCurve } from '../../../lib/volume-auto.mjs';
+import { panPoints, panCurve } from '../../../lib/live-pan-auto.mjs';
 import { gateLevel } from '../../../lib/trance-gate.mjs';
 import { barBeats } from '../../../lib/meter.mjs';
 import { syncSamples } from '../../../lib/clientside-delay.mjs';
@@ -40,12 +43,13 @@ export function prepareWorklets(context) {
   if (!context?.audioWorklet) return Promise.resolve(false);
   if (!worklets.has(context)) {
     const entry = { ready: false };
-    entry.promise = Promise.all(['/lib/reverb-worklet.mjs', '/lib/dynamics-worklet.mjs', '/lib/distortion-worklet.mjs', '/lib/bitcrusher-worklet.mjs', '/lib/lufs-worklet.mjs'].map((url) => context.audioWorklet.addModule(url))).then(() => { entry.ready = true; return true; }).catch(() => false);
+    entry.promise = Promise.all(['/lib/reverb-worklet.mjs', '/lib/dynamics-worklet.mjs', '/lib/distortion-worklet.mjs', '/lib/lufs-worklet.mjs', '/lib/bitcrusher-worklet.mjs', '/lib/filter-pair-worklet.mjs', '/lib/fx-worklet.mjs'].map((url) => context.audioWorklet.addModule(url))).then(() => { entry.ready = true; return true; }).catch(() => false);
     worklets.set(context, entry);
   }
   return worklets.get(context).promise;
 }
 const workletReady = (context) => worklets.get(context)?.ready === true;
+const WORKLET_FX = new Set(['flanger', 'phaser', 'eq', 'peq']);   // the live blocks that run their offline core in an AudioWorklet (fx-worklet.mjs)
 const WORKLET_DYNAMICS = new Set(['gate', 'limiter', 'deesser']);
 /** The limiter parameters of the master block, as the build preview (clientside-mix.mjs masterAudioBuffer) gives them: the ceiling is the `limiter` value in whole dB, never below -12. */
 export const masterLimiter = (params) => { const v = Number.parseInt(String(params.limiter ?? '').replace(/dB/gi, '').trim(), 10); return { ceiling: `${Math.max(-12, Number.isFinite(v) ? Math.max(-60, Math.min(48, v)) : -1)} dB`, release: '100', lookahead: '5' }; };
@@ -63,6 +67,8 @@ function lfoNode(context, clock) {
   return {
     out,
     connect: (destination) => out.connect(destination),
+    /** Stops the wave (the output is silent again) and forgets its key, so the next set() builds it anew. */
+    clear() { stopBuffered(); key = ''; },
     set({ hz, type, key: next, wave }) {
       if (osc) { osc.type = type; osc.frequency.cancelScheduledValues(context.currentTime); osc.frequency.setTargetAtTime(hz, context.currentTime, .01); return; }
       if (next === key) return;
@@ -79,26 +85,54 @@ function lfoNode(context, clock) {
   };
 }
 
+/** The echo time in seconds as the server has it: the whole milliseconds of the parameter (455 ms, not 455.7) in whole samples (455 ms at 44.1 kHz is 20065, not 20065.5: half a sample made a 455 ms echo -28.6 dB from the render), or the note value of the sync. */
+export const delaySeconds = (params, rate, tempo) => (syncSamples(params, rate, tempo) || Math.max(1, Math.trunc(clamp(serverInt(params.time, 250), 1, 2000) * rate / 1000))) / rate;
+
 // Persistent nodes: changing a knob never replaces or restarts the playing sample. `clock` ({ position(), loop(), tracked }) lets the LFOs follow the loop of the chain (see lfoNode).
 export function liveEffectGraph(context, source, output, type, initial, tempo, impulse, clock = null) {
   const nodes = [], node = (value) => { nodes.push(value); return value; };
   const dry = node(context.createGain()), wet = node(context.createGain()), input = node(context.createGain());
   source.connect(dry).connect(output); source.connect(input); wet.connect(output);
-  const set = (param, value) => { param.cancelScheduledValues(context.currentTime); param.setTargetAtTime(value, context.currentTime, .01); };
-  // latency is in seconds (a limiter looks ahead)
-  let suspendHook = null, updateEffect, updateMix = () => {}, replaceImpulse = null, oscillators = [];
-  let latency = 0, keyInput = null, setKey = null, loudness = null;
+  // the first value of a knob is its value at once: smoothing it from the default (a depth of 1 = 1 s of chorus sweep, 600 cents of filter wobble) made the start of every graph wrong for ~50 ms
+  const first = new WeakSet();
+  const set = (param, value) => { if (!first.has(param)) { first.add(param); param.value = value; return; } param.cancelScheduledValues(context.currentTime); param.setTargetAtTime(value, context.currentTime, .01); };
+  let suspendHook = null, updateEffect, updateMix = () => {}, replaceImpulse = null, oscillators = [], latency = 0, keyInput = null, setKey = null, loudness = null;   // latency in seconds (a limiter looks ahead)
   const disposers = [];
   if (type === 'volume') {
     const splitter = node(context.createChannelSplitter(2)), merger = node(context.createChannelMerger(2));
     input.channelCount = 2; input.channelCountMode = 'explicit'; input.connect(splitter);
     const paths = Array.from({ length: 4 }, () => node(context.createGain()));
     paths.forEach((gain, index) => { splitter.connect(gain, Math.floor(index / 2)); gain.connect(merger, 0, index % 2); });
-    merger.connect(wet);
+    // an automated gain (auto, lfo, env, fadein, fadeout) is the server's curve per sample of the take (volume-auto.mjs), played from a looping buffer that follows the loop into a gain stage after the channel paths
+    const stage = node(context.createGain()), curve = clock ? lfoNode(context, clock) : null;
+    merger.connect(stage).connect(wet);
+    if (curve) { curve.connect(stage.gain); disposers.push(curve.dispose); }
+    let automated = false;
     updateEffect = (params) => {
-      const gain = 10 ** (clamp(number(params, 'gain', 0), -60, 48) / 20), mono = params.mono === 'on';
-      paths.forEach((path, index) => { const sourceChannel = Math.floor(index / 2), outputChannel = index % 2, channel = outputChannel ? 'right' : 'left'; set(path.gain, params[channel] === 'off' ? 0 : gain * 10 ** (clamp(number(params, `${channel}_gain`, 0), -60, 12) / 20) * (mono ? .5 : sourceChannel === outputChannel ? 1 : 0)); });
+      const rate = context.sampleRate, samplesPerBar = Math.floor(barBeats() * 60 * rate / Math.max(1, Number(tempo) || 120)), firstBar = clock?.firstBar?.() ?? 1, text = String(params.gain ?? '').trim();
+      const automation = curve && volumeCurve(text, samplesPerBar, rate, firstBar);
+      if (automation) { set(stage.gain, 0); automated = true; curve.set({ key: `vol:${text}:${firstBar}:${samplesPerBar}:${rate}`, wave: () => volumeCurve(text, samplesPerBar, rate, firstBar) }); }
+      else { if (automated) { curve.clear(); automated = false; } set(stage.gain, 1); }
+      // the gain in whole dB from the table of the server (-12.041 is -12); the written value of an automation is not a number: the curve above carries it
+      // gain_precise (set by the preview of a curve being drawn, automation-preview.js) reads the decimal dB, the server's whole dB would step
+      const gain = automation ? 1 : params.gain_precise === 'on' ? 10 ** (clamp(number(params, 'gain', 0), -60, 48) / 20) : gainQ15Wide(clamp(serverInt(params.gain, 0), -60, 48)) / 32768, mono = params.mono === 'on';
+      paths.forEach((path, index) => { const sourceChannel = Math.floor(index / 2), outputChannel = index % 2, channel = outputChannel ? 'right' : 'left'; set(path.gain, params[channel] === 'off' ? 0 : gain * gainQ15Wide(clamp(serverInt(params[`${channel}_gain`], 0), -60, 48)) / 32768 * (mono ? .5 : sourceChannel === outputChannel ? 1 : 0)); });
     };
+  } else if (WORKLET_FX.has(type) && workletReady(context)) {
+    // the exact flanger, phaser, EQ and parametric EQ: the cores of the offline renders (fx-core.mjs) in an AudioWorklet; the sweep of the flanger and phaser comes in on input 1, the mix stays in the graph
+    const stage = node(new AudioWorkletNode(context, 'ample-fx', { numberOfInputs: 2, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit', processorOptions: { kind: type, params: initial } }));
+    input.connect(stage, 0, 0); stage.connect(wet);
+    const sweep = type === 'flanger' || type === 'phaser' ? lfoNode(context, clock) : null;
+    if (sweep) { sweep.out.connect(stage, 0, 1); disposers.push(sweep.dispose); }
+    updateEffect = (params) => {
+      stage.port.postMessage({ params });
+      if (!sweep) return;
+      const periodMs = clamp(number(params, 'period', type === 'flanger' ? 2000 : 2500), 100, 10000), periodSamples = Math.max(2, Math.floor(periodMs * context.sampleRate / 1000));
+      sweep.set(type === 'flanger'
+        ? { hz: 1000 / periodMs, type: 'triangle', key: `tri:${periodSamples}`, wave: () => triangleWave(periodSamples) }
+        : { hz: 1000 / periodMs, type: 'triangle', key: `phaser:${periodSamples}`, wave: () => phaserWave(periodSamples) });
+    };
+    if (sweep) updateMix = (params) => { const amount = clamp(number(params, 'mix', 50), 0, 100) / 100; set(dry.gain, 1 - amount); set(wet.gain, amount); };
   } else if (type === 'eq') {
     const low = node(context.createBiquadFilter()), mid = node(context.createBiquadFilter()), high = node(context.createBiquadFilter());
     low.type = 'lowshelf'; mid.type = 'peaking'; mid.Q.value = .8; high.type = 'highshelf'; input.connect(low).connect(mid).connect(high).connect(wet);
@@ -112,19 +146,28 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     stages.reduce((from, stage) => from.connect(stage), input).connect(wet);
     updateEffect = (params) => stages.forEach((stage, index) => { const band = peqBand(params, index + 1); stage.type = band.type; set(stage.frequency, band.hz); set(stage.Q, band.q); set(stage.gain, band.gain); });
   } else if (type === 'filter') {
-    // four filters in a row: slope 24 is two of them, 36 three, 48 all four; an unused one is a flat all-pass (no change)
+    // four filters in a row: slope 24 is two of them, 36 three, 48 all four; an unused one is a flat peaking filter at 0 dB (no change)
     const stages = Array.from({ length: 4 }, () => node(context.createBiquadFilter()));
-    stages.reduce((from, stage) => from.connect(stage), input).connect(wet);
+    const biquads = node(context.createGain()), pairGain = node(context.createGain());
+    stages.reduce((from, stage) => from.connect(stage), input).connect(biquads).connect(wet);
+    // the plain filter (no resonance, 12 dB, low or high pass) is the server's pair of one-poles: a worklet runs it (a biquad is a sample late at the top, -28 dB from the render)
+    const pair = workletReady(context) ? node(new AudioWorkletNode(context, 'ample-filter-pair', { numberOfInputs: 2, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit', processorOptions: { params: {} } })) : null;
+    if (pair) input.connect(pair, 0, 0), pair.connect(pairGain).connect(wet);
     // the cutoff wobble: cutoff * 2^(depth * wave), wave 0..1, as cents on every stage (an oscillator of -1..1 times depth*600 cents on top of depth*600 cents)
     const lfo = lfoNode(context, clock), lfoGain = node(context.createGain());
     lfo.connect(lfoGain); stages.forEach((stage) => lfoGain.connect(stage.detune)); disposers.push(lfo.dispose);
+    if (pair) lfo.out.connect(pair, 0, 1);
     updateEffect = (params) => {
-      const kind = ['highpass', 'bandpass', 'notch'].includes(params.type) ? params.type : 'lowpass', q = 1 + number(params, 'resonance', 0) * 0.17, passes = filterPasses(params.slope);
+      const law = filterLaw(params), { kind, passes, scale, q } = law;   // the server's pair of one-poles or state-variable filter (live-filter-law.mjs)
       const cycles = FILTER_CYCLES[params.lfo_rate ?? params.lfo_sync] || 0, depth = cycles ? clamp(number(params, 'lfo_depth', 0), 0, 8) : 0;
       const shape = params.lfo_shape === 'saw' ? 'saw' : ['triangle', 'square'].includes(params.lfo_shape) ? params.lfo_shape : 'sine', bpm = Math.max(1, Number(tempo) || 120), barSamples = Math.floor(barBeats() * 60 * context.sampleRate / bpm);
       lfo.set({ hz: Math.max(.01, cycles * bpm / (barBeats() * 60)), type: shape === 'saw' ? 'sawtooth' : shape, key: `filter:${shape}:${cycles}:${barSamples}`, wave: () => filterWave(shape, cycles, barSamples) });
       set(lfoGain.gain, depth * 600);
-      stages.forEach((stage, index) => { stage.type = index < passes ? kind : 'allpass'; set(stage.frequency, number(params, 'cutoff', 1000)); set(stage.Q, q); set(stage.detune, depth * 600); });
+      const useWorklet = Boolean(pair) && law.pair;
+      set(biquads.gain, useWorklet ? 0 : 1); set(pairGain.gain, useWorklet ? 1 : 0);
+      if (useWorklet) pair.port.postMessage({ params: { cutoff: cutoffHz(params.cutoff), highpass: kind === 'highpass', depth } });
+      // an unused stage is a peaking filter at 0 dB (exactly flat, no phase shift); an allpass with the (dB or zero) Q of the used stages is not: Chrome turns an allpass with Q <= 0 into a polarity flip
+      stages.forEach((stage, index) => { const used = index < passes; stage.type = used ? kind : 'peaking'; set(stage.frequency, cutoffHz(params.cutoff) * scale); set(stage.Q, used ? q : 1); set(stage.gain, 0); set(stage.detune, depth * 600); });
     };
   } else if (type === 'compressor' && workletReady(context)) {
     // the compressor of the render (CompressorCore) in an AudioWorklet; its second input is the sidechain key (the chain connects a take to keyInput and calls setKey(true))
@@ -178,7 +221,20 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     const splitter = node(context.createChannelSplitter(2)), merger = node(context.createChannelMerger(2)), left = node(context.createGain()), right = node(context.createGain());
     input.channelCount = 2; input.channelCountMode = 'explicit'; input.connect(splitter);
     splitter.connect(left, 0); splitter.connect(right, 1); left.connect(merger, 0, 0); right.connect(merger, 0, 1); merger.connect(wet);
+    // an automated pan (auto, lfo, env) is the server's curve: the gain of each side per sample of the take, joined by straight lines in the gain (live-pan-auto.mjs), played from a looping buffer that follows the loop
+    const sides = clock ? [lfoNode(context, clock), lfoNode(context, clock)] : null;
+    if (sides) { sides[0].connect(left.gain); sides[1].connect(right.gain); sides.forEach((side) => disposers.push(side.dispose)); }
+    let automated = false;
     updateEffect = (params) => {
+      const rate = context.sampleRate, samplesPerBar = Math.floor(barBeats() * 60 * rate / Math.max(1, Number(tempo) || 120)), points = sides ? panPoints(params.pan, samplesPerBar, rate) : null;
+      if (points) {
+        const firstBar = clock.firstBar?.() ?? 1, key = `pan:${params.pan}:${firstBar}:${samplesPerBar}:${rate}`;
+        set(left.gain, 0); set(right.gain, 0); automated = true;
+        sides[0].set({ key: key + ':left', wave: () => panCurve(points, firstBar, samplesPerBar, 'left') });
+        sides[1].set({ key: key + ':right', wave: () => panCurve(points, firstBar, samplesPerBar, 'right') });
+        return;
+      }
+      if (automated) { sides.forEach((side) => side.clear()); automated = false; }
       const gains = panGains(clamp(Math.trunc(number(params, 'pan', 0)), -32, 32), true);
       set(left.gain, gains.left); set(right.gain, gains.right);
     };
@@ -266,8 +322,8 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     // echo[n] = x[n-L] + feedback * echo[n-L] like the server: the first echo is one delay line, the repeats go round a second one, shorter by the render quantum that Web Audio adds inside a loop
     const delay = node(context.createDelay(2)), loop = node(context.createDelay(2)), echo = node(context.createGain()), feedback = node(context.createGain()), quantum = 128 / context.sampleRate;
     input.connect(delay).connect(echo).connect(wet); echo.connect(feedback).connect(loop).connect(echo);
-    updateEffect = (params) => { const time = clamp(syncSamples(params, context.sampleRate, tempo) / context.sampleRate || number(params, 'time', 250) / 1000, .001, 2); set(delay.delayTime, time); set(loop.delayTime, Math.max(quantum, time - quantum)); set(feedback.gain, clamp(number(params, 'feedback', 35) / 100, 0, .9)); };
-    updateMix = (params) => { const gains = additiveMix(number(params, 'mix', 30)); set(dry.gain, gains.dry); set(wet.gain, gains.wet); };   // the server adds the echo to the untouched dry sound
+    updateEffect = (params) => { const time = delaySeconds(params, context.sampleRate, tempo); set(delay.delayTime, time); set(loop.delayTime, Math.max(quantum, time - quantum)); set(feedback.gain, clamp(serverInt(params.feedback, 35), 0, 90) / 100); };
+    updateMix = (params) => { const gains = additiveMix(clamp(serverInt(params.mix, 30), 0, 100)); set(dry.gain, gains.dry); set(wet.gain, gains.wet); };   // the server adds the echo to the untouched dry sound
   } else if (type === 'master') {
     // the end of the song: the limiter of the render (LimiterCore, ceiling as the master of the build uses it), then a loudness meter (BS.1770, lufs-core.mjs); the target is a reference
     if (!workletReady(context)) throw new Error(`The live master: ${whyNot('worklet') || 'the audio worklets are not ready yet, try again in a moment.'}`);
@@ -316,15 +372,15 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     });
     merger.connect(wet);
     updateEffect = (params) => {
-      const periodMs = clamp(number(params, 'period', 1500), 100, 10000), periodSamples = Math.max(2, Math.floor(periodMs * context.sampleRate / 1000));
+      const periodMs = clamp(serverInt(params.period, 1500), 100, 10000), periodSamples = Math.max(2, Math.floor(periodMs * context.sampleRate / 1000));
       for (const { delay, lfo, lfoGain, channel } of lanes) {
-        delay.delayTime.value = CHORUS_BASE_MS / 1000;   // the base is fixed: no smoothing, or the first 100 ms would sweep in from 0
-        set(lfoGain.gain, clamp(number(params, 'depth', 5), 1, 15) / 1000);
+        delay.delayTime.value = Math.trunc(CHORUS_BASE_MS * context.sampleRate / 1000) / context.sampleRate;   // the base is fixed (whole samples, as on the server): no smoothing, or the first 100 ms would sweep in from 0
+        set(lfoGain.gain, Math.trunc(clamp(serverInt(params.depth, 5), 1, 15) * context.sampleRate / 1000) / context.sampleRate);   // the depth in whole samples (5 ms at 44.1 kHz is 220), as ModDelay on the server
         const offset = channel ? Math.floor(periodSamples / 4) : 0;
         lfo.set({ hz: 1000 / periodMs, type: 'triangle', key: `tri:${periodSamples}:${offset}`, wave: () => triangleWave(periodSamples, offset) });
       }
     };
-    updateMix = (params) => { const gains = linearMix(number(params, 'mix', 50)); set(dry.gain, gains.dry); set(wet.gain, gains.wet); };
+    updateMix = (params) => { const gains = linearMix(clamp(serverInt(params.mix, 50), 0, 100)); set(dry.gain, gains.dry); set(wet.gain, gains.wet); };
   } else if (type === 'convolution') {
     if (!impulse) throw new Error('Choose an impulse response before previewing convolution.');
     // two convolvers behind a gain pair: a new impulse (length, normalize, another file) is loaded into the idle one and crossfaded in over about 30 ms,
@@ -490,10 +546,10 @@ export function effectGraph(context, source, output, type, params, tempo, durati
     chain.connect(output); return;
   }
   if (type === 'filter') {
-    const kind = ['highpass', 'bandpass', 'notch'].includes(params.type) ? params.type : 'lowpass';
+    const { kind, passes, scale, q } = filterLaw(params);
     let chain = source;
-    for (let pass = 0; pass < filterPasses(params.slope); pass++) {
-      const filter = context.createBiquadFilter(); filter.type = kind; filter.frequency.value = number(params, 'cutoff', 1000); filter.Q.value = 1 + number(params, 'resonance', 0) * 0.17;
+    for (let pass = 0; pass < passes; pass++) {
+      const filter = context.createBiquadFilter(); filter.type = kind; filter.frequency.value = number(params, 'cutoff', 1000) * scale; filter.Q.value = q;
       chain.connect(filter); chain = filter;
     }
     chain.connect(output); return;
@@ -528,9 +584,9 @@ export function effectGraph(context, source, output, type, params, tempo, durati
     const time = clamp(syncSamples(params, context.sampleRate, tempo) / context.sampleRate || number(params, 'time', 250) / 1000, .001, 2), quantum = 128 / context.sampleRate;
     delay.delayTime.value = time;
     loop.delayTime.value = Math.max(quantum, time - quantum);
-    feedback.gain.value = clamp(number(params, 'feedback', 35) / 100, 0, .9);
+    feedback.gain.value = clamp(serverInt(params.feedback, 35), 0, 90) / 100;
     source.connect(delay).connect(effect); effect.connect(feedback).connect(loop).connect(effect);
-    wetDry(context, source, effect, output, number(params, 'mix', 30), 'additive'); return;
+    wetDry(context, source, effect, output, clamp(serverInt(params.mix, 30), 0, 100), 'additive'); return;
   }
   if (type === 'chorus') {
     const delay = context.createDelay(.05), lfo = context.createOscillator(), lfoGain = context.createGain(), effect = context.createGain();

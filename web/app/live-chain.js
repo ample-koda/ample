@@ -14,7 +14,9 @@ import { toast } from './ui.js';
 import { planChain, CHAIN_EFFECTS, SUM_TYPES, baseId, soloInPlan, upstreamOf, changedSources } from '../lib/live-chain-model.mjs';
 import { mixerGraph, regionMergeGraph, sendGraph } from '../lib/live-mixer.mjs';
 import { getToken } from './api.js';
-import { localInfo, renderLocal, toAudio, toBuffer, drumVoicePlan } from './live-local.js';
+import { padChannels } from '../lib/live-pad.mjs';
+import { localInfo, renderLocal, toAudio, toBuffer, drumVoicePlan, liveFirstBar, liveBars, songBars, setLiveWindow } from './live-local.js';
+import { barAt, songSeconds } from '../lib/live-bars.mjs';
 import { createDrumVoice } from './live-drums.js';
 import { latencyReport } from '../lib/chain-latency.mjs';
 import { outputLatency, getContext } from '../lib/audio-engine.mjs';
@@ -37,7 +39,7 @@ const paramsOf = (id) => ({ ...(flat().nodes.find((n) => n.id === id)?.params ||
 /** A volume gain written as auto(...) / fadein(...) / fadeout(...) is a number at the loop position (the server applies the curve per sample; the live graph follows it every 40 ms). */
 const withAuto = (id, params, s = session) => {
   if (!s || flat().nodes.find((n) => n.id === id)?.tpl !== 'volume' || !isAutomation(params.gain)) return params;
-  const db = gainAtSeconds(params.gain, s.t0 === undefined ? 0 : Math.max(0, loopPosition(s, s.context.currentTime)), barSeconds(s));
+  const db = gainAtSeconds(params.gain, s.t0 === undefined ? 0 : songSeconds(liveFirstBar(), Math.max(0, loopPosition(s, s.context.currentTime)), barSeconds(s)), barSeconds(s));
   return db === null ? params : { ...params, gain: `${Math.round(Math.max(-60, db) * 10) / 10} dB` };
 };
 const takeOf = (id) => S.build?.takes?.[id];
@@ -57,6 +59,7 @@ export function chainState() {
     latency: blockLatency(),   // seconds of look-ahead in the chain (a limiter)
     latencyReport: latencyReport({ ...contextLatency(), blocks: [...session.built].map(([id, entry]) => ({ id, title: flat().nodes.find((n) => n.id === id)?.title || id, seconds: entry.graph.latency || 0 })) }),
     position: context && loop > 0 ? loopPosition(session, context.currentTime) : 0,
+    window: { first: liveFirstBar(), bars: liveBars(), songBars: songBars() },
     loopBars: loopBars(), region: session.region ? { start: session.region.start, length: session.region.length } : null,
     gliding: [...(session.gliding || [])], cpu: chainLoad(), stale: [...(session.stale || [])],
     storedTakes: [...(session.takeTimes || [])].map(([id, created]) => ({ id, created })),   // AI blocks: the stored take that is heard, and when it was made (7.2)
@@ -78,6 +81,8 @@ export function setLoopBars(bars) {
   if (!s || s.starting) { emit(); return; }
   const now = s.context.currentTime, here = loopPosition(s, now);
   s.region = bars ? regionAt(here, barSeconds(s), bars, s.loop, now) : null;
+  // a long song: the window follows the loop range, it starts at the first bar of the range
+  if (s.region && liveBars() < songBars() && setLiveWindow(barAt(liveFirstBar(), s.region.start, barSeconds(s)))) { moveWindow(s); return; }
   applyRegion(s);
   emit();
 }
@@ -209,9 +214,10 @@ async function startSession(target) {
   const paramsFor = (id) => effective(id, mine);
   try {
     const buffers = new Map();
-    for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, await decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role)));
+    for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, await rawSource(item));
     if (!current()) return null;
     const context = liveAudioContext();
+    for (const item of plan.items.filter((i) => i.kind === 'source')) buffers.set(item.id, windowBuffer(context, buffers.get(item.id)));   // a window of a long song: those bars of the built sound
     await context.resume();
     await prepareWorklets(context);
     if (!current()) return null;
@@ -250,7 +256,6 @@ async function startSession(target) {
     session = mine;
     try {
       startControls(mine);
-      startAutomation(mine);
       loadTakeTimes(mine);
       mine.starting = false;
       try {
@@ -281,6 +286,7 @@ async function startSession(target) {
 const effective = (id, s = session) => ({ ...paramsOf(baseId(id)), ...(s?.override.get(baseId(id)) || {}) });
 /** What a local block depends on: its parameters, the notes and transforms feeding it, and the blocks it works on. */
 const localKey = (item, s = session) => JSON.stringify([
+  liveFirstBar(),
   effective(item.id, s),
   item.midi ? [effective(item.midi.clip, s), item.midi.transforms.map((t) => effective(t.id, s))] : null,
   item.inputs.map((i) => s?.localKeys.get(i.from) || ''),
@@ -309,6 +315,53 @@ function refreshImpulses(s) {
       s.built.get(item.id)?.graph.replaceImpulse?.(impulse, { ...effective(item.id), ...(s.bypass.has(item.id) ? { enabled: 'off' } : {}) });
     }).catch((error) => { if (session === s) toast(error?.message || String(error)); s.impulseKeys.set(item.id, wanted); }).finally(() => { s.loadingImpulse.delete(item.id); if (session === s) refreshImpulses(s); });
   }
+}
+
+const rawSource = (item) => decodedInput(`chain:${item.take}${item.role ? `:${item.role}` : ''}`, () => fetchTakeAudio(item.take, item.role));
+/** The bars of a built sound that the window of a long song covers (the sound itself when the window starts at bar 1: songs that fit, and the first bars, are unchanged). */
+function windowBuffer(context, buffer) {
+  const first = liveFirstBar();
+  if (first <= 1) return buffer;
+  const per = Math.floor(barBeats() * 60 * buffer.sampleRate * 1000 / Math.round((Number(S.doc?.project?.tempo) || 120) * 1000)), from = (first - 1) * per, length = Math.min(liveBars() * per, buffer.length - from);
+  const out = context.createBuffer(buffer.numberOfChannels, Math.max(1, length), buffer.sampleRate);
+  if (length > 0) for (let c = 0; c < buffer.numberOfChannels; c++) out.copyToChannel(buffer.getChannelData(c).subarray(from, from + length), c);
+  return out;
+}
+
+/**
+ * The window of a long song moved (the loop range was set elsewhere, or a step button): the loop range restarts at the window start, then every built sound is cut again and every
+ * local block is made again for the new bars and swapped in at the same place of the loop. Debounced, so a few quick moves make the blocks once.
+ */
+function moveWindow(s) {
+  s.region = loopBars() ? regionAt(0, barSeconds(s), loopBars(), s.loop, s.context.currentTime) : null;
+  applyRegion(s);
+  emit();
+  clearTimeout(s.windowTimer);
+  const token = (s.windowToken = (s.windowToken || 0) + 1);
+  s.windowTimer = setTimeout(async () => {
+    try {
+      for (const item of s.plan.items) {
+        if (item.kind === 'source') {
+          const buffer = windowBuffer(s.context, await rawSource(item));
+          if (session !== s || token !== s.windowToken) return;
+          s.buffers.set(item.id, buffer); swap(s, item.id, buffer);
+        } else if (item.kind === 'local') {
+          if (s.drumPlans?.has(item.id)) { await updateDrumHits(s, item); continue; }
+          const audio = await makeLocal(s, item);
+          if (session !== s || token !== s.windowToken) return;
+          s.buffers.set(item.id, toBuffer(s.context, audio)); s.localKeys.set(item.id, localKey(item));
+          swap(s, item.id, s.buffers.get(item.id));
+        }
+      }
+      if (session === s && token === s.windowToken) emit();
+    } catch (error) { if (session === s) toast(error?.message || String(error)); }
+  }, 250);
+}
+/** Steps the window of a long song by the loop range (or half a window) to the next (1) or the previous (-1) bars. */
+export function stepWindow(direction) {
+  const s = session;
+  if (!s || s.starting || !(liveBars() < songBars())) return;
+  if (setLiveWindow(liveFirstBar() + direction * (loopBars() || Math.max(1, Math.floor(liveBars() / 2))))) moveWindow(s);
 }
 
 /**
@@ -428,7 +481,7 @@ function rerender(s, id) {
     keyOf: localKey,   // taken before the render: the sound is stored under what it was made for
     render: (item) => makeLocal(s, item),
     adopt: (item, audio, key) => {
-      s.buffers.set(item.id, toBuffer(s.context, audio));
+      s.buffers.set(item.id, padded(s.context, toBuffer(s.context, audio), s.loop));
       s.localKeys.set(item.id, key); s.failedKeys?.delete(item.id);
       swap(s, item.id, s.buffers.get(item.id));
       if (item.tpl === 'normalize') emit();   // the note on the chip says the new gain
@@ -438,6 +491,16 @@ function rerender(s, id) {
     invalidate: (item, key) => { s.localKeys.delete(item.id); (s.failedKeys ||= new Map()).set(item.id, key); },
     report: (error) => toast(error?.message || String(error)),
   }), 150);
+}
+
+/** The buffer followed by silence up to `seconds` (the same buffer when it is long enough). */
+function padded(context, buffer, seconds) {
+  if (!buffer) return buffer;
+  const frames = Math.round(seconds * buffer.sampleRate);
+  if (buffer.length >= frames) return buffer;
+  const channels = padChannels(Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c)), frames), out = context.createBuffer(channels.length, frames, buffer.sampleRate);
+  channels.forEach((data, c) => out.copyToChannel(data, c));
+  return out;
 }
 
 function swap(s, id, buffer) {
@@ -468,7 +531,8 @@ function build(s) {
   // the loop length and the start time are known before the graphs are made: the LFOs of the effects start in step with the loop (live-lfo.mjs)
   const loop = Math.max(0, ...plan.items.filter((i) => i.kind === 'source' || i.kind === 'local').map((i) => s.buffers.get(i.id)?.duration || 0)), when = context.currentTime + .08;
   s.t0 = when; s.loop = loop; s.tracked = new Set();
-  const clock = { position: () => (s.loop > 0 ? loopPosition(s, context.currentTime) : 0), loop: () => s.loop, tracked: s.tracked };
+  for (const item of plan.items) if ((item.kind === 'source' || item.kind === 'local') && !s.drumPlans?.has(item.id)) s.buffers.set(item.id, padded(context, s.buffers.get(item.id), loop));   // a shorter sound ends in silence, it does not restart inside the loop
+  const clock = { position: () => (s.loop > 0 ? loopPosition(s, context.currentTime) : 0), loop: () => s.loop, tracked: s.tracked, firstBar: () => liveFirstBar() };
   for (const item of plan.items) {
     const out = context.createGain();
     s.disposables.push(out); outs.set(item.id, out);
@@ -487,8 +551,7 @@ function build(s) {
       pre.fftSize = post.fftSize = 4096; pre.smoothingTimeConstant = post.smoothingTimeConstant = .7;
       input.connect(pre); out.connect(post); s.disposables.push(pre, post);
       s.spectra.set(item.id, { pre, post, preBins: new Float32Array(pre.frequencyBinCount), postBins: new Float32Array(post.frequencyBinCount), preWave: new Float32Array(2048), postWave: new Float32Array(2048) });
-      const params = withAuto(item.id, paramsOf(item.id), s);
-      const graph = liveEffectGraph(context, input, out, item.tpl, params, s.tempo, s.impulses.get(item.id), clock);
+      const graph = liveEffectGraph(context, input, out, item.tpl, paramsOf(item.id), s.tempo, s.impulses.get(item.id), clock);
       if (item.key && graph.keyInput) { outs.get(item.key).connect(graph.keyInput); graph.setKey(true); }   // sidechain: the key take drives the detector
       s.built.set(item.id, { kind: 'effect', graph });
     } else {
@@ -527,7 +590,7 @@ function refresh(force = false) {
   for (const [id, entry] of session.built) {
     const song = paramsOf(id), previous = session.last.get(id);
     if (previous && JSON.stringify(previous.song) !== JSON.stringify(song)) session.override.delete(id);   // the written value has arrived: it replaces the preview
-    const params = withAuto(id, { ...song, ...(session.override.get(id) || {}) });
+    const params = { ...song, ...(session.override.get(id) || {}) };   // a volume curve goes to the graph as written: it plays the server's curve itself
     if (entry.kind === 'effect' && session.bypass.has(id)) params.enabled = 'off';
     const key = JSON.stringify([params, anySolo]);
     if (!force && previous?.key === key) { session.last.set(id, { key, song }); continue; }
@@ -657,10 +720,10 @@ function startControls(s) {
   const tick = () => {
     if (session !== s || s.starting) return;
     const byId = new Map(flat().nodes.map((n) => [n.id, { id: n.id, tpl: n.tpl, params: effective(n.id) }]));
-    const bar = loopPosition(s, s.context.currentTime) / barSeconds(s) + 1;
+    const first = liveFirstBar(), bar = loopPosition(s, s.context.currentTime) / barSeconds(s) + first;   // the window of a long song starts at bar `first`
     let changed = false;
     for (const control of s.controls) {
-      const level = chainLevel(control.chain, byId, bar, followAt, control.out, loopPosition(s, s.context.currentTime));
+      const level = chainLevel(control.chain, byId, bar, followAt, control.out, songSeconds(first, loopPosition(s, s.context.currentTime), barSeconds(s)));
       const text = level === null ? null : controlledValue(byId.get(control.target)?.tpl, control.param, level, chainTyped(control.chain, byId));
       if (text === null || s.override.get(control.target)?.[control.param] === text) continue;
       s.override.set(control.target, { ...(s.override.get(control.target) || {}), [control.param]: text }); changed = true;
@@ -669,14 +732,9 @@ function startControls(s) {
   };
   s.controlTimer = setInterval(tick, 40);
 }
-/** Volume gains that are curves: heard at the loop position, set again every 40 ms (the graph smooths each step). */
-function startAutomation(s) {
-  if (!flat().nodes.some((n) => n.tpl === 'volume' && isAutomation(n.params?.gain))) return;
-  s.autoTimer = setInterval(() => { if (session === s && !s.starting) refresh(); }, 40);
-}
 
 function dispose(s) {
-  clearInterval(s.controlTimer); clearInterval(s.autoTimer);
+  clearInterval(s.controlTimer); clearInterval(s.autoTimer); clearTimeout(s.windowTimer);
   s.renders?.forEach((entry) => clearTimeout(entry.timer));   // a render that was only scheduled never starts for a stopped chain
   try { if (s.capacity) { s.capacity.onupdate = null; s.capacity.stop(); } } catch { /* gone */ }
   s.sources.forEach((node) => { try { node.stop(); } catch { /* not started */ } });
@@ -773,4 +831,7 @@ document.addEventListener('ample:open', () => stopChain());
 export const controlledParams = (id) => (session?.controls?.some((c) => c.target === id) ? { ...(session.override.get(id) || {}) } : null);
 
 /** Tests: how many hits the drums block of the running chain has queued as a plan (0 when it plays as a rendered loop). */
+/** Tests: the audio buffer a source or local block of the running chain loops (the window of a long song), and the volume gain the graph is given now (automation read at the song position). */
+export const chainBuffer = (id) => session?.buffers.get(id) || null;
+export const chainGain = (id) => (session ? String(withAuto(id, effective(id)).gain ?? '') : '');
 export const chainDrumHits = (id) => session?.slots.get(id)?.node.hitCount ?? 0;

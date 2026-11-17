@@ -25,7 +25,7 @@ internal sealed partial class AiService
         string file = ProjectPath.Resolve(task.ProjectDir, rel);
         if (!File.Exists(file)) throw new AmpleException("AMP5458", $"There is no song '{rel}' in the proposal (check the path with ample_project).");
         string root = Path.Combine(task.Workspace, "project");
-        AmpleDocument doc = new Ample.Engine.Modules.ModuleService(root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(File.ReadAllText(file), s.Spec);
+        AmpleDocument doc = s.Modules(root).ParseExpanded(File.ReadAllText(file), s.Spec);
         return (doc, task, rel);
     }
 

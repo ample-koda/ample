@@ -1,12 +1,12 @@
 import { fieldFor } from '../fields.js';
-import { rememberedSize, resizeGrip } from '../window.js';
+import { addWindowChrome, raiseWindow } from '../window-chrome.js';
 import { snapshotBar } from '../live-snapshots.js';
 import { el } from '../ui.js';
 import { whyNotLive, liveClassOf, hasLocalPreview } from '../../lib/live-class.mjs';
 import { S, subscribe } from '../store.js';
 import { foreignKeys, windowKey } from '../../lib/studio-window-key.mjs';
 import { knob } from './knob.js';
-import { led } from './led.js';
+import { toast } from '../ui.js';
 import { selector } from './selector.js';
 import { renderStudioPanel } from './panels/registry.js';
 import './panels/eq-filter.js';
@@ -31,6 +31,9 @@ import { scrubBar } from './scrub.js';
 const PARITY_TYPES = new Set(['reverb', 'gate', 'limiter', 'deesser', 'eq', 'peq', 'filter', 'compressor', 'delay', 'distortion', 'chorus', 'flanger', 'phaser', 'pan', 'width', 'volume', 'tremolo']);   // the blocks live-parity.js can compare
 import { LIVE_BADGES, parameterLive } from '../../lib/live-parameters.mjs';
 import { badgeSummary } from '../../lib/live-badge-summary.mjs';
+import { infoToggle } from './panels/info.js';
+const SUMMARY_WORDS = { param: 'Live while you move them', rebuild: 'Re-rendered a moment after you let go', offline: 'These need a build to be heard' };
+const spaced = (name) => name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[-_]/g, ' ').toLowerCase();
 import { decodePreviewBlob, decodedInput, encodeWav, fetchTakeAudio, liveEffectGraph } from './preview/audio.js';
 import { renderDenoisePreview } from './preview/denoise.js';
 import { meter } from './meter.js';
@@ -106,7 +109,17 @@ function renderHeader(state) {
   state.ab.disabled = !canRenderedPreview(panel) && !(panel.type === 'master' && canLocalPreview(panel));
   state.ab.title = canRenderedPreview(panel) ? `Compare ${panel.title} with its bypassed input` : 'Select an effect and build its upstream input before comparing';
   if (panel.definitions.some((definition) => definition.name === 'enabled')) {
-    state.bypassHost.append(led({ label: 'Effect enabled', title: 'Effect enabled: the light is lit while this block is on; press it to switch the block off (it passes the sound through)', value: (panel.getParams().enabled ?? 'on') === 'on', disabled: panel.readOnly, onCommit: (value) => panel.commit('enabled', value ? 'on' : 'off') }));
+    const enabled = (panel.getParams().enabled ?? 'on') === 'on';
+    // the state of the block in one word: live (heard at once while you move a control), build (heard after a build) or off (bypassed: the sound passes through)
+    const live = hasLocalPreview(panel.type) || liveClassOf(panel.type) === 'live';
+    // two separate things: the power switch (block on / bypassed) and a status text that only informs about how a change is heard
+    const power = el('button', { type: 'button', role: 'switch', className: `studio-power studio-led${enabled ? ' on' : ''}`, 'aria-checked': String(enabled), 'aria-pressed': String(enabled), 'aria-label': 'Effect enabled', title: `Block on / bypassed: press to switch the block ${enabled ? 'off' : 'on'}`, disabled: panel.readOnly });
+    power.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 1.5v6"/><path d="M4.2 4a6 6 0 1 0 7.6 0"/></svg>';
+    power.onclick = () => panel.commit('enabled', enabled ? 'off' : 'on');
+    const word = !enabled ? 'Bypassed' : live ? 'Live preview' : 'Needs a build';
+    const explain = !enabled ? 'This block is bypassed: the sound passes through it unchanged' : live ? 'Live preview: a change of a knob is heard at once while the sound plays' : 'Needs a build: a change of a knob is heard after the block is built again';
+    const info = el('span', { className: `studio-state-text state-${!enabled ? 'off' : live ? 'live' : 'build'}`, role: 'status', title: explain, textContent: word });
+    state.bypassHost.append(info, power);
   }
 }
 
@@ -165,11 +178,28 @@ function renderBodyNow(state) {
       if (!control) { const input = el('input', { type: 'text', value: String(value), disabled: panel.readOnly, 'aria-label': definition.label || definition.name }); input.onchange = () => panel.commit(definition.name, input.value); control = input; }
     }
     const badge = LIVE_BADGES[parameterLive(panel.type, definition.name)];
-    body.append(el('label', { className: 'studio-panel-control' }, [el('span', { textContent: definition.label || definition.name }), control, el('small', { className: `live-badge live-${parameterLive(panel.type, definition.name)}`, textContent: badge.text, title: badge.title })]));
+    // a knob is not put inside a label: the label would pass every click on the knob to the value button of the knob (issue 188)
+    const row = control.classList?.contains('studio-knob') ? 'div' : 'label';
+    const liveBadge = el('small', { className: `live-badge live-${parameterLive(panel.type, definition.name)}`, textContent: badge.text, title: badge.title });
+    body.append(el(row, { className: 'studio-panel-control' }, [el('span', { textContent: definition.label || definition.name }), control, liveBadge]));
   });
   addLiveBadges(body, panel);
-  if (!panel.readOnly) { const snapshots = snapshotBar(panel); if (snapshots) body.append(snapshots); }
+  stretchGraphs(body);
+  state.infoHost.replaceChildren(...body.querySelectorAll('.studio-info'));
   if (!definitions.length && !bespoke) body.append(el('p', { className: 'note', textContent: 'This block has no editable parameters.' }));
+}
+
+/** The graphs fill the width of their panel at every window size: the drawing is stretched to the box and its dots and labels are scaled back (so a dot stays round and a label keeps its shape). */
+const GRAPHS = '.studio-effect-plot, .studio-dynamics-curve, .studio-duck-curve, .studio-response-graph, .studio-compressor-waveform';
+function stretchGraphs(body) {
+  body.querySelectorAll(GRAPHS).forEach((svg) => {
+    const box = (svg.getAttribute('viewBox') || '').split(/[ ,]+/).map(Number);
+    if (box.length !== 4 || !(box[2] > 0) || !(box[3] > 0)) return;
+    svg.setAttribute('preserveAspectRatio', 'none'); svg.classList.add('studio-stretch');
+    const fit = () => { if (!svg.clientWidth || !svg.clientHeight) return; svg.style.setProperty('--sx', String(svg.clientWidth / box[2])); svg.style.setProperty('--sy', String(svg.clientHeight / box[3])); };
+    svg.querySelectorAll('circle').forEach((dot) => { if (Number(dot.getAttribute('r')) <= 14) dot.classList.add('studio-dot'); });   // small dots (handles) stay round; a big circle is part of the picture and stretches with it
+    fit(); if (typeof ResizeObserver === 'function') new ResizeObserver(fit).observe(svg);
+  });
 }
 
 /** Under every control of the window that matches a parameter: whether it moves live, re-renders or needs a build (the controls of the bespoke panels are found by their label). */
@@ -187,8 +217,10 @@ function addLiveBadges(body, panel) {
   // panels that draw their own controls (peq graph, mixer strips, volume faders ...) have no row per parameter: one strip names what each of their parameters does
   const rest = panel.definitions.map((definition) => definition.name).filter((name) => name !== 'enabled' && !covered.has(name));
   const groups = rest.length ? badgeSummary(panel.type, rest) : [];
-  if (groups.length && !body.querySelector('.live-badge-summary')) body.append(el('p', { className: 'live-badge-summary', 'aria-label': 'What the live preview does with these parameters' }, groups.map((group) => el('span', { className: `live-badge live-${group.kind}`, title: `${group.title}
-${group.names.join(', ')}`, textContent: `${group.text}: ${group.names.length > 6 ? `${group.names.length} parameters` : group.names.join(', ')}` }))));
+  const status = groups.map((group) => el('p', { className: `live-badge live-${group.kind}`, title: `${group.title}\n${group.names.join(', ')}`, textContent: `${SUMMARY_WORDS[group.kind]}: ${group.names.length > 6 ? `${group.names.length} parameters` : group.names.map(spaced).join(', ')}` }));
+  // one (i) per window: the status lines join the explanation of the panel when it has one
+  const existing = body.querySelector('.studio-info .studio-info-body');
+  if (status.length && !body.querySelector('.live-badge-summary')) { if (existing) { existing.parentElement.classList.add('live-badge-summary'); existing.append(...status); } else body.append(infoToggle(status, 'live-badge-summary', 'Which parameters are heard live')); }
 }
 
 // The input take is immutable and independent of this effect's controls, so download and decode it once per take for local preview.
@@ -290,12 +322,7 @@ function renderTransport(state) {
   // the rewind and autotune panels have their own play bar (Play, Loop, A/B, scrub) on top, worked out in the browser
   footer.hidden = panel.type === 'rewind' || panel.type === 'autotune' || panel.type === 'delay-llama' || panel.type === 'vocoder' || panel.type === 'chop';
   // these two windows are resized with a grip, like Jam: their graph grows with the window
-  if (footer.hidden && !state.dialog.querySelector('.aw-grip')) {
-    state.dialog.classList.add('studio-resizable');
-    resizeGrip(state.dialog, `studio-${panel.type}`);
-    const size = rememberedSize(`studio-${panel.type}`);
-    if (size) { state.dialog.style.width = `${size.width}px`; state.dialog.style.height = `${size.height}px`; }
-  }
+  if (footer.hidden) state.dialog.classList.add('studio-resizable');
   // their A/B is in that play bar too: the A/B of the header (which needs a rendered preview) is not shown for them
   state.ab.hidden = footer.hidden;
   if (footer.hidden) { state.status = el('span'); return; }
@@ -303,10 +330,12 @@ function renderTransport(state) {
   const effectControls = typeof panel.realPreview === 'function' || panel.type === 'master';
   const previewKind = panel.type === 'denoise' ? 'client-side preview is approximate' : 'live preview is approximate';
   const noAudioOfItsOwn = ['visual', 'data'].includes(liveClassOf(panel.type));
-  const statusText = noAudioOfItsOwn ? `No audio of its own: ${whyNotLive(panel.type)}` : panel.takeId ? localAvailable ? `Input: ${panel.inputTitle || 'upstream audio'} · ${previewKind}` : `Ready to play${whyNotLive(panel.type) ? ` · ${whyNotLive(panel.type)}` : ''}` : panel.buildInput ? 'Build audio to play' : 'Connect an audio input';
+  const statusText = noAudioOfItsOwn ? `No audio of its own: ${whyNotLive(panel.type)}` : panel.takeId ? localAvailable ? `Input: ${panel.inputTitle || 'upstream audio'} · ${previewKind}` : 'Ready to play' : panel.buildInput ? 'Build audio to play' : 'Connect an audio input';
   const status = el('span', { className: 'note', textContent: statusText });
   state.status = status;
+  if (panel.takeId && !localAvailable && whyNotLive(panel.type)) status.title = whyNotLive(panel.type);   // the reason is a tooltip, not a line of text
   if (!panel.takeId) {
+    status.classList.add('inline');   // the build button and its one-line status share the row
     const inputPlay = el('button', { type: 'button', textContent: panel.playLabel || 'Play input', disabled: true, 'aria-label': 'Play the selected audio take', title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
     const local = el('button', { type: 'button', textContent: 'Live local preview', disabled: true, title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
     const rendered = el('button', { type: 'button', textContent: 'Play rendered effect', disabled: true, title: panel.buildLabel === 'Build block' ? 'Build this block first' : 'Build the upstream input first' });
@@ -323,9 +352,9 @@ function renderTransport(state) {
         try { const take = await panel.buildInput({ select: !opening, stillWanted: () => !state.buildCancelled && state.dialog.open }); if (state.buildCancelled) return; cancel.remove(); state.takeId = take || state.takeId; renderBody(state); renderTransport(state); }
         catch (error) { cancel.remove(); if (state.buildCancelled) return; status.textContent = error.message; buildInput.disabled = false; }
       };
-      if (!effectControls) footer.append(inputPlay); footer.append(buildInput, status);
+      if (!effectControls) footer.append(inputPlay); footer.append(buildInput, state.ab, status);
     } else {
-      if (!effectControls) footer.append(inputPlay); footer.append(status);
+      if (!effectControls) footer.append(inputPlay); footer.append(state.ab, status);
     }
     return;
   }
@@ -402,8 +431,8 @@ function renderTransport(state) {
       rendered.hidden = true;
       if (panel.buildInput) more.append(el('button', { type: 'button', textContent: 'Rebuild input', disabled: panel.readOnly, onclick: async () => { try { state.takeId = await panel.buildInput(); renderBody(state); renderTransport(state); } catch (error) { state.status.textContent = error.message; } } }));
     }
-    footer.append(local, ...(hear ? [hear] : []), loop, scrubHost, levelMeter, more, status);
-  } else footer.append(inputPlay, loop, scrubHost, levelMeter, status);
+    footer.append(local, ...(hear ? [hear] : []), loop, state.ab, scrubHost, levelMeter, more, status);
+  } else footer.append(inputPlay, loop, state.ab, scrubHost, levelMeter, status);
   const syncScrub = (player) => {
     levelMeter.setMeterValue(player.level, player.peak);
     const stopsHere = (mainMode === 'live' && state.previewMode === 'live' && player.playing) || (mainMode === 'rendered' && state.previewMode === 'rendered' && player.playing);
@@ -427,7 +456,7 @@ function renderTransport(state) {
 }
 
 /** Brings a window to the front and makes it the one that Esc and the song redraw talk to. */
-function raise(state) { active = state; state.dialog.style.zIndex = String(++topZ); }
+function raise(state) { active = state; raiseWindow(state.dialog); }
 
 /** A panel is a floating window (not a modal dialog): placed next to the others, draggable by its header, and it remembers its place per block. */
 function floatWindow(state) {
@@ -436,6 +465,11 @@ function floatWindow(state) {
   const key = `ample.studio.pos.${state.block}`;
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* storage may be blocked */ }
+  const sizeKey = `ample.studio.size.${state.type}`;
+  try {
+    const size = JSON.parse(localStorage.getItem(sizeKey) || 'null');
+    if (size && size.width > 0 && size.height > 0) { dialog.classList.add('studio-sized'); dialog.style.width = `${Math.min(size.width, innerWidth - 8)}px`; dialog.style.height = `${Math.min(size.height, innerHeight - 8)}px`; }
+  } catch { /* storage may be blocked */ }
   const rect = dialog.getBoundingClientRect(), n = Math.max(0, windows.size - 1);
   // the whole window stays inside the viewport where it fits (a window that was left half outside is brought back when it opens)
   const place = (left, top) => {
@@ -449,7 +483,7 @@ function floatWindow(state) {
   if (header) {
     header.style.cursor = 'grab';
     header.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0 || event.target.closest('button, input, select, textarea')) return;
+      if (event.button !== 0 || dialog.dataset.window === 'max' || event.target.closest('button, input, select, textarea, details')) return;
       const start = dialog.getBoundingClientRect(), dx = event.clientX - start.left, dy = event.clientY - start.top;
       header.setPointerCapture(event.pointerId);
       const move = (e) => place(e.clientX - dx, e.clientY - dy);
@@ -458,6 +492,14 @@ function floatWindow(state) {
         try { localStorage.setItem(key, JSON.stringify({ left: parseInt(dialog.style.left, 10), top: parseInt(dialog.style.top, 10) })); } catch { /* storage may be blocked */ }
       };
       header.addEventListener('pointermove', move); header.addEventListener('pointerup', up);
+    });
+  }
+  const savePlace = () => { try { localStorage.setItem(key, JSON.stringify({ left: parseInt(dialog.style.left, 10), top: parseInt(dialog.style.top, 10) })); } catch { /* storage may be blocked */ } };
+  if (header) {
+    // the window controls of AMPLE Jam: collapse, maximize, double-click on the title bar, a resize grip, a greyer title bar when not in use
+    state.chrome = addWindowChrome(dialog, header, header.querySelector('.studio-close'), (dx) => { place(dialog.getBoundingClientRect().left + dx, dialog.getBoundingClientRect().top); savePlace(); }, {
+      minWidth: 380, minHeight: 260,
+      onResize: (r) => { dialog.classList.add('studio-sized'); try { localStorage.setItem(sizeKey, JSON.stringify({ width: Math.round(r.width), height: Math.round(r.height) })); } catch { /* storage may be blocked */ } },
     });
   }
   dialog.addEventListener('pointerdown', () => raise(state), true);
@@ -477,17 +519,65 @@ function autoBuild(state) {
   button.click();
 }
 
+/** The text of one block of the song source: from its first line to its closing brace (null when the block is not found). */
+export function blockCode(text, name) {
+  const lines = String(text || '').split('\n'), escaped = name.replace(/[.*+?^$\{}()|[\]\\]/g, '\\$&');
+  const head = new RegExp('^[\\w-]+\\s+' + escaped + '(\\s|\\{|$)');
+  const first = lines.findIndex((line) => !line.trimStart().startsWith('#') && head.test(line.trim()));
+  if (first < 0) return null;
+  let depth = 0, opened = false;
+  for (let index = first; index < lines.length; index++) {
+    for (const ch of lines[index]) { if (ch === '{') { depth++; opened = true; } else if (ch === '}') depth--; }
+    if (!opened && index === first) return lines[first];
+    if (opened && depth <= 0) return lines.slice(first, index + 1).join('\n');
+  }
+  return lines.slice(first).join('\n');
+}
+
+/** The menu button of the title bar: Snapshots, Reset to defaults, Help (the docs page of the block) and Copy block code. */
+function buildMenu(state, button) {
+  const menu = el('div', { className: 'mls-menu studio-menu', role: 'menu', hidden: true });
+  state.dialog.append(menu);
+  const close = (focus) => { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); if (focus) button.focus(); };
+  const outside = (event) => { if (!menu.contains(event.target) && !button.contains(event.target)) close(false); };
+  const item = (label, glyph, onclick, extra = {}) => el('button', { type: 'button', className: 'mls-menu-item', role: 'menuitem', title: extra.title || '', disabled: Boolean(extra.disabled), onclick }, [el('span', { className: 'mls-menu-glyph', 'aria-hidden': 'true', textContent: glyph }), el('span', { className: 'mls-menu-label', textContent: label })]);
+  const paint = () => {
+    const panel = panelState(state);
+    const snapshotHost = el('div', { className: 'studio-menu-snapshots', hidden: true });
+    const bar = panel.readOnly ? null : snapshotBar(panel);
+    if (bar) snapshotHost.append(bar);
+    const snapshots = el('button', { type: 'button', className: 'mls-menu-head', role: 'menuitem', 'aria-expanded': 'false', disabled: !bar, title: bar ? 'Store up to four settings of this block (A to D) and morph between them' : 'This block has no live parameters to store', onclick: () => { snapshotHost.hidden = !snapshotHost.hidden; snapshots.setAttribute('aria-expanded', String(!snapshotHost.hidden)); } }, [el('span', { textContent: 'Snapshots' }), el('span', { className: 'mls-menu-chev', 'aria-hidden': 'true', textContent: '›' })]);
+    const defaults = panel.definitions.filter((d) => d.name !== 'enabled' && d.default != null && d.default !== '').map((d) => ({ name: d.name, value: String(d.default) }));
+    const reset = item('Reset to defaults', '↺', () => { close(true); if (panel.commitMany) panel.commitMany(defaults); else defaults.forEach((d) => panel.commit(d.name, d.value)); toast('Reset to the default values (one undo step).'); }, { disabled: panel.readOnly || !defaults.length, title: 'Put every parameter of this block back to its default value; Undo brings the old values back' });
+    const help = item('Help', '?', () => { close(true); window.open('https://ample-koda.dev/#/blocks/' + encodeURIComponent(panel.type), '_blank', 'noopener'); }, { title: 'The documentation page of this block (opens in a new tab)' });
+    const copy = item('Copy block code', '⎘', async () => {
+      close(true);
+      const text = blockCode(S.doc?.text, panel.block) || panel.type + ' ' + panel.block + ' {\n' + Object.entries(panel.getParams()).map(([name, value]) => '  ' + name + ' ' + value).join('\n') + '\n}';
+      try { await navigator.clipboard.writeText(text); toast('Block code copied.'); } catch { toast('The browser did not allow copying.'); }
+    }, { title: 'Copy the text of this block from the song source' });
+    menu.replaceChildren(snapshots, snapshotHost, reset, help, copy);
+  };
+  button.onclick = () => {
+    if (!menu.hidden) { close(true); return; }
+    paint(); menu.hidden = false; button.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', outside, true);
+    menu.querySelector('button:not([disabled])')?.focus();
+  };
+  menu.addEventListener('keydown', (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true); } });
+}
+
 export function openStudioPanel(options) {
   const key = keyOf(options.block);
   const existing = windows.get(key);
   if (existing?.dialog.open) { raise(existing); return existing.dialog; }   // the same block again: its window comes to the front
   const suffix = [...windows.values()].some((w) => w.dialog.open) ? `-${++cascade}` : '';   // the first window keeps the id studio (a window that was just closed is still in the map until its close event has come)
-  const dialog = el('dialog', { id: `studio${suffix}`, className: 'studio-dialog studio-floating', 'aria-labelledby': `studio-title${suffix}` });
+  const dialog = el('dialog', { id: `studio${suffix}`, className: 'studio-dialog studio-floating metal-window', 'aria-labelledby': `studio-title${suffix}` });
   const title = el('strong', { id: `studio-title${suffix}`, textContent: (options.title || options.type).toUpperCase() });
   const block = el('span', { className: 'note', textContent: `block ${options.block}` });
-  const close = el('button', { type: 'button', textContent: '×', 'aria-label': 'Close advanced controls' });
+  const close = el('button', { type: 'button', className: 'studio-close', textContent: '×', 'aria-label': 'Close advanced controls' });
   const bypassHost = el('span', { className: 'studio-dialog-bypass' });
-  const header = el('header', { className: 'studio-dialog-header' }, [title, block, bypassHost]);
+  const infoHost = el('span', { className: 'studio-dialog-info' });   // the (i) of the panel lives in the title bar, so no band of its own is left at the bottom of the window
+  const header = el('header', { className: 'studio-dialog-header mls-title metal-title' }, [title, block, bypassHost, infoHost]);
   const ab = el('button', { type: 'button', className: 'studio-ab', textContent: 'A/B', 'aria-label': 'A/B bypass', 'aria-pressed': 'false', title: 'Build an audio input before comparing', disabled: true });
   ab.onclick = async () => {
     const on = ab.getAttribute('aria-pressed') !== 'true';
@@ -502,12 +592,13 @@ export function openStudioPanel(options) {
     try { const params = { ...panel.getParams(), enabled: on ? 'off' : (panel.getParams().enabled || 'on') }; if (state.previewMode === 'live' && state.type === 'denoise') { state.liveParams = { ...state.liveParams, enabled: params.enabled }; await playLocalPreview(state, state.liveParams, true); } else if (state.previewMode === 'live') updateLivePreview({ ...state.liveParams, enabled: params.enabled }); else { state.previewMode = 'rendered'; state.localPreviewActive = false; await playRenderedPreview(state, params, false); } }
     catch (error) { if (state.status) state.status.textContent = error.message; }
   };
-  header.append(ab, close);
+  const menuButton = el('button', { type: 'button', className: 'mls-wbtn mls-menu-btn studio-menu-btn', textContent: '\u2630', title: 'Menu: snapshots, reset, help, copy the block code', 'aria-label': 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
+  header.append(ab, menuButton, close);
   const body = el('div', { className: 'studio-dialog-body' });
   const footer = el('footer', { className: 'studio-preview-slot', 'aria-label': 'Effect preview controls' });
-  dialog.append(header, body, footer); document.body.append(dialog);
+  dialog.append(header, footer, body); document.body.append(dialog);   // the transport is a toolbar row under the title bar, like in AMPLE Jam
   const previousPlayer = playerState();
-  const state = { ...options, dialog, body, footer, titleElement: title, blockElement: block, bypassHost, ab, type: options.type, title: options.title, block: options.block, tempo: options.tempo, definitions: options.definitions, readOnly: options.readOnly, getParams: options.getParams, preview: options.preview, commit: options.commit, commitMany: options.commitMany, effectChain: options.effectChain || null, takeId: options.takeId, buildInput: options.buildInput, realPreview: options.realPreview, status: null, scrub: null, unsubscribePlayer: null, auditioning: false, localPreviewActive: false, localGeneration: 0, localRefreshTimer: 0, takeInputCache: null, localChanges: new Set(), loopChanged: false, originalLoop: previousPlayer.loop && !previousPlayer.loopRegion, originalLoopRegion: previousPlayer.loopRegion };
+  const state = { ...options, dialog, body, footer, titleElement: title, blockElement: block, bypassHost, infoHost, ab, type: options.type, title: options.title, block: options.block, tempo: options.tempo, definitions: options.definitions, readOnly: options.readOnly, getParams: options.getParams, preview: options.preview, commit: options.commit, commitMany: options.commitMany, effectChain: options.effectChain || null, takeId: options.takeId, buildInput: options.buildInput, realPreview: options.realPreview, status: null, scrub: null, unsubscribePlayer: null, auditioning: false, localPreviewActive: false, localGeneration: 0, localRefreshTimer: 0, takeInputCache: null, localChanges: new Set(), loopChanged: false, originalLoop: previousPlayer.loop && !previousPlayer.loopRegion, originalLoopRegion: previousPlayer.loopRegion };
   state.previewLoop = previousPlayer.loop;
   state.previewLoopRegion = previousPlayer.loopRegion;
   const scheduleLocalUpdate = (changed) => {
@@ -544,6 +635,7 @@ export function openStudioPanel(options) {
   if (commitMany) state.commitMany = (values) => { const result = commitMany(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
   state.wrapCommit = (commitEffect) => (name, value) => { const result = commitEffect(name, value); Promise.resolve(result).then(() => scheduleLocalUpdate(name)).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
   state.wrapCommitMany = (commitEffects) => (values) => { const result = commitEffects(values); Promise.resolve(result).then(() => scheduleLocalUpdate(values.map((item) => item.name))).catch((error) => { if (state.status) state.status.textContent = error.message; }); return result; };
+  buildMenu(state, menuButton);
   active = state; windows.set(key, state); renderBody(state);
   renderTransport(state);
   close.onclick = () => dialog.close();
@@ -557,7 +649,7 @@ export function openStudioPanel(options) {
     previewOwner.release(state);
     if (owns && (state.auditioning || (state.startedPlayback && playerState().take === panel.takeId))) stop();
     if (current && state.loopChanged) { if (state.originalLoopRegion) setLoopRegion(state.originalLoopRegion); else setLoop(state.originalLoop); }
-    dialog.remove(); windows.delete(key); if (active === state) active = [...windows.values()].pop() ?? null;
+    state.chrome?.dispose(); dialog.remove(); windows.delete(key); if (active === state) active = [...windows.values()].pop() ?? null;
   };
   dialog.show();
   floatWindow(state); raise(state);

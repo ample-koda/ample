@@ -10,6 +10,7 @@ export function withJamIcon(button) { button.replaceChildren(jamIcon(), ' AMPLE 
 
 // the windows that are open, back to front: a click, a drag or the focus inside one brings it to the front
 const stack = [];
+export function raiseWindow(panel) { raise(panel); }
 function raise(panel) {
   const at = stack.indexOf(panel);
   if (at >= 0) stack.splice(at, 1);
@@ -27,7 +28,8 @@ function wireOutside() {
   document.addEventListener('pointerdown', (event) => { if (!stack.some((window) => window.contains(event.target))) setActive(null); }, true);
 }
 
-export function addWindowChrome(panel, title, before, shift = () => {}) {
+export function addWindowChrome(panel, title, before, shift = () => {}, options = {}) {
+  const minWidth = options.minWidth ?? 520, minHeight = options.minHeight ?? 340;
   wireOutside();
   raise(panel);
   // a bigger handle in the corner than the browser's own (which is too small to catch)
@@ -37,8 +39,8 @@ export function addWindowChrome(panel, title, before, shift = () => {}) {
     if (panel.dataset.window) return;
     event.preventDefault(); grip.setPointerCapture(event.pointerId);
     const r = panel.getBoundingClientRect(), sx = event.clientX, sy = event.clientY;
-    const move = (e) => { panel.style.width = `${Math.round(Math.max(520, Math.min(window.innerWidth - r.left - 4, r.width + e.clientX - sx)))}px`; panel.style.height = `${Math.round(Math.max(340, Math.min(window.innerHeight - r.top - 4, r.height + e.clientY - sy)))}px`; };
-    const up = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); };
+    const move = (e) => { panel.style.width = `${Math.round(Math.max(minWidth, Math.min(window.innerWidth - r.left - 4, r.width + e.clientX - sx)))}px`; panel.style.height = `${Math.round(Math.max(minHeight, Math.min(window.innerHeight - r.top - 4, r.height + e.clientY - sy)))}px`; };
+    const up = () => { options.onResize?.(panel.getBoundingClientRect()); grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); };
     grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
   });
   panel.addEventListener('pointerdown', () => raise(panel), true);

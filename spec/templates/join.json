@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Puts the connected inputs one after the other (in1, then in2, then in3 ...) with a gap between them: spoken phrases with a pause between, hits in a row. The gap is seconds plus beats; the result is as long as all parts and the gaps together.",
   "inputs": [

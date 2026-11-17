@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Keep a stretch of the input: from a start to an end, or only the first or the last seconds, once or repeated.",
   "inputs": [

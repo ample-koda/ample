@@ -76,6 +76,12 @@ export async function openApp(page: Page, options: { reset?: boolean } = {}) {
   await fetch(`${origin()}/api/doc/save`, { method: 'POST', headers, body: JSON.stringify({ path: 'song.amplet' }) });
   await page.goto(launchUrl());
   await page.waitForSelector('body[data-ready="1"]');
+  // the demo song was just written into song.amplet: with no last song, the app opens the first song of the list, which is another
+  // one when a test adds songs that sort before it (second.amplet); open song.amplet then, as every test here expects
+  if (await page.evaluate(() => (window as any).AMPLE_STATE?.path) !== 'song.amplet') {
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('ample:open', { detail: 'song.amplet' })));
+    await expect.poll(async () => page.evaluate(() => (window as any).AMPLE_STATE?.path)).toBe('song.amplet');
+  }
   await expect(page.locator('.node').first()).toBeVisible();
 }
 

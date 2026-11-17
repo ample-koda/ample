@@ -486,3 +486,6 @@ main{min-width:0;max-width:100%}
   body.menu #extlinks a{justify-content:center;padding:10px 14px;font-size:14px}
   body.menu aside.side{bottom:112px}
 }
+.shot{max-width:980px;margin:18px 0;padding:0}
+.shot img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.shot figcaption{margin-top:8px;font-size:.9em;color:var(--dim,#8a93a6)}

@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "A singing voice made of formants (FOF synthesis), in the spirit of the classic Delay Lama: notes in, a chanting, humming, oohing and aahing voice out. Vowel, voice (the size of the singer) and mouth can be curves over the song; glide slides between notes that touch, vibrato wobbles, unison stacks detuned voices, echo adds the classic stereo echo. The pitch bend of the notes is sung by the voice itself.",
   "inputs": [

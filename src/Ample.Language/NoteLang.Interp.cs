@@ -9,11 +9,12 @@ namespace Ample.Language;
 public static partial class NotePipeline
 {
     /// <summary>The interpreter of the language layer (docs/language/14): it evaluates helpers, variables, arithmetic and control flow, and hands every operator of a pipeline to the evaluator of the note pipelines, so there is one set of operators.</summary>
-    private sealed class Interp
+    private sealed partial class Interp
     {
-        private sealed class Env(Env? parent)
+        private sealed class Env(Env? parent, ObserverEnv? observer = null)
         {
             private readonly Env? up = parent;
+            private readonly ObserverEnv? outer = observer;
 
             private readonly Dictionary<string, (Val Value, bool Mutable)> vars = new(StringComparer.Ordinal);
 
@@ -22,6 +23,7 @@ public static partial class NotePipeline
                 for (Env? e = this; e is not null; e = e.up)
                 {
                     if (e.vars.TryGetValue(name, out (Val Value, bool Mutable) t)) { value = t.Value; return true; }
+                    if (e.outer is { } readOnly && readOnly.TryGet(name, out value)) return true;
                 }
 
                 value = null!;
@@ -29,6 +31,8 @@ public static partial class NotePipeline
             }
 
             public bool DefinedHere(string name) => vars.ContainsKey(name);
+
+            public Env Root => up?.Root ?? this;
 
             public void Define(string name, Val value, bool mutable) => vars[name] = (value, mutable);
 
@@ -64,25 +68,32 @@ public static partial class NotePipeline
         private readonly List<PipeIssue> errors;
         private readonly List<PipeIssue> warnings;
         private readonly string text;
+
+        /// <summary>The text that the offsets of the nodes now being run belong to: the expression, or the declaration of the helper that is running.</summary>
+        private string sourceText;
         private readonly HelperTable table;
         private readonly LangLimits limits;
         private readonly SortedSet<string> closure = new(StringComparer.Ordinal);
         private readonly List<string> dynamicInputs = [];
+        private readonly List<StackFrameInfo> callStack = [];
+        private string runningHelper = string.Empty;
         private readonly Dictionary<string, Val> constants = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> constantsBusy = new(StringComparer.OrdinalIgnoreCase);
         private long fuel;
         private long noteBytes;
         private int depth;
 
-        public Interp(Context context, Rat tempo, List<PipeIssue> errors, List<PipeIssue> warnings, string text)
+        public Interp(Context context, Rat tempo, List<PipeIssue> errors, List<PipeIssue> warnings, string text, ForkMode? mode = null)
         {
             this.context = context;
             this.tempo = tempo;
             this.errors = errors;
             this.warnings = warnings;
             this.text = text;
+            sourceText = text;
             table = context.Helpers ?? HelperTable.Empty;
             limits = context.Limits.Clamped();
+            forkMode = mode;
             Legacy = new Evaluation(context, tempo, errors, warnings, text);
         }
 
@@ -93,7 +104,7 @@ public static partial class NotePipeline
             try
             {
                 Val v = Eval(ast, new Env(null));
-                return v is NotesV ? null : ValText(v);
+                return v is NotesV || IsSensitive(v) ? null : ValText(v);
             }
             catch (LangFailure)
             {
@@ -102,6 +113,10 @@ public static partial class NotePipeline
         }
 
         public bool Dynamic { get; private set; }
+
+        public bool ResultTainted { get; private set; }
+
+        public bool ResultSensitive { get; private set; }
 
         public bool BakedDynamic { get; private set; }
 
@@ -116,19 +131,22 @@ public static partial class NotePipeline
             {
                 Val v = Eval(ast, new Env(null));
                 if (v is not NotesV notes) throw new LangFailure("type-mismatch", $"The notes of a clip must be Notes, this expression is {TypeName(v)}", ast);
+                ResultTainted = DeepTainted(notes);
+                ResultSensitive = IsSensitive(notes);
                 string body = notes.Recipe + "\nhelpers:" + string.Join(",", closure);
                 recipe = Sha("ample-lang/1\n" + body + Legacy.Extra(body));
                 return notes.V;
             }
             catch (StopRun stop)
             {
+                ResultSensitive = IsSensitive(stop.Value);
                 string body = stop.Value.Recipe + "\nhelpers:" + string.Join(",", closure);
                 recipe = Sha("ample-lang/1\n" + body + Legacy.Extra(body));
                 return stop.Value.V;
             }
             catch (LangFailure f)
             {
-                if (f.Id != "reported") errors.Add(new PipeIssue(f.Id, f.Message, f.Node?.Start ?? 0, f.Node?.End ?? text.Length, f.Suggestion));
+                if (f.Id != "reported") errors.Add(new PipeIssue(f.Id, f.Message, f.Node?.Start ?? 0, f.Node?.End ?? text.Length, f.Suggestion) { Stack = f.Frames });
                 return null;
             }
         }
@@ -151,7 +169,7 @@ public static partial class NotePipeline
             }
             catch (LangFailure f)
             {
-                if (f.Id != "reported") errors.Add(new PipeIssue(f.Id, f.Message, f.Node?.Start ?? 0, f.Node?.End ?? text.Length, f.Suggestion));
+                if (f.Id != "reported") errors.Add(new PipeIssue(f.Id, f.Message, f.Node?.Start ?? 0, f.Node?.End ?? text.Length, f.Suggestion) { Stack = f.Frames });
                 failure = f.Message;
                 return null;
             }
@@ -164,15 +182,15 @@ public static partial class NotePipeline
             {
                 case "Gain":
                     if (v is QuantV { Dim: "gain" }) return v;
-                    if (IsNumber(v)) return With(new QuantV(AsRat(v), "gain"), v.Tainted);
+                    if (IsNumber(v)) return WithMarks(new QuantV(AsRat(v), "gain"), v.Marks);
                     break;
                 case "Time":
                     if (v is QuantV { Dim: "time" }) return v;
-                    if (IsNumber(v)) return With(new QuantV(s.Unit == "s" ? AsRat(v) : AsRat(v) * Rat.Of(1, 1000), "time"), v.Tainted);
+                    if (IsNumber(v)) return WithMarks(new QuantV(s.Unit == "s" ? AsRat(v) : AsRat(v) * Rat.Of(1, 1000), "time"), v.Marks);
                     break;
                 case "Percent":
                     if (v is QuantV { Dim: "percent" }) return v;
-                    if (IsNumber(v)) return With(new QuantV(AsRat(v) * Rat.Of(1, 100), "percent"), v.Tainted);
+                    if (IsNumber(v)) return WithMarks(new QuantV(AsRat(v) * Rat.Of(1, 100), "percent"), v.Marks);
                     break;
                 case "Number" or "Frequency":
                     if (IsNumber(v)) return v;
@@ -210,7 +228,8 @@ public static partial class NotePipeline
         private void Tick(Node n)
         {
             context.Cancellation.ThrowIfCancellationRequested();
-            if (++fuel > limits.Fuel) throw new LangFailure("fuel", $"The helper code used more than {limits.Fuel} evaluation steps (the limit of the song is limits.fuel)", n);
+            CheckObserverTime(n);
+            if (++fuel > FuelLimit) throw new LangFailure("fuel", $"The helper code used more than {FuelLimit} evaluation steps (the limit of the song is limits.fuel)", n);
         }
 
         private void Account(Val v, Node n)
@@ -238,6 +257,8 @@ public static partial class NotePipeline
             NotesV => "Notes",
             NoteV => "Note",
             ListV => "List",
+            ErrorV e => e.Type,
+            RecordV => "Record",
             RangeV => "Range",
             WordV => "a word",
             SeedV => "RandomSource",
@@ -245,7 +266,11 @@ public static partial class NotePipeline
             _ => "nothing",
         };
 
-        private string Describe(Val v) => v is NotesV ? "Notes" : $"{ValText(v)} ({TypeName(v)})";
+        private string Describe(Val v) => v is NotesV ? "Notes" : $"{SafeText(v)} ({TypeName(v)})";
+
+        private string SafeText(Val v) => IsSensitive(v) ? ObsRedactor.Redacted : ValText(v);
+
+        private static bool IsSensitive(Val v) => (DeepMarks(v) & ValueMarks.Sensitive) != 0;
 
         private static string DecimalText(Rat r, int places = 9)
         {
@@ -266,7 +291,7 @@ public static partial class NotePipeline
         private string ValText(Val v) => v switch
         {
             IntV i => i.V.ToString(CultureInfo.InvariantCulture),
-            FloatV f => f.Exact is { } e ? DecimalText(e) : f.V.ToString("R", CultureInfo.InvariantCulture),
+            FloatV f => f.Exact is { } e ? DecimalText(e) : NumberText(f.V),
             BoolV b => b.V ? "true" : "false",
             StrV s => "\"" + s.V + "\"",
             QuantV { Dim: "length" } q => (ToMicro(q.V, "beats", tempo) ?? 0).ToString(CultureInfo.InvariantCulture) + "ticks",
@@ -278,6 +303,8 @@ public static partial class NotePipeline
             SeedV sd => sd.Text,
             NowV n => n.T.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
             ListV l => "[" + string.Join(", ", l.Items.Select(ValText)) + "]",
+            RecordV r => "{" + string.Join(", ", r.Fields.Select(f => f.Key + ": " + ValText(f.Value))) + "}",
+            ErrorV e => e.Type + "(" + e.Message + ")",
             RangeV r => ValText(r.From) + (r.Inclusive ? "..=" : "..") + ValText(r.To),
             NotesV => "notes",
             _ => "nothing",
@@ -294,12 +321,55 @@ public static partial class NotePipeline
             SeedV sd => sd.Text,
             NowV n => n.T.ToString("O", CultureInfo.InvariantCulture),
             ListV l => "[" + string.Join(",", l.Items.Select(ExactText)) + "]",
+            RecordV r => "{" + string.Join(",", r.Fields.OrderBy(f => f.Key, StringComparer.Ordinal).Select(f => f.Key + ":" + ExactText(f.Value))) + "}",
+            ErrorV e => "error:" + e.Type + ":" + e.Message,
             RangeV r => ExactText(r.From) + (r.Inclusive ? "..=" : "..") + ExactText(r.To),
             NotesV n => "notes:" + n.Recipe,
             _ => "unit",
         };
 
-        private static bool Taint(params Val[] values) => values.Any(v => v.Tainted);
+        private static bool Taint(params Val[] values) => values.Any(DeepTainted);
+
+        /// <summary>Whether a value, or anything inside it, may vary between runs (provenance; the monotonic Dynamic flag stays the authority for what is built again).</summary>
+        private static bool DeepTainted(Val v) => (DeepMarks(v) & ValueMarks.Dynamic) != 0;
+
+        private static ValueMarks DeepMarks(Val v) => v.Marks | (v switch
+        {
+            ListV l => l.Items.Aggregate(ValueMarks.None, (flags, item) => flags | DeepMarks(item)),
+            RangeV r => DeepMarks(r.From) | DeepMarks(r.To),
+            RecordV rec => rec.Fields.Aggregate(ValueMarks.None, (flags, field) => flags | DeepMarks(field.Value)),
+            ErrorV err => (err.Context is null ? ValueMarks.None : DeepMarks(err.Context)) | (err.Cause is null ? ValueMarks.None : DeepMarks(err.Cause)),
+            _ => ValueMarks.None,
+        });
+
+        private static Val WithMarks(Val v, ValueMarks marks) => (v.Marks & marks) == marks ? v : v with { Marks = v.Marks | marks };
+
+        /// <summary>Above 0 while a branch, a loop body or a catch that a tainted decision selected is running: everything it makes is tainted.</summary>
+        private ValueMarks control;
+        private ValueMarks decisionMarks;
+        private ValueMarks wholeMarks;
+        private ValueMarks argMarks;
+
+        private Val Ctl(Val v) => WithMarks(v, control);
+
+        private Flow Selected(StmtBlock block, Env env, Frame frame, ValueMarks marks)
+        {
+            ValueMarks previous = control;
+            control |= marks;
+            try
+            {
+                return ExecBlock(block, env, frame);
+            }
+            catch (LangFailure failure) when (marks != ValueMarks.None)
+            {
+                failure.Marks |= marks;   // a failure raised under a tainted decision is tainted: a catch that handles it runs under it
+                throw;
+            }
+            finally
+            {
+                control = previous;
+            }
+        }
 
         private static Val With(Val v, bool tainted) => tainted && !v.Tainted ? v with { Tainted = true } : v;
 
@@ -362,16 +432,21 @@ public static partial class NotePipeline
                 case StringNode s: return new StrV(s.Value);
                 case BoolNode b: return new BoolV(b.Value);
                 case WordNode w: return Word(w, env);
-                case ListNode l: return new ListV([.. l.Items.Select(i => Eval(i, env))]) { Tainted = false };
+                case ListNode l: return new ListV([.. l.Items.Select(i => Eval(i, env))]) { Marks = control };
+                case RecordNode rn: return new RecordV([.. rn.Fields.Select(f => (f.Name, Eval(f.Value, env)))]) { Marks = control };
                 case RangeNode r: return new RangeV(FromQuantity(r.From), FromQuantity(r.To), r.Inclusive);
                 case RangeExprNode re: return new RangeV(Eval(re.From, env), Eval(re.To, env), re.Inclusive);
                 case RefNode r when !r.Escaped && env.TryGet(r.Block, out Val target): return Field(target, r.Port, r);
+                case RefNode r when forkMode is not null: return Peek(r);
                 case RefNode r when r.Port != "notes": return ReadProperty(r);
                 case RefNode or LiteralNode or EditableNode or ValueNode:
                     {
                         PipeValue? v = Legacy.Eval(node, out string? recipe);
                         if (v is null) throw new LangFailure("reported", string.Empty, node);
-                        return new NotesV(v, recipe ?? Sha("ref")) { Tainted = false };
+                        return new NotesV(v, recipe ?? Sha("ref"))
+                        {
+                            Marks = Legacy.SensitiveInput ? ValueMarks.Sensitive : ValueMarks.None,
+                        };
                     }
 
                 case UnaryNode u: return Unary(u, env);
@@ -380,7 +455,7 @@ public static partial class NotePipeline
                     {
                         Val condition = Eval(t.Cond, env);
                         Val chosen = Eval(Truthy(condition) ? t.Then : t.Otherwise, env);
-                        return With(chosen, condition.Tainted);
+                        return WithMarks(chosen, DeepMarks(condition));
                     }
 
                 case FieldNode f: return Field(Eval(f.Target, env), f.Name, f);
@@ -455,7 +530,7 @@ public static partial class NotePipeline
                 ("-", QuantV q) => new QuantV(Rat.Of(-q.V.N, q.V.D), q.Dim),
                 _ => throw new LangFailure("type-mismatch", $"{u.Op} cannot be applied to {Describe(v)}", u),
             };
-            return With(result, v.Tainted);
+            return WithMarks(result, DeepMarks(v));
         }
 
         private Val BinaryOp(BinaryNode b, Env env)
@@ -464,20 +539,20 @@ public static partial class NotePipeline
             {
                 Val left = Eval(b.Left, env);
                 bool leftTruth = Truthy(left);
-                if (b.Op == "&&" ? !leftTruth : leftTruth) return With(new BoolV(leftTruth), left.Tainted);   // short circuit: the answer is always true or false
+                if (b.Op == "&&" ? !leftTruth : leftTruth) return WithMarks(new BoolV(leftTruth), DeepMarks(left));
                 Val right = Eval(b.Right, env);
-                return With(new BoolV(Truthy(right)), left.Tainted || right.Tainted);
+                return WithMarks(new BoolV(Truthy(right)), DeepMarks(left) | DeepMarks(right));
             }
 
             if (b.Op == "is")
             {
                 Val subject = Eval(b.Left, env);
                 string type = b.Right is WordNode w ? w.Text : string.Empty;
-                return With(new BoolV(IsType(subject, type)), subject.Tainted);
+                return WithMarks(new BoolV(IsType(subject, type)), DeepMarks(subject));
             }
 
             Val l = Eval(b.Left, env), r = Eval(b.Right, env);
-            return With(Arith(b.Op, l, r, b), l.Tainted || r.Tainted);
+            return WithMarks(Arith(b.Op, l, r, b), DeepMarks(l) | DeepMarks(r));
         }
 
         private static bool IsType(Val v, string type) => type switch
@@ -492,7 +567,10 @@ public static partial class NotePipeline
             "Duration" => v is QuantV { Dim: "length" or "time" },
             "Interval" => v is QuantV { Dim: "interval" },
             "Notes" => v is NotesV,
-            _ => false,
+            "Record" => v is RecordV,
+            "Error" => v is ErrorV,
+            "RequirementError" => v is ErrorV { Type: "RequirementError" },
+            _ => v is ErrorV error && error.Chain.Contains(type, StringComparer.OrdinalIgnoreCase),
         };
 
         private static bool IsNumber(Val v) => v is IntV or FloatV;
@@ -553,9 +631,10 @@ public static partial class NotePipeline
             if (IsNumber(l) && r is QuantV qn && op == "*") return new QuantV(AsRat(l) * qn.V, qn.Dim);
             if (l is StrV s1 && r is StrV s2)
             {
-                if (op == "+") return new StrV(s1.V + s2.V);
                 if (compare) return Cmp(op, string.CompareOrdinal(s1.V, s2.V));
             }
+
+            if (JoinText(op, l, r, at) is { } joined) return joined;
 
             if (op is "==" or "!=" && ((l is BoolV && r is BoolV) || (l is WordV or StrV && r is WordV or StrV)))
             {
@@ -591,9 +670,18 @@ public static partial class NotePipeline
                     "vel" => new IntV(note.N.Vel),
                     _ => throw new LangFailure("bad-argument", $"A note has no \"{name}\" (it has at, len, pitch, vel)", at),
                 },
+                RecordV rec => RecordField(rec, name, at),
+                ErrorV error => ErrorField(error, name, at),
                 _ => throw new LangFailure("bad-argument", $"{Describe(target)} has no field \"{name}\"", at),
             };
-            return With(result, target.Tainted);
+            return WithMarks(result, target.Marks);
+        }
+
+        private static Val RecordField(RecordV rec, string name, Node at)
+        {
+            int index = rec.Fields.FindIndex(f => f.Key == name);
+            if (index >= 0) return rec.Fields[index].Value;
+            throw new LangFailure("unknown-field", $"The record has no field \"{name}\" (it has {(rec.Fields.Count == 0 ? "none" : string.Join(", ", rec.Fields.Select(f => f.Key)))})", at);
         }
 
         private static string? BuiltinFor(string method) => method.ToLowerInvariant() switch { "floor" => "Floor", "ceil" or "ceiling" => "Ceil", "round" => "Round", "truncate" or "trunc" => "Truncate", "abs" => "abs", "int" or "toint" => "Int", "float" or "tofloat" => "Float", "min" => "min", "max" => "max", "count" or "length" or "len" => "count", _ => null };
@@ -603,6 +691,7 @@ public static partial class NotePipeline
             if (m.Name == "fork") return Seed(m, env);
             if (m.Name == "next" && m.Target is WordNode w && context.Streams is not null && context.Streams.ContainsKey(w.Text))
             {
+                if (forkMode == ForkMode.Assert) throw new LangFailure("capability-denied", "A random stream cannot be read in an assertion: reading it moves it on", m);
                 QuantityNode? q = Legacy.StreamNext(w, m);
                 if (q is null) throw new LangFailure("reported", string.Empty, m);
                 return FromQuantity(q);
@@ -616,28 +705,31 @@ public static partial class NotePipeline
 
         private SeedV Seed(Node n, Env env)
         {
-            Node resolved = SeedTree(n, env);
-            return new SeedV(resolved, Evaluation.SeedText(resolved));
+            ValueMarks marks = ValueMarks.None;
+            Node resolved = SeedTree(n, env, ref marks);
+            return new SeedV(resolved, Evaluation.SeedText(resolved)) { Marks = marks };
         }
 
-        private Node SeedTree(Node n, Env env)
+        private Node SeedTree(Node n, Env env, ref ValueMarks marks)
         {
             switch (n)
             {
                 case CallNode { Name: "stable" } c when c.Args.Count == 1:
                     {
                         Val name = Eval(c.Args[0], env);
+                        marks |= DeepMarks(name) & ValueMarks.Sensitive;
                         return new CallNode("stable", [new StringNode(name is StrV s ? s.V : ValText(name), c.Args[0].Start, c.Args[0].End)], c.Start, c.End, c.NameEnd);
                     }
 
                 case CallNode { Name: "random-seed" }: return n;
                 case MethodNode { Name: "fork" } m:
                     {
-                        Node target = SeedTree(m.Target, env);
+                        Node target = SeedTree(m.Target, env, ref marks);
                         Node result = target;
                         foreach (Node labelNode in m.Args)
                         {
                             Val label = Eval(labelNode, env);
+                            marks |= DeepMarks(label) & ValueMarks.Sensitive;
                             Node ln = label switch { StrV s => new StringNode(s.V, labelNode.Start, labelNode.End), IntV i => new QuantityNode(Rat.Of(i.V), null, i.V.ToString(CultureInfo.InvariantCulture), labelNode.Start, labelNode.End), FloatV => throw new LangFailure("seed-error", "A fork label is a name in quotes or a whole number, and this is a Float (a division gives one): write Floor(...), Round(...) or Int(...) around it, or use %", labelNode, $"Floor({SourceOf(labelNode)})"), _ => throw new LangFailure("seed-error", "A fork label is a name in quotes or a whole number", labelNode) };
                             result = new MethodNode(result, "fork", [ln], m.Start, m.End);
                         }
@@ -648,6 +740,7 @@ public static partial class NotePipeline
                 default:
                     {
                         Val v = Eval(n, env);
+                        marks |= DeepMarks(v) & ValueMarks.Sensitive;
                         return v switch
                         {
                             SeedV sd => sd.Expr,
@@ -670,11 +763,14 @@ public static partial class NotePipeline
             if (lower is "currenttime" or "currentdate" or "osrandom" or "environment") return Volatile_(c, lower, env);
             if (table.TryHelper(name, out HelperDeclNode helper, out string hash, out string canonical, out string effect))
             {
+                if (forkMode == ForkMode.Assert && effect == "dynamic")
+                    throw new LangFailure("capability-denied", "A dynamic helper is not available in an assertion", c);
                 if (!string.Equals(canonical, name, StringComparison.Ordinal)) Warn("helper-casing", $"Helper \"{canonical}\" found, but the casing differs", new CallNode(name, [], c.Start, c.NameEnd, c.NameEnd), canonical);
                 return CallHelper(c, helper, hash, canonical, effect, env, piped);
             }
 
             if (NoteCatalog.Signatures.TryGetValue(name, out NoteSignature? sig) && name is not ("random" or "choose" or "chance" or "stable" or "random-seed" or "bake")) return CatalogCall(c, sig, env, piped);
+            if (table.IsErrorType(name)) return ConstructError(c, name, env);
             Val? builtin = Builtin(c, name, env, piped);
             if (builtin is not null) return builtin;
             if (table.IsBroken(name)) throw new LangFailure("helper-broken", $"The helper \"{name}\" is not available: its declaration has an error (fix that first)", new CallNode(name, [], c.Start, c.NameEnd, c.NameEnd));
@@ -710,6 +806,8 @@ public static partial class NotePipeline
         private Val Volatile_(CallNode c, string lower, Env env)
         {
             string capability = lower switch { "currenttime" or "currentdate" => "clock", "osrandom" => "os-random", _ => "environment" };
+            if (forkMode is ForkMode.Assert || (forkMode is ForkMode.Observe && capability != "clock"))
+                throw new LangFailure("capability-denied", "This volatile read is not available in diagnostic evaluation", c);
             if (context.Capabilities is { } caps && !caps.Allowed(capability))
                 throw new LangFailure("capability-denied", $"Capability `{capability}` is {caps.Why(capability)}", new CallNode(c.Name, [], c.Start, c.NameEnd, c.NameEnd));
             Dynamic = true;
@@ -731,7 +829,7 @@ public static partial class NotePipeline
                         result = new StrV(context.Environment is { } read ? read(key.V) ?? string.Empty : System.Environment.GetEnvironmentVariable(key.V) ?? string.Empty);
                         // the value is not written into provenance: it can be a secret; only a short fingerprint is
                         dynamicInputs.Add($"environment(\"{key.V}\") = sha256:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(((StrV)result).V)))[..8]}");
-                        return result with { Tainted = true };
+                        return result with { Marks = ValueMarks.Dynamic | ValueMarks.Sensitive };
                     }
             }
 
@@ -744,6 +842,8 @@ public static partial class NotePipeline
             if (sig.Receiver == "Notes" && piped is not NotesV) throw new LangFailure("bad-argument", $"{c.Name}(...) needs notes to work on: write notes |> {c.Name}(...)", c);
             List<Node> nodes = [];
             int position = 0;
+            ValueMarks outerMarks = argMarks;
+            argMarks = ValueMarks.None;
             foreach (Node a in c.Args)
             {
                 NoteParam? prm;
@@ -760,18 +860,20 @@ public static partial class NotePipeline
                 nodes.Add(named is null ? resolved : new NamedNode(named, resolved, a.Start, a.End));
             }
 
+            ValueMarks operandMarks = argMarks | (piped?.Marks ?? ValueMarks.None);
+            argMarks = outerMarks;
             CallNode call = new(c.Name, nodes, c.Start, c.End, c.NameEnd);
             if (sig.Receiver is null)
             {
                 PipeValue? generated = Legacy.Generate(call);
                 if (generated is null) throw new LangFailure("reported", string.Empty, c);
-                return Produced(generated, Sha("gen:" + Legacy.Normalize(call)), c);
+                return (NotesV)WithMarks(Produced(generated, Sha("gen:" + Legacy.Normalize(call)), c), operandMarks);
             }
 
             NotesV input = (NotesV)piped!;
             PipeValue? stepped = Legacy.Step(input.V.Copy(), call);
             if (stepped is null) throw new LangFailure("reported", string.Empty, c);
-            return Produced(stepped, Sha(input.Recipe + "|>" + Legacy.Normalize(call)), c);
+            return (NotesV)WithMarks(Produced(stepped, Sha(input.Recipe + "|>" + Legacy.Normalize(call)), c), operandMarks);
         }
 
         private NotesV Produced(PipeValue value, string recipe, Node at)
@@ -786,6 +888,7 @@ public static partial class NotePipeline
             if (value is CallNode { Name: "bars" or "beats" or "time" } window && window.Args.Count == 1)
                 return new CallNode(window.Name, [ArgNode(prm, window.Args[0], env)], window.Start, window.End, window.NameEnd);
             Val v = Eval(value, env);
+            argMarks |= DeepMarks(v);
             Node plain = NodeOf(v, value);
             return prm is null ? plain : TypedValue(prm, plain);
         }
@@ -796,16 +899,28 @@ public static partial class NotePipeline
             if (lower is "random" or "choose" or "chance")
             {
                 List<Node> nodes = [];
-                foreach (Node a in c.Args) nodes.Add(a is NamedNode n ? new NamedNode(n.Name, n.Name == "seed" ? Seed(n.Value, env).Expr : NodeOf(Eval(n.Value, env), n.Value), a.Start, a.End) : NodeOf(Eval(a, env), a));
+                ValueMarks marks = ValueMarks.None;
+                Val Read(Node x)
+                {
+                    Val read = Eval(x, env);
+                    marks |= DeepMarks(read);
+                    return read;
+                }
+
+                foreach (Node a in c.Args)
+                {
+                    Node one = a is NamedNode n ? new NamedNode(n.Name, n.Name == "seed" ? Seed(n.Value, env).Expr : NodeOf(Read(n.Value), n.Value), a.Start, a.End) : NodeOf(Read(a), a);
+                    nodes.Add(one);
+                }
                 Node? result = Legacy.ValueCall(new CallNode(lower, nodes, c.Start, c.End, c.NameEnd));
                 if (result is null) throw new LangFailure("reported", string.Empty, c);
-                return FromNode(result);
+                return WithMarks(FromNode(result), marks);
             }
 
             if (lower is "stable" or "random-seed") return Seed(c, env);
             List<Arg> args = Args(c, env);
             if (piped is not null) args.Insert(0, new Arg(null, piped, c));
-            bool tainted = args.Any(a => a.Value.Tainted);
+            ValueMarks combinedMarks = args.Aggregate(ValueMarks.None, (flags, arg) => flags | DeepMarks(arg.Value));
             Val Need(int index, string what)
             {
                 if (index >= args.Count) throw new LangFailure("bad-argument", $"{name} needs {what}", c);
@@ -827,10 +942,12 @@ public static partial class NotePipeline
                 "min" or "max" => MinMax(lower == "min", Need(0, "two values"), Need(1, "two values"), c),
                 "at" => Need(0, "a list") is ListV al && Need(1, "an index") is IntV ai && ai.V >= 0 && ai.V < al.Items.Count ? al.Items[(int)ai.V] : throw new LangFailure("bad-argument", "at(list, index) needs a list and an index inside it", c),
                 "note" => MakeNote(c, args),
+                "string" => args.Count == 1 && args[0].Name is null ? ToStringValue(args[0].Value, args[0].Origin) : throw new LangFailure("bad-argument", "String takes exactly one value, like String(4)", c),
+                "sprintf" => Sprintf(args, c),
                 "emptynotes" => new NotesV(new PipeValue { Events = [], Span = Bar }, Sha("empty-notes")),
                 _ => null,
             };
-            return result2 is null ? null : With(result2, tainted);
+            return result2 is null ? null : WithMarks(result2, combinedMarks);
         }
 
         private IntV ToInt(Val v, Node at, string mode)
@@ -843,7 +960,7 @@ public static partial class NotePipeline
                         Rat r = f.Exact ?? RatOfDouble(f.V);
                         if (mode == "exact")
                         {
-                            if (!r.IsInt) throw new LangFailure("conversion", $"{ValText(v)} is not a whole number: use Round, Floor, Ceil or Truncate", at);
+                            if (!r.IsInt) throw new LangFailure("conversion", $"{SafeText(v)} is not a whole number: use Round, Floor, Ceil or Truncate", at);
                             return new IntV(r.N);
                         }
 
@@ -893,7 +1010,7 @@ public static partial class NotePipeline
 
         private Val CallHelper(CallNode c, HelperDeclNode h, string hash, string canonical, string effect, Env env, Val? piped)
         {
-            if (depth >= limits.StackDepth) throw new LangFailure("stack-depth", $"Helpers call each other more than {limits.StackDepth} deep (the limit of the song is limits.stack-depth)", c);
+            if (depth >= DepthLimit) throw new LangFailure("stack-depth", $"Helpers call each other more than {DepthLimit} deep (the limit of the song is limits.stack-depth)", c);
             List<Arg> args = [];
             if (piped is not null) args.Add(new Arg(null, piped, c));
             args.AddRange(Args(c, env));
@@ -925,7 +1042,6 @@ public static partial class NotePipeline
             }
 
             closure.Add(hash);
-            _ = effect;
             if (h.Baked is not null)
             {
                 Val baked = Eval(h.Baked, new Env(null)) with { Tainted = false };
@@ -934,6 +1050,11 @@ public static partial class NotePipeline
             }
 
             depth++;
+            string callerText = sourceText;
+            string callerHelper = runningHelper;
+            callStack.Add(new StackFrameInfo(canonical, CallSite(c), context.ObservationRoot));
+            runningHelper = canonical;
+            sourceText = table.TextOf(canonical) ?? callerText;
             try
             {
                 Frame frame = new(canonical);
@@ -941,12 +1062,39 @@ public static partial class NotePipeline
                 Val? result = frame.Returned ? frame.ReturnValue ?? frame.Emitted : frame.Emitted is not null ? frame.Emitted : frame.Last;
                 if (result is null || result is UnitV) throw new LangFailure("bad-argument", $"\"{canonical}\" gave no value: end it with an expression, emit or return", h.Body);
                 Account(result, h.Body);
+                if (effect == "dynamic") result = With(result, true);   // a dynamic helper may read a volatile source: whatever it returns is tainted
                 return h.Returns is null ? result : Coerce(result, h.Returns, h.Body, canonical);
+            }
+            catch (LangFailure failure) when (failure.Frames is null)
+            {
+                failure.Frames = StackSnapshot();   // the innermost call that sees the failure knows the whole stack
+                throw;
             }
             finally
             {
+                callStack.RemoveAt(callStack.Count - 1);
+                runningHelper = callerHelper;
                 depth--;
+                sourceText = callerText;
             }
+        }
+
+        /// <summary>Where a call stands: the place in the file of the helper that makes it, or null for the expression of a block.</summary>
+        private SourceSite? CallSite(CallNode call)
+        {
+            if (runningHelper.Length == 0) return null;
+            SourceSite? original = context.ObservationHelperSites?.GetValueOrDefault(runningHelper);
+            int firstLine = original is null ? table.LineOf(runningHelper) : original.Line - 1;
+            return SiteResolver.At(original?.Origin ?? "song", sourceText, firstLine, call.Start, call.End);
+        }
+
+        /// <summary>The call stack, innermost first, at most as many frames as the configuration allows (24 by default).</summary>
+        private List<StackFrameInfo> StackSnapshot()
+        {
+            int max = context.ObservationOptions is { } options ? options.StackMaxDepth : 24;
+            List<StackFrameInfo> frames = [];
+            for (int i = callStack.Count - 1; i >= 0 && frames.Count < max; i--) frames.Add(callStack[i]);
+            return frames;
         }
 
         private enum Flow { Next, Return }
@@ -963,7 +1111,9 @@ public static partial class NotePipeline
 
         private bool Truth(Node cond, Env env)
         {
-            return Truthy(Eval(cond, env));
+            Val decided = Eval(cond, env);
+            decisionMarks = DeepMarks(decided);
+            return Truthy(decided);
         }
 
         /// <summary>
@@ -979,6 +1129,7 @@ public static partial class NotePipeline
             StrV s => s.V.Length > 0,
             WordV w => w.V.Length > 0,
             ListV l => l.Items.Count > 0,
+            RecordV rec => rec.Fields.Count > 0,
             RangeV r => RangeHasItems(r),
             NotesV n => n.V.Events.Count > 0,
             UnitV => false,
@@ -995,7 +1146,9 @@ public static partial class NotePipeline
 
         private BigInteger WholeNumber(Node n, Env env, string what)
         {
-            Val v = Coerce(Eval(n, env), "Int", n, what);
+            Val read = Eval(n, env);
+            wholeMarks |= DeepMarks(read);
+            Val v = Coerce(read, "Int", n, what);
             return ((IntV)v).V;
         }
 
@@ -1008,35 +1161,43 @@ public static partial class NotePipeline
                     {
                         if (env.DefinedHere(let.Name)) throw new LangFailure("duplicate-variable", $"\"{let.Name}\" is already defined here", let);
                         Val v = Eval(let.Value, env);
-                        env.Define(let.Name, let.Type is null ? v : Coerce(v, let.Type, let.Value, let.Name), let.Mutable);
+                        env.Define(let.Name, Ctl(let.Type is null ? v : Coerce(v, let.Type, let.Value, let.Name)), let.Mutable);
                         return Flow.Next;
                     }
 
                 case AssignStmt assign:
                     {
                         Val v = Eval(assign.Value, env);
-                        int outcome = env.Assign(assign.Name, v);
+                        int outcome = env.Assign(assign.Name, Ctl(v));
                         if (outcome == 1) throw new LangFailure("undefined-variable", $"There is no variable \"{assign.Name}\"", assign);
                         if (outcome == 2) throw new LangFailure("immutable-variable", $"\"{assign.Name}\" was made with let: use var to change it", assign);
                         return Flow.Next;
                     }
 
                 case IfStmt i:
-                    foreach ((Node cond, StmtBlock body) in i.Branches)
                     {
-                        if (Truth(cond, env)) return ExecBlock(body, new Env(env), frame);
+                        ValueMarks chosenBy = ValueMarks.None;
+                        foreach ((Node cond, StmtBlock body) in i.Branches)
+                        {
+                            bool taken = Truth(cond, env);
+                            chosenBy |= decisionMarks;
+                            if (taken) return Selected(body, new Env(env), frame, chosenBy);
+                        }
+
+                        return i.Otherwise is null ? Flow.Next : Selected(i.Otherwise, new Env(env), frame, chosenBy);
                     }
 
-                    return i.Otherwise is null ? Flow.Next : ExecBlock(i.Otherwise, new Env(env), frame);
                 case ForStmt f: return For(f, env, frame);
                 case RepeatStmt r:
                     {
+                        wholeMarks = ValueMarks.None;
                         BigInteger count = WholeNumber(r.Count, env, "repeat");
+                        ValueMarks repeatMarks = wholeMarks;
                         if (count > limits.LoopIterations) throw new LangFailure("loop-limit", $"This loop would run {count} times; the limit is {limits.LoopIterations} (limits.loop-iterations)", r.Count);
                         for (BigInteger k = 0; k < count; k++)
                         {
                             Tick(r);
-                            if (ExecBlock(r.Body, new Env(env), frame) == Flow.Return) return Flow.Return;
+                            if (Selected(r.Body, new Env(env), frame, repeatMarks) == Flow.Return) return Flow.Return;
                         }
 
                         return Flow.Next;
@@ -1049,6 +1210,7 @@ public static partial class NotePipeline
                         BigInteger n = 0;
                         while (Truth(w.Cond, env))
                         {
+                            ValueMarks loopMarks = decisionMarks;
                             Tick(w);
                             if (n >= max)
                             {
@@ -1056,7 +1218,7 @@ public static partial class NotePipeline
                                 throw new LangFailure("while-limit", $"The while loop reached its max of {max} and its condition is still true (write max {max} stop if stopping there is what you want)", w);
                             }
 
-                            if (ExecBlock(w.Body, new Env(env), frame) == Flow.Return) return Flow.Return;
+                            if (Selected(w.Body, new Env(env), frame, loopMarks) == Flow.Return) return Flow.Return;
                             n++;
                         }
 
@@ -1065,44 +1227,74 @@ public static partial class NotePipeline
 
                 case ReturnStmt rt:
                     frame.Returned = true;
-                    frame.ReturnValue = rt.Value is null ? null : Eval(rt.Value, env);
+                    frame.ReturnValue = rt.Value is null ? null : Ctl(Eval(rt.Value, env));
                     return Flow.Return;
                 case EmitStmt em:
                     {
                         Val v = Eval(em.Value, env);
                         if (v is not NotesV notes) throw new LangFailure("type-mismatch", $"emit needs Notes, not {Describe(v)}", em.Value);
-                        frame.Emitted = frame.Emitted is null ? notes : MergeNotes(frame.Emitted, notes, em);
+                        frame.Emitted = frame.Emitted is null ? (NotesV)Ctl(notes) : MergeNotes(frame.Emitted, (NotesV)Ctl(notes), em);
                         return Flow.Next;
                     }
 
                 case ExprStmt ex:
-                    frame.Last = Eval(ex.Value, env);
+                    frame.Last = Ctl(Eval(ex.Value, env));
+                    return Flow.Next;
+                case TryStmt tryStatement: return Try(tryStatement, env, frame);
+                case ObserveStmt { Semantic: true } raise:
+                    Raise(raise, env);
+                    return Flow.Next;
+                case ObserveStmt { Kind: "assert" } assertion:
+                    Assert(assertion, env);
+                    return Flow.Next;
+                case ObserveStmt observation:
+                    Observe(observation, env, frame.Name);
                     return Flow.Next;
                 default: throw new LangFailure("bad-argument", "This is not a statement", statement);
             }
         }
+
+        /// <summary>fail and require (plan D6-D8, WP5a): the statement decides the outcome.</summary>
+        /// <remarks>fail stops the evaluation (T2); require checks a condition a caller may fix (T1).
+        /// The message is built from values: a sensitive value is redacted and no position is ever in the text.</remarks>
+        private void Raise(ObserveStmt statement, Env env)
+        {
+            string? hint = null;
+            if (statement.Named.Count > 0 && statement.Named[0].Name == "hint") hint = MessageText(Eval(statement.Named[0].Value, env));
+            if (statement.Kind == "throw") { Throw(statement, env); return; }
+            if (statement.Kind == "fail") throw new LangFailure("fail", MessageText(Eval(statement.Positional[0], env)), statement, hint);
+            Node condition = statement.Positional[0];
+            Val decided = Eval(condition, env);
+            if (Truthy(decided)) return;
+            string message = statement.Positional.Count > 1 ? MessageText(Eval(statement.Positional[1], env)) : "Requirement failed: " + Collapse(SourceOf(condition));
+            throw new LangFailure("require", message, statement, hint) { Marks = control | (DeepMarks(decided) & ValueMarks.Dynamic) };
+        }
+
+        private string MessageText(Val value) => value is StrV text && !IsSensitive(value) ? text.V : SafeText(value);
 
         private NotesV MergeNotes(NotesV a, NotesV b, Node at)
         {
             CallNode merge = new("merge", [new ValueNode(b.V, b.Recipe, at.Start, at.End)], at.Start, at.End, at.End);
             PipeValue? merged = Legacy.Step(a.V.Copy(), merge);
             if (merged is null) throw new LangFailure("reported", string.Empty, at);
-            return Produced(merged, Sha(a.Recipe + "|merge|" + b.Recipe), at);
+            return (NotesV)WithMarks(Produced(merged, Sha(a.Recipe + "|merge|" + b.Recipe), at), a.Marks | b.Marks);
         }
 
         private Flow For(ForStmt f, Env env, Frame frame)
         {
             if (f.To is not null)
             {
+                wholeMarks = ValueMarks.None;
                 BigInteger from = WholeNumber(f.From, env, "the start of the range"), to = WholeNumber(f.To, env, "the end of the range") + (f.Inclusive ? 1 : 0);
+                ValueMarks boundsMarks = wholeMarks;
                 BigInteger count = to - from;
                 if (count > limits.LoopIterations) throw new LangFailure("loop-limit", $"This loop would run {count} times; the limit is {limits.LoopIterations} (limits.loop-iterations)", f.From);
                 for (BigInteger i = from; i < to; i++)
                 {
                     Tick(f);
                     Env scope = new(env);
-                    scope.Define(f.Var, new IntV(i), false);
-                    if (ExecBlock(f.Body, scope, frame) == Flow.Return) return Flow.Return;
+                    scope.Define(f.Var, WithMarks(new IntV(i), boundsMarks), false);
+                    if (Selected(f.Body, scope, frame, boundsMarks) == Flow.Return) return Flow.Return;
                 }
 
                 return Flow.Next;
@@ -1122,8 +1314,10 @@ public static partial class NotePipeline
                 if (++taken > limits.LoopIterations) throw new LangFailure("loop-limit", $"This loop would run more than {limits.LoopIterations} times (limits.loop-iterations)", f.From);
                 Tick(f);
                 Env scope = new(env);
-                scope.Define(f.Var, With(item, iterable.Tainted), false);
-                if (ExecBlock(f.Body, scope, frame) == Flow.Return) return Flow.Return;
+                ValueMarks bounds = iterable is RangeV ? DeepMarks(iterable) : iterable.Marks;
+                scope.Define(f.Var, WithMarks(item, bounds), false);
+                if (Selected(f.Body, scope, frame, iterable is RangeV ? bounds : bounds & ValueMarks.Sensitive) == Flow.Return)
+                    return Flow.Return;
             }
 
             return Flow.Next;
@@ -1135,7 +1329,7 @@ public static partial class NotePipeline
         {
             string type = typeText.Trim();
             why = whyId = whySuggestion = null;
-            if (TryCoerce(v, type, at, out Val result)) return With(result, v.Tainted);
+            if (TryCoerce(v, type, at, out Val result)) return WithMarks(result, v.Marks);
             string unit = type is "Length" or "Time" or "Duration" && IsNumber(v) ? $" (a number needs a unit: beat, bar, tick, ms or s)" : string.Empty;
             throw new LangFailure(unit.Length > 0 ? "missing-unit" : whyId ?? "type-mismatch", $"{what}: {why ?? $"{Describe(v)} is not {A(type)}"}{unit}", at, whySuggestion);
         }
@@ -1156,7 +1350,7 @@ public static partial class NotePipeline
                 foreach (Val item in l.Items)
                 {
                     if (!TryCoerce(item, type[5..^1], at, out Val converted)) return false;
-                    items.Add(converted);
+                    items.Add(WithMarks(converted, DeepMarks(item)));
                 }
 
                 result = new ListV(items);
@@ -1167,7 +1361,7 @@ public static partial class NotePipeline
             {
                 if (v is not RangeV r) return false;
                 if (!TryCoerce(r.From, type[6..^1], at, out Val from) || !TryCoerce(r.To, type[6..^1], at, out Val to)) return false;
-                result = new RangeV(from, to, r.Inclusive);
+                result = new RangeV(WithMarks(from, r.From.Marks), WithMarks(to, r.To.Marks), r.Inclusive);
                 return true;
             }
 
@@ -1190,7 +1384,7 @@ public static partial class NotePipeline
                     {
                         Rat r = f.Exact ?? RatOfDouble(f.V);
                         if (r.IsInt) { result = new IntV(r.N); return true; }
-                        why = $"{ValText(v)} is not a whole number: write Round, Floor, Ceil or Truncate to say how it becomes one";
+                        why = $"{SafeText(v)} is not a whole number: write Round, Floor, Ceil or Truncate to say how it becomes one";
                         whyId = "lossy-conversion";
                         whySuggestion = "Round(" + SourceOf(at) + ")";
                         return false;
@@ -1205,6 +1399,10 @@ public static partial class NotePipeline
                 case "Bool": return v is BoolV;
                 case "String" or "Text": return v is StrV;
                 case "Notes": return v is NotesV;
+                case "Record": return v is RecordV;
+                case "Error": return v is ErrorV;
+                case "RequirementError": return v is ErrorV { Type: "RequirementError" };
+                case { } declared when v is ErrorV error && error.Chain.Contains(declared, StringComparer.OrdinalIgnoreCase): return true;
                 case "Length": return v is QuantV { Dim: "length" };
                 case "Time": return v is QuantV { Dim: "time" };
                 case "Duration": return v is QuantV { Dim: "length" or "time" };
@@ -1273,7 +1471,7 @@ public static partial class NotePipeline
             }
         }
 
-        private string SourceOf(Node n) => n.Start >= 0 && n.End <= text.Length && n.End >= n.Start ? text[n.Start..n.End] : "...";
+        private string SourceOf(Node n) => n.Start >= 0 && n.End <= sourceText.Length && n.End >= n.Start ? sourceText[n.Start..n.End] : "...";
 
         // ---------- pipelines (also with note bake stages) and value bakes
 
@@ -1326,7 +1524,7 @@ public static partial class NotePipeline
                 if (prefixVolatile && i < lastStored) continue;   // the stored notes of a later stage are authoritative: a volatile step before it is not run
                 Val next = Call(call, env, current);
                 if (next is not NotesV nv) throw new LangFailure("type-mismatch", $"{call.Name} gave {TypeName(next)}, not Notes", call);
-                current = nv with { Tainted = current.Tainted || next.Tainted };
+                current = nv with { Marks = current.Marks | next.Marks };
             }
 
             return current;
@@ -1344,7 +1542,7 @@ public static partial class NotePipeline
             HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
             void Visit(Node n)
             {
-                foreach (Node d in Descendants(n).Prepend(n))
+                foreach (Node d in Descendants(n, includeObservation: false).Prepend(n))
                 {
                     if (d is CallNode c && seen.Add(c.Name) && table.TryHelper(c.Name, out HelperDeclNode hd, out string hh, out _, out _)) { helperHashes.Add(hh); Visit(hd); }
                     if (d is RefNode r && context.Source?.Invoke(r.Block) is { Recipe: { } recipe }) refRecipes.Add(r.Block + ":" + recipe);
@@ -1354,7 +1552,7 @@ public static partial class NotePipeline
             Visit(expr);
             helperHashes.Sort(StringComparer.Ordinal);
             refRecipes.Sort(StringComparer.Ordinal);
-            string body = Collapse(text[expr.Start..Math.Min(text.Length, expr.End)]) + "\n" + string.Join(",", helperHashes) + "\n" + string.Join(",", refRecipes);
+            string body = Collapse(sourceText[expr.Start..Math.Min(sourceText.Length, expr.End)]) + "\n" + string.Join(",", helperHashes) + "\n" + string.Join(",", refRecipes);
             return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("ample-value-bake/1\n" + body + Legacy.Extra(body))))[..8];
         }
 
@@ -1366,15 +1564,28 @@ public static partial class NotePipeline
             LastBake = null;
             if (baked is NotesV) throw new LangFailure("type-mismatch", "A value bake keeps a value (a number, a length, a word, a string); notes are baked with |> bake name { ... }", b.Value);
             if (IsVolatileNode(b.Expr, table)) { BakedDynamic = true; LastBake = null; return baked; }   // a volatile expression is not run: the baked value is the value
+            if (b.Expr.End > sourceText.Length || b.Expr.Start < 0)
+                throw new LangFailure("bad-argument", "A value bake cannot be checked for staleness here: its text is not available", b);   // the offsets must belong to the running text
             Val current = Eval(b.Expr, env);
+            if (DeepTainted(current) || (control & ValueMarks.Dynamic) != 0)
+            {
+                string why = $"{SourceOf(b.Expr)} depends on a volatile value that is read before this bake: baking it keeps the value, but the evaluation stays dynamic. ";
+                warnings.Add(new PipeIssue("bake-upstream-dynamic", why + "Bake the call that reads it instead", b.AsStart, b.End));
+            }
             string hash = ExprRecipe(b.Expr);
-            string resign = $"as {ValText(current)} @{hash}";
-            LastBake = new BakeInfo(ValText(baked), ValText(current), hash, b.Override, b.Hash is not null && b.Hash != hash, b.Hash is not null && b.Hash == hash && !b.Override && !SameValue(baked, current));
+            string bakedText = SafeText(baked), currentText = SafeText(current);
+            string? resign = IsSensitive(current) ? null : $"as {currentText} @{hash}";
+            if (!IsSensitive(baked) && !IsSensitive(current))
+                LastBake = new BakeInfo(bakedText, currentText, hash, b.Override, b.Hash is not null && b.Hash != hash,
+                    b.Hash is not null && b.Hash == hash && !b.Override && !SameValue(baked, current));
             PipeIssue Issue(string id, string message, string? suggestion) => new(id, message, b.AsStart, b.End, suggestion);
-            if (b.Hash is not null && b.Hash != hash) warnings.Add(Issue("stale-value-bake", $"This baked value is stale: what {SourceOf(b.Expr)} is made of has changed since it was baked (it now resolves to {ValText(current)})", resign));
-            else if (b.Override) warnings.Add(Issue("value-bake-override", $"The baked value {ValText(baked)} is kept on purpose; the expression now resolves to {ValText(current)}", null));
-            else if (b.Hash is not null && !SameValue(baked, current)) warnings.Add(Issue("dirty-value-bake", $"The baked value {ValText(baked)} was changed by hand (the expression resolves to {ValText(current)}): write override to keep it, or bake it again", resign));
-            return baked;
+            if (b.Hash is not null && b.Hash != hash)
+                warnings.Add(Issue("stale-value-bake", $"This baked value is stale: what {SourceOf(b.Expr)} is made of has changed since it was baked (it now resolves to {currentText})", resign));
+            else if (b.Override)
+                warnings.Add(Issue("value-bake-override", $"The baked value {bakedText} is kept on purpose; the expression now resolves to {currentText}", null));
+            else if (b.Hash is not null && !SameValue(baked, current))
+                warnings.Add(Issue("dirty-value-bake", $"The baked value {bakedText} was changed by hand (the expression resolves to {currentText})", resign));
+            return WithMarks(baked, DeepMarks(current) & ValueMarks.Sensitive);
         }
     }
 }

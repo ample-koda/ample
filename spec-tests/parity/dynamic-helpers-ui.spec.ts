@@ -1,9 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 import { api, chooseMenu, freshServer, node, openApp, srcText, state } from '../../web/tests/support';
 
-// "Bake clock values" is an item of the More menu: the main row keeps Build, Play and Stop.
-const bakeItem = (page: Page) => page.getByRole('menuitem', { name: 'Bake clock values…' });
-const openMore = async (page: Page) => { await page.click('#btn-more'); };
+// "Bake clock values" of the whole song is an item of the menu of the empty canvas on a desktop (on a phone: the More menu); it is there only when there is something to bake.
+const bakeItem = (page: Page) => page.locator('#menu').getByRole('menuitem', { name: 'Bake clock values of this song…' });
+const openMore = async (page: Page) => {
+  const box = (await page.locator('#cv').boundingBox())!;
+  await page.locator('#cv').dispatchEvent('contextmenu', { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, button: 2 });   // the canvas itself: empty space, not a block
+  await expect(page.locator('#menu')).toBeVisible();
+};
 
 // Dynamic helpers in the app (docs/language/14): Jam says when the notes it shows depend on the clock, and after a build
 // "Bake clock values" writes the values the build used into the source: in this song (one undo step) or in a NEW song (this one stays dynamic).
@@ -77,11 +81,11 @@ test('an open roll follows a build: the new clock gives new notes, with the same
 
 test('Bake clock values asks where, bakes helpers, direct clock reads and calls with parameters, and undo takes it back', async ({ page }) => {
   await openMore(page);
-  await expect(bakeItem(page)).toBeDisabled();   // nothing built yet
+  await expect(bakeItem(page)).toHaveCount(0);   // nothing built yet
   await page.keyboard.press('Escape');
   await built(page);
   await openMore(page);
-  await expect(bakeItem(page)).toBeEnabled();
+  await expect(bakeItem(page)).toBeVisible();
   await bakeItem(page).click();
   await expect(page.locator('#dlg')).toContainText('In a new song');
   await page.locator('#dlg').getByRole('button', { name: 'In this song' }).click();
@@ -91,7 +95,7 @@ test('Bake clock values asks where, bakes helpers, direct clock reads and calls 
   expect(text).toMatch(/transpose\(bake shiftBy\(2\) as [0-9]+\)/);                   // a call with parameters
   expect(text).toMatch(/dynamic helper shiftBy\(Int base\) -> Int \{/);               // its helper stays dynamic
   await openMore(page);
-  await expect(bakeItem(page)).toBeDisabled();   // baked: nothing left to bake
+  await expect(bakeItem(page)).toHaveCount(0);   // baked: nothing left to bake
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await state(page)).text).toMatch(/dynamic helper phase\(\) -> Int \{/);

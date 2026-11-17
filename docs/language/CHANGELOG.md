@@ -1,5 +1,11 @@
 # Language changelog
 
+## A melody or chords clip is a note pipeline source (2026-11-17)
+- `theme.notes |> shift(3beats)` and other pipelines may read a midi-clip written with `melody "..."` or `chords ...` (no `notes`): the source is the notes the clip plays, made by the same code as the build (`ClipShorthand`). Before, such a clip was AMP2028 ("has no notes to read"). A clip with neither notes, melody nor chords is still AMP2028. Songs that already checked clean are unchanged.
+
+## Per-input mute and solo on mixer and bus (2026-11-13)
+- New optional parameters `mutes` and `solos` on `mixer` and `bus`: one `on` or `off` per input, like `gains` and `pan` (`mutes off on`, `solos off off on`). A muted input is silent and keeps its gain; when any input has solo on, only the soloed inputs are heard; a mute wins over a solo. Songs without them are unchanged (migration: none). The block-wide `mute` and `solo` of `bus` are unchanged.
+
 ## Note pipelines and note bake (2026-10-26, draft)
 - Musical types (docs/language/15-musical-types.md): every note operator parameter has a type (PitchClass, ScaleMode, Count, Octave, Velocity, Pitch, Probability, Interval, Duration, Window, Range, RandomSource); the typed catalogue is spec/note-ops.json v2. New spellings +7st, -1oct, 50cents, 25% and note names (C2) mean the same as the plain numbers (same recipe). New codes AMP2044 (wrong type), AMP2045 (quoted word), AMP2046 (missing unit), AMP2048 (fractional interval), AMP2049 (fixed span differs from the notes), AMP2050 (not whole), AMP2051 (unit of the wrong kind); AMP2047 is reserved. An instrument may say for auto and follows the notes that feed it.
 - Seeds and randomness (docs/language/13-randomness.md): `stable("name")` namespaces derived by hashing from the master-seed, `.fork(...)`, explicit seeds, `random-seed()` that must be picked, addressed draws, `random`, `choose`, `chance`, declared `random-stream` clip lines with `name.next()`, the seeded operators humanize, randomize, thin, scramble and the generator walk, the generators chords and scale, the helpers clamp, fold, snap, keep and avoid; new codes AMP2038-AMP2043. Humanize now draws per note (addressed) instead of in order, so it gives other numbers than the first draft.

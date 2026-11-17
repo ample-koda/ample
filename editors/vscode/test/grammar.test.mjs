@@ -47,7 +47,7 @@ test('a song is tokenised into the scopes of each token class', { skip: !textmat
   ];
   const t = await tokenize(lines);
   assert.ok(has(t[0], '# a comment', 'comment.line'));
-  assert.ok(has(t[1], 'project', 'keyword.control.directive'));
+  assert.ok(has(t[1], 'composition', 'keyword.control.directive'));
   assert.ok(has(t[1], 'tempo', 'keyword.other'));
   assert.ok(has(t[1], '"demo"', 'string.quoted'));
   assert.ok(has(t[1], '92', 'constant.numeric'));

@@ -62,9 +62,19 @@
     <div class="lite-tabs" role="tablist" aria-label="Problems and build log">
       <button type="button" role="tab" id="lite-tab-problems" aria-selected="false" aria-controls="lite-problems-pane">Problems <span id="lite-problem-count" class="lite-dim"></span></button>
       <button type="button" role="tab" id="lite-tab-log" aria-selected="true" aria-controls="lite-log-pane">Build log <progress id="lite-progress" max="1" value="0" hidden></progress></button>
+      <button type="button" role="tab" id="lite-tab-songlog" aria-selected="false" aria-controls="lite-songlog-pane">Song log <span id="lite-songlog-count" class="lite-dim"></span></button>
     </div>
     <div id="lite-problems-pane" role="tabpanel" aria-labelledby="lite-tab-problems" hidden><ul id="lite-problems" aria-label="Problems"></ul></div>
     <div id="lite-log-pane" role="tabpanel" aria-labelledby="lite-tab-log"><div id="lite-log" role="log" aria-live="off" aria-label="Build log"></div></div>
+    <div id="lite-songlog-pane" role="tabpanel" aria-labelledby="lite-tab-songlog" hidden>
+      <div class="lite-songlog-tools" title="For the builds of this page only: never written to the song, never changes the music">
+        <label>Log level <select id="lite-log-level" aria-label="Log level"><option value="">as the song</option><option value="off">off</option><option value="warning">warning</option><option value="info">info</option><option value="debug">debug</option><option value="trace">trace</option></select></label>
+        <label>Assertions <select id="lite-assertions" aria-label="Assertions"><option value="">as the song</option><option value="on">on</option><option value="off">off</option></select></label>
+        <span id="lite-songlog-filters" class="lite-songlog-filters" role="group" aria-label="Levels shown"></span>
+        <span id="lite-songlog-note" class="lite-dim"></span>
+      </div>
+      <div id="lite-songlog" role="log" aria-live="off" aria-label="Song log"></div>
+    </div>
   </section>
   <section id="lite-output-pane"><h2>Output</h2><audio id="lite-output" controls preload="auto"></audio><p id="lite-output-info" class="lite-dim">Nothing built yet.</p></section>
 </footer>

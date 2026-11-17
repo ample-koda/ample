@@ -7,7 +7,8 @@ freshServerPerTest();
 // Local preview 6.5: the live graphs (Web Audio nodes and worklets) against the vectors the real server engine made (web/lib/dsp-vectors.json, tools/gen-dsp-vectors.mjs).
 // The limits are the measured distances plus about 3 dB: a block may not get worse; when one gets better, lower its limit.
 const LIVE_LIMITS_DB: Record<string, number> = {
-  reverb: -75, gate: -60, limiter: -25, deesser: -50, eq: -15, peq: -3, filter: 8, compressor: -28, delay: -54, distortion: -70, chorus: -8, flanger: 4, phaser: -7, pan: -68, width: -58, volume: -49, tremolo: -56,
+  reverb: -75, gate: -60, limiter: -78, deesser: -50, eq: -58, peq: -88, filter: -58, compressor: -70, delay: -58, distortion: -70, chorus: -55, flanger: -52, phaser: -62, pan: -81, width: -80, volume: -74, tremolo: -84,
+  'chorus~deep': -56, 'volume~auto': -60, 'volume~fadeout': -60, 'volume~fadein': -60, 'volume~lfo': -60, 'volume~fractional': -60, 'delay~odd': -58, 'filter~highpass': -54, 'filter~sweep': -66, 'filter~resonant': -86, 'filter~slope24': -86, 'pan~lfo': -79, 'pan~auto': -78,
 };
 const vectors = JSON.parse(fs.readFileSync(new URL('../../web/lib/dsp-vectors.json', import.meta.url), 'utf8'));
 
@@ -19,7 +20,7 @@ test('@audio live graphs against the server vectors', async ({ page }) => {
     const input = { sampleRate: raw.sampleRate, channels: raw.channels.map((c: Float32Array) => Float32Array.from(c, (v) => Math.max(-32768, Math.min(32767, Math.round(v * 32768))) / 32768)) };
     const out: Record<string, number> = {};
     for (const [type, entry] of Object.entries<any>(cases)) {
-      const live = await renderLive(type, entry.params, input, entry.tempo);
+      const live = await renderLive(type.split('~')[0], entry.params, input, entry.tempo);
       let difference = 0, energy = 0;
       const first = Math.floor(input.sampleRate * 0.05);
       entry.channels.forEach((text: string, c: number) => {

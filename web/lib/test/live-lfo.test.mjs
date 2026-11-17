@@ -6,9 +6,9 @@ import { phaserAudio } from '../clientside-phaser.mjs';
 test('the modulation triangle starts at -1, peaks at half a period and repeats', () => {
   const w = triangleWave(1000);
   assert.equal(w(0), -1);
-  assert.equal(w(500), 1);
+  assert.ok(Math.abs(w(500) - 1) < 1e-4);   // the server's integer triangle tops out at 32767 of 32768
   assert.equal(w(1000), -1);
-  assert.ok(Math.abs(w(250)) < 1e-9);
+  assert.ok(Math.abs(w(250)) < 1e-3);   // the middle of the integer triangle is 16383 of 16384
 });
 
 test('the phaser triangle is the integer one of the render (32767 steps)', () => {

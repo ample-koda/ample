@@ -1,3 +1,4 @@
+import { infoNote } from './info.js';
 import { bandOf, clamp, normalize, denormalize, peqResponse } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
@@ -136,7 +137,7 @@ function peqPanel(context) {
   }
   const note = 'Drag a point to move a band; the curve is a model of the six bands together. '
     + 'With every gain at 0 dB and no cut on, the sound passes unchanged; a low cut or high cut has no gain and always changes it.';
-  root.append(grid, el('p', { className: 'note', textContent: note }));
+  root.append(grid, infoNote(note));
   return root;
 }
 

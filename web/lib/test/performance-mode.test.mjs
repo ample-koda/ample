@@ -17,8 +17,7 @@ test('a live chain plays in the live mode only; a take and a pattern play in bot
 });
 
 test('the clips that do not play in a mode are listed once each', () => {
-  const layout = { lanes: [{ name: 'A', clips: [{ id: 'kick', label: 'Kick' }, { id: 'chain:hall', label: 'Hall (live chain)' }] }, { name: 'B',
-    clips: [{ id: 'chain:hall', label: 'Hall (live chain)' }, { id: 'chain:eq', label: 'Eq (live chain)' }] }] };
+  const layout = { lanes: [{ name: 'A', clips: [{ id: 'kick', label: 'Kick' }, { id: 'chain:hall', label: 'Hall (live chain)' }] }, { name: 'B', clips: [{ id: 'chain:hall', label: 'Hall (live chain)' }, { id: 'chain:eq', label: 'Eq (live chain)' }] }] };
   assert.deepEqual(liveOnlyClips(layout, 'takes').map((c) => c.id), ['chain:hall', 'chain:eq']);
   assert.deepEqual(liveOnlyClips(layout, 'live'), []);
   assert.deepEqual(liveOnlyClips(undefined, 'takes'), []);

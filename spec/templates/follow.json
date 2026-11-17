@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Listens to a sound and makes a control that follows how loud it is: a car passing, a kick, a voice. Choose the band (so the cars count, not the rain), subtract the steady background, and say how fast it rises and falls. The control steers any parameter that can be automated, and the gate is on while the sound is above a level.",
   "inputs": [

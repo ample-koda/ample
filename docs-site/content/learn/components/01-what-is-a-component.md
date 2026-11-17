@@ -72,6 +72,22 @@ master out {
 - An **instance** is a block whose type is the component. Before the song is built, each instance becomes a `midi-clip` with the same name, so notes, previews and the build work on it like on any clip. Three instances share one definition.
 - `/** ... */` above a component, a port or a property is its documentation.
 
+## Components that come with AMPLE
+
+Two components ship with AMPLE, and every song knows them by name, without an import line: `ample.voice.clean` (Voice clean: rumble out, noise down, quiet gaps closed, harsh s sounds softened) and `ample.voice.trim` (Quick trim: skips the first seconds, stops at a chosen second and fades both ends). They are in the Library under **Built in**. Their versions are fixed, so a song that uses one never changes by itself.
+
+```ample
+ample.voice.trim trim {
+  skip 0.5s
+  from take.audio -> audio
+}
+
+ample.voice.clean clean {
+  noise 60%
+  from trim.audio -> audio
+}
+```
+
 {{deeper Where a component can live}}
 A component is declared at the start of a line, in a song or in a file of declarations (`.amplec`) that also holds helpers and constants. `import "file.amplec"` makes the components of a file available, and `reexport` offers one again under another path without changing what it is. A song can carry its components in an `embedded module`.
 {{/deeper}}

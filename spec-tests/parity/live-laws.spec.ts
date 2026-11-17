@@ -40,3 +40,27 @@ test('@audio mix, pan and distortion of the live graph match the offline port', 
   // Interior distortion mixes used to be up to 2.6 dB off (4x oversampler latency); the live distortion is now an AudioWorklet on the core of the offline render, so everything must be within 0.3 dB.
   for (const row of rows) expect.soft(row.diff, row.what).toBeLessThan(0.3);
 });
+
+// OneMoreLight measurement (2026-11-13): the unused stages of the live filter were all-pass biquads with a dB Q of 0 or less, which Chrome turns into a polarity flip, so a plain
+// low pass came out inverted. The live filter must have the sign of the offline port (server) and about its level.
+test('@audio the live filter keeps the polarity and level of the offline port', async ({ page }) => {
+  await openApp(page, { reset: false });
+  const rows = await page.evaluate(async () => {
+    const graph = await import('/app/studio/preview/audio.js'), filter = await import('/lib/clientside-filter.mjs');
+    const rate = 48000, frames = 48000, signal = new AbortController().signal;
+    const input = Float32Array.from({ length: frames }, (_, i) => 0.3 * Math.sin(2 * Math.PI * 300 * i / rate) + 0.1 * Math.sin(2 * Math.PI * 1100 * i / rate));
+    const out: any[] = [];
+    for (const params of [{ type: 'lowpass', cutoff: '3000 Hz', slope: '12', resonance: '0%' }, { type: 'highpass', cutoff: '200 Hz', slope: '12', resonance: '0%' }, { type: 'lowpass', cutoff: '3000 Hz', slope: '24', resonance: '20%' }]) {
+      const ctx = new OfflineAudioContext(1, frames, rate); await graph.prepareWorklets(ctx);
+      const buffer = ctx.createBuffer(1, frames, rate); buffer.copyToChannel(input, 0);
+      const source = ctx.createBufferSource(); source.buffer = buffer; graph.liveEffectGraph(ctx, source, ctx.destination, 'filter', params, 120, null, { position: () => ctx.currentTime, loop: () => 100 }); source.start();
+      const live = (await ctx.startRendering()).getChannelData(0);
+      const ref = (await filter.filterAudio({ sampleRate: rate, channels: [input] }, params, 120, 1, signal)).channels[0];
+      let dot = 0, a = 0, b = 0;
+      for (let i = 4800; i < frames - 100; i++) { dot += live[i] * ref[i]; a += live[i] * live[i]; b += ref[i] * ref[i]; }
+      out.push({ what: JSON.stringify(params), correlation: dot / Math.sqrt(a * b), levelDb: 10 * Math.log10(a / b) });
+    }
+    return out;
+  });
+  for (const row of rows) { expect.soft(row.correlation, row.what).toBeGreaterThan(0.95); expect.soft(Math.abs(row.levelDb), row.what).toBeLessThan(0.5); }
+});

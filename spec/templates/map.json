@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Rescales a control: from one range to another, turned around, limited, smoothed and given a unit (so a general control can steer a parameter in Hz or dB).",
   "inputs": [

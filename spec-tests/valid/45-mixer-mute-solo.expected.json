@@ -1,0 +1,41 @@
+{
+  "description": "A mixer with one input muted and another one soloed (per-input mutes and solos).",
+  "project": {
+    "name": "demo",
+    "tempo": 92,
+    "masterSeed": 424242
+  },
+  "blocks": [
+    {
+      "type": "midi-clip",
+      "name": "chords",
+      "class": "stable",
+      "version": "1.1"
+    },
+    {
+      "type": "piano",
+      "name": "piano",
+      "class": "pinned",
+      "version": "2.1"
+    },
+    {
+      "type": "bass",
+      "name": "bass",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "mixer",
+      "name": "mix",
+      "class": "stable",
+      "version": "1.0"
+    },
+    {
+      "type": "master",
+      "name": "master",
+      "class": "live",
+      "version": "1.0"
+    }
+  ],
+  "diagnostics": []
+}

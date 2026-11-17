@@ -12,7 +12,7 @@ namespace Ample.Lsp;
 /// <c>Ample.Language</c> (parser, queries, formatter, edits), so the editor, the CLI and the UI never disagree.
 /// Requests are handled one after another, which also keeps results in order; a cancelled request that has not started is dropped.
 /// </summary>
-public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnlyList<Ample.Language.SettingHint>? settingHints = null, Func<string, string?>? readFile = null, Func<IReadOnlyList<BlockNode>, IReadOnlyList<string>, IReadOnlyList<Ample.Language.Diagnostic>>? preflight = null, Func<string, (IReadOnlyList<ComponentDefinition> Components, IReadOnlyList<Ample.Language.Diagnostic> Issues)>? components = null)
+public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnlyList<Ample.Language.SettingHint>? settingHints = null, Func<string, string?>? readFile = null, Func<IReadOnlyList<BlockNode>, IReadOnlyList<string>, IReadOnlyList<Ample.Language.Diagnostic>>? preflight = null, Func<string, (IReadOnlyList<ComponentDefinition> Components, IReadOnlyList<Ample.Language.Diagnostic> Issues)>? components = null, Func<ConfigLayerInput?>? observationSession = null, Func<ConfigLayerInput?>? observationProject = null, Func<IReadOnlyDictionary<string, string>?>? projectCapabilities = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
     private readonly Dictionary<string, Doc> docs = [];
@@ -170,7 +170,7 @@ public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnl
                 {
                     string uri = Uri(p);
                     JsonNode item = p!["textDocument"]!;
-                    docs[uri] = new Doc((string?)item["text"] ?? string.Empty, (int?)item["version"] ?? 0) { ReadFile = readFile, Preflight = preflight, Components = components };
+                    docs[uri] = new Doc((string?)item["text"] ?? string.Empty, (int?)item["version"] ?? 0) { ReadFile = readFile, Preflight = preflight, Components = components, ObservationSession = observationSession, ObservationProject = observationProject, ProjectCapabilities = projectCapabilities };
                     await PublishAsync(uri, ct).ConfigureAwait(false);
                     break;
                 }
@@ -726,10 +726,22 @@ public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnl
         /// <summary>Gets what reads the components a song imports (they are block types of the editor, and their problems are shown at the import line).</summary>
         public Func<string, (IReadOnlyList<ComponentDefinition> Components, IReadOnlyList<Ample.Language.Diagnostic> Issues)>? Components { get; init; }
 
+        /// <summary>Gets what reads the session layer of the observation options (the toggles of the editor), so the problems of the editor are those of the server.</summary>
+        public Func<ConfigLayerInput?>? ObservationSession { get; init; }
+
+        /// <summary>Gets what reads the project layer of the observation options.</summary>
+        public Func<ConfigLayerInput?>? ObservationProject { get; init; }
+
+        /// <summary>Gets what reads the capabilities of the project of this editor (its project layer), or null for none.</summary>
+        public Func<IReadOnlyDictionary<string, string>?>? ProjectCapabilities { get; init; }
+
         public AmpleDocument Parse(SpecData spec)
         {
             if (parsed is not null) return parsed;
             ParseOptions options = ParseOptions.Editor;
+            options.ObservationOverride = ObservationSession?.Invoke();
+            if (ObservationProject?.Invoke() is { } projectLayer) options.ObservationDefaults = [projectLayer];
+            options.ProjectCapabilities = ProjectCapabilities?.Invoke();
             options.ReadFile = ReadFile;
             options.Preflight = Preflight;
             if (Components is not null)

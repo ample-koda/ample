@@ -113,7 +113,7 @@ test('the default song and voice models are saved with the routes and a wrong mo
 test('the web search form says which Brave key is active and what clearing does', async ({ page }) => {
   await page.click('#pm [data-tab="search"]');
   const s = await api('/api/project/settings');
-  const note = page.locator('#pm .ps-row-note');
+  const note = page.locator('#ps-tab-search .ps-row-note');   // the notes of the search tab (the other tabs have notes of their own, hidden)
   if (!s.braveSearchProjectKey && !s.braveSearchServerKey) await expect(page.locator('#pm')).toContainText('No Brave key is active');
   if (!s.braveSearchProjectKey && s.braveSearchServerKey) await expect(page.locator('#pm')).toContainText('server-wide key');
   if (!s.braveSearchProjectKey) {

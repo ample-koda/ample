@@ -102,8 +102,41 @@ P['/'] = () => `
 </div>
 <h2>New in AMPLE</h2>
 <table><tr><th>Word</th><th>What it does</th></tr>
-<tr><td><a href="#/blocks/trim"><code>trim</code></a></td><td>Cuts the silence around the sound of a recording; fades by a share of the sound.</td></tr>
-<tr><td><a href="#/learn/ample/components/if-else"><code>if (…) { } else { }</code></a></td><td>Picks a branch of a component from its properties.</td></tr>
+<tr><td><a href="#/learn/ample/language/text-records-conditions"><code>"Bar " + 4</code>, <code>String(…)</code>,
+<code>sprintf(…)</code></a></td><td>Makes text
+from values: <code>+</code> joins a text with a number, <code>String</code> turns one value into text, <code>sprintf("Bar %03d", 4)</code> formats
+it.</td></tr>
+<tr><td><a href="#/learn/ample/language/text-records-conditions"><code>{steps: 3, label: "x"}</code></a></td><td>A record: a small value with named
+fields, read
+with a dot (<code>r.steps</code>).</td></tr>
+<tr><td><a href="#/learn/ample/language/messages-and-errors"><code>log</code> <code>debug</code> <code>trace</code> <code>warn</code></a></td><td>A
+helper says what it is doing without changing the music.
+How much is shown is <code>logging.level</code> in <code>settings { }</code>; the Song log tab shows it.</td></tr>
+<tr><td><a href="#/learn/ample/language/messages-and-errors"><code>fail</code>, <code>require</code></a></td><td>Stops on purpose: <code>fail
+"…"</code> for a state that must never happen, <code>require
+voices &gt; 0</code> to check what a helper is given.</td></tr>
+<tr><td><a href="#/learn/ample/language/messages-and-errors"><code>throw</code>, <code>try { } catch (e) { } finally { }</code></a></td><td>Raises
+and handles an error. <code>error UnknownPreset extends
+Error { String preset }</code> declares your own kind, with typed fields.</td></tr>
+<tr><td><a href="#/learn/ample/language/messages-and-errors"><code>assert</code></a></td><td>Checks your own code. Off by default; <code>settings {
+diagnostics.assertions on }</code> switches it
+on.</td></tr>
+<tr><td><a href="#/learn/ample/language/text-records-conditions"><code>!</code> <code>&amp;&amp;</code> <code>||</code> <code>c ? a :
+b</code></a></td><td>Conditions on any value: 0, an empty text or list and no notes count as false. Only the branch that is taken is worked
+out.</td></tr>
+<tr><td><a href="#/learn/ample/components/if-else"><code>if … { } else if … { } else { }</code></a></td><td>Picks a branch from a condition; the
+parentheses around it are optional.</td></tr>
+<tr><td><a href="#/learn/ample/components/properties-and-ports"><code>private property</code></a></td><td>A value of a component that only its own
+process reads: not in the property panel, not set by an instance.</td></tr>
+<tr><td><a href="#/learn/ample/components/what-is-a-component"><code>ample.voice.clean</code>, <code>ample.voice.trim</code></a></td><td>Components
+that come with AMPLE (Voice clean, Quick trim): every song knows them, without an import line.</td></tr>
+<tr><td><a href="#/blocks/mixer"><code>mutes</code>, <code>solos</code></a></td><td>One on or off per input of a mixer or bus. A muted input keeps
+its gain; with any solo on, only the soloed inputs are heard.</td></tr>
+<tr><td><a href="#/blocks/delay"><code>sync 1/4</code></a></td><td>The time of a delay as a note value, locked to the tempo.</td></tr>
+<tr><td><a href="#/blocks/midi-clip"><code>cc "74=auto(1:20, 4:100)"</code></a></td><td>Any MIDI controller in a midi-clip, a value or a curve; the
+gm block plays it.</td></tr>
+<tr><td><a href="#/blocks/trim"><code>trim</code></a></td><td>Cuts the silence around the sound of a recording; fades by a share of the
+sound.</td></tr>
 <tr><td><a href="#/blocks/silence"><code>silence()</code></a></td><td>Blank audio for a branch that has no sound.</td></tr></table>
 <div class="foot"><span>AMPLE docs</span><span>Language version: 1.0 (provisional)</span></div>`;
 

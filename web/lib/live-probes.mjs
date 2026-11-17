@@ -15,7 +15,12 @@ export const PROBE_SKIPPED_TYPES = {
 
 /** Per parameter: replace the derived pair ({ a, b }), set a different starting point ({ base }), or skip with a reason ({ skip }). Key: `${type}.${name}`. */
 export const PROBE_OVERRIDES = {
+  // the envelope steps in whole 16-bit units with truncation, as on the server: a long release loses every step and holds the compression,
+  // so a far value (about 1.1 s) sounds almost like the default; a short release lets the envelope fall
+  'compressor.release': { a: '120 ms', b: '10 ms' },
   'compressor.keyFilter': { skip: 'only filters the sidechain key, which a single block does not have (live-sidechain.spec.ts)' },
+  'eq.low_hz': { base: { low: '6 dB', mid: '-6 dB', high: '6 dB' } },   // the crossover only matters when the bands have gains (all at 0 dB the EQ is flat, as on the server)
+  'eq.high_hz': { base: { low: '6 dB', mid: '-6 dB', high: '6 dB' } },
   'tremolo.rate': { base: { sync: 'off' } },
   'delay.feedback': { base: { time: '120 ms', sync: 'off' } },
   'delay.enabled': { base: { time: '120 ms', sync: 'off' } },

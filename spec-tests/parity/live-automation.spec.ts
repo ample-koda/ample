@@ -20,7 +20,7 @@ test('@audio a gain ramp followed in 30 ms steps renders the curve within 0.25 d
     source.start();
     const valueAt = (time: number) => automationValueAt(points, 1 + (time % loop) / 2, range) as number;
     for (let time = .03; time < seconds; time += .03) {
-      context.suspend(time).then(() => { graph.update({ gain: String(valueAt(time)) }); context.resume(); });
+      context.suspend(time).then(() => { graph.update({ gain: String(valueAt(time)), gain_precise: 'on' }); context.resume(); });
     }
     const out = (await context.startRendering()).getChannelData(0);
     const db = (time: number) => 20 * Math.log10(Math.abs(out[Math.round(time * rate)]) / .5);

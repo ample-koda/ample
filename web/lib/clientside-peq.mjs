@@ -19,18 +19,20 @@ export function peqCoefficients(type, hz, gainDb, q, rate) {
   return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
 }
 
-/** The bands that change the sound: a notch, lowcut or highcut always, any other type only with a gain other than 0 dB; a band switched off never. */
-export function activePeqBands(params, rate) {
-  const bands = [];
-  for (let n = 1; n <= 6; n++) {
-    if (String(params[`band${n}_enabled`] ?? 'on').trim() === 'off') continue;
+/** The six bands in order (null for one that does nothing: a band switched off, or any type but notch, lowcut and highcut at a gain of 0 dB). */
+export function peqBandList(params, rate) {
+  const defaults = [80, 250, 800, 2500, 6000, 12000];
+  return Array.from({ length: 6 }, (_, index) => {
+    const n = index + 1;
+    if (String(params[`band${n}_enabled`] ?? 'on').trim() === 'off') return null;
     const type = params[`band${n}_type`] || (n === 1 ? 'lowshelf' : n === 6 ? 'highshelf' : 'peak'), gain = number(params[`band${n}_gain`], 0, -24, 24);
-    if (!['notch', 'lowcut', 'highcut'].includes(type) && gain === 0) continue;
-    const defaults = [80, 250, 800, 2500, 6000, 12000];
-    bands.push(peqCoefficients(type, number(params[`band${n}_hz`], defaults[n - 1], 20, 20000), gain, number(params[`band${n}_q`], 1, 0.1, 18), rate));
-  }
-  return bands;
+    if (!['notch', 'lowcut', 'highcut'].includes(type) && gain === 0) return null;
+    return peqCoefficients(type, number(params[`band${n}_hz`], defaults[index], 20, 20000), gain, number(params[`band${n}_q`], 1, 0.1, 18), rate);
+  });
 }
+
+/** The bands that change the sound, in order. */
+export const activePeqBands = (params, rate) => peqBandList(params, rate).filter(Boolean);
 
 /** Applies the parametric EQ with floating-point state (the server rounds to 16 bit only at the end). */
 export async function peqAudio(audio, params, signal) {

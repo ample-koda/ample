@@ -7,8 +7,10 @@ public sealed class ConformanceTests
 {
     private static readonly string[] Folders = ["valid", "invalid", "recovery"];
 
+    // AMP6020 shows a feature that is switched off; every feature is shipped, so the library test switches them off for that file only
+    // (SyntaxGate, per thread). The server reads on its own threads with the shipped features, so that file is not one of its corpus.
     public static IEnumerable<object[]> Files() =>
-        Folders.SelectMany(dir => Directory.GetFiles(Path.Combine(Root.Dir, "spec-tests", dir), "*.amplet").Order(StringComparer.Ordinal)).Select(f => new object[] { Path.GetRelativePath(Root.Dir, f).Replace('\\', '/') });
+        Folders.SelectMany(dir => Directory.GetFiles(Path.Combine(Root.Dir, "spec-tests", dir), "*.amplet").Order(StringComparer.Ordinal)).Where(f => !Path.GetFileName(f).StartsWith("AMP6020", StringComparison.Ordinal)).Select(f => new object[] { Path.GetRelativePath(Root.Dir, f).Replace('\\', '/') });
 
     [Theory]
     [MemberData(nameof(Files))]

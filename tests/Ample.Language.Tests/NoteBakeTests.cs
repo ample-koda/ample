@@ -190,6 +190,23 @@ public sealed class NoteBakeTests
     }
 
     [Fact]
+    public void A_melody_clip_is_a_source_and_shift_moves_every_note_by_beats()
+    {
+        // owner report 2026-11-17: theme.notes |> shift(3beats) failed with AMP2028 when theme was written as a melody
+        string text = Header + "midi-clip theme {\n  melody \"c4:1 d4:1 e4:1 g4:1\"\n  bars 1\n}\n\nmidi-clip later at 1 for 2 {\n  notes theme.notes |> shift(3beats)\n}\n";
+        Assert.DoesNotContain("AMP2028", Codes(text));
+        AmpleDocument doc = Parser.Parse(text, Corpus.Spec, new ParseOptions { ApplyNoteFlow = true });
+        Assert.Equal("1:3:1:60:96 2:0:1:62:96 2:1:1:64:96 2:2:1:67:96", doc.Blocks.Single(b => b.Name == "later").Parameters.Single(p => p.Name == "notes").Value);
+    }
+
+    [Fact]
+    public void A_clip_without_notes_melody_or_chords_is_still_no_source()
+    {
+        string text = Header + "midi-clip empty at 1 for 1 {\n}\n\nmidi-clip b at 1 for 1 {\n  notes empty.notes\n}\n";
+        Assert.Contains("AMP2028", Codes(text));
+    }
+
+    [Fact]
     public void A_midi_file_that_cannot_be_read_is_an_error()
     {
         string text = Header + "midi song at 1 for 1 {\n  file song.mid\n}\n\nmidi-clip b at 1 for 1 {\n  notes song.notes\n}\n";

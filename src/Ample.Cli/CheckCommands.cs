@@ -15,8 +15,25 @@ internal static class CheckCommands
     private static Command Check(TextWriter output)
     {
         (Argument<string> file, Option<string> format, Option<string?> root) = Common();
-        Command command = new("check", "Validates a song file; exit code 1 when there are errors.") { file, format, root };
-        command.SetAction(parse => Report(output, parse.GetValue(file)!, parse.GetValue(root), parse.GetValue(format)!, onlyLint: false));
+        Option<bool> log = new("--log") { Description = "Also print the log view: the events of log, debug, trace and warn that the song registered (as logging.level says)." };
+        Option<string?> logLevel = new("--log-level") { Description = "For this run only: off, warning, info, debug or trace, whatever the song says (implies --log)." };
+        Option<string?> assertions = new("--assertions") { Description = "For this run only: on or off, whatever the song says." };
+        Command command = new("check", "Validates a song file; exit code 1 when there are errors.") { file, format, root, log, logLevel, assertions };
+        command.SetAction(parse =>
+        {
+            Dictionary<string, string> session = new(StringComparer.Ordinal);
+            if (parse.GetValue(logLevel) is { } level) session["logging.level"] = level;
+            if (parse.GetValue(assertions) is { } asserted) session["diagnostics.assertions"] = asserted;
+            foreach ((string key, string value) in session)
+            {
+                if (ObservationConfig.Validate(key, value) is not { } problem) continue;
+                output.WriteLine(problem);
+                return 2;
+            }
+
+            bool withLog = parse.GetValue(log) || session.ContainsKey("logging.level");
+            return Report(output, parse.GetValue(file)!, parse.GetValue(root), parse.GetValue(format)!, onlyLint: false, withLog, session);
+        });
         QualityCreditsCommands.AddQuality(command, output);
         return command;
     }
@@ -157,7 +174,7 @@ internal static class CheckCommands
 
     private static SpecData Load(string? root) => (root is null ? SpecRoot.Find(Directory.GetCurrentDirectory()) : SpecRoot.At(root)).LoadSpecData();
 
-    private static int Report(TextWriter output, string path, string? root, string format, bool onlyLint)
+    private static int Report(TextWriter output, string path, string? root, string format, bool onlyLint, bool withLog = false, IReadOnlyDictionary<string, string>? session = null)
     {
         if (!File.Exists(path))
         {
@@ -175,6 +192,7 @@ internal static class CheckCommands
         else
         {
             using Ample.Engine.Modules.ModuleService modules = Ample.Engine.Modules.ModuleService.WithUserLibrary(folder, new Ample.Audio.IO.SystemClock());
+            modules.ObservationSession = session;
             doc = modules.ParseExpanded(File.ReadAllText(path), Load(root));
         }
 
@@ -197,6 +215,29 @@ internal static class CheckCommands
             output.WriteLine(list.Count == 0 ? $"{path}: no problems" : $"{path}: {list.Count(d => d.Severity == Severity.Error)} error(s), {list.Count(d => d.Severity != Severity.Error)} other");
         }
 
+        if (withLog) WriteLog(output, path, doc.Observations, string.Equals(format, "json", StringComparison.Ordinal));
         return list.Any(d => d.Severity == Severity.Error) ? 1 : 0;
+    }
+
+    /// <summary>The log view after the diagnostics: one line per event; with JSON one object per line (JSON lines), so a tool can read them as they come.</summary>
+    private static void WriteLog(TextWriter output, string path, IReadOnlyList<LogEvent> events, bool json)
+    {
+        JsonSerializerOptions line = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        foreach (LogEvent e in events)
+        {
+            string level = e.Level.ToString().ToLowerInvariant();
+            if (json)
+            {
+                IEnumerable<string> stack = e.Stack.Select(f => f.Name + (f.Instance is null ? string.Empty : " in " + f.Instance));
+                var entry = new { log = level, e.Code, e.Message, e.Hint, context = Ample.Language.ObsRedactor.ParseContext(e.ContextJson), origin = e.Site?.Origin, line = e.Site?.Line, col = e.Site?.Col, stack };
+                output.WriteLine(JsonSerializer.Serialize(entry, line));
+                continue;
+            }
+
+            string where = e.Site is null ? path : e.Site.Origin == "song" ? $"{path}:{e.Site.Line}:{e.Site.Col}" : $"{e.Site.Origin}:{e.Site.Line}";
+            output.WriteLine($"{where}: {level} {e.Message}{(e.Code is null ? string.Empty : " [" + e.Code + "]")}{(e.ContextJson is null ? string.Empty : " " + e.ContextJson)}");
+        }
+
+        if (!json) output.WriteLine($"{path}: {events.Count} log event(s)");
     }
 }

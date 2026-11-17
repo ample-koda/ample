@@ -19,6 +19,7 @@ import { copyText, initInfo, openManage, openPublish } from './lite-share.js';
 import { postWithProgress } from './lite-upload.mjs';
 import { DEFAULT_LIMITS, checkFile, cleanPath, extensionOf, isAudio, isComponent, isSong, isText } from './lite-paths.mjs';
 import { createLiteStore, LiteStoreError } from './lite-store.mjs';
+import { LEVELS, emptyText, inSong, levelCounts, logRows, messageText, whereText } from '../lib/log-view.mjs';
 
 // the public Remix (ample serve --lite-only) says so on its limits and needs no token or sign-in; every other server asks for one as before
 const serverLimits = await fetch('/api/remix/limits', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -32,6 +33,8 @@ const SESSION_PREFIX = `${storeName()}.`;
 
 const app = { rev: 0, builtRev: -1, builtProject: null, builtFrom: null, kv: null, store: null, limits: DEFAULT_LIMITS, project: null, files: [], active: null, editor: null, language: null, catalog: [], collapsed: new Set(),
   texts: new Map(), saveTimer: 0, pendingSave: null, live: [], built: [], lastBuilt: null, building: false, outputUrl: '', filter: { query: '', category: '' }, binaryUrl: '' };
+// the choices of the Song log for the next builds of this page (see renderSongLog)
+const songLog = { events: [], entry: null, options: {}, builtWith: '{}', shown: new Set(LEVELS) };
 
 // ---- small helpers
 
@@ -498,6 +501,8 @@ async function build() {
   const bar = $('#lite-progress');
   bar.hidden = false; bar.value = 0;
   $('#lite-log').textContent = '';
+  // whoever watches the Song log comes back to it when the build is done (the build log shows the progress meanwhile)
+  const backToSongLog = $('#lite-tab-songlog')?.getAttribute('aria-selected') === 'true';
   showConsole('log');
   status('Building...');
   logLine(`Build of ${entry} started.`, started);
@@ -520,7 +525,7 @@ async function build() {
     app.uploading = plan.bytes > 0;
     const send = (needed) => postWithProgress('/api/remix/build?stream=1', {
       headers: { 'X-Ample-Token': getToken() },
-      body: buildForm(entry, hashed, needed),
+      body: buildForm(entry, hashed, needed, songLog.options),
       signal: app.abort.signal,
       onProgress: (sent, total) => {
         if (!total) return;
@@ -552,6 +557,11 @@ async function build() {
     if (!result) throw new Error('The build ended without an answer.');
     bar.value = 1;
     app.built = (result.diagnostics ?? []).map((d) => ({ ...d, file: entry }));
+    songLog.events = result.observations ?? [];
+    songLog.entry = entry;
+    songLog.builtWith = JSON.stringify(songLog.options);
+    renderSongLog();
+    if (backToSongLog) showConsole('songlog');
     app.lastBuilt = entry;
     logLine(result.ok ? `Done in ${result.seconds} s: ${result.audioSeconds} seconds of audio.` : 'The build did not work: see Problems.', started);
     if (!result.ok) { status('The build did not work.'); if ((result.diagnostics ?? []).some((d) => d.severity === 'error')) showConsole('problems'); $('#lite-output-info').textContent = 'Fix the problems and build again.'; tour?.fail('The build did not work: ' + ((result.diagnostics ?? []).find((d) => d.severity === 'error')?.message ?? 'see Problems.')); }
@@ -697,8 +707,55 @@ function stop() {
 
 /** The main button follows the state of the page: "Build & play" until a build exists, then (while the project is still what was built) "Play from start" or "Stop", and "Build & play" again at the first change. */
 /** The two parts of the console under the editor, as tabs: the problems of the song and the log of the last build. */
+// The Song log: the events of log, debug, trace and warn of the last build (web/lib/log-view.mjs), and a level and assertions for the next builds of this page.
+// The choices live in this page only (never in the song, the project or the browser storage) and are sent with a build as its options.
+
+function renderSongLog() {
+  const box = $('#lite-songlog');
+  if (!box) return;
+  const counts = levelCounts(songLog.events);
+  const total = songLog.events.length;
+  $('#lite-songlog-count').textContent = total ? String(total) : '';
+  const filters = $('#lite-songlog-filters');
+  filters.replaceChildren(...LEVELS.map((level) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `lite-songlog-filter ${level}`;
+    button.dataset.level = level;
+    button.textContent = `${level} ${counts[level]}`;
+    button.setAttribute('aria-pressed', String(songLog.shown.has(level)));
+    button.onclick = () => { if (songLog.shown.has(level)) songLog.shown.delete(level); else songLog.shown.add(level); renderSongLog(); };
+    return button;
+  }));
+  const changed = JSON.stringify(songLog.options) !== songLog.builtWith;
+  $('#lite-songlog-note').textContent = changed ? 'Build again to apply the new choice.' : '';
+  box.replaceChildren();
+  const rows = logRows(songLog.events, songLog.shown);
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'lite-dim lite-songlog-empty';
+    empty.textContent = songLog.entry ? emptyText({ events: songLog.events, level: songLog.options['logging.level'] ?? '' }) : 'Build the song to see what it logs.';
+    box.append(empty);
+  }
+  for (const { kind, event, count } of rows) {
+    const row = document.createElement('div');
+    row.className = `lite-songlog-row ${kind === 'budget' ? 'budget' : event.level}`;
+    const head = document.createElement('span');
+    head.className = 'lite-songlog-head';
+    head.textContent = `${kind === 'budget' ? 'left out' : event.level}  ${whereText(event)}`;
+    const text = document.createElement('span');
+    text.className = 'lite-songlog-text';
+    text.textContent = messageText(event) + (count > 1 ? `  \u00d7${count}` : '');
+    row.append(head, text);
+    const more = [event.hint, ...(event.stack ?? []).map((frame) => `at ${frame}`)].filter(Boolean);
+    if (more.length) { const extra = document.createElement('span'); extra.className = 'lite-songlog-more'; extra.textContent = more.join('\n'); row.append(extra); }
+    if (inSong(event) && songLog.entry === app.active) { row.tabIndex = 0; row.title = 'Click: go to this line'; row.onclick = () => app.editor?.goto(event.line, event.col || 1); }
+    box.append(row);
+  }
+}
+
 function showConsole(which) {
-  for (const name of ['problems', 'log']) {
+  for (const name of ['problems', 'log', 'songlog']) {
     const on = name === which;
     $('#lite-' + name + '-pane').hidden = !on;
     $('#lite-tab-' + name).setAttribute('aria-selected', String(on));
@@ -711,7 +768,8 @@ function syncMain() {
   const audio = $('#lite-output');
   const playing = !audio.paused && !audio.ended;
   const entry = app.project ? pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt) : null;
-  const fresh = !!app.outputId && app.builtRev === app.rev && app.builtProject === app.project?.id && entry === app.outputEntry;   // a different song than the one that was built is not fresh
+  // a new choice of log level or assertions makes the sound that was built an old one too: the next press builds
+  const fresh = !!app.outputId && app.builtRev === app.rev && app.builtProject === app.project?.id && entry === app.outputEntry && JSON.stringify(songLog.options) === songLog.builtWith;   // a different song than the one that was built is not fresh
   button.textContent = fresh ? (playing ? '\u25A0 Stop' : '\u25B6 Play from start') : 'Build & play';
   button.title = fresh ? (playing ? 'Stop the sound' : 'Play the sound from the start (Ctrl+Enter builds it again)') : 'Build the song and play it (Ctrl+Enter)';
   button.dataset.mode = fresh ? (playing ? 'stop' : 'play') : 'build';
@@ -1005,6 +1063,9 @@ async function start() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('lite-files-open')) setFilesOpen(false); });
   $('#lite-tab-problems').onclick = () => showConsole('problems');
   $('#lite-tab-log').onclick = () => showConsole('log');
+  $('#lite-tab-songlog').onclick = () => { showConsole('songlog'); renderSongLog(); };
+  $('#lite-log-level').onchange = (e) => { songLog.options['logging.level'] = e.target.value; renderSongLog(); syncMain(); };
+  $('#lite-assertions').onchange = (e) => { songLog.options['diagnostics.assertions'] = e.target.value; renderSongLog(); syncMain(); };
   $('#lite-rename').onclick = renameFile;
   $('#lite-delete').onclick = deleteFile;
   $('#lite-build').onclick = () => { const mode = $('#lite-build').dataset.mode; if (mode === 'stop') stop(); else if (mode === 'play') playFromStart(); else build(); };

@@ -8,9 +8,6 @@ public sealed record ServerCapabilities(IReadOnlySet<string> Forbidden, IReadOnl
     /// <summary>Gets the names environment() may read on this server (patterns: TZ, LANG*, *_HOME); empty means every name that the song policy allows.</summary>
     public IReadOnlyList<string> EnvironmentAllow { get; init; } = [];
 
-    /// <summary>Gets or sets what the open project says about capabilities (capability to on or off, environment.allow to a list of names): the host sets it when the project opens.</summary>
-    public static IReadOnlyDictionary<string, string>? Project { get; set; }
-
     /// <summary>Gets or sets the ceiling and default of this server, used for every parse that does not bring its own: the host sets it once at startup (ample serve --forbid-capabilities environment,network).</summary>
     public static ServerCapabilities Current { get => current ?? Local; set => current = value; }
 

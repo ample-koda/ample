@@ -76,13 +76,9 @@ export async function fadeAudio(audio, params, tempo, firstBar, signal) {
 /** Moves audio by signed seconds/beats and clips it to the block timeline, matching ShiftRenderer's zero-fill rules. */
 export async function shiftAudio(audio, params, tempo, bars, signal) {
   if (params.enabled === 'off') return audio;
-  const samplesPerBar = Math.floor(audio.sampleRate * (barBeats() * 60) / tempo), amount = (text) => {
-    const match = /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(.*)\s*$/.exec(String(text ?? ''));
-    if (!match) return 0;
-    const value = Number(match[1]);
-    return /beats?$/i.test(match[2]) ? Math.round(value * samplesPerBar / 4) : Math.round(value * audio.sampleRate);
-  };
-  const shift = amount(params.seconds) + amount(params.beats), inputLength = audio.channels[0]?.length || 0;
+  // as ShiftRenderer: `seconds` and `beats` are plain numbers (a trailing s is dropped, anything else is 0; the unit is the name of the parameter), a beat is a quarter of a bar, one rounding for the sum
+  const samplesPerBar = Math.floor(audio.sampleRate * (barBeats() * 60) / tempo), amount = (text) => { const plain = String(text ?? '').trim().replace(/^"|"$/g, '').trim().replace(/s$/i, '').trim(); return /^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(plain) ? Number(plain) : 0; };
+  const shift = Math.round(amount(params.seconds) * audio.sampleRate + amount(params.beats) * samplesPerBar / barBeats()), inputLength = audio.channels[0]?.length || 0;
   if (audio.channels.some((channel) => channel.length !== inputLength)) throw new Error('The shift input channels are not aligned.');
   const length = Math.max(inputLength, Math.max(0, bars * samplesPerBar)), channels = [];
   for (const source of audio.channels) {

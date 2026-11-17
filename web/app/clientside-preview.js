@@ -13,6 +13,9 @@ import { panAudio } from '../lib/clientside-pan.mjs';
 import { widthAudio } from '../lib/clientside-width.mjs';
 import { tremoloAudio } from '../lib/clientside-tremolo.mjs';
 import { clickAudio } from '../lib/clientside-click.mjs';
+import { controlledParams } from '../lib/clientside-controls.mjs';
+import { blendMix, connectedPoints, curveControl, followControl, mapControl, mixPercent } from '../lib/clientside-control-curves.mjs';
+import { AUTOMATABLE } from '../lib/automation-model.mjs';
 import { peqAudio } from '../lib/clientside-peq.mjs';
 import { volumeAudio } from '../lib/clientside-volume.mjs';
 import { normalizeAudio } from '../lib/clientside-normalize.mjs';
@@ -108,7 +111,16 @@ async function planTakes(signal) {
 }
 
 // role: the lane of a sequencer that was asked for (lane2); the plain take is the mix of all lanes, which must not stand for one lane (issue 80)
-async function buildAudio(node, context, signal, cache, serverSources, role = '') {
+// The blocks of which the sound can be taken from the build instead of being made here: effects and mixes (a send has two outputs and a sequencer its lanes, so they are not).
+// the effects whose automated mix the server renders at mix 100 and blends per sample (Effects.cs mixAutomated)
+const MIX_BLENDED = new Set(['delay', 'reverb', 'chorus', 'flanger', 'phaser', 'bitcrusher']), AUTOMATED = /^\s*(?:auto|lfo|env|fadein|fadeout)\s*\(/i;
+// the parameters that follow the points of a control here (the others come from the server: volume gain stays with the build on purpose, see the volume branch;
+// compressor threshold, stretch speed and pitch semitones are not ported)
+const FOLLOWS_POINTS = { delay: ['mix'], reverb: ['mix'], chorus: ['mix'], flanger: ['mix'], phaser: ['mix'], bitcrusher: ['mix'], filter: ['cutoff', 'resonance'], pan: ['pan'] };
+const REUSABLE = new Set(['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'convolution', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'bitcrusher', 'mixer', 'bus', 'master']);
+const reusableTake = (node, output) => REUSABLE.has(node.tpl) && ['', 'audio', 'out', 'mix', 'master'].includes(output || '') && Boolean(plannedTakes?.has(node.id));
+
+async function buildAudio(node, context, signal, cache, serverSources, role = '', reused = null) {
   const cacheKey = role ? `${node.id}:${role}` : node.id;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
   signal.throwIfAborted();
@@ -127,7 +139,7 @@ async function buildAudio(node, context, signal, cache, serverSources, role = ''
   if (!response.ok) throw new Error(`Could not read the stored audio for “${node.id}${role ? ` (${role})` : ''}” (${response.status}).`);
   const decoded = await context.decodeAudioData(await response.arrayBuffer());
   const audio = { sampleRate: decoded.sampleRate, channels: Array.from({ length: decoded.numberOfChannels }, (_, channel) => decoded.getChannelData(channel).slice()) };
-  serverSources.add(node.id);
+  (reused ?? serverSources).add(node.id);
   return cacheAudio(cacheKey, audio, cache);
 }
 
@@ -154,8 +166,11 @@ async function fetchClipNotes(node, signal, cache) {
   const source = String(node.params.notes || '').trim();
   if (source && isNotePipeline(source)) {
     // a note pipeline: worked out here when it is plain (the same exact maths as the server); anything else is left to the server render
-    const { pipelineSources, masterSeedOfSong, streamsOf } = await import('./roll-views.js');
-    const made = evaluateNotePipeline(source, { sources: pipelineSources(), tempo: Number(S.doc?.project?.tempo) || 120, beatsPerBar: Number(S.doc?.project?.beatsPerBar) || 4, limit: 20000, master: masterSeedOfSong(), streams: streamsOf(node) });
+    const { pipelineSources, masterSeedOfSong, streamsOf, songAssertions } = await import('./roll-views.js');
+    const made = evaluateNotePipeline(source, {
+      sources: pipelineSources(), tempo: Number(S.doc?.project?.tempo) || 120, beatsPerBar: Number(S.doc?.project?.beatsPerBar) || 4,
+      limit: 20000, master: masterSeedOfSong(), streams: streamsOf(node), assertions: songAssertions(node),
+    });
     const plain = made.notes !== null && made.notes.split(/\s+/).filter(Boolean).every((entry) => /^\d+:\d+(?:\.\d{1,6})?:\d+(?:\.\d{1,6})?:\d+:\d+$/.test(entry));
     const notes = plain ? made.notes.split(/\s+/).filter(Boolean).map((entry) => { const [bar, beat, beats, pitch, velocity] = entry.split(':').map(Number); return { bar, beat, beats, pitch, velocity, pan: 0 }; }) : null;
     cache.set(node.id, notes);
@@ -322,7 +337,7 @@ export async function buildAndPlayClientPreview() {
     const from = nodes.get(link.from), to = nodes.get(link.to);
     if (from?.tpl === 'group' && to?.ins.some((port) => port[0] === link.inName && port[1] === 'audio') || to?.tpl === 'group' && from?.outs.some((port) => port[0] === link.outName && port[1] === 'audio')) link.type = 'audio';
   }
-  const serverSources = new Set(), localApproximationSources = new Set(), localEffectApproximations = new Set(), localExactSources = new Set(), localMidiTransforms = new Set(), localInstrumentFallbackReasons = new Set(), midiCache = new Map(), midiResults = new Map(), meterReports = [], totalBars = Math.max(0, ...graph.nodes.flatMap((node) => node.parts.length ? node.parts.map((part) => part.at + part.length - 1) : [Number(node.params.bars) || 0])) || 8;
+  const serverSources = new Set(), localApproximationSources = new Set(), localEffectApproximations = new Set(), localExactSources = new Set(), localMidiTransforms = new Set(), localInstrumentFallbackReasons = new Set(), reusedTakes = new Set(), localFallbackReasons = new Set(), midiCache = new Map(), midiResults = new Map(), meterReports = [], totalBars = Math.max(0, ...graph.nodes.flatMap((node) => node.parts.length ? node.parts.map((part) => part.at + part.length - 1) : [Number(node.params.bars) || 0])) || 8;
   const isDisabled = (node) => !!node.disabledBy || node.flags?.includes('disabled');
   const target = [...graph.nodes].reverse().find((node) => node.tpl === 'master' && !isDisabled(node)) || [...graph.nodes].reverse().find((node) => ['mixer', 'bus', 'send'].includes(node.tpl) && !isDisabled(node));
   if (!target) { toast('This song has no enabled master or mix block to preview.'); return; }
@@ -406,11 +421,71 @@ export async function buildAndPlayClientPreview() {
       const node = nodes.get(id);
       const fresh = !!node && !isDisabled(node) && !memo.has(`${id}:${output || ''}`) && !progress.done.has(id);
       if (fresh) { progress.active.push(id); touch(); }
-      try { return withBend(id, output, await resolveNode(id, output)); }
+      try { const taken = withBend(id, output, await resolveNode(id, output)); globalThis.__previewTap?.(id, output, taken); return taken; }   // __previewTap: measuring hook (tools/live-capture/preview-blocks.mjs)
       finally { if (fresh) { progress.active.splice(progress.active.lastIndexOf(id), 1); progress.done.add(id); touch(); } }
+    };
+    const rangeFirst = () => S.range?.firstBar || 1, rangeBars = () => S.range?.bars || totalBars;
+    const barSamples = (rate) => Math.floor(barBeats() * 60 * rate * 1000 / Math.round((Number(S.doc?.project?.tempo) || 92) * 1000));
+    const audioInput = (id) => graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
+    /** The control that comes out of a curve, map or follow block, as the server makes it; null when this port cannot make it (the block then comes from the server). */
+    const controlOf = async (id, output, rate, depth = 0) => {
+      const block = nodes.get(id);
+      if (!block || depth > 8 || isDisabled(block)) return null;
+      if (block.tpl === 'curve') return curveControl(block.params, rangeFirst(), rangeBars(), barSamples(rate), rate);
+      if (block.tpl === 'map') {
+        const up = graph.links.find((l) => l.to === id && l.type === 'control' && (l.inName === 'input' || l.inName === 'in') && !l.disabled);
+        const source = up ? await controlOf(up.from, up.outName, rate, depth + 1) : { firstBar: 1, unit: null, values: new Int32Array(Math.floor(rangeBars() * barSamples(rate) * 1000 / rate) + 1) };
+        return source && mapControl(block.params, source);
+      }
+      if (block.tpl === 'follow') {
+        const link = audioInput(id), sound = link ? await resolve(link.from, link.outName) : null;
+        if (!sound?.channels?.length) return null;
+        const l = sound.channels[0], r = sound.channels[1] || l, mono = new Int32Array(l.length);
+        for (let i = 0; i < l.length; i++) mono[i] = Math.trunc((Math.round(l[i] * 32768) + Math.round(r[i] * 32768)) / 2);
+        const made = followControl(block.params, mono, sound.sampleRate, rangeFirst());
+        return made ? made[output === 'gate' ? 'gate' : 'level'] : null;
+      }
+      return null;
+    };
+    /** The mix of the six blended effects with an automation or a control on it; undefined when it cannot be made here. */
+    const automatedMix = async (node, id) => {
+      const link = audioInput(id), source = link ? await resolve(link.from, link.outName) : null;
+      if (!source) return null;
+      const rate = source.sampleRate, spb = barSamples(rate), length = source.channels[0].length;
+      const percent = mixPercent(node.params.mix, rangeFirst(), spb, rate, length);
+      if (!percent) return undefined;
+      const wetParams = { ...node.params, mix: '100' }, tempo = Number(S.doc?.project?.tempo) || 120;
+      const wet = node.tpl === 'delay' ? await delayAudio(source, wetParams, controller.signal, tempo)
+        : node.tpl === 'chorus' ? await chorusAudio(source, wetParams, controller.signal)
+          : node.tpl === 'flanger' ? await flangerAudio(source, wetParams, controller.signal)
+            : node.tpl === 'phaser' ? await phaserAudio(source, wetParams, controller.signal)
+              : node.tpl === 'bitcrusher' ? await bitcrusherAudio(source, wetParams, controller.signal)
+                : reverbWorkingSetBytes(length, source.channels.length) <= 128 * 1024 * 1024
+                  ? { sampleRate: rate, channels: await processReverbChannels(source.channels, wetParams, rate, controller.signal) } : null;
+      if (!wet) return undefined;
+      if (node.tpl === 'reverb') localEffectApproximations.add(node.id);
+      return blendMix(source, wet, percent);
+    };
+    /** A parameter that a curve, map or follow control is connected to becomes the points of that control, for the effects that follow points here. */
+    const prepared = new Set();
+    const prepareSteered = async (id) => {
+      if (prepared.has(id)) return;
+      prepared.add(id);
+      const node = nodes.get(id);
+      if (!node || isDisabled(node)) return;
+      const wires = graph.links.filter((l) => l.to === id && l.type === 'control' && !l.disabled && FOLLOWS_POINTS[node.tpl]?.includes(l.inName));
+      if (!wires.length) return;
+      const params = { ...node.params };
+      for (const wire of wires) {
+        if (controlledParams({ id, params: { [wire.inName]: node.params[wire.inName] } }, graph.nodes, []).length) continue;   // an expression that reads a control stays with the server
+        const control = await controlOf(wire.from, wire.outName, PREVIEW_RATE);
+        if (control) params[wire.inName] = connectedPoints(control, AUTOMATABLE[node.tpl]?.[wire.inName], rangeFirst(), rangeBars(), barSamples(PREVIEW_RATE), PREVIEW_RATE);
+      }
+      nodes.set(id, { ...node, params });
     };
     const resolveNode = async (id, output) => {
       controller.signal.throwIfAborted();
+      await prepareSteered(id);
       const node = nodes.get(id);
       if (!node || isDisabled(node)) return null;
       const key = `${id}:${output || ''}`;
@@ -418,6 +493,38 @@ export async function buildAndPlayClientPreview() {
       if (active.has(key)) throw new Error(`The client preview found a cycle at “${id}”.`);
       active.add(key);
       try {
+      // a block whose built sound is up to date on the server is taken from there: the same sound as the build, and nothing before it has to be made here
+      if (reusableTake(node, output)) {
+        try {
+          const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources, '', reusedTakes);
+          memo.set(key, audio);
+          return audio;
+        } catch (error) {
+          controller.signal.throwIfAborted();
+          localFallbackReasons.add(`${id}: its built sound could not be read (${error?.message || error}), so it is made here`);
+        }
+      }
+      // a parameter that follows a control (a control link to it, or an expression that reads one) changes over time; the effects here do not
+      // apply controls yet, so the block would sound as if the control were not there: it comes from the server, which applies it
+      const steered = controlledParams(node, graph.nodes, graph.links).filter((name) => !Array.isArray(node.params[name]));
+      // an automated mix of the six effects that blend it (Effects.cs mixAutomated): the effect at mix 100, then dry and wet blended per sample as the server
+      if (MIX_BLENDED.has(node.tpl) && node.params.enabled !== 'off' && !steered.length && (Array.isArray(node.params.mix) || AUTOMATED.test(String(node.params.mix || '')))) {
+        const blended = await automatedMix(node, id);
+        if (blended !== undefined) { memo.set(key, blended); return blended; }
+      }
+      if (steered.length) {
+        localFallbackReasons.add(`${id}: ${steered.join(', ')} follow${steered.length === 1 ? 's' : ''} a control, which the browser preview does not apply yet`);
+        const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
+        memo.set(key, audio);
+        return audio;
+      }
+      if (node.tpl === 'silence') {
+        // blank audio over the whole range, as the server's silence block (ExtraSilence.cs) is blank wherever it is placed
+        const tempoMilli = Math.round((Number(S.doc?.project?.tempo) || 92) * 1000), samplesPerBar = Math.floor(barBeats() * 60 * PREVIEW_RATE * 1000 / tempoMilli);
+        const audio = { sampleRate: PREVIEW_RATE, channels: [new Float32Array(samplesPerBar * (S.range?.bars || totalBars))] };
+        memo.set(`${id}:audio`, audio); memo.set(`${id}:out`, audio);
+        return audio;
+      }
       if (node.tpl === 'crossfade') {
         const sources = {};
         for (const link of graph.links.filter((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}))) sources[link.inName] = await resolve(link.from, link.outName);
@@ -448,7 +555,7 @@ export async function buildAndPlayClientPreview() {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
-        const result = node.tpl === 'pan' ? await panAudio(source, node.params, controller.signal) : await widthAudio(source, node.params, controller.signal);
+        const result = node.tpl === 'pan' ? await panAudio(source, node.params, controller.signal, Number(S.doc?.project?.tempo) || 120, S.range?.firstBar || 1) : await widthAudio(source, node.params, controller.signal);
         memo.set(key, result);
         return result;
       }
@@ -468,11 +575,12 @@ export async function buildAndPlayClientPreview() {
         memo.set(key, result);
         return result;
       }
+      // an automated gain stays on the build: its input is a local sequencer (piano, guitar), which the preview renders with its approximate synth, +3 to +13 dB louder than the build (OneMoreLight); taking the whole block from the build keeps those exact
       if (node.tpl === 'volume' && !/^(?:auto|fadein|fadeout)\s*\(/i.test(String(node.params.gain || ''))) {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
-        const result = volumeAudio(source, node.params);
+        const result = volumeAudio(source, node.params, Number(S.doc?.project?.tempo) || 120, S.range?.firstBar || 1);
         memo.set(key, result);
         return result;
       }
@@ -560,7 +668,7 @@ export async function buildAndPlayClientPreview() {
         memo.set(key, result);
         return result;
       }
-      if (node.tpl === 'filter' && !/^(?:auto|lfo|env)\s*\(/i.test(String(node.params.cutoff || '')) && !/^(?:auto|lfo|env)\s*\(/i.test(String(node.params.resonance || ''))) {
+      if (node.tpl === 'filter') {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
@@ -654,7 +762,9 @@ export async function buildAndPlayClientPreview() {
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
         if (node.params.enabled === 'off') { memo.set(key, source); return source; }
-        if (/^(?:auto|lfo|env)\s*\(/i.test(String(node.params.mix || '')) || reverbWorkingSetBytes(source.channels[0].length, source.channels.length) > 128 * 1024 * 1024) {
+        const reverbBytes = reverbWorkingSetBytes(source.channels[0].length, source.channels.length);
+        if (/^(?:auto|lfo|env)\s*\(/i.test(String(node.params.mix || '')) || reverbBytes > 128 * 1024 * 1024) {
+          localFallbackReasons.add(`${id}: ${reverbBytes > 128 * 1024 * 1024 ? `the sound is too long for the local reverb (${Math.round(reverbBytes / 1048576)} MB of 128 MB)` : 'its mix follows a curve, which only the server makes'}`);
           const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
           memo.set(key, audio);
           return audio;
@@ -666,6 +776,7 @@ export async function buildAndPlayClientPreview() {
           return result;
         } catch (error) {
           controller.signal.throwIfAborted();
+          localFallbackReasons.add(`${id}: the local reverb failed (${error?.message || error})`);
           const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
           memo.set(key, audio);
           return audio;
@@ -759,6 +870,7 @@ export async function buildAndPlayClientPreview() {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
+        if (node.params.enabled === 'off') { for (const port of ['out', 'audio']) memo.set(`${id}:${port}`, source); return source; }   // switched off: the sound passes untouched, as in the build (it was tuned anyway, +1.2 dB on the vocal of OneMoreLight)
         try {
           // the Melody input is followed as the build does: its notes decide the target; a source the browser cannot read goes to the server render (issue 78)
           const tempo = Number(S.doc?.project?.tempo) || 92, beatsPerBar = barBeats();
@@ -818,6 +930,7 @@ export async function buildAndPlayClientPreview() {
           return audio;
         }
       }
+      const localBarsOf = (audio) => Math.ceil((audio.channels[0]?.length || 0) / Math.floor(audio.sampleRate * (barBeats() * 60) / (Number(S.doc?.project?.tempo) || 120)));   // BlockTiming.Bars of a block that is not on the timeline: as long as what feeds it
       if (node.tpl === 'reverse' || node.tpl === 'cut' || node.tpl === 'fade' || node.tpl === 'shift') {
         const input = graph.links.find((link) => link.to === id && link.type === 'audio' && !link.disabled && !isDisabled(nodes.get(link.from) || {}));
         const source = input ? await resolve(input.from, input.outName) : null;
@@ -825,7 +938,7 @@ export async function buildAndPlayClientPreview() {
         const result = node.tpl === 'reverse' ? node.params.enabled === 'off' ? source : await reverseAudio(source, controller.signal)
           : node.tpl === 'cut' ? await cutAudio(source, node.params, controller.signal)
             : node.tpl === 'fade' ? await fadeAudio(source, node.params, Number(S.doc?.project?.tempo) || 120, S.range?.firstBar || 1, controller.signal)
-              : await shiftAudio(source, node.params, Number(S.doc?.project?.tempo) || 120, totalBars, controller.signal);
+              : await shiftAudio(source, node.params, Number(S.doc?.project?.tempo) || 120, localBarsOf(source), controller.signal);   // the build cuts the moved sound at the length of the block (its own bars, the bars of the sound that feeds it), not at the end of the song
         memo.set(key, result);
         return result;
       }
@@ -1100,8 +1213,10 @@ export async function buildAndPlayClientPreview() {
     const effectApproximation = localEffectApproximations.size ? ` Local effect approximation: ${[...localEffectApproximations].join(', ')}.` : '';
     const exactInstruments = localExactSources.size ? ` Local exact instruments: ${[...localExactSources].join(', ')}.` : '';
     const midiTransforms = localMidiTransforms.size ? ` Local MIDI transforms: ${[...localMidiTransforms].join(', ')}.` : '';
+    const reused = reusedTakes.size ? ` Taken from the build, not made here: ${[...reusedTakes].join(', ')}.` : '';
+    const fallbackWhy = localFallbackReasons.size ? ` Why a block came from the server: ${[...localFallbackReasons].join('; ')}.` : '';
     const instrumentFallback = localInstrumentFallbackReasons.size ? ` Local instrument fallback: ${[...localInstrumentFallbackReasons].join('; ')}.` : '';
-    const lines = [base, approximation, effectApproximation, exactInstruments, midiTransforms, instrumentFallback, ...meterReports.map((report) => `Meter ${report}`)].map((line) => line.trim()).filter(Boolean);
+    const lines = [base, reused, fallbackWhy, approximation, effectApproximation, exactInstruments, midiTransforms, instrumentFallback, ...meterReports.map((report) => `Meter ${report}`)].map((line) => line.trim()).filter(Boolean);
     for (const line of lines) logProject('client preview', 'preview', line);   // the toast is gone in a few seconds: the Log tab keeps it
     toast(lines.join(' '));
   } catch (error) {

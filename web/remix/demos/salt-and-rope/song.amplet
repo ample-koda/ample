@@ -1,0 +1,122 @@
+composition "Salt and Rope" { ample 1  tempo 104  meter 6/8  master-seed 1716 }
+
+# SALT AND ROPE: a sea shanty of our own in 6/8, four verses of eight bars (about 55 seconds) in D minor.
+# A bar of 6/8 has two big swings (ONE-and-a TWO-and-a): the tuba plays on the swings, the squeezebox answers between them.
+#
+#   verse 1   the fiddle sings, the squeezebox keeps time
+#   verse 2   + the tuba and the deck (drum, tambourine)
+#   verse 3   the whole crew sings along (a choir doubles the tune)
+#   verse 4   everyone a step higher: the classic last-verse lift
+#
+# The lift is the helper verse below: the same eight bars, moved up. require keeps it inside a fifth, so a typo cannot
+# throw the singers off the deck (build with 9 and read the error).
+#
+# TRY: program 110 (fiddle) to 73 (flute) or 22 (harmonica) in the block fiddle.
+# TRY: the lift of the last verse (2) to 3 or 5.
+
+/**
+ * A verse: the eight bars, lifted by a number of semitones.
+ * @param bars the eight bars of the verse
+ * @param lift 0 to 7 semitones
+ */
+helper verse(Notes bars, Int lift) -> Notes {
+  require lift >= 0 && lift <= 7, "a verse lifts 0 to 7 semitones"
+  log "verse", context={lift: lift}
+  return bars |> transpose(lift)
+}
+
+# ---- the tune: eight bars of 6/8 (a bar is three beats; 0, 1.5 are the two swings) -----------------
+midi-clip tune at 1 for 8 {
+  notes "1:0:1:62:100 1:1:0.5:65:88 1:1.5:1:69:96 1:2.5:0.5:67:84 2:0:1:65:96 2:1:0.5:64:84 2:1.5:1.5:62:92 3:0:1:60:96 3:1:0.5:64:86 3:1.5:1:67:94 3:2.5:0.5:65:84 4:0:1.5:64:96 4:1.5:1.5:60:88 5:0:1:62:100 5:1:0.5:65:88 5:1.5:1:69:96 5:2.5:0.5:74:92 6:0:1:72:100 6:1:0.5:69:88 6:1.5:1:65:94 6:2.5:0.5:67:84 7:0:1:69:98 7:1:0.5:67:86 7:1.5:1:64:92 7:2.5:0.5:60:84 8:0:3:62:100"
+}
+# the squeezebox: a chord on the off-beats (Dm Dm C C Dm F C Dm)
+midi-clip squeeze at 1 for 8 {
+  notes "1:0.5:0.4:50:70 1:0.5:0.4:53:70 1:0.5:0.4:57:70 1:2:0.4:50:66 1:2:0.4:53:66 1:2:0.4:57:66 2:0.5:0.4:50:70 2:0.5:0.4:53:70 2:0.5:0.4:57:70 2:2:0.4:50:66 2:2:0.4:53:66 2:2:0.4:57:66 3:0.5:0.4:48:70 3:0.5:0.4:52:70 3:0.5:0.4:55:70 3:2:0.4:48:66 3:2:0.4:52:66 3:2:0.4:55:66 4:0.5:0.4:48:70 4:0.5:0.4:52:70 4:0.5:0.4:55:70 4:2:0.4:48:66 4:2:0.4:52:66 4:2:0.4:55:66 5:0.5:0.4:50:70 5:0.5:0.4:53:70 5:0.5:0.4:57:70 5:2:0.4:50:66 5:2:0.4:53:66 5:2:0.4:57:66 6:0.5:0.4:53:70 6:0.5:0.4:57:70 6:0.5:0.4:60:70 6:2:0.4:53:66 6:2:0.4:57:66 6:2:0.4:60:66 7:0.5:0.4:48:70 7:0.5:0.4:52:70 7:0.5:0.4:55:70 7:2:0.4:48:66 7:2:0.4:52:66 7:2:0.4:55:66 8:0.5:0.4:50:70 8:0.5:0.4:53:70 8:0.5:0.4:57:70 8:2:0.4:50:66 8:2:0.4:53:66 8:2:0.4:57:66"
+}
+# the tuba: the root on the first swing, the fifth on the second
+midi-clip tuba at 1 for 8 {
+  notes "1:0:1:38:100 1:1.5:1:45:86 2:0:1:38:100 2:1.5:1:45:86 3:0:1:36:100 3:1.5:1:43:86 4:0:1:36:100 4:1.5:1:43:86 5:0:1:38:100 5:1.5:1:45:86 6:0:1:41:100 6:1.5:1:48:86 7:0:1:36:100 7:1.5:1:43:86 8:0:1:38:100 8:1.5:1:45:86"
+}
+# the deck: a big drum on the swings, the tambourine on every eighth
+midi-clip deck at 1 for 1 {
+  notes "1:0:0.3:36:110 1:1.5:0.3:36:96 1:0:0.2:54:70 1:0.5:0.2:54:48 1:1:0.2:54:56 1:1.5:0.2:54:66 1:2:0.2:54:48 1:2.5:0.2:54:56"
+}
+
+# ---- the four verses ----------------------------------------------------------------------------------
+midi-clip tunePart at 1 for 32 {
+  notes verse(tune.notes, 0) |> concat(verse(tune.notes, 0)) |> concat(verse(tune.notes, 0)) |> concat(verse(tune.notes, 2))
+}
+midi-clip crewPart at 17 for 16 {
+  notes verse(tune.notes, 0) |> concat(verse(tune.notes, 2))
+}
+midi-clip squeezePart at 1 for 32 {
+  notes squeeze.notes |> repeat(3) |> concat(squeeze.notes |> transpose(2))
+}
+midi-clip tubaPart at 9 for 24 {
+  notes tuba.notes |> repeat(2) |> concat(tuba.notes |> transpose(2))
+}
+midi-clip deckPart at 9 for 24 {
+  notes deck.notes |> repeat(24)
+}
+
+# a little human looseness for the crew: nobody on a ship sings exactly together
+midi-humanize looseCrew {
+  timing 18
+  velocity 10
+  from crewPart.notes -> notes
+}
+
+# ---- the crew (General MIDI) ----------------------------------------------------------------------
+gm fiddle at 1 for 32 {
+  file pack:musescore-general
+  program 110
+  gain -6 dB
+  from tunePart.notes -> notes
+}
+gm squeezebox at 1 for 32 {
+  file pack:musescore-general
+  program 21
+  gain -11 dB
+  from squeezePart.notes -> notes
+}
+gm tubaPlayer at 9 for 24 {
+  file pack:musescore-general
+  program 58
+  gain -7 dB
+  from tubaPart.notes -> notes
+}
+gm crew at 17 for 16 {
+  file pack:musescore-general
+  program 52
+  gain -10 dB
+  from looseCrew.notes -> notes
+}
+gm deckDrums at 9 for 24 {
+  file pack:musescore-general
+  program 0
+  channel 9
+  gain -8 dB
+  from deckPart.notes -> notes
+}
+
+mixer ship {
+  inputs 5
+  gains "0 0 0 0 0"
+  from fiddle.audio -> audio1
+  from squeezebox.audio -> audio2
+  from tubaPlayer.audio -> audio3
+  from crew.audio -> audio4
+  from deckDrums.audio -> audio5
+}
+
+# a wooden hold: a small, warm room
+reverb hold {
+  size 40%
+  decay 45%
+  mix 18%
+  from ship.audio -> audio
+}
+
+master out {
+  from hold.audio -> audio
+}

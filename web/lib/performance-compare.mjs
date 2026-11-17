@@ -1,4 +1,4 @@
-// What the DJ heard against what the saved song plays ("heard = saved"): the level of every bar of both, compared bar by bar, and the bars where the sum of the set went past full scale.
+// What the DJ heard against what the saved song plays (plan/performance-live.md, "heard = saved"): the level of every bar of both, compared bar by bar, and the bars where the sum of the set went past full scale.
 // Pure, so node --test checks it. Audio comes as chunks { l, r, scale } (Int16 or Float32 arrays) so a long set is never copied into one big array.
 
 const dbOf = (power) => (power > 1e-12 ? 10 * Math.log10(power) : -120);
@@ -24,8 +24,7 @@ export function barLevels(chunks, startSample, barSamples, bars) {
 const finish = (sum, count) => Array.from(sum, (value, k) => dbOf(count[k] ? value / count[k] : 0));
 
 /**
- * The bars side by side: { bars: [{ bar, heard, saved, diff }], compared, worst: { bar, diff } | null, meanAbs }. `diff` is saved minus heard in dB.
- * A bar where both are below the floor is silence in both and is not compared;
+ * The bars side by side: { bars: [{ bar, heard, saved, diff }], compared, worst: { bar, diff } | null, meanAbs }. `diff` is saved minus heard in dB. A bar where both are below the floor is silence in both and is not compared;
  * a bar where only one is below it is compared against the floor, so a missing sound is a large difference.
  */
 export function compareBars(heard, saved, floorDb = FLOOR_DB) {
@@ -56,8 +55,7 @@ export function compareText(result, within = 1) {
 }
 
 /**
- * The bars (counted from 1 in the saved song) where the sum of the set went past full scale. `peaks` are { time (seconds on the clock of the
- * session), peak (0..) } per block of audio; `startSec` is the time of the first launch,
+ * The bars (counted from 1 in the saved song) where the sum of the set went past full scale. `peaks` are { time (seconds on the clock of the session), peak (0..) } per block of audio; `startSec` is the time of the first launch,
  * `barSec` the length of a bar. Returns { bars: [numbers], peakDb } (peakDb of the loudest block, or null when the sum never went past it).
  */
 export function clippedBars(peaks, startSec, barSec, limit = 1) {

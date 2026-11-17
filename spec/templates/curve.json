@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "A control that you write as a curve over the song (auto, lfo or env, like a parameter) so that one curve can steer several parameters.",
   "inputs": [],

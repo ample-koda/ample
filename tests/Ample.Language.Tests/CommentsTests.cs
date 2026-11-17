@@ -258,6 +258,31 @@ public sealed class CommentsTests
         Assert.Contains("Declares `motif: Notes`.", hover, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("log \"x\"", "log", "logging.level")]
+    [InlineData("assert 1 > 0, \"x\"", "assert", "diagnostics.assertions")]
+    [InlineData("require 1 > 0, \"x\"", "require", "AMP6005")]
+    public void Hovering_a_statement_of_logging_or_assertions_explains_it(string statement, string word, string expected)
+    {
+        string song = Header + "helper f(Notes n) -> Notes {\n  " + statement + "\n  return n\n}\n";
+        string hover = Hover(song, word);
+        Assert.Contains($"`{word}` — keyword", hover, StringComparison.Ordinal);
+        Assert.Contains(expected, hover, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_helper_named_like_a_reserved_word_has_a_fix_that_renames_the_declaration()
+    {
+        string song = Header + "helper log(Int n) -> Int {\n  return n + 1\n}\n\nhelper logHelper(Int n) -> Int {\n  return n\n}\n";
+        Diagnostic reserved = Assert.Single(Parser.Parse(song, Corpus.Spec).Diagnostics, d => d.Code == "AMP6016");
+        Fix fix = Assert.IsType<Fix>(reserved.Fix);
+        Assert.Equal("logHelper2", fix.Text);   // logHelper is taken
+        Assert.True(fix.Risky);   // its calls may need their own fix: never part of a fix-all
+        string renamed = ApplyFix(song, fix);
+        Assert.Contains("helper logHelper2(Int n) -> Int {", renamed, StringComparison.Ordinal);
+        Assert.DoesNotContain(Parser.Parse(renamed, Corpus.Spec).Diagnostics, d => d.Code == "AMP6016");
+    }
+
     private static string ApplyFix(string text, Fix fix)
     {
         string[] lines = text.Split('\n');

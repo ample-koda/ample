@@ -1,5 +1,6 @@
 // Studio panel of the vocoder: a play bar (the voice through the carrier, worked out in the browser, so a knob is heard while it plays), the bands of the voice and of the carrier (bars),
 // and a knob for every setting. @ample:vocoder
+import { infoNote } from './info.js';
 import { getContext } from '../../../lib/audio-engine.mjs';
 import { el } from '../../ui.js';
 import { S, build, flat } from '../../store.js';
@@ -98,7 +99,7 @@ function vocoderPanel(context) {
     if (live.source) { clearTimeout(live.timer); live.timer = setTimeout(() => start(true), 200); }
   };
   return el('section', { className: 'studio-effect-panel studio-vocoder-panel', 'aria-label': 'Vocoder controls' }, [el('div', { className: 'rewind-bar vocoder-bar' }, [play, auditionLabel('live', 'voice through the carrier'), loopButton, status]), graph, controls([
-    control(context, params, 'bands', 'Bands', 4, 40, '', 'linear', 112, change('bands')),
+    control(context, params, 'bands', 'Bands', 4, 40, '', 'linear', 82, change('bands')),
     control(context, params, 'low', 'Low', 40, 2000, 'Hz', 'log', 82, change('low')),
     control(context, params, 'high', 'High', 1000, 16000, 'Hz', 'log', 82, change('high')),
     control(context, params, 'width', 'Width', 50, 300, '%', 'linear', 82, change('width')),
@@ -108,7 +109,7 @@ function vocoderPanel(context) {
     control(context, params, 'sibilance', 'Sibilance', 0, 100, '%', 'linear', 82, change('sibilance')),
     control(context, params, 'mix', 'Mix', 0, 100, '%', 'linear', 82, change('mix')),
     control(context, params, 'gain', 'Gain', -36, 12, 'dB', 'linear', 82, change('gain')),
-  ]), el('p', { className: 'note', textContent: 'The voice on the modulator input is split into these bands; its loudness per band sets the loudness of the same band of the carrier, so the carrier speaks. Shift moves the lower row against the upper one. More bands is clearer speech, fewer is a rougher robot.' })]);
+  ]), infoNote('The voice on the modulator input is split into these bands; its loudness per band sets the loudness of the same band of the carrier, so the carrier speaks. Shift moves the lower row against the upper one. More bands is clearer speech, fewer is a rougher robot.')]);
 }
 
 registerStudioPanel('vocoder', vocoderPanel);

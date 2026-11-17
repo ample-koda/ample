@@ -411,9 +411,10 @@ public static class Queries
             return [];
         }
 
-        // the inputs of this block that have no source yet (an input takes one source)
+        // the inputs of this block that have no source yet (an input takes one source); completions offer the name a song writes (audio1), never the
+        // internal port name (in1), which the checker does not accept
         HashSet<string> taken = new(owner.Froms.Where(f => !f.Disabled && f.Line != line - 1).Select(f => f.Input), StringComparer.OrdinalIgnoreCase);
-        IReadOnlyList<PortSpec> freeInputs = [.. t2.Inputs.Where(p => !taken.Contains(p.Name))];
+        IReadOnlyList<PortSpec> freeInputs = [.. t2.Inputs.Where(p => !taken.Contains(p.Name) && !taken.Contains(PortNames.Written(p)))];
         if (trimmed == "-")
         {
             // a dash on a line of its own may be the start of an arrow or of a number: Ctrl+Space then offers the connections that fit (an output of another block into a free input of this one)
@@ -424,8 +425,8 @@ public static class Queries
                 {
                     foreach (PortSpec input in freeInputs.Where(p => p.Type == output.Type))
                     {
-                        string connection = "from " + Edits.Quote(other.Name) + "." + output.Name + " -> " + input.Name;
-                        lanes.Add(new CompletionItem(connection, "lane", output.Type + ": " + other.Type + " into " + input.Name, connection));
+                        string connection = "from " + Edits.Quote(other.Name) + "." + PortNames.Written(output) + " -> " + PortNames.Written(input);
+                        lanes.Add(new CompletionItem(connection, "lane", output.Type + ": " + other.Type + " into " + PortNames.Written(input), connection));
                     }
                 }
             }
@@ -441,14 +442,15 @@ public static class Queries
                 // the inputs this output can feed: the free ones of the same type (all free ones when the output is not known yet)
                 string? type = OutputType(doc, spec, rest[..rest.IndexOf("->", StringComparison.Ordinal)]);
                 string gap = rest.TrimEnd().EndsWith("->", StringComparison.Ordinal) ? " " : string.Empty;
-                return [.. freeInputs.Where(p => type is null || p.Type == type).Select(p => new CompletionItem(p.Name, "input", p.Type + " input", gap + p.Name))];
+                return [.. freeInputs.Where(p => type is null || p.Type == type).Select(p => new CompletionItem(PortNames.Written(p), "input", p.Type + " input", gap + PortNames.Written(p)))];
             }
 
             if (rest.TrimEnd().EndsWith('-') && rest.Contains('.', StringComparison.Ordinal))
             {
                 // a dash after the output: the arrow with each input that fits
                 string? type = OutputType(doc, spec, rest.TrimEnd()[..^1]);
-                return [.. freeInputs.Where(p => type is null || p.Type == type).Select(p => new CompletionItem("-> " + p.Name, "lane", p.Type + " input", "-> " + p.Name))];
+                return [.. freeInputs.Where(p => type is null || p.Type == type)
+                    .Select(p => new CompletionItem("-> " + PortNames.Written(p), "lane", p.Type + " input", "-> " + PortNames.Written(p)))];
             }
 
             int dot = rest.IndexOf('.', StringComparison.Ordinal);
@@ -456,7 +458,7 @@ public static class Queries
             {
                 string blockName = Parser.Unquote(rest[..dot]);
                 BlockNode? src = doc.Blocks.FirstOrDefault(b => b.Name == blockName);
-                return src is not null && spec.Templates.TryGetValue(src.Type, out TemplateSpec? st) ? [.. st.Outputs.Select(p => new CompletionItem(p.Name, "output", p.Type))] : [];
+                return src is not null && spec.Templates.TryGetValue(src.Type, out TemplateSpec? st) ? [.. st.Outputs.Select(p => new CompletionItem(PortNames.Written(p), "output", p.Type))] : [];
             }
 
             return [.. doc.Blocks.Where(b => !b.Skipped && !ReferenceEquals(b, owner)).Select(b => new CompletionItem(Edits.Quote(b.Name), "block", b.Type))];
@@ -513,7 +515,7 @@ public static class Queries
         }
 
         BlockNode? block = doc.Blocks.FirstOrDefault(b => b.Name == Parser.Unquote(text[..dot]));
-        return block is not null && spec.Templates.TryGetValue(block.Type, out TemplateSpec? template) ? template.Outputs.FirstOrDefault(p => p.Name == text[(dot + 1)..].Trim())?.Type : null;
+        return block is not null && spec.Templates.TryGetValue(block.Type, out TemplateSpec? template) ? PortNames.Find(template.Outputs, text[(dot + 1)..].Trim(), true)?.Type : null;
     }
 
     /// <summary>The names and values inside <c>settings { name value name value }</c>: names the plugins accept and are not stated yet, then the values of the name just typed.</summary>

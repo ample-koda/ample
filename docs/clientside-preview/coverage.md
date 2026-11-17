@@ -12,77 +12,77 @@ Columns: Live / re-renders / needs build counts the parameters by how they move 
 | ai-voice | Voices | server | audio effect | 20 | 0 / 0 / 20 | - | - | no | no | Made by a model on the server; the browser plays the built take, the generation itself is never live. |
 | ambience | Data | source | audio source | 8 | 0 / 8 / 0 | - | - | no | no | A source: it plays the take it makes, there is nothing to move live. |
 | arpeggiator | MIDI effects | midi | data | 5 | 0 / 5 / 0 | - | - | no | no | Changes notes; you hear it through the instrument after it. |
-| autotune | Effects | offline | audio effect | 9 | 0 / 9 / 0 | - | - | no | no | Previews from a browser render when you stop moving; a live version is planned. |
-| bass | Instruments | offline | audio source | 5 | 0 / 5 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
-| bitcrusher | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | not measured | yes | no |  |
-| bus | Mix | offline | audio effect | 7 | 5 / 0 / 2 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
+| autotune | Effects | offline | audio effect | 9 | 0 / 9 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
+| bass | Instruments | offline | audio source | 5 | 0 / 5 / 0 | - | - | no | yes | A voice that plays from a browser render; live notes are planned. |
+| bitcrusher | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | not measured | yes | yes |  |
+| bus | Mix | offline | audio effect | 9 | 5 / 0 / 4 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
 | choir | Voices | server | audio source | 3 | 0 / 0 / 3 | - | - | no | no | Made by a model on the server; the browser plays the built take, the generation itself is never live. |
-| chop | Effects | offline | audio effect | 8 | 0 / 8 / 0 | - | - | no | no | Previews from a browser render when you stop moving; a live version is planned. |
+| chop | Effects | offline | audio effect | 8 | 0 / 8 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
 | chord | MIDI effects | midi | data | 3 | 0 / 3 / 0 | - | - | no | no | Changes notes; you hear it through the instrument after it. |
 | chorus | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | approximate | yes | yes |  |
 | click | Sources | source | audio source | 2 | 0 / 2 / 0 | - | - | no | yes | A source: it plays the take it makes, there is nothing to move live. |
 | compressor | Effects | live | audio effect | 8 | 7 / 0 / 1 | none | exact | yes | yes |  |
-| convolution | Effects | live | audio effect | 9 | 4 / 4 / 1 | none | not measured | yes | no |  |
-| crossfade | Effects | buffer | audio effect | 4 | 0 / 4 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
-| curve | Control | data | data | 2 | 0 / 0 / 2 | - | - | no | no | Shapes other values over time; it carries no audio. |
-| cut | Effects | buffer | audio effect | 7 | 0 / 7 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
-| deesser | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | exact | yes | no |  |
-| delay-llama | Instruments | live | audio source | 19 | 0 / 0 / 19 | none | not measured | no | no |  |
+| convolution | Effects | live | audio effect | 9 | 4 / 4 / 1 | none | not measured | yes | yes |  |
+| crossfade | Effects | buffer | audio effect | 4 | 0 / 4 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| curve | Control | data | data | 2 | 0 / 0 / 2 | - | - | no | yes | Shapes other values over time; it carries no audio. |
+| cut | Effects | buffer | audio effect | 7 | 0 / 7 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| deesser | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | exact | yes | yes |  |
+| delay-llama | Instruments | live | audio source | 19 | 0 / 0 / 19 | none | not measured | no | yes |  |
 | delay | Effects | live | audio effect | 6 | 5 / 0 / 1 | none | exact | yes | yes |  |
-| denoise | Effects | offline | audio effect | 8 | 0 / 8 / 0 | - | - | no | no | Previews from a browser render when you stop moving; a live version is planned. |
-| distortion | Effects | live | audio effect | 7 | 6 / 0 / 1 | none | exact | yes | no |  |
+| denoise | Effects | offline | audio effect | 8 | 0 / 8 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
+| distortion | Effects | live | audio effect | 7 | 6 / 0 / 1 | none | exact | yes | yes |  |
 | drums | Instruments | offline | audio source | 12 | 0 / 12 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
-| duck | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | not measured | yes | no |  |
+| duck | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | not measured | yes | yes |  |
 | eq | Effects | live | audio effect | 7 | 6 / 0 / 1 | none | approximate | yes | yes |  |
 | fade | Effects | buffer | audio effect | 6 | 0 / 6 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
 | filter | Effects | live | audio effect | 9 | 8 / 0 / 1 | none | differs | yes | yes |  |
 | fire | Control | data | data | 7 | 0 / 0 / 7 | - | - | no | no | Shapes other values over time; it carries no audio. |
-| flanger | Effects | live | audio effect | 6 | 5 / 0 / 1 | none | differs | yes | no |  |
-| follow | Control | data | audio sink | 12 | 0 / 0 / 12 | - | - | no | no | Shapes other values over time; it carries no audio. |
-| gate | Effects | live | audio effect | 6 | 5 / 0 / 1 | none | exact | yes | no |  |
+| flanger | Effects | live | audio effect | 6 | 5 / 0 / 1 | none | differs | yes | yes |  |
+| follow | Control | data | audio sink | 12 | 0 / 0 / 12 | - | - | no | yes | Shapes other values over time; it carries no audio. |
+| gate | Effects | live | audio effect | 6 | 5 / 0 / 1 | none | exact | yes | yes |  |
 | gm | Instruments | sampled | audio source | 9 | 0 / 0 / 9 | - | - | no | no | Needs the SoundFont render of the server; the browser plays the built take. |
-| granular | Effects | offline | audio effect | 6 | 0 / 6 / 0 | - | - | no | no | Previews from a browser render when you stop moving; a live version is planned. |
+| granular | Effects | offline | audio effect | 6 | 0 / 6 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
 | group | Control | offline | data | 0 | 0 / 0 / 0 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
-| guitar | Instruments | offline | audio source | 10 | 0 / 10 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
+| guitar | Instruments | offline | audio source | 10 | 0 / 10 / 0 | - | - | no | yes | A voice that plays from a browser render; live notes are planned. |
 | import-audio | Data | source | audio source | 11 | 0 / 11 / 0 | - | - | no | no | A source: it plays the take it makes, there is nothing to move live. |
-| join | Effects | buffer | audio effect | 4 | 0 / 4 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| join | Effects | buffer | audio effect | 4 | 0 / 4 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
 | limiter | Effects | live | audio effect | 5 | 4 / 0 / 1 | look-ahead (1 to 20 ms, default 5) | exact | yes | yes |  |
 | lyrics | Lyrics | visual | data | 4 | 0 / 0 / 4 | - | - | no | no | Display only: it analyses or selects, it makes no sound of its own. |
-| map | Control | data | data | 9 | 0 / 0 / 9 | - | - | no | no | Shapes other values over time; it carries no audio. |
+| map | Control | data | data | 9 | 0 / 0 / 9 | - | - | no | yes | Shapes other values over time; it carries no audio. |
 | master | Mix | offline | audio effect | 5 | 1 / 0 / 4 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
-| meter | Effects | offline | audio effect | 2 | 0 / 0 / 2 | - | - | no | no | Plays from a render of the built sources; live moves are planned. |
+| meter | Effects | offline | audio effect | 2 | 0 / 0 / 2 | - | - | no | yes | Plays from a render of the built sources; live moves are planned. |
 | midi-clip | Instruments | midi | data | 16 | 0 / 0 / 16 | - | - | no | no | Changes notes; you hear it through the instrument after it. |
 | midi-humanize | MIDI effects | midi | data | 3 | 0 / 3 / 0 | - | - | no | no | Changes notes; you hear it through the instrument after it. |
 | midi-render | Instruments | sampled | audio source | 8 | 0 / 0 / 8 | - | - | no | no | Needs the SoundFont render of the server; the browser plays the built take. |
 | midi | Data | sampled | audio source | 8 | 0 / 8 / 0 | - | - | no | no | Needs the SoundFont render of the server; the browser plays the built take. |
-| mixer | Mix | offline | audio effect | 4 | 2 / 0 / 2 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
+| mixer | Mix | offline | audio effect | 6 | 4 / 0 / 2 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
 | mood-scene | Direction | visual | data | 1 | 0 / 0 / 1 | - | - | no | no | Display only: it analyses or selects, it makes no sound of its own. |
 | normalize | Effects | offline | audio effect | 6 | 0 / 6 / 0 | - | - | no | yes | Plays from a render of the built sources; live moves are planned. |
 | pan | Effects | live | audio effect | 3 | 2 / 0 / 1 | none | exact | yes | yes |  |
 | peq | Effects | live | audio effect | 32 | 31 / 0 / 1 | none | differs | yes | yes |  |
 | phaser | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | differs | yes | yes |  |
-| piano | Instruments | offline | audio source | 5 | 0 / 5 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
+| piano | Instruments | offline | audio source | 5 | 0 / 5 / 0 | - | - | no | yes | A voice that plays from a browser render; live notes are planned. |
 | pitch | Effects | offline | audio effect | 5 | 0 / 5 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
 | quantize | MIDI effects | midi | data | 4 | 0 / 4 / 0 | - | - | no | no | Changes notes; you hear it through the instrument after it. |
-| region-merge | Effects | buffer | audio effect | 0 | 0 / 0 / 0 | - | - | no | no | Adds the body of a loop and its processed seam; it plays in the live chain as a sum that saturates at full scale. |
+| region-merge | Effects | buffer | audio effect | 0 | 0 / 0 / 0 | - | - | no | yes | Adds the body of a loop and its processed seam; it plays in the live chain as a sum that saturates at full scale. |
 | reverb | Effects | live | audio effect | 5 | 4 / 0 / 1 | none | exact | yes | yes |  |
 | reverse | Effects | buffer | audio effect | 2 | 0 / 2 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
-| rewind | Effects | buffer | audio effect | 11 | 0 / 11 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
-| sampler | Instruments | offline | audio source | 7 | 0 / 7 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
+| rewind | Effects | buffer | audio effect | 11 | 0 / 11 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| sampler | Instruments | offline | audio source | 7 | 0 / 7 / 0 | - | - | no | yes | A voice that plays from a browser render; live notes are planned. |
 | scorer | Control | visual | audio sink | 1 | 0 / 0 / 1 | - | - | no | no | Display only: it analyses or selects, it makes no sound of its own. |
-| scratch | Effects | buffer | audio effect | 6 | 0 / 6 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| scratch | Effects | buffer | audio effect | 6 | 0 / 6 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
 | send | Mix | offline | audio effect | 2 | 1 / 0 / 1 | - | - | no | no | Mix and routing: plays through the built mix; the live mixer moves levels and pans. |
 | sequencer | Advanced | offline | audio source | 5 | 0 / 5 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
-| shift | Effects | buffer | audio effect | 4 | 0 / 4 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
-| silence | Sources | buffer | audio source | 1 | 0 / 1 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
-| splitter | Effects | buffer | audio effect | 1 | 0 / 1 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| shift | Effects | buffer | audio effect | 4 | 0 / 4 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| silence | Sources | buffer | audio source | 1 | 0 / 1 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| splitter | Effects | buffer | audio effect | 1 | 0 / 1 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
 | stretch | Effects | offline | audio effect | 3 | 0 / 3 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
-| synth | Instruments | offline | audio source | 10 | 0 / 10 / 0 | - | - | no | no | A voice that plays from a browser render; live notes are planned. |
+| synth | Instruments | offline | audio source | 10 | 0 / 10 / 0 | - | - | no | yes | A voice that plays from a browser render; live notes are planned. |
 | transpose | MIDI effects | midi | data | 2 | 0 / 2 / 0 | - | - | no | no | Changes notes; you hear it through the instrument after it. |
 | tremolo | Effects | live | audio effect | 9 | 6 / 0 / 3 | none | exact | yes | yes |  |
-| trim | Effects | buffer | audio effect | 7 | 0 / 7 / 0 | - | - | no | no | An edit of the decoded take; heard after a short re-render, live moves are planned. |
+| trim | Effects | buffer | audio effect | 7 | 0 / 7 / 0 | - | - | no | yes | An edit of the decoded take; heard after a short re-render, live moves are planned. |
 | variants | Control | visual | audio effect | 3 | 0 / 0 / 3 | - | - | no | no | Display only: it analyses or selects, it makes no sound of its own. |
-| vocoder | Effects | offline | audio effect | 10 | 0 / 10 / 0 | - | - | no | no | Previews from a browser render when you stop moving; a live version is planned. |
+| vocoder | Effects | offline | audio effect | 10 | 0 / 10 / 0 | - | - | no | yes | Previews from a browser render when you stop moving; a live version is planned. |
 | voice-clone | Voices | server | audio source | 8 | 0 / 0 / 8 | - | - | no | no | Made by a model on the server; the browser plays the built take, the generation itself is never live. |
 | volume | Effects | live | audio effect | 9 | 7 / 0 / 2 | none | close | yes | yes |  |
 | width | Effects | live | audio effect | 3 | 2 / 0 / 1 | none | exact | yes | yes |  |

@@ -13,7 +13,9 @@ public static partial class ComponentExpander
 
     private static string NodeBlock(string instance, AudioNode node) => Edits.Quote(instance + "__" + node.Id);
 
-    private static AudioPlan PlanAudio(BlockNode b, ComponentDefinition def, SpecData spec, double tempo, List<ModuleDiagnostic> diagnostics, IReadOnlyList<ComponentDefinition> visible)
+    private static AudioPlan PlanAudio(
+        BlockNode b, ComponentDefinition def, SpecData spec, double tempo, List<ModuleDiagnostic> diagnostics,
+        IReadOnlyList<ComponentDefinition> visible, ObservationSink sink, IReadOnlyList<ConfigLayerInput> songLayers, ConfigLayerInput? session)
     {
         Dictionary<string, string> values = new(StringComparer.Ordinal);
         foreach (ComponentProperty p in def.Properties)
@@ -26,6 +28,34 @@ public static partial class ComponentExpander
 
         AudioGraph graph = AudioGraphBuilder.Build(def, spec, values, tempo, visible);
         foreach (ComponentIssue issue in graph.Issues) diagnostics.Add(new ModuleDiagnostic(issue.Code, $"{b.Type} \"{b.Name}\": {issue.Message}", b.Line, b.Type));
+        int dropped = graph.SuppressedWarnings;
+        List<ConfigLayerInput> layers = [.. songLayers];
+        if (b.Directives.Count > 0)
+        {
+            Dictionary<string, (string Value, int Line)> own = new(StringComparer.Ordinal);
+            foreach (BlockDirective directive in b.Directives) own[directive.Name] = (directive.Value, directive.Line);
+            layers.Add(new ConfigLayerInput(new ConfigSource(ConfigLayer.Instance, b.Name), own));
+        }
+        if (session is not null) layers.Add(session);   // the session wins over the song and the instance
+        ObservationConfig config = ObservationConfig.Resolve(layers);
+
+        foreach (AudioWarning warning in graph.Warnings)
+        {
+            SourceSite site = new("component:" + def.Name, warning.Line, 1, 2);
+            EventDecision decision = sink.Begin(warning.Level, ObservationSink.SiteKeyOf(site, b.Name, warning.Level), true, config);
+            if (!decision.Registered) continue;   // the level of this instance does not show it: nothing is registered, nothing is shown
+            if (!decision.Store) { dropped++; continue; }   // over the budget of the sink: counted there, reported once below
+            StackFrameInfo frame = new(def.Name, null, b.Name);
+            sink.Add(decision, new LogEvent(0, warning.Level, decision.SiteKey, site, warning.Code, warning.Message, null, null, [frame]));
+            if (warning.Level != EventLevel.Warning) continue;   // log, debug and trace are only in the log view
+            string code = warning.Code is null ? string.Empty : " [" + warning.Code + "]";
+            diagnostics.Add(new ModuleDiagnostic("AMP6001", $"{b.Type} \"{b.Name}\": {warning.Message}{code} (line {warning.Line} of the component)", b.Line, b.Type, Severity.Warning));
+        }
+        if (dropped > 0)
+        {
+            string more = $"{dropped} more warnings were not shown (the limits are {AudioGraphBuilder.MaxWarnings} per component and {new ObservationBudgets().DiagnosticMaxTotal} per song)";
+            diagnostics.Add(new ModuleDiagnostic("AMP6007", $"{b.Type} \"{b.Name}\": {more}", b.Line, b.Type, Severity.Info));
+        }
         Dictionary<string, (string Block, string Port)> outputs = new(StringComparer.Ordinal);
         foreach ((string output, string source) in graph.Outputs)
         {

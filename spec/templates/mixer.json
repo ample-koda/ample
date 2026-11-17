@@ -138,6 +138,30 @@
       "doc": "The place of each input: l (left), c (centre), r (right) or a number from -32 to 32, one value per input (pan l r). Any place other than centre makes the mix stereo, even when every input is mono."
     },
     {
+      "name": "mutes",
+      "type": "text",
+      "default": "off off off off",
+      "kind": "channels",
+      "count": 4,
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "Which inputs are silent: on or off, one value per input (mutes off on). An input that is muted stays connected and keeps its gain. A song without mutes sounds as before."
+    },
+    {
+      "name": "solos",
+      "type": "text",
+      "default": "off off off off",
+      "kind": "channels",
+      "count": 4,
+      "options": [
+        "off",
+        "on"
+      ],
+      "doc": "Solo per input: on or off, one value per input (solos off on). When any input of this mixer has solo on, only the inputs with solo on are heard; the others are silent. A mute on a soloed input still wins."
+    },
+    {
       "name": "inputs",
       "type": "text",
       "default": "4",

@@ -218,7 +218,7 @@ internal static class TxExport
         if (request.Mode == "derived")
         {
             // module instances (use ... as ...) are cut like ordinary blocks: the Derived song is made from the text in which every use is expanded into its blocks
-            ExpandedSong expanded = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).Expand(d.Saved, s.Spec);
+            ExpandedSong expanded = s.Modules().Expand(d.Saved, s.Spec);
             if (expanded.Used.Count > 0 && expanded.Diagnostics.Count == 0)
             {
                 songText = expanded.Text;

@@ -20,6 +20,17 @@ public sealed class BuiltInComponentsTests
     }
 
     [Fact]
+    public void The_compiled_components_are_the_files_of_content_components()
+    {
+        string dir = AppContext.BaseDirectory;
+        while (!Directory.Exists(Path.Combine(dir, "content", "components"))) dir = Path.GetDirectoryName(dir) ?? throw new DirectoryNotFoundException("content/components");
+        string[] files = [.. Directory.GetFiles(Path.Combine(dir, "content", "components"), "*.amplec").Select(Path.GetFileName).Order(StringComparer.Ordinal)!];
+        Assert.Equal(files, BuiltInComponents.Files.Order(StringComparer.Ordinal));   // else: node tools/gen-builtin-components.mjs
+        foreach (string file in files)
+            Assert.Equal(File.ReadAllText(Path.Combine(dir, "content", "components", file)).Replace("\r\n", "\n", StringComparison.Ordinal), BuiltInComponents.Read(file));
+    }
+
+    [Fact]
     public void A_song_that_names_a_built_in_component_gets_it_without_an_import_line()
     {
         string song = Header + "import-audio rec {\n  file rec.wav\n}\nample.voice.clean clean {\n  from rec.audio -> audio\n}\n";

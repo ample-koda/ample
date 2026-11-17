@@ -1,3 +1,4 @@
+import { infoNote, infoToggle } from './info.js';
 import { clamp, compressorOutput, duckGain, releaseInSteps } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
@@ -8,7 +9,8 @@ import { barBeats } from '../../../lib/meter.mjs';
 
 const ns = 'http://www.w3.org/2000/svg';
 const valueOf = (params, key, fallback) => { const value = Number.parseFloat(String(params[key] ?? '').replace(/[a-z ]/gi, '')); return Number.isFinite(value) ? value : fallback; };
-const control = (label, widget) => el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), widget]);
+// a knob draws its own name and its value is a button: inside a label every click on the knob would also click that button (issue 188)
+const control = (label, widget) => el(widget.classList?.contains('studio-knob') ? 'div' : 'label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), widget]);
 const write = (context, name, value, unit = '') => context.commit(name, `${typeof value === 'number' ? Number(value.toFixed(unit === 'dB' ? 1 : 0)) : value}${unit ? ` ${unit}` : ''}`);
 const svg = (tag, attributes) => { const node = document.createElementNS(ns, tag); Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, String(value))); return node; };
 
@@ -74,7 +76,7 @@ function compressorPanel(context) {
     finally { analyze.disabled = !context.renderedBuffer; }
   };
   analysis.append(el('div', { className: 'studio-analysis-heading' }, [el('strong', { textContent: 'INPUT / OUTPUT · GAIN REDUCTION' }), analyze]), waveform, analysisStatus);
-  return el('section', { className: 'studio-effect-panel studio-compressor-panel', 'aria-label': 'Compressor controls' }, [graph, controls, analysis, el('p', { className: 'note', textContent: 'Transfer curve is a display model. Preview analysis measures the exact integer renderer output over a bounded audio range.' }), el('p', { className: 'note', textContent: 'Sidechain: connect a sound to the key port of this block and that sound, not the input, drives the reduction (for example the kick ducking a bass). Key filter keeps only the key above that frequency; 0 is off. The threshold can be automated: type auto(1:-30, 9:-18) in the source.' })]);
+  return el('section', { className: 'studio-effect-panel studio-compressor-panel', 'aria-label': 'Compressor controls' }, [graph, controls, analysis, infoToggle([el('p', { className: 'note', textContent: 'Transfer curve is a display model. Preview analysis measures the exact integer renderer output over a bounded audio range.' }), el('p', { className: 'note', textContent: 'Sidechain: connect a sound to the key port of this block and that sound, not the input, drives the reduction (for example the kick ducking a bass). Key filter keeps only the key above that frequency; 0 is off. The threshold can be automated: type auto(1:-30, 9:-18) in the source.' })])]);
 }
 
 function duckPanel(context) {
@@ -122,7 +124,7 @@ function duckPanel(context) {
     knob({ learn: context.block ? { block: context.block, name: 'depth' } : null, label: 'Depth', value: depth, min: 0, max: 40, unit: 'dB', disabled: context.readOnly, onPreview: (next) => context.preview?.('depth', next), onCommit: (next) => write(context, 'depth', next, 'dB') }),
     knob({ learn: context.block ? { block: context.block, name: 'release' } : null, label: 'Release', value: release, min: 10, max: 2000, unit: 'ms', scale: 'log', disabled: context.readOnly, onPreview: (next) => context.preview?.('release', next), onCommit: (next) => write(context, 'release', next, 'ms') }),
   ]);
-  const root = el('section', { className: 'studio-effect-panel studio-duck-panel studio-live-panel', 'aria-label': 'Duck controls' }, [steps, curve, controls, el('p', { className: 'note', textContent: `16 steps per bar · project tempo ${context.tempo || '—'} BPM` })]);
+  const root = el('section', { className: 'studio-effect-panel studio-duck-panel studio-live-panel', 'aria-label': 'Duck controls' }, [steps, curve, controls, infoNote(`16 steps per bar · project tempo ${context.tempo || '—'} BPM`)]);
   root.dispose = unsubscribe;
   return root;
 }

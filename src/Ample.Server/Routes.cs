@@ -618,7 +618,71 @@ public static class Routes
 
     private static object Diags(AmpleDocument d) => d.Diagnostics.Select(x => new { x.Code, severity = x.Severity.ToString().ToLowerInvariant(), x.Line, x.Col, x.EndCol, x.Message, x.Hint, breaksGraph = DiagnosticKinds.BreaksGraph(x.Code), block = DiagnosticKinds.BlockOf(d, x) });
 
-    private static object DocView(DocSession d, AmpleDocument parsed, ProjectSession session, IReadOnlyList<string>? unsupported = null) => new { d.Path, d.Version, d.Text, dirty = d.Text != d.Saved, diagnostics = Diags(parsed), graphBroken = DiagnosticKinds.GraphBroken(parsed), blocks = parsed.Blocks.Where(b => !b.Skipped).Select(b => new { b.Name, b.Type, b.Class, b.Version, b.Line, flags = b.Flags, b.Freeze, parts = b.Parts, parameters = b.Parameters.Select(p => new { p.Name, p.Value, p.Line }), froms = b.Froms.Select(f => new { f.Block, f.Output, f.Input, f.Disabled }), controlRefs = b.ControlRefs.Select(c => new { c.Block, c.Output, c.Parameter }), layout = parsed.Layout.TryGetValue(b.Name, out (int X, int Y) pos) ? new { x = pos.X, y = pos.Y } : null }), uses = ModuleUsesView(parsed, session), project = parsed.Project is null ? null : new { parsed.Project.Name, parsed.Project.Tempo, parsed.Project.MasterSeed, parsed.Project.MeterNumerator, parsed.Project.MeterDenominator, parsed.Project.BeatsPerBar }, settings = parsed.Settings, helpers = parsed.Helpers.Select(h => new { h.Name, h.Kind, h.Dynamic, h.Baked, h.Effect, h.Returns, h.Line, parameters = h.Params, dependencies = h.Dependencies }), properties = parsed.Properties, stability = parsed.Stability, stabilityNotes = parsed.StabilityNotes, capabilities = parsed.Capabilities, clockAt = (session.LastBuildAt.TryGetValue(d.Path, out DateTime builtClock) ? builtClock : parsed.ParsedAt).ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture), builtClock = session.LastBuildAt.ContainsKey(d.Path), bakeableClock = parsed.Stability == "dynamic" && Edits.BakeDynamicHelpers(parsed, parsed.ParsedAt).Ok, environmentAllow = parsed.CapabilityPolicy.AllowLists("environment"), limits = parsed.Limits.Select(l => new { l.Key, l.Effective, l.Source, l.Cap }), unsupported = unsupported ?? [] };
+    private static object DocView(DocSession d, AmpleDocument parsed, ProjectSession session, IReadOnlyList<string>? unsupported = null) =>
+        new
+        {
+            d.Path,
+            d.Version,
+            d.Text,
+            dirty = d.Text != d.Saved,
+            diagnostics = Diags(parsed),
+            observations = ObservationsView(parsed),
+            graphBroken = DiagnosticKinds.GraphBroken(parsed),
+            blocks = parsed.Blocks.Where(b => !b.Skipped).Select(b => new
+            {
+                b.Name,
+                b.Type,
+                b.Class,
+                b.Version,
+                b.Line,
+                flags = b.Flags,
+                b.Freeze,
+                parts = b.Parts,
+                parameters = b.Parameters.Select(p => new { p.Name, p.Value, p.Line }),
+                froms = b.Froms.Select(f => new { f.Block, f.Output, f.Input, f.Disabled }),
+                controlRefs = b.ControlRefs.Select(c => new { c.Block, c.Output, c.Parameter }),
+                layout = parsed.Layout.TryGetValue(b.Name, out (int X, int Y) pos) ? new { x = pos.X, y = pos.Y } : null,
+            }),
+            uses = ModuleUsesView(parsed, session),
+            project = parsed.Project is null ? null : new
+            {
+                parsed.Project.Name,
+                parsed.Project.Tempo,
+                parsed.Project.MasterSeed,
+                parsed.Project.MeterNumerator,
+                parsed.Project.MeterDenominator,
+                parsed.Project.BeatsPerBar,
+            },
+            settings = parsed.Settings,
+            helpers = parsed.Helpers.Select(h => new { h.Name, h.Kind, h.Dynamic, h.Baked, h.Effect, h.Returns, h.Line, parameters = h.Params, dependencies = h.Dependencies }),
+            properties = parsed.Properties,
+            stability = parsed.Stability,
+            stabilityNotes = parsed.StabilityNotes,
+            capabilities = parsed.Capabilities,
+            clockAt = (session.LastBuildAt.TryGetValue(d.Path, out DateTime builtClock) ? builtClock : parsed.ParsedAt)
+                .ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+            builtClock = session.LastBuildAt.ContainsKey(d.Path),
+            bakeableClock = parsed.Stability == "dynamic" && Edits.BakeDynamicHelpers(parsed, parsed.ParsedAt).Ok,
+            environmentAllow = parsed.CapabilityPolicy.AllowLists("environment"),
+            limits = parsed.Limits.Select(l => new { l.Key, l.Effective, l.Source, l.Cap }),
+            unsupported = unsupported ?? [],
+        };
+
+    /// <summary>The log view of a song: every stored event of log, debug, trace and warn with its place, stack and bounded context.</summary>
+    private static object[] ObservationsView(AmpleDocument parsed) => [.. parsed.Observations.Select(e => (object)new
+    {
+        seq = e.Seq,
+        level = e.Level.ToString().ToLowerInvariant(),
+        code = e.Code,
+        message = e.Message,
+        hint = e.Hint,
+        context = ObsRedactor.ParseContext(e.ContextJson),   // JSON itself, not a text that holds JSON
+        origin = e.Site?.Origin,
+        line = e.Site?.Line,
+        col = e.Site?.Col,
+        stack = e.Stack.Select(f => new { name = f.Name, site = f.Site?.ToString(), instance = f.Instance }),
+        @volatile = e.Volatile,
+    })];
 
     private static object ModuleDocView(ModuleDocState state, ProjectSession session) => DocView(state.Document, session.ParseModule(state.Document), session, Ample.Audio.Midi.MidiModuleFacts.FromSource(state.Source).UnsupportedFeatures);
 
@@ -2345,6 +2409,30 @@ public static class Routes
             (string text, string saved, long version, bool dirty) = s.Texts.Get(WorkingPath(path));
             return await Task.FromResult(Ok(new { path, text, saved, version, dirty }));
         });
+        const string sessionGet = "The temporary overrides of the logging and assertion options of this session (logging.level, diagnostics.assertions ...): "
+            + "they win over the song, are kept in memory only and never change the music.";
+        add("GET", "/api/diagnostics/session", "documents", sessionGet, false, s is null ? null : async (HttpContext c) =>
+            await Task.FromResult(Ok(new { values = s.ObservationSession })));
+        const string sessionPut = "Sets the temporary overrides (values: an object of option and value; an empty object clears them). "
+            + "A value that is not valid for its option is refused.";
+        add("PUT", "/api/diagnostics/session", "documents", sessionPut, true, s is null ? null : async (HttpContext c) =>
+        {
+            JsonElement b = await Body(c);
+            Dictionary<string, string> values = new(StringComparer.Ordinal);
+            if (b.TryGetProperty("values", out JsonElement given) && given.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty p in given.EnumerateObject())
+                {
+                    string value = p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText();
+                    if (!ObservationConfig.IsOption(p.Name)) throw new AmpleException("AMP6030", $"{p.Name} is not a logging or diagnostics option.");
+                    if (ObservationConfig.Validate(p.Name, value) is { } problem) throw new AmpleException("AMP6030", problem);
+                    values[p.Name] = value;
+                }
+            }
+
+            s.ObservationSession = values;
+            return Ok(new { values });
+        });
         add("PUT", "/api/wc", "documents", "Sets the working copy of a text file that is not a song (path, text): it is not saved, but builds of songs that use the file read it.", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
@@ -3108,18 +3196,36 @@ public static class Routes
                 // a block with an error does not stop the build: it is left out, and the answer says so loudly (plan/editor-tabs.md, decision 8). An error that belongs to no block still stops it.
                 string? cleaned = BrokenBlocks.Skip(d.Text, s.Spec, out skippedBlocks);
                 if (cleaned is null || skippedBlocks.Count == 0) throw new AmpleException("AMP5287", "The song has errors; fix them first." + UnsavedNote(s));
-                parsed = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(cleaned, s.Spec);
+                parsed = s.Modules().ParseExpanded(cleaned, s.Spec);
                 if (parsed.Diagnostics.Any(x => x.Severity == Severity.Error)) throw new AmpleException("AMP5287", "The song has errors; fix them first." + UnsavedNote(s));
-            }
-
-            // the first time a song is built with a component, that component is pinned in ample.lock (a later change of its code is AMP2203); written through the command bus
-            if (new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")) is { } pinning && pinning.LockWithNewComponents(pinning.Expand(d.Text, s.Spec)) is { } pinned)
-            {
-                await s.Bus.ExecuteAsync(new WriteFileCommand(Ample.Engine.Library.LockFile.FileName, pinned), c.RequestAborted);
             }
 
             // a draft: one parameter of the parsed copy is replaced, so the song and its working copy stay as they are
             bool draft = b.TryGetProperty("override", out JsonElement draftOverride) && draftOverride.ValueKind == JsonValueKind.Object;
+            // a Live Preview build of the code editor (plan/live-preview 6.2, 6.3): the same build and takes, but the song clock, the preview-build flag, the
+            // build statistics and ample.lock stay as the last normal build left them, and its events say listen so other pages do not take them for their build state
+            bool listen = b.TryGetProperty("listen", out JsonElement listenFlag) && listenFlag.ValueKind == JsonValueKind.True;
+            if (listen && (draft || (b.TryGetProperty("forceRender", out JsonElement listenForce) && listenForce.ValueKind == JsonValueKind.True)))
+            {
+                throw new AmpleException("AMP5607", "A Live Preview build cannot be a draft or a forced render.");
+            }
+
+            // the first time a song is built with a component, that component is pinned in ample.lock (a later change of its code is AMP2203); written through the
+            // command bus. A Live Preview build writes nothing: it says which components a normal build would pin (the lock never chooses code, plan 6.3)
+            string[]? unpinned = listen ? [] : null;
+            if (s.Modules() is { } pinning)
+            {
+                ExpandedSong expandedForPins = pinning.Expand(d.Text, s.Spec);
+                if (listen)
+                {
+                    unpinned = [.. pinning.MissingComponentPins(expandedForPins).Select(p => p.Id)];
+                }
+                else if (pinning.LockWithNewComponents(expandedForPins) is { } pinned)
+                {
+                    await s.Bus.ExecuteAsync(new WriteFileCommand(Ample.Engine.Library.LockFile.FileName, pinned), c.RequestAborted);
+                }
+            }
+
             if (draft)
             {
                 ApplyDraftParameter(parsed, Str(draftOverride, "block"), Str(draftOverride, "name"), Str(draftOverride, "value"));
@@ -3141,27 +3247,70 @@ public static class Routes
 
             if (!draft)
             {
-                events!.Publish("build.estimate", new { estimate.Estimate.Blocks, estimate.Estimate.Bytes, estimate.Estimate.Seconds, estimate.Estimate.Basis, estimate.Estimate.Builds, estimate.FreeBytes, buildId });
+                BuildEstimate est = estimate.Estimate;
+                object announced = listen
+                    ? new { est.Blocks, est.Bytes, est.Seconds, est.Basis, est.Builds, estimate.FreeBytes, buildId, listen }
+                    : new { est.Blocks, est.Bytes, est.Seconds, est.Basis, est.Builds, estimate.FreeBytes, buildId };
+                events!.Publish("build.estimate", announced);
             }
 
             System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
-            BuildReport report = await s.Engine.BuildAsync(parsed, new BuildOptions(Opt(b, "intent") ?? "bake", range, Opt(b, "only"), 0, renderers, (block, status) => { if (!draft) { events!.Publish("build.progress", new { block, status, buildId }); } }, control, forceRender ? new BlockOverride(Opt(b, "only")!, null, null, true, null) : null, detail => events!.Publish("build.block", new { buildId, block = detail.Block, state = detail.State, fraction = detail.Fraction, steps = detail.Steps.Select(x => new { name = x.Name, fraction = x.Fraction }) })) { ModuleSources = s.ModuleSources() }, c.RequestAborted);
+            // the events of a Live Preview build say listen; the events of a normal build keep their shape
+            void Progress(string block, string status)
+            {
+                if (draft) return;
+                events!.Publish("build.progress", listen ? new { block, status, buildId, listen } : new { block, status, buildId });
+            }
+
+            void BlockDetail(BlockProgress detail)
+            {
+                var steps = detail.Steps.Select(x => new { name = x.Name, fraction = x.Fraction });
+                object shown = listen
+                    ? new { buildId, block = detail.Block, state = detail.State, fraction = detail.Fraction, steps, listen }
+                    : new { buildId, block = detail.Block, state = detail.State, fraction = detail.Fraction, steps };
+                events!.Publish("build.block", shown);
+            }
+
+            BlockOverride? forced = forceRender ? new BlockOverride(Opt(b, "only")!, null, null, true, null) : null;
+            BuildOptions buildOptions = new(Opt(b, "intent") ?? "bake", range, Opt(b, "only"), 0, renderers, Progress, control, forced, BlockDetail)
+            {
+                ModuleSources = s.ModuleSources(),
+            };
+            BuildReport report = await s.Engine.BuildAsync(parsed, buildOptions, c.RequestAborted);
             StorageApi.ForgetEstimate(s);   // the takes changed: the next estimate looks again
-            if (!draft)
+            if (!draft && !listen)
             {
                 StorageApi.RecordBuild(s, parsed, report, clock.Elapsed.TotalSeconds);
                 s.LastBuildAt[Str(b, "path")] = parsed.ParsedAt;
                 s.PreviewBuilds[Str(b, "path")] = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0;
                 events!.Publish("build.done", new { report.Hits, report.Misses, report.MasterTakeId, buildId, elapsed = report.ElapsedSeconds });
             }
+            else if (listen)
+            {
+                events!.Publish("build.done", new { report.Hits, report.Misses, report.MasterTakeId, buildId, elapsed = report.ElapsedSeconds, listen });   // nothing of the normal song state changes
+            }
 
             object[] skippedReport = [.. skippedBlocks.Select(x => (object)new { block = x.Block, status = "skipped", message = $"has an error and was left out of this build: {x.Code} {x.Message} (line {x.Line})" })];
-            return Ok(new { report.Hits, report.Misses, report.MasterTakeId, elapsed = report.ElapsedSeconds, timings = BuildTimings.Summarize(report).Describe(), blocks = report.Blocks.Cast<object>().Concat(skippedReport).ToArray(), builtWithErrors = skippedBlocks.Count > 0, unsavedInputs = s.Texts.DirtyWithHashes().Select(x => new { path = x.Path, x.Sha256 }), previewTake = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0, skippedBlocks = skippedBlocks.Select(x => new { x.Block, x.Code, x.Message, x.Line }), clockAt = parsed.ParsedAt.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) });
+            return Ok(new
+            {
+                report.Hits,
+                report.Misses,
+                report.MasterTakeId,
+                elapsed = report.ElapsedSeconds,
+                timings = BuildTimings.Summarize(report).Describe(),
+                blocks = report.Blocks.Cast<object>().Concat(skippedReport).ToArray(),
+                builtWithErrors = skippedBlocks.Count > 0,
+                unsavedInputs = s.Texts.DirtyWithHashes().Select(x => new { path = x.Path, x.Sha256 }),
+                previewTake = skippedBlocks.Count > 0 || s.Texts.Dirty().Count > 0,
+                skippedBlocks = skippedBlocks.Select(x => new { x.Block, x.Code, x.Message, x.Line }),
+                unpinnedComponents = unpinned,   // only a Live Preview build: what a normal build would pin (null otherwise)
+                clockAt = parsed.ParsedAt.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+            });
         });
         add("POST", "/api/build/text", "build", "Builds song text that is not a file of the project (the source of a template, to listen to it) as a draft: nothing is changed or announced. only builds up to one block and gives its take.", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
-            AmpleDocument parsed = new Ample.Engine.Modules.ModuleService(s.Root, () => s.Library, s.Manifest.Id.ToString("D")).ParseExpanded(Str(b, "text"), s.Spec);
+            AmpleDocument parsed = s.Modules().ParseExpanded(Str(b, "text"), s.Spec);
             if (parsed.Diagnostics.Any(x => x.Severity == Severity.Error))
             {
                 throw new AmpleException("AMP5287", "The text has errors; fix them first.");

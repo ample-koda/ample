@@ -5,6 +5,7 @@
   "class": "stable",
   "version": "1.0",
   "dynamic": false,
+  "clientPreview": true,
   "plugin": null,
   "description": "Moves the sound like a record under the hand of a DJ: per step the record is pushed forward and pulled back, pulled back only, spun back or cut, so the sound squeals up and down in pitch.",
   "inputs": [

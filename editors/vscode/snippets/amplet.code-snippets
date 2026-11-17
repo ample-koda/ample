@@ -349,9 +349,10 @@
       "delay ${1:delay} {",
       "  enabled ${2:on}",
       "  time ${3:250 ms}",
-      "  feedback ${4:35%}",
-      "  mix ${5:30%}",
-      "  channels ${6:auto}",
+      "  sync ${4:off}",
+      "  feedback ${5:35%}",
+      "  mix ${6:30%}",
+      "  channels ${7:auto}",
       "}",
       "$0"
     ]
@@ -1328,7 +1329,7 @@
       "voice-clone ${1:voice-clone} {",
       "  file ${2:}",
       "  text ${3:}",
-      "  model ${4:xtts}",
+      "  model ${4:chatterbox}",
       "  language ${5:nl}",
       "  reference_text ${6:}",
       "  auto_detect ${7:off}",
