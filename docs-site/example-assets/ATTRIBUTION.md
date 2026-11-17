@@ -12,8 +12,8 @@ The example songs of some block pages need a file (a recording, a MIDI file, a S
 
 Other things the examples use: bass (`set analog-808`) and piano (`set felt-piano`) are built-in sounds and need no file. convolution uses `ir room`, a synthetic impulse response of the CC0 pack `impulse-responses` (made by `tools/make-impulse-responses.mjs`; `ample packs install impulse-responses`).
 
-gm and midi-render use the language default `pack:musescore-general`, the MuseScore General SoundFont (MIT, S. Christian Collins; see `LICENSES/musescore-general.txt`). It is not shipped on the site: the page says to run `ample packs install soundfont` (pinned by SHA-256). The renderer reads it from the user-level audio packs. MIT material is accepted for the docs examples. `piano.sf2` (VSCO 2 CE upright piano, CC0) and `preview.lyr` are no longer used.
+gm and midi-render use the language default `pack:musescore-general`, the MuseScore General SoundFont (MIT, S. Christian Collins; see `LICENSES/musescore-general.txt`). It is not shipped on the site: the page says to run `ample packs install soundfont` (pinned by SHA-256). The renderer reads it from the user-level audio packs. MIT material is accepted for the docs examples.
 
 lyrics has no example song with sound: the block makes no sound, so its page shows the spec example without a player.
 
-mood-scene and lyrics have no example song with sound (the page shows the spec example without a player). `passing-car.wav`, `input.mid`, `piano.sf2` and `preview.lyr` are still in `files/` but no example uses them and the build does not serve them; `rev` in `examples.json` renames the mp3 of an example whose files changed.
+mood-scene and lyrics have no example song with sound (the page shows the spec example without a player). `rev` in `examples.json` renames the mp3 of an example whose files changed.
