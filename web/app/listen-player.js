@@ -7,6 +7,7 @@ import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 import { setExternalPlayer, stop as stopOtherPlayers } from './player.js';
 import { heardLength, takeTimeAt, wavSlice } from '../lib/listen-segments.mjs';
+import { resumeUnlessCancelled } from '../lib/listen-cancel.mjs';
 
 const FADE = 0.005, LOOKAHEAD = 0.12, TICK = 30;
 const P = { entry: null, pending: null, playing: false, lapStart: 0, scheduled: [], timer: 0, loading: false, version: 0, onStop: null };
@@ -109,12 +110,13 @@ function silenceAll() {
 
 /**
  * Plays an entry { buffer, segments }. When something plays: timing 'boundary' waits for the end of the current loop, 'now' swaps at once at the same
- * place in the loop.
+ * place in the loop. `signal` is the token of the session that hands the entry in: when Stop (or a new Listen) cancelled it before or while the context
+ * resumed, nothing is queued or played and the player is left alone. Resolves false in that case.
  */
-export async function playEntry(entry, { timing = 'boundary', onStop = null } = {}) {
+export async function playEntry(entry, { timing = 'boundary', onStop = null, signal = null } = {}) {
   const context = liveAudioContext();
-  if (context.state === 'suspended') await context.resume().catch(() => {});
-  if (P.playing && timing === 'boundary') { P.pending = entry; emit(); return; }
+  if (!(await resumeUnlessCancelled(context, signal))) return false;
+  if (P.playing && timing === 'boundary') { P.pending = entry; emit(); return true; }
   const into = P.playing ? Math.max(0, context.currentTime - P.lapStart) : 0;
   if (!P.playing) { P.version++; stopOtherPlayers(); }   // one sound at a time (the header player, the loop player of the sequencer)
   silenceAll();
@@ -124,6 +126,7 @@ export async function playEntry(entry, { timing = 'boundary', onStop = null } = 
   scheduleLap(entry, start, offset);
   clearInterval(P.timer); P.timer = setInterval(tick, TICK);
   emit();
+  return true;
 }
 
 /** Brings a waiting take in at once (Apply now). */

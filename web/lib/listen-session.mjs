@@ -7,7 +7,8 @@
  * @param {object} deps
  * @param {(job: object, signal: { cancelled: boolean }) => Promise<object|null>} deps.build builds the job; resolves with what to play, null when it was cancelled; throws on a failed build
  * @param {() => void} deps.cancelBuild cancels the running build (the store's stopBuild)
- * @param {(result: object, number: number) => Promise<void>} deps.play hands a finished build to the player (which swaps at the loop boundary or at once)
+ * @param {(result: object, number: number, signal: { cancelled: boolean }) => Promise<void>} deps.play hands a finished build to the player (which swaps
+ *   at the loop boundary or at once); it must stop and change nothing when `signal.cancelled` is set (Stop or a new Listen came in while it loaded)
  * @param {() => void} deps.stopPlayback stops the sound
  * @param {(state: object) => void} [deps.onChange] told after every change of state
  * @param {(fn: () => void, ms: number) => any} [deps.setTimer]
@@ -17,7 +18,12 @@
 export function createListenSession(deps) {
   const setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   const clearTimer = deps.clearTimer ?? ((id) => clearTimeout(id));
-  const S = { active: false, status: 'idle', job: null, timer: null, running: false, again: false, generation: 0, next: 1, building: null, playing: null, error: null, lastResult: null };
+  const S = {
+    active: false, status: 'idle', job: null, timer: null, running: false, again: false, generation: 0, next: 1, building: null, playing: null, error: null,
+    lastResult: null, token: { cancelled: false },
+  };
+  // Stop and a new Listen end the session of the old token: its tasks see `cancelled` after every await and change nothing any more
+  const endSession = () => { S.token.cancelled = true; S.token = { cancelled: false }; };
   const emit = () => deps.onChange?.(state());
 
   function state() {
@@ -32,11 +38,11 @@ export function createListenSession(deps) {
     if (!S.active || !S.job) return;
     if (S.running) { S.again = true; emit(); return; }
     S.running = true;
-    const generation = S.generation;
+    const generation = S.generation, token = S.token;
     try {
       do {
         S.again = false;
-        const number = S.next++, job = S.job, signal = { cancelled: false };
+        const number = S.next++, job = S.job, signal = token;
         S.building = number; S.status = 'building'; S.error = null; emit();
         let result = null;
         try {
@@ -54,7 +60,13 @@ export function createListenSession(deps) {
         if (S.again) continue;   // a newer change came in: build that one before anything is heard
         S.lastResult = result;
         S.status = S.playing !== null ? 'playing' : 'idle'; emit();   // the build is done: the player loads the new take now (its own state says so)
-        await deps.play(result, number);
+        try {
+          await deps.play(result, number, token);
+        } catch (error) {
+          if (generation !== S.generation || !S.active) return;   // an old session's late failure is not the new session's
+          throw error;
+        }
+
         if (generation !== S.generation || !S.active) return;
         S.playing = number; S.status = 'playing'; emit();
       } while (S.again && S.active && generation === S.generation);
@@ -67,6 +79,7 @@ export function createListenSession(deps) {
     state,
     /** Starts listening to a job (a target with its settings): builds at once and plays the result. */
     start(job) {
+      endSession();
       S.generation++; S.running = false; S.again = false;
       S.active = true; S.job = job; S.playing = null; S.error = null; S.status = 'idle';
       return run();
@@ -92,6 +105,7 @@ export function createListenSession(deps) {
     stop() {
       if (S.timer !== null) { clearTimer(S.timer); S.timer = null; }
       const wasRunning = S.running;
+      endSession();
       S.generation++; S.active = false; S.running = false; S.again = false; S.building = null;
       if (wasRunning) deps.cancelBuild();
       deps.stopPlayback();

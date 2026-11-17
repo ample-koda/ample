@@ -10,6 +10,7 @@ import { masterTakeOf, songState } from '../lib/transport-model.mjs';
 import { createListenSession } from '../lib/listen-session.mjs';
 import { barSeconds, barsLoop, playSegments, rangeBuild, silentWindows } from '../lib/listen-segments.mjs';
 import { moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { createListenBuilder, playLoaded } from '../lib/listen-cancel.mjs';
 import { applyPendingNow, listenPlayerState, loadTake, loadTakeSlice, onListenPlayer, playEntry, setLoading, stopListenPlayer } from './listen-player.js';
 
 const STORE = 'ample.listen';
@@ -95,9 +96,6 @@ function currentJob() {
   return { kind: 'block', id, picked, role, quality, key: `block:${id}.${role}:${settings.quality}` };
 }
 
-/** Waits until a build that is not ours ends (the store runs one build at a time). */
-async function storeFree() { while (S.build.running) await new Promise((resolve) => setTimeout(resolve, 120)); }
-
 const failedMessage = (report, id) => {
   const item = (report?.blocks || []).find((b) => (b.block ?? b.Block) === id && ['failed', 'skipped'].includes(b.status ?? b.Status));
   return item ? `${id}: ${item.message ?? item.Message ?? item.status ?? item.Status}` : null;
@@ -105,7 +103,6 @@ const failedMessage = (report, id) => {
 
 /** Builds a job with the store and says what to play: { take, role, loop, takeFirstBar, method, text, job }. */
 async function buildJob(job) {
-  await storeFree();
   const text = S.doc?.text || '', barSec = barSeconds(tempo(), barBeats());
   if (job.kind === 'block') {
     const report = await build(job.id, null, job.quality, false, { separate: true });   // its takes stay apart from S.build.takes (plan 6.1)
@@ -149,11 +146,12 @@ ${plan.before} bar${plan.before === 1 ? '' : 's'} before the range make it take 
 }
 
 /** The loop and its segments for the player: silence trimmed (or skipped) only for a block, and only as the setting says. */
-async function entryOf(result) {
+async function entryOf(result, signal) {
   setLoading(true);
   try {
     // bars: only the chosen stretch is downloaded; the loop and the marks then count from where the stretch starts (sliceOffset)
     const piece = result.slice && result.loop ? await loadTakeSlice(result.take, result.role, result.loop.start, result.loop.end) : { buffer: await loadTake(result.take, result.role), offset: 0 };
+    if (signal?.cancelled) return null;   // stopped while the sound loaded: nothing is decoded further or handed to the player
     const buffer = piece.buffer, sliceOffset = piece.offset;
     const wanted = result.loop ? { start: result.loop.start - sliceOffset, end: result.loop.end - sliceOffset } : null;
     const loop = wanted ? { start: Math.max(0, Math.min(wanted.start, buffer.duration)), end: Math.min(wanted.end, buffer.duration) } : { start: 0, end: buffer.duration };
@@ -162,25 +160,38 @@ async function entryOf(result) {
     const channels = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
     const cut = playSegments(silentWindows(channels, buffer.sampleRate), loop, { mode, barSec: barSeconds(tempo(), barBeats()) });
     return { ...result, buffer, loop, sliceOffset, segments: cut.segments, silent: cut.silent, skipped: cut.skipped };
-  } finally { setLoading(false); }
+  } finally { if (!signal?.cancelled) setLoading(false); }   // a task of a stopped session never touches the loading of a newer one
 }
 
+// the builds of the session: wait for a normal build (withdrawn by Stop, which leaves that build running), and stop only a build of our own
+const listenBuilder = createListenBuilder({ isBusy: () => S.build.running, buildNow: (job) => buildJob(job), stopStore: () => stopBuild() });
+
 const session = createListenSession({
-  build: (job) => buildJob(job),
-  cancelBuild: () => stopBuild(),
-  play: async (result) => { const entry = await entryOf(result); await playEntry(entry, { timing: settings.timing, onStop: () => session.stop() }); },
-  stopPlayback: () => stopListenPlayer({ quiet: true }),
+  build: (job, signal) => listenBuilder.build(job, signal),
+  cancelBuild: () => listenBuilder.cancel(),
+  play: (result, number, signal) => playLoaded({
+    signal,
+    load: (s) => entryOf(result, s),
+    play: (entry, s) => playEntry(entry, { timing: settings.timing, onStop: () => session.stop(), signal: s }),
+  }),
+  stopPlayback: () => { setLoading(false); stopListenPlayer({ quiet: true }); },
   onChange: () => paint(),
 });
 
 export const listening = () => session.state().active;
-export function startListening() { const job = currentJob(); if (job.fallback) toast(job.fallback); L.lastText = S.doc?.text ?? null; return session.start(job).catch((e) => toast(e.message || String(e))); }
+export function startListening() {
+  const job = currentJob();
+  if (job.fallback) toast(job.fallback);
+  L.lastText = S.doc?.text ?? null;
+  setLoading(false);   // a new session starts with nothing loading (a task of the old one no longer reports)
+  return session.start(job).catch((e) => toast(e.message || String(e)));
+}
 export function stopListening() { session.stop(); }
 export function toggleListening() { if (listening()) stopListening(); else startListening(); }
 /** Ctrl+Enter: the valid editor content was applied; build the target now (and play it when listening; else it is ready for Play). */
 export async function buildTargetNow() {
   if (listening()) return session.setJob(currentJob(), true);
-  try { await buildJob(currentJob()); toast('Built: Ctrl+Shift+Space plays it.'); } catch (e) { toast(e.message || String(e)); }
+  try { await listenBuilder.build(currentJob(), { cancelled: false }); toast('Built: Ctrl+Shift+Space plays it.'); } catch (e) { toast(e.message || String(e)); }
 }
 /** Ctrl+Shift+Enter: the waiting build runs at once (never a second one next to a running build). */
 export function flushListening() { return session.flush(); }
