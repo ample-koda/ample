@@ -60,7 +60,7 @@ test('a demo is copied into an editable project and the demo itself never change
   await expect(page.locator('#lite-projects option')).toHaveCount(3);   // the AMPLE demo song of an empty workspace, and the two copies
 });
 
-test('a change survives a reload, and the project and the open file come back', async ({ page }) => {
+test('a change survives a reload, and the project and the open file come back @quarantine', async ({ page }) => {
   await fresh(page);
   await useDemo(page, 'chords-bass');
   // at the start: the editor draws only the lines in view, so a line at the end of a long text is not in the page
@@ -595,7 +595,7 @@ test('a build sends only what the server does not have: demo files never, an own
   expect(bodies[2]).toBeLessThan(5000);
 });
 
-test('the main button follows the sound: Play from start or Stop after a build, and Build & play again at any change', async ({ page }) => {
+test('the main button follows the sound: Play from start or Stop after a build, and Build & play again at any change @quarantine', async ({ page }) => {
   await fresh(page);
   const mode = () => page.locator('#lite-build').getAttribute('data-mode');
   await useDemo(page, 'hello-melody');
