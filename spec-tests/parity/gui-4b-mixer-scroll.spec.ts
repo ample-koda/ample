@@ -15,7 +15,7 @@ freshServer({
 });
 
 test('the strips scroll left and stay there', async ({ page }) => {
-  await page.setViewportSize({ width: 700, height: 800 });
+  await page.setViewportSize({ width: 760, height: 800 });   // above the phone layout (max-width 700px), which has no Mixer tab
   await openApp(page, { reset: false });
   for (let i = 0; i < 12; i++) await edit({ type: 'addBlock', blockType: 'volume', name: `vol${i}` });
   await page.reload();

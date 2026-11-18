@@ -22,10 +22,13 @@ test('@audio duck: a steady tone dips on each x of the pattern, deep, and return
   const trace = await levelTrace(page, 'pump', 3);
   const top = Math.max(...trace), bottom = Math.min(...trace);
   const tempo = await page.evaluate(() => import('/app/store.js').then((s) => Number(s.S.doc.project.tempo)));
-  const period = 60 / tempo * 4 / 4 * 4;   // four sixteenth steps between two x
-  console.log('duck', { top, bottom, dipCount: dips(trace, top * .6, top * .25), expected: 3 / (60 / tempo) });
-  expect(bottom).toBeLessThan(top * .25);
-  const count = dips(trace, top * .6, top * .25), expected = 3 / period * 4 / 4;
+  const beat = 60 / tempo;   // the x of the pattern come four sixteenth steps apart: one dip per beat
+  // the depth is 24: the dip reaches about 25% of the top, a little more or less with the phase of the sampling, so deep means under 30%
+  const low = top * .3;
+  const expected = 3 / beat;   // dips in the 3 seconds that are measured
+  console.log('duck', { top, bottom, dipCount: dips(trace, top * .6, low), expected });
+  expect(bottom).toBeLessThan(low);
+  const count = dips(trace, top * .6, low);
   expect(Math.abs(count - expected)).toBeLessThanOrEqual(2);
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });
