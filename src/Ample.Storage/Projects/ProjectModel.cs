@@ -419,7 +419,8 @@ public static class ProjectFile
                     projectPanel,
                     autoCheckpoint,
                     ai)
-                { Faer = faer, Koda = koda, FirstRun = firstRun, Observation = ObservationOf(settings), Capabilities = TextsOf(settings, "capabilities"), Unknown = UnknownOf(settings, KnownSettings), BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null }) { Unknown = UnknownOf(root, KnownTop) };
+                { Faer = faer, Koda = koda, FirstRun = firstRun, Observation = ObservationOf(settings), Capabilities = TextsOf(settings, "capabilities"), Unknown = UnknownOf(settings, KnownSettings), BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null })
+            { Unknown = UnknownOf(root, KnownTop) };
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or FormatException or InvalidOperationException or OverflowException)
         {
