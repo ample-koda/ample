@@ -1,4 +1,5 @@
 // Hybrid preview: evaluate mix-family blocks locally and ask the server only for upstream blocks without a local renderer.
+import { laneRole } from '../lib/clientside-lane.mjs';
 import { api, getToken } from './api.js';
 import { soloInPlan } from '../lib/live-chain-model.mjs';
 import { flat, S, build, notify, stopBuild, logProject } from './store.js';
@@ -954,7 +955,7 @@ export async function buildAndPlayClientPreview() {
             return result[output] || null;
           } catch (error) { controller.signal.throwIfAborted(); localInstrumentFallbackReasons.add(`${node.id}: ${/working-set limit/.test(error.message) ? "too long for the browser preview, so the built take is used" : error.message}`); }
         }
-        const lane = /^laned+$/.test(output || '') ? output : '';   // only the connected lane is taken from the server take
+        const lane = laneRole(output);   // only the connected lane is taken from the server take
         const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources, lane);
         memo.set(key, audio);
         return audio;

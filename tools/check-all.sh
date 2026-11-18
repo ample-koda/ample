@@ -16,12 +16,13 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-solution="$repository_root/ample/Ample.sln"
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+solution="$repository_root/Ample.sln"
+echo "check-all: repository root $repository_root"
 source_revision="${GITHUB_SHA:-unknown}"
 
 # dotnet picks its SDK from the folder it runs in: run inside the repository, where global.json pins the SDK (see check-all.ps1)
-cd "$repository_root/ample"
+cd "$repository_root"
 dotnet restore "$solution"
 dotnet build "$solution" --no-restore -warnaserror -p:SourceRevisionId="$source_revision"
 if [[ "$skip_tests" -eq 1 ]]; then
@@ -34,40 +35,41 @@ else
 fi
 dotnet format "$solution" --no-restore --verify-no-changes
 # The parity matrix and its sketch are internal documents: the public tree has neither the tool nor the matrix, so this check runs only where they are.
-if [[ -f "$repository_root/ample/tools/parity-report.mjs" && -f "$repository_root/ample/docs/parity-matrix.md" ]]; then
-  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/parity-report.test.mjs"
-  node "$repository_root/ample/tools/parity-report.mjs" --check --require-complete
+if [[ -f "$repository_root/tools/parity-report.mjs" && -f "$repository_root/docs/parity-matrix.md" ]]; then
+  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/parity-report.test.mjs"
+  node "$repository_root/tools/parity-report.mjs" --check --require-complete
 fi
-node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/validate-spec.test.mjs"
-node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/quarantine-failed.test.mjs"
-node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/tools/issue-sync/sync.test.mjs"
-node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/faer/server.test.mjs" "$repository_root/ample/faer/gpu-manager.test.mjs"
-node "$repository_root/ample/tools/validate-spec.mjs"
-node "$repository_root/ample/tools/gen-prng-vectors.mjs" --check
-node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/web/lib/test/stable-rng.test.mjs" "$repository_root/ample/web/lib/test/geometry.test.mjs" "$repository_root/ample/web/lib/test/history.test.mjs" "$repository_root/ample/web/lib/test/lyrics.test.mjs" "$repository_root/ample/web/lib/test/pluginui.test.mjs" "$repository_root/ample/web/lib/test/stepseq.test.mjs" "$repository_root/ample/web/lib/test/numfield.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/validate-spec.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/check-all.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/quarantine-failed.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/issue-sync/sync.test.mjs"
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/faer/server.test.mjs" "$repository_root/faer/gpu-manager.test.mjs"
+node "$repository_root/tools/validate-spec.mjs"
+node "$repository_root/tools/gen-prng-vectors.mjs" --check
+node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/web/lib/test/stable-rng.test.mjs" "$repository_root/web/lib/test/geometry.test.mjs" "$repository_root/web/lib/test/history.test.mjs" "$repository_root/web/lib/test/lyrics.test.mjs" "$repository_root/web/lib/test/pluginui.test.mjs" "$repository_root/web/lib/test/stepseq.test.mjs" "$repository_root/web/lib/test/numfield.test.mjs"
 
-node "$repository_root/ample/tools/gen-editor-assets.mjs" --check
-if [[ -d "$repository_root/ample/node_modules/vscode-textmate" ]]; then
-  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/ample/editors/vscode/test/grammar.test.mjs"
+node "$repository_root/tools/gen-editor-assets.mjs" --check
+if [[ -d "$repository_root/node_modules/vscode-textmate" ]]; then
+  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/editors/vscode/test/grammar.test.mjs"
 elif [[ "$full" -eq 1 ]]; then
-  echo 'Full check requires npm install in ample/ for the VS Code grammar tests.' >&2
+  echo 'Full check requires npm install in the repository for the VS Code grammar tests.' >&2
   exit 1
 fi
 
 # Browser parity tests need "npm install" in ample/ and "npx playwright install chromium"; they run when installed.
 if [[ "$skip_tests" -eq 1 ]]; then
   echo 'Playwright parity tests skipped (--skip-tests).'
-elif [[ -d "$repository_root/ample/node_modules/@playwright" ]]; then
-  (cd "$repository_root/ample" && npx playwright test --project=chromium)
+elif [[ -d "$repository_root/node_modules/@playwright" ]]; then
+  (cd "$repository_root" && npx playwright test --project=chromium)
 elif [[ "$full" -eq 1 ]]; then
-  echo 'Full check requires npm install in ample/ and a Playwright browser for browser parity tests.' >&2
+  echo 'Full check requires npm install in the repository and a Playwright browser for browser parity tests.' >&2
   exit 1
 else
-  echo 'Playwright parity tests skipped (run npm install in ample/ to enable them).'
+  echo 'Playwright parity tests skipped (run npm install in the repository to enable them).'
 fi
 
-if [[ -f "$repository_root/ample/spec/.docs-check-enabled" ]]; then
-  dotnet run --project "$repository_root/ample/src/Ample.Cli/Ample.Cli.csproj" --no-build -- docs check
+if [[ -f "$repository_root/spec/.docs-check-enabled" ]]; then
+  dotnet run --project "$repository_root/src/Ample.Cli/Ample.Cli.csproj" --no-build -- docs check
 else
   echo 'AMPLE docs check is not available until chunk 12.'
 fi

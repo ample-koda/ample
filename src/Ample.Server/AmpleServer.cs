@@ -347,13 +347,17 @@ public static class AmpleServer
         }
     }
 
-    /// <summary>The paths of the public Lite: its page and files, its API and language server, and the four files of Studio's web folder that the page imports. Nothing else.</summary>
+    /// <summary>
+    /// The paths of the public Lite: its page and files, its API and language server, and the files of Studio's web folder that the page imports
+    /// (the log view, the meter and the modules of Live Preview). Nothing else.
+    /// </summary>
     private static bool LiteOnlyPath(PathString path)
     {
         string value = path.Value ?? string.Empty;
         if (value.Contains("/test/", StringComparison.Ordinal) || value.Contains("..", StringComparison.Ordinal)) return false;
         return value is "/remix" or "/lsp/remix" or "/styles/tokens.css" or "/app/api.js" or "/app/lsp.js" or "/app/editor-touch-menu.js" or
-          "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/lib/file-refs.mjs" or "/lib/log-view.mjs" or "/vendor/codemirror-ample.js"
+          "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/lib/file-refs.mjs" or "/lib/log-view.mjs" or "/vendor/codemirror-ample.js" or
+          "/lib/listen-session.mjs" or "/lib/listen-cancel.mjs" or "/lib/listen-loop.mjs" or "/lib/listen-segments.mjs" or "/lib/listen-highlight.mjs" or "/lib/listen-remix.mjs"
             || path.StartsWithSegments("/remix", StringComparison.Ordinal) || path.StartsWithSegments("/api/remix", StringComparison.Ordinal);
     }
 

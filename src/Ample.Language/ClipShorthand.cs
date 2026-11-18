@@ -99,6 +99,23 @@ public static class ClipShorthand
     public static IEnumerable<(int Bar, int Pitch, double Beat, double Beats)> Melody(string text, int firstBar, int barCount, double beatsPerBar = 4.0) =>
         MelodyWithVelocity(text, firstBar, barCount, beatsPerBar).Select(n => (n.Bar, n.Pitch, n.Beat, n.Beats));
 
+    /// <summary>
+    /// The length of a melody in beats, rests included (a trailing rest is part of the melody: <c>c4:1 r:3</c> is 4 beats long). Dynamic markers and hairpins take no time. Not cut at a clip length.
+    /// </summary>
+    public static double MelodyBeats(string text)
+    {
+        double at = 0;
+        foreach (string token in (text ?? string.Empty).Trim().Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string[] parts = token.Split(':');
+            string name = parts[0].ToLowerInvariant();
+            if (parts.Length == 1 && (DynamicMarkers.ContainsKey(name) || name is "<" or ">")) continue;
+            at += parts.Length > 1 && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double b) && b > 0 ? b : 1;
+        }
+
+        return at;
+    }
+
     /// <summary>The velocity of a dynamic marker word in a melody: <c>pp p mp mf f ff</c> (32 to 112 in steps of 16; <c>f</c> is the default of 96).</summary>
     public static readonly IReadOnlyDictionary<string, int> DynamicMarkers = new Dictionary<string, int>(StringComparer.Ordinal) { ["pp"] = 32, ["p"] = 48, ["mp"] = 64, ["mf"] = 80, ["f"] = 96, ["ff"] = 112 };
 

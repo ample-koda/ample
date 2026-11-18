@@ -73,6 +73,12 @@ public static class NoteFlow
             bool said = int.TryParse(Value("bars")?.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int b) && b > 0;
             int? bars = said ? b : clip.Parts.Count > 0 ? clip.Parts[0].Length : null;
             string? text = ClipShorthand.ClipNotes(Value("melody"), Value("chords"), bars, beatsPerBar);
+            // a clip that does not say its length and plays a melody is as long as the melody, trailing rests and a silent melody included (at least one bar)
+            if (bars is null && (Value("melody") ?? string.Empty).Trim().Trim('"').Length > 0)
+            {
+                bars = (int)Math.Max(1, Math.Ceiling(ClipShorthand.MelodyBeats(Value("melody")!) / beatsPerBar));
+            }
+
             return text is null ? null : (text, bars);
         }
 

@@ -13,6 +13,14 @@ export class LiteStoreError extends Error {
 
 export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypto.randomUUID(), limits = DEFAULT_LIMITS } = {}) {
   const bytesOf = (data) => (typeof data === 'string' ? enc.encode(data).length : data.size);
+  // Every change of what is stored runs alone: in this page one after the other, and across tabs of the same browser through a Web Lock, so that a check
+  // (number of files, size of the project) and the write that follows it cannot be separated by another write. A failed change leaves nothing behind.
+  let tail = Promise.resolve();
+  const exclusive = (task) => {
+    const run = tail.then(() => (globalThis.navigator?.locks ? navigator.locks.request('ample-remix-store', task) : task()));
+    tail = run.catch(() => {});
+    return run;
+  };
   const normalizeName = (name) => String(name ?? '').trim().slice(0, 60) || 'Untitled';
 
   async function meta() {
@@ -47,14 +55,16 @@ export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypt
     async getProject(id) { return project(id); },
 
     /** Makes a project; `files` is [{path, text}] or [{path, blob, mime}] (a demo copy, an empty song). */
-    async createProject({ name, origin = null, files = [] }) {
+    createProject(args) { return exclusive(() => makeProject(args)); },
+
+    async createProjectUnlocked({ name, origin = null, files = [] }) {
       const id = uuid();
       const record = { id, name: normalizeName(name), origin, created: now(), updated: now() };
       await kv.put(`project:${id}`, record);
       try {
-        for (const file of files) await store.writeFile(id, file.path, file, { touch: false });
+        for (const file of files) await writeUnlocked(id, file.path, file, { touch: false });
       } catch (error) {
-        await store.deleteProject(id);
+        await deleteUnlocked(id);
         throw error;
       }
       await store.setLast(id);
@@ -69,7 +79,9 @@ export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypt
       return record;
     },
 
-    async deleteProject(id) {
+    deleteProject(id) { return exclusive(() => deleteUnlocked(id)); },
+
+    async deleteProjectUnlocked(id) {
       for (const key of await kv.keys(FILE(id, ''))) await kv.delete(key);
       await kv.delete(`project:${id}`);
       const m = await meta();
@@ -103,7 +115,9 @@ export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypt
     },
 
     /** Writes a file (text or blob). The name, the type, the size, the number of files and the size of the project are checked first. */
-    async writeFile(id, path, content, { touch = true } = {}) {
+    writeFile(id, path, content, options) { return exclusive(() => writeUnlocked(id, path, content, options)); },
+
+    async writeFileUnlocked(id, path, content, { touch = true } = {}) {
       await project(id);
       const binary = content.blob !== undefined;
       const data = binary ? content.blob : content.text ?? '';
@@ -120,24 +134,34 @@ export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypt
       if (touch) await store.touch(id);
     },
 
-    async deleteFile(id, path) {
+    deleteFile(id, path) { return exclusive(() => store.deleteFileUnlocked(id, path)); },
+
+    async deleteFileUnlocked(id, path) {
       await kv.delete(FILE(id, path));
       await store.touch(id);
     },
 
     /** Deletes a folder: every file under the path. */
-    async deleteFolder(id, folder) {
+    deleteFolder(id, folder) { return exclusive(() => store.deleteFolderUnlocked(id, folder)); },
+
+    async deleteFolderUnlocked(id, folder) {
       const prefix = FILE(id, `${cleanPath(folder, limits)}/`);
       for (const key of await kv.keys(prefix)) await kv.delete(key);
       await store.touch(id);
     },
 
-    async renameFile(id, from, to) {
+    renameFile(id, from, to) { return exclusive(() => store.renameFileUnlocked(id, from, to)); },
+
+    async renameFileUnlocked(id, from, to) {
       cleanPath(to, limits);
       if (await kv.get(FILE(id, to))) throw new LiteStoreError('exists', `"${to}" exists already.`);
       const found = await kv.get(FILE(id, from));
       if (!found) throw new LiteStoreError('missing', `"${from}" does not exist.`);
       checkFile(to, found.size, limits);
+      // the kind of the content must fit the new name, as it does for a write: a text file stays text, audio stays audio
+      if ((found.kind === 'text') !== isText(to)) {
+        throw new LiteStoreError('type', `"${from}" holds ${found.kind === 'text' ? 'text' : 'audio'}: "${to}" would be a ${isText(to) ? 'text' : 'binary'} file.`);
+      }
       await kv.put(FILE(id, to), { ...found, updated: now() });
       await kv.delete(FILE(id, from));
       await store.touch(id);
@@ -165,7 +189,8 @@ export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypt
     },
 
     /** Deletes all Remix data: the database goes, nothing outside it is touched. */
-    async reset() { await kv.destroy(); },
+    reset() { return exclusive(() => kv.destroy()); },
   };
+  const makeProject = store.createProjectUnlocked, writeUnlocked = store.writeFileUnlocked, deleteUnlocked = store.deleteProjectUnlocked;
   return store;
 }

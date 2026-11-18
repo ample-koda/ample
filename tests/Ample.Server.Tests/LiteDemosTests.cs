@@ -74,7 +74,8 @@ public sealed class LiteDemosTests : IDisposable
         Assert.True(result.Ok, string.Join("; ", result.Diagnostics.Where(d => d.Severity == "error").Select(d => $"{d.Code} line {d.Line}: {d.Message}")));
         Assert.InRange(result.AudioSeconds, 3, 240);
         Assert.InRange(result.Seconds, 0, 100);
-        Assert.False(Directory.Exists(LiteWorkspace.WorkRoot(buildHome)) && Directory.GetDirectories(LiteWorkspace.WorkRoot(buildHome)).Length > 0);
+        // the work folder of this test is its own: in the library of this machine (a demo with the sound bank) other builds work at the same time
+        if (buildHome == home) Assert.False(Directory.Exists(LiteWorkspace.WorkRoot(buildHome)) && Directory.GetDirectories(LiteWorkspace.WorkRoot(buildHome)).Length > 0);
     }
 
     [Fact]

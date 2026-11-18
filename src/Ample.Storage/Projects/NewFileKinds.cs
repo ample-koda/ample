@@ -59,7 +59,7 @@ public static class NewFileKinds
         if (kind.IsFolder) return new NewFile(path, null, true);
         string text = kind.Id switch
         {
-            "song" => $"composition \"{slug}\" {{ ample 1  tempo {tempo.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}  master-seed {masterSeed.ToString(System.Globalization.CultureInfo.InvariantCulture)} }}\n",
+            "song" => StarterSong.Text(slug, tempo.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture), masterSeed.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             "lyrics" => $"[ti:{name}]\n",
             "chords" => $"{{title: {name}}}\n{{key: C}}\n{{tempo: 100}}\n{{start_of_verse}}\n[C]\n{{end_of_verse}}\n",
             "module" => $"module {slug} version 1.0\nparam kit kit/tape\noutput audio drums.audio\n\ndrums drums {{\n  kit $kit\n  pattern beat-A\n}}\n",

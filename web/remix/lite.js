@@ -8,6 +8,9 @@ import { CATEGORIES, demoFiles, entryOf, filterDemos, isUnchangedDemo, loadCatal
 import { createLiteEditor } from './lite-editor.js';
 import { createRoll } from './lite-roll.js';
 import { createPlayer } from './lite-player.js';
+import { createRemixListen } from './lite-listen.js';
+import { songTemplate } from './lite-templates.mjs';
+import { createBuildGate, createSaver } from './lite-save.mjs';
 import { findClips, tempoOf } from './lite-roll-source.mjs';
 import { createLanguage } from './lite-language.js';
 import { setReportEmail, showReportEmail } from './lite-contact.mjs';
@@ -31,8 +34,12 @@ if (!publicLite) initToken();
 const $ = (selector) => document.querySelector(selector);
 const SESSION_PREFIX = `${storeName()}.`;
 
-const app = { rev: 0, builtRev: -1, builtProject: null, builtFrom: null, kv: null, store: null, limits: DEFAULT_LIMITS, project: null, files: [], active: null, editor: null, language: null, catalog: [], collapsed: new Set(),
-  texts: new Map(), saveTimer: 0, pendingSave: null, live: [], built: [], lastBuilt: null, building: false, outputUrl: '', filter: { query: '', category: '' }, binaryUrl: '' };
+const app = {
+  openSeq: 0, copyUrl: '',
+  rev: 0,
+  builtRev: -1, builtProject: null, builtFrom: null, kv: null, store: null, limits: DEFAULT_LIMITS,
+  project: null, files: [], active: null, editor: null, language: null, catalog: [], collapsed: new Set(),
+  texts: new Map(), saveTimer: 0, live: [], built: [], lastBuilt: null, building: false, outputUrl: '', filter: { query: '', category: '' }, binaryUrl: '' };
 // the choices of the Song log for the next builds of this page (see renderSongLog)
 const songLog = { events: [], entry: null, options: {}, builtWith: '{}', shown: new Set(LEVELS) };
 
@@ -46,6 +53,25 @@ function toast(text, kind = 'info') {
   setTimeout(() => box.remove(), kind === 'error' ? 9000 : 4500);
 }
 const status = (text) => { $('#lite-status').textContent = text; };
+// a test seam: with ?hooks=1 the tests reach the state of the page (they delay the store with it); nothing else reads it
+if (new URLSearchParams(location.search).has('hooks')) window.__remixTest = { app };
+
+// Live Preview: listen to the song while you edit it (lite-listen.js); the page gives it its build, its editor and its player
+const listen = createRemixListen({
+  $,
+  build: (options) => build(options),
+  getText: () => app.editor?.getText() ?? '',
+  hasSong: () => !!app.project && !!pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt),
+  setMarks: (marks) => app.editor?.setPlayMarks?.(marks),
+  buildError: () => app.lastBuildError,
+  isBuilding: () => gate.busy(),
+  abortBuild: () => { gate.abort('listen'); },   // never the build the person started
+  activePath: () => app.active,
+  entryPath: () => pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt),
+  isSong: (path) => isSong(path),
+  pauseOutput: () => $('#lite-output').pause(),
+  toast: (text, kind) => toast(text, kind),
+});
 
 /** A dialog with an optional text field: resolves to the text (or true) on OK, null on Cancel. */
 function dialog({ title, text = '', field = null, ok = 'OK', cancel = 'Cancel', danger = false }) {
@@ -80,27 +106,44 @@ const errorText = (error) => (error instanceof Error ? error.message : String(er
 
 // ---- saving
 
+// The newest text of every file that is not in the store yet lives in the saver (lite-save.mjs): saves run one after the other, a text that could not be saved
+// stays (it is built, shown again and tried again), and a newer text of the same file always wins.
+const saver = createSaver({
+  write: (projectId, path, text) => app.store.writeFile(projectId, path, { text }),
+  onSaved: (entry) => { if (app.project?.id === entry.projectId) app.texts.set(entry.path, entry.text); },
+  onState: ({ failed, dirty }) => paintSaved(failed, dirty),
+});
+const gate = createBuildGate();   // the right to build: taken before the first await of build()
+if (window.__remixTest) Object.assign(window.__remixTest, { saver, gate });   // the test seam sees them too
+
+function paintSaved(failed, dirty) {
+  const label = $('#lite-saved');
+  if (failed.length) {
+    label.textContent = 'not saved: click to try again';
+    label.title = errorText(failed[0].error);
+    label.classList.add('lite-link');
+  } else {
+    label.textContent = dirty ? 'saving...' : 'saved on this browser';
+    label.title = '';
+    label.classList.remove('lite-link');
+    if (!dirty) refreshUsage().catch(() => {});
+  }
+}
+
 function queueSave(path, text) {
   changed();
-  app.pendingSave = { path, text };
-  $('#lite-saved').textContent = 'saving...';
+  saver.queue(app.project.id, path, text);
   clearTimeout(app.saveTimer);
-  app.saveTimer = setTimeout(flushSave, 350);
+  app.saveTimer = setTimeout(() => { flushSave(); }, 350);
 }
-async function flushSave() {
+
+/** Saves what is typed: resolves { ok, failed } when every text that was dirty (and what came in meanwhile) was tried once. It never rejects. */
+function flushSave() {
   clearTimeout(app.saveTimer);
-  const job = app.pendingSave;
-  app.pendingSave = null;
-  if (!job || !app.project) return;
-  try {
-    await app.store.writeFile(app.project.id, job.path, { text: job.text });
-    app.texts.set(job.path, job.text);
-    $('#lite-saved').textContent = 'saved on this browser';
-    await refreshUsage();
-  } catch (error) {
-    $('#lite-saved').textContent = 'not saved';
-    toast(errorText(error), 'error');
-  }
+  return saver.flush().then((result) => {
+    if (!result.ok) toast(errorText(result.failed[0].error), 'error');
+    return result;
+  });
 }
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
 addEventListener('pagehide', () => { flushSave(); });
@@ -199,6 +242,11 @@ async function refreshProjects() {
 }
 
 async function openProject(id) {
+  const saved = await flushSave();
+  const leave = { title: 'Not saved', text: 'The latest text of this project could not be saved on this browser. Leave the project and lose that text?', ok: 'Leave it', danger: true };
+  if (!saved.ok && !(await dialog(leave))) return;
+  listen.stop();
+  app.openSeq++;   // a file that is being opened belongs to the project that is left
   await flushSave();
   app.project = await app.store.getProject(id);
   stopSound();   // another project: the sound of the old one stops, the button goes back to Build & play
@@ -218,7 +266,7 @@ async function openProject(id) {
   if (first) await openFile(first); else showEmptyFile();
 }
 
-const SONG_TEMPLATE = (name) => `composition "${name}" { ample 1  tempo 120  master-seed 1 }\n\n# Write your song here. Press Build & play (Ctrl+Enter).\n`;
+const SONG_TEMPLATE = (name) => songTemplate(name);   // a starter song that plays: chords, a bass and a beat through a mixer to the master (lite-templates.mjs)
 const COMPONENT_TEMPLATE = (name) => `/** What this component does, in one sentence. */\ncomponent koda.lite.${name.replace(/[^A-Za-z0-9]/g, '') || 'thing'} version 1.0.0 current {\n  id "demo.koda.lite.${name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'thing'}"\n\n  input source: Notes\n  output notes: Notes\n\n  process {\n    emit source\n  }\n}\n`;
 
 async function newProject() {
@@ -231,6 +279,7 @@ async function newProject() {
 // ---- files
 
 function showEmptyFile() {
+  app.openSeq++;   // nothing is open: an open on its way must not bring a file back
   closeEditor();
   $('#lite-filename').textContent = '';
   $('#lite-empty').hidden = !!app.project && app.files.length > 0;
@@ -249,48 +298,68 @@ function closeEditor() {
   renderProblems();
 }
 
+/**
+ * Opens a file in the editor. The newest request owns the editor: after every await a task asks mine(), and a task that is not the newest any more (or whose
+ * project was left) changes nothing: not the labels, not the editor, not the language client, not an object URL.
+ */
 async function openFile(path) {
+  const seq = ++app.openSeq, projectId = app.project?.id;
+  const mine = () => seq === app.openSeq && app.project?.id === projectId;
   await flushSave();
+  if (!mine()) return;
   app.active = path;
+  listen.fileOpened(path);   // another song ends the listening, a component does not
   if (isSong(path) && app.outputEntry && path !== app.outputEntry) stopSound();   // another song: stop the sound of the one that was built
   syncMain();
-  await app.store.setActive(app.project.id, path);
+  await app.store.setActive(projectId, path);
+  if (!mine()) return;
   closeEditor();
   renderTree();
   $('#lite-empty').hidden = true;
   $('#lite-filename').textContent = path;
   for (const id of ['#lite-rename', '#lite-delete']) $(id).hidden = false;
   $('#lite-notes').hidden = !isSong(path);
-  const content = await app.store.readFile(app.project.id, path);
+  const content = await app.store.readFile(projectId, path);
+  if (!mine()) return;   // another file was asked for meanwhile: this answer is old
+  const kept = content.kind === 'text' ? saver.get(projectId, path) : undefined;
+  if (kept !== undefined) content.text = kept;   // the newest text of this file is not in the store (its save failed): the editor shows it
   const copy = $('#lite-save-file');
   copy.hidden = false;
   copy.download = path.split('/').pop();
-  if (content.kind === 'text') {
-    copy.href = URL.createObjectURL(new Blob([content.text], { type: 'text/plain' }));
-    await openText(path, content.text);
-  } else {
-    copy.href = URL.createObjectURL(content.blob);
-    openBinary(path, content);
-  }
+  if (app.copyUrl) URL.revokeObjectURL(app.copyUrl);
+  app.copyUrl = URL.createObjectURL(content.kind === 'text' ? new Blob([content.text], { type: 'text/plain' }) : content.blob);
+  copy.href = app.copyUrl;
+  if (content.kind === 'text') await openText(path, content.text, mine);
+  else openBinary(path, content);
 }
 
-async function openText(path, text) {
-  app.language = createLanguage({ textFiles, onDiagnostics: (list) => { app.serverLive = list; applyLive(); },
-    onOffline: () => status('Language help is offline (close other Remix tabs and reload the page; sign in again if it keeps happening)'),
-    onOnline: () => status('') });
-  app.editor = await createLiteEditor($('#lite-editor'), {
+async function openText(path, text, mine = () => true) {
+  if (!mine()) return;
+  const language = createLanguage({ textFiles, onDiagnostics: (list) => { if (app.language === language) { app.serverLive = list; applyLive(); } },
+    onOffline: () => { if (app.language === language) status('Language help is offline (close other Remix tabs and reload the page; sign in again if it keeps happening)'); },
+    onOnline: () => { if (app.language === language) status(''); } });
+  app.language = language;
+  const editor = await createLiteEditor($('#lite-editor'), {
     text,
-    onChange: (value) => { app.texts.set(path, value); queueSave(path, value); app.language.change(value); },
-    complete: (position, current) => app.language.complete(position, current),
+    isCurrent: mine,
+    onChange: (value) => { app.texts.set(path, value); queueSave(path, value); language.change(value); },
+    complete: (position, current) => language.complete(position, current),
     files: () => app.files,
-    hover: (position) => app.language.hover(position),
-    definition: async (position) => rollTarget(position) ?? await app.language.definition(position),
+    hover: (position) => language.hover(position),
+    definition: async (position) => rollTarget(position) ?? await language.definition(position),
     onOpenTarget: async (target) => {
       if (target.roll) { app.roll.open(target.roll); return; }
       if (target.path && app.files.some((f) => f.path === target.path)) { await openFile(target.path); app.editor?.gotoPosition(target); } else app.editor?.gotoPosition(target);
     },
   });
-  await app.language.open(path, text);
+  if (!editor || !mine()) {   // not the newest open any more: give back what this one made, and leave what the newer one made
+    editor?.destroy();
+    language.close();
+    if (app.language === language) app.language = null;
+    return;
+  }
+  app.editor = editor;
+  await language.open(path, text);
 }
 
 function openBinary(path, content) {
@@ -332,7 +401,7 @@ async function renameFile() {
   const to = await dialog({ title: 'Rename', field: { label: 'New path', value: from }, ok: 'Rename' });
   if (!to || to === from) return;
   try {
-    await flushSave();
+    if (!(await flushSave()).ok) throw new Error('The latest text could not be saved, so the file was not renamed. Try again.');
     await app.store.renameFile(app.project.id, from, to);
     changed();
     if (app.texts.has(from)) { app.texts.set(to, app.texts.get(from)); app.texts.delete(from); }
@@ -351,7 +420,7 @@ function rollTarget(position) {
 async function deleteFile() {
   const path = app.active;
   if (!await dialog({ title: 'Delete file', text: `Delete "${path}" from this project? This cannot be undone.`, ok: 'Delete', danger: true })) return;
-  app.pendingSave = null;
+  saver.drop(app.project.id, path);
   await app.store.deleteFile(app.project.id, path);
   changed();
   app.texts.delete(path);
@@ -485,12 +554,25 @@ async function askMissing(files) {
   } catch { return null; }
 }
 
-async function build() {
-  if (app.building || !app.project) return;
-  await flushSave();
-  const entry = pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt);
-  if (!entry) { toast('Add a song (.amplet) first.', 'error'); return; }
+/**
+ * Builds the song and plays it. `options.listen` (Live Preview): the sound is not played here; the answer is the result of the build with its sound ({ ...result, blob,
+ * entry }), or the result itself when the build did not work, or null when nothing was built (see app.lastBuildError).
+ */
+async function build(options = {}) {
+  if (!app.project) return null;
+  // the right to build is taken before the first await: two quick calls cannot both pass, and this build has its own ticket and controller
+  const ticket = gate.reserve(options.listen ? 'listen' : 'normal');
+  if (!ticket) return null;
   app.building = true;
+  app.buildKind = ticket.kind;   // Stop of Live Preview cancels only its own build
+  app.abort = ticket.controller;
+  const release = () => { if (gate.release(ticket)) { app.abort = null; app.buildKind = null; app.building = false; } };
+  const saved = await flushSave();   // what is typed is in the store, or (when that failed) kept for this build
+  if (!saved.ok) toast('The latest text could not be saved on this browser: the build takes the text in the editor.', 'error');
+  const entry = pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt);
+  if (!entry) { toast('Add a song (.amplet) first.', 'error'); release(); syncMain(); return null; }
+  app.lastBuildError = null;
+  let outcome = null;
   app.builtFrom = { rev: app.rev, project: app.project.id };   // what this build is made of (the text may change while it runs)
   dropOutput();
   $('#lite-build').disabled = true;
@@ -510,10 +592,10 @@ async function build() {
   tour?.step('send');
   tour?.line('Sending the files to the server...');
   const ticker = setInterval(() => { if (!app.uploading) status(`Building... ${((performance.now() - started) / 1000).toFixed(0)} s`); }, 500);
-  app.abort = new AbortController();
   app.built = [];
   try {
-    const files = neededFiles(await app.store.snapshot(app.project.id));
+    const files = neededFiles(saver.withDirty(app.project.id, await app.store.snapshot(app.project.id)));   // a text that could not be saved is built as it is in the editor
+    const entryText = files.find((f) => f.path === entry)?.text ?? '';   // the song exactly as this build takes it
     const problems = checkBuild(entry, files, app.limits);
     if (problems.length) throw new Error(problems.join(' '));
     // the files get a hash; the server says which it does not know yet (it knows every file of the demos and keeps earlier uploads for an hour), and only those are sent
@@ -526,7 +608,7 @@ async function build() {
     const send = (needed) => postWithProgress('/api/remix/build?stream=1', {
       headers: { 'X-Ample-Token': getToken() },
       body: buildForm(entry, hashed, needed, songLog.options),
-      signal: app.abort.signal,
+      signal: ticket.controller.signal,
       onProgress: (sent, total) => {
         if (!total) return;
         bar.value = sent / total;
@@ -564,9 +646,20 @@ async function build() {
     if (backToSongLog) showConsole('songlog');
     app.lastBuilt = entry;
     logLine(result.ok ? `Done in ${result.seconds} s: ${result.audioSeconds} seconds of audio.` : 'The build did not work: see Problems.', started);
-    if (!result.ok) { status('The build did not work.'); if ((result.diagnostics ?? []).some((d) => d.severity === 'error')) showConsole('problems'); $('#lite-output-info').textContent = 'Fix the problems and build again.'; tour?.fail('The build did not work: ' + ((result.diagnostics ?? []).find((d) => d.severity === 'error')?.message ?? 'see Problems.')); }
-    else await playOutput(result, entry);
+    if (!result.ok) {
+      outcome = result;
+      status('The build did not work.');
+      const firstError = (result.diagnostics ?? []).find((d) => d.severity === 'error');
+      if (firstError) showConsole('problems');
+      $('#lite-output-info').textContent = 'Fix the problems and build again.';
+      tour?.fail('The build did not work: ' + (firstError?.message ?? 'see Problems.'));
+    }
+    else {
+      const played = await playOutput(result, entry, { play: !options.listen });
+      outcome = options.listen ? { ...result, blob: played.blob, entry, entryText } : result;
+    }
   } catch (error) {
+    app.lastBuildError = error?.name === 'AbortError' ? 'The build was cancelled.' : errorText(error);
     if (error?.name === 'AbortError') { status('Build cancelled.'); logLine('Build cancelled. The server stops and removes its temporary files.', started); tour?.fail('Cancelled.'); }
     else if (error?.message === 'Your sign-in has ended.') logLine('Stopped: your sign-in has ended; going to the sign-in page.', started);
     else if (error?.retryAfter > 0) {
@@ -576,8 +669,7 @@ async function build() {
     } else { status(''); logLine(`Stopped: ${errorText(error)}`, started); if (tour) tour.fail(errorText(error)); else toast(errorText(error), 'error'); }
   } finally {
     clearInterval(ticker);
-    app.abort = null;
-    app.building = false;
+    release();
     app.uploading = false;
     syncMain();
     $('#lite-build').disabled = $('#lite-build').dataset.wait === '1';
@@ -585,6 +677,7 @@ async function build() {
     setTimeout(() => { if (!app.building) bar.hidden = true; }, 1500);
     renderProblems();
   }
+  return outcome;
 }
 
 /** The build of before is not needed any more: the server may drop it (it keeps it for ten minutes anyway), and the MP3 and FLAC buttons go away. */
@@ -651,7 +744,7 @@ async function fetchPlayable(outputId) {
   return { blob: await wav.blob(), format: 'wav' };
 }
 
-async function playOutput(result, entry) {
+async function playOutput(result, entry, { play = true } = {}) {
   const { blob, format } = await fetchPlayable(result.outputId);
   app.playBlob = blob; app.playFormat = format;
   app.outputId = result.outputId;
@@ -682,13 +775,15 @@ async function playOutput(result, entry) {
   link.removeAttribute('aria-disabled');
   $('#lite-output-info').textContent = `${entry}: ${result.audioSeconds} seconds, built in ${result.seconds} seconds.`;
   $('#lite-stop').disabled = false;
-  if (app.tour) { status('Ready'); app.tour.ready(); return; }   // the window's Play button starts the sound (a click is what a browser needs)
+  if (!play) { status(''); return { blob }; }   // Live Preview plays it itself
+  if (app.tour) { status('Ready'); app.tour.ready(); return { blob }; }   // the window's Play button starts the sound (a click is what a browser needs)
   status('Playing');
   await audio.play().catch(() => {
     // a browser lets a page play sound only after a click: the first click anywhere starts the build that is waiting
     status('Click anywhere to play');
     document.addEventListener('pointerdown', () => audio.play().catch(() => status('Press play')), { once: true });
   });
+  return { blob };
 }
 
 /** Stops the sound that is playing (and rewinds it) without touching the build. */
@@ -774,12 +869,14 @@ function syncMain() {
   button.title = fresh ? (playing ? 'Stop the sound' : 'Play the sound from the start (Ctrl+Enter builds it again)') : 'Build the song and play it (Ctrl+Enter)';
   button.dataset.mode = fresh ? (playing ? 'stop' : 'play') : 'build';
   $('#lite-stop').hidden = fresh || !playing;   // the Stop of the sound of an older build stays when the project has changed since
+  listen.paint();
 }
 
 /** Any change of the project (an edit, a new, renamed, deleted or uploaded file, another project or demo) makes the sound that was built an old one. */
 function changed() {
   app.rev++;
   syncMain();
+  listen.changed();
 }
 
 function playFromStart() {
@@ -1015,7 +1112,7 @@ async function resetLite() {
     text: 'This deletes all Remix projects, files, changes to demo copies and uploaded samples that this browser keeps. Studio, its projects, your sign-in and other settings are not touched. This cannot be undone.' });
   if (!ok) return;
   try {
-    app.pendingSave = null;
+    saver.clear();
     app.language?.close();
     await app.store.reset();
     for (const key of Object.keys(sessionStorage)) if (key.startsWith(SESSION_PREFIX)) sessionStorage.removeItem(key);
@@ -1067,9 +1164,12 @@ async function start() {
   $('#lite-log-level').onchange = (e) => { songLog.options['logging.level'] = e.target.value; renderSongLog(); syncMain(); };
   $('#lite-assertions').onchange = (e) => { songLog.options['diagnostics.assertions'] = e.target.value; renderSongLog(); syncMain(); };
   $('#lite-rename').onclick = renameFile;
+  $('#lite-saved').onclick = () => { if (saver.failed().length) flushSave(); };   // a text that could not be saved: try again
   $('#lite-delete').onclick = deleteFile;
   $('#lite-build').onclick = () => { const mode = $('#lite-build').dataset.mode; if (mode === 'stop') stop(); else if (mode === 'play') playFromStart(); else build(); };
   for (const type of ['play', 'pause', 'ended', 'emptied']) $('#lite-output').addEventListener(type, syncMain);
+  listen.wire();
+  $('#lite-output').addEventListener('play', () => { if (listen.active()) listen.stop(); });   // one sound at a time
   createPlayer($('#lite-output'));   // the waveform player of the Output pane (the audio element stays, hidden)
   $('#lite-cancel').onclick = () => app.abort?.abort();
   $('#lite-download-flac').onclick = () => downloadEncoded('flac');
