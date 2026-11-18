@@ -1,0 +1,17 @@
+{
+  "$comment": "Origins of notes through chains (plan/live-preview/note-origin.md). Run by the JavaScript evaluator (web/lib/test/note-origin.test.mjs) and the C# evaluator (tests/Ample.Language.Tests/NoteOriginTests.cs). An origin is source#index@lap; null is a note an operator made. The list follows the notes of the result in order.",
+  "sources": {
+    "theme": "1:0:1:60:100 1:1:1:62:100 1:2:1:64:100 1:3:1:65:100",
+    "other": "1:0:1:72:100 1:2:1:74:100"
+  },
+  "cases": [
+    { "id": "a plain reference", "expr": "theme.notes", "origins": ["theme#0@0", "theme#1@0", "theme#2@0", "theme#3@0"] },
+    { "id": "transpose keeps the origin", "expr": "theme.notes |> transpose(+12)", "origins": ["theme#0@0", "theme#1@0", "theme#2@0", "theme#3@0"] },
+    { "id": "shift keeps the origin", "expr": "theme.notes |> shift(+1beat)", "origins": ["theme#0@0", "theme#1@0", "theme#2@0", "theme#3@0"] },
+    { "id": "a selection keeps the survivors", "expr": "theme.notes |> beats(2..4)", "origins": ["theme#1@0", "theme#2@0"] },
+    { "id": "repeat gives copies their lap", "expr": "theme.notes |> repeat(2)", "origins": ["theme#0@0", "theme#1@0", "theme#2@0", "theme#3@0", "theme#0@1", "theme#1@1", "theme#2@1", "theme#3@1"] },
+    { "id": "a repeat of a repeat keeps the laps apart", "expr": "other.notes |> repeat(2) |> repeat(2)", "origins": ["other#0@0", "other#1@0", "other#0@1", "other#1@1", "other#0@2", "other#1@2", "other#0@3", "other#1@3"] },
+    { "id": "concat keeps each side", "expr": "theme.notes |> concat(other.notes)", "origins": ["theme#0@0", "theme#1@0", "theme#2@0", "theme#3@0", "other#0@0", "other#1@0"] },
+    { "id": "a chain of a chain keeps the deepest origin", "expr": "theme.notes |> transpose(+1) |> repeat(2)", "origins": ["theme#0@0", "theme#1@0", "theme#2@0", "theme#3@0", "theme#0@1", "theme#1@1", "theme#2@1", "theme#3@1"] }
+  ]
+}

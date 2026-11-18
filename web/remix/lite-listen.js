@@ -9,7 +9,8 @@
 import { alive, createListenBuilder, playLoaded } from '../lib/listen-cancel.mjs';
 import { createListenSession } from '../lib/listen-session.mjs';
 import { createLoopPlayer } from '../lib/listen-loop.mjs';
-import { moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { blockSpan, moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { colourMarks, slotsFor, usersBySource } from '../lib/listen-users.mjs';
 import { activeBlocks, barAt, loopOf, meterBeats, placedBlocks, statusText } from '../lib/listen-remix.mjs';
 import { tempoOf } from './lite-roll-source.mjs';
 
@@ -26,12 +27,15 @@ const save = (value) => { try { localStorage.setItem(STORE, JSON.stringify(value
  * @param {(selector: string) => HTMLElement} host.$
  * @param {(options: { listen: true }) => Promise<any>} host.build the page's build; with listen it gives { ...result, blob, entry, entryText },
  *   the result when the build did not work, null when nothing was built
+ * @param {(offset: number) => void} [host.jumpTo] puts the caret of the editor at an offset of the text of the open file (a click on a user in the "used by" row)
  * @param {() => string} host.getText the text of the file that is open in the editor
  * @param {() => string|null} host.activePath the path of the file that is open in the editor
  * @param {() => string|null} host.entryPath the path of the song a build would take now
  * @param {(path: string) => boolean} host.isSong whether a path is a song
  * @param {() => boolean} host.hasSong whether a song is open (the bar is there for a song)
  * @param {(marks: object[]) => void} host.setMarks puts marks in the editor
+ * @param {(build: { text: string, files: object[] }) => Promise<Record<string, object[]>>} host.origins where the notes of the chain clips of the built song come from
+ *   ({ clip: [{ at, len, pitch, source, index, lap }] }, {} when there is none); it must not throw
  * @param {() => string|null} host.buildError why the last build gave nothing
  * @param {() => boolean} host.isBuilding whether a build runs
  * @param {() => void} host.abortBuild cancels the build of Live Preview that runs (never a build of the page itself)
@@ -44,7 +48,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
   const saved = load();
   const settings = { target: saved.target === 'bars' ? 'bars' : 'song', first: Math.max(1, Number(saved.first) || 1), last: Math.max(1, Number(saved.last) || 4) };
   // render: the newest sound that was decoded (it may not fit the selection of bars); last: the render that plays; entryPath: the song that is listened to
-  const L = { context: null, nextAt: 0, render: null, last: null, entryPath: null, lastKey: '', timer: 0 };
+  const L = { context: null, nextAt: 0, render: null, last: null, entryPath: null, lastKey: '', timer: 0, isolate: null, usersKey: '' };
   const context = () => (L.context ??= new (window.AudioContext || window.webkitAudioContext)());
   const loop = createLoopPlayer({ context, output: (c) => c.destination, beforeStart: () => host.pauseOutput() });
 
@@ -77,8 +81,10 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
       if (!outcome) throw new Error(host.buildError() || 'Nothing was built.');
       if (!outcome.ok) throw new Error(firstProblem(outcome));
       L.entryPath = outcome.entry;
+      const origins = await host.origins({ text: outcome.entryText ?? '', files: outcome.files ?? [] });
+      if (!alive(signal)) return null;   // Stop while the origins were asked
       // the text of the song as the build took it: the tempo, the meter and the marks come from this, not from the file that is open now
-      return { blob: outcome.blob, text: outcome.entryText ?? '', entry: outcome.entry, take: outcome.outputId };
+      return { blob: outcome.blob, text: outcome.entryText ?? '', entry: outcome.entry, take: outcome.outputId, origins };
     },
   });
 
@@ -89,7 +95,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
     if (!cut) throw new Error(`The song has no bars ${job.firstBar}-${job.lastBar}: it is ${Math.floor(render.buffer.duration / barSeconds)} bars long.`);
     return {
       take: render.take, buffer: render.buffer, segments: cut.segments, loop: cut.loop, takeFirstBar: cut.firstBar,
-      text: render.text, path: render.entry, job, barSeconds, quarters,
+      text: render.text, path: render.entry, job, barSeconds, quarters, origins: render.origins ?? {},
     };
   }
 
@@ -99,7 +105,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
     try {
       const buffer = await context().decodeAudioData(await result.blob.arrayBuffer());
       if (!alive(signal)) return null;
-      const render = { buffer, text: result.text, entry: result.entry, take: result.take, number };
+      const render = { buffer, text: result.text, entry: result.entry, take: result.take, number, origins: result.origins ?? {} };
       L.render = render;
       const entry = entryFor(render, currentJob());   // before it counts as the render that plays: a selection that does not fit leaves the last good one in place
       L.last = render;
@@ -130,10 +136,12 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
       const lit = playbackMarks({
         text: entry.text, target: null, songBar, active: activeBlocks(entry.text, Math.floor(songBar)), quartersPerBar: entry.quarters,
         barSeconds: entry.barSeconds, frame: () => ({ first: 1, offset: 0 }), clipFirstBar: (name) => at.get(name) || 1,
+        origins: entry.origins,
       });
-      marks = moveMarks(lit, entry.text, host.getText());
+      const shown = L.isolate ? lit.filter((m) => !m.user || m.user === L.isolate) : lit;   // hovering a user: only the notes of that user
+      marks = colourMarks(moveMarks(shown, entry.text, host.getText()), slotsFor(Object.keys(entry.origins)));
     }
-    const key = marks.map((m) => `${m.from}-${m.to}-${m.cls}`).join(',');
+    const key = marks.map((m) => `${m.from}-${m.to}-${m.cls}-${m.attrs?.['data-lp-name'] ?? ''}`).join(',');
     if (key === L.lastKey) return;
     L.lastKey = key;
     host.setMarks(marks);
@@ -141,10 +149,36 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
   const startMarks = () => { if (!L.timer) L.timer = setInterval(updateMarks, 66); };
   const stopMarks = () => { clearInterval(L.timer); L.timer = 0; L.lastKey = ''; host.setMarks([]); };
 
+  // ---- the "used by" row: for every source that chains read, the chains with their colour and number; hover shows only the notes of that chain, a click goes to it
+  const el = (tag, props = {}, children = []) => { const node = Object.assign(document.createElement(tag), props); node.append(...children); return node; };
+  function isolate(user) { L.isolate = user; updateMarks(); }
+  function jump(user) {
+    const entry = loop.state().entry, span = entry && host.activePath() === entry.path ? blockSpan(host.getText(), user) : null;
+    if (span && host.jumpTo) host.jumpTo(span.from); else host.toast('Open the song to jump to ' + user + '.');
+  }
+  function paintUsers() {
+    const box = $('#lite-listen-users');
+    if (!box) return;
+    const entry = loop.state().entry, list = session.state().active && entry?.origins ? usersBySource(entry.text, entry.origins) : [];
+    const key = JSON.stringify(list);
+    if (key === L.usersKey) return;
+    L.usersKey = key;
+    box.hidden = list.length === 0;
+    const button = (u) => el('button', {
+      className: 'lp-user ' + (u.slot === null ? 'lp-user-n' : 'lp-user-' + (u.slot + 1)), type: 'button', textContent: u.label + ' ' + u.user, title: u.chain ? u.user + ': ' + u.chain : u.user,
+      onmouseenter: () => isolate(u.user), onmouseleave: () => isolate(null), onfocus: () => isolate(u.user), onblur: () => isolate(null), onclick: () => jump(u.user),
+    });
+    box.dataset.users = String(list.length);
+    box.replaceChildren(...list.map((s) => el('span', { className: 'lp-source' }, [
+      el('b', { textContent: s.source }), ' used by ', ...s.users.map(button), s.extra ? el('span', { className: 'lite-dim', textContent: s.extra + ' without a colour' }) : '',
+    ])));
+  }
+
   // ---- the bar
   function paint() {
     const bar = $('#lite-listen');
     if (!bar) return;
+    paintUsers();
     const st = session.state(), song = host.hasSong();
     bar.hidden = !song;
     bar.dataset.status = st.status;   // what the session does and whether a sound really plays: for the page's own styling and for the tests
@@ -174,7 +208,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
     paint();
     return session.start(currentJob()).catch((error) => host.toast(error?.message || String(error), 'error'));
   }
-  function stop() { session.stop(); L.render = null; L.last = null; stopMarks(); paint(); }
+  function stop() { session.stop(); L.render = null; L.last = null; L.isolate = null; stopMarks(); paint(); }
   const toggle = () => (session.state().active ? stop() : start());
 
   /**
@@ -224,6 +258,8 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
     wire,
     select,
     refreshMarks: updateMarks,
+    isolate,
+    jump,
     paint,
     start,
     stop,

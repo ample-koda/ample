@@ -28,10 +28,14 @@ const outcome = (entry, entryText, seconds, id) => ({ ok: true, entry, entryText
 function rig({ active = 'song.amplet', entryPath = 'song.amplet', pause = 5, gap = 0 } = {}) {
   const els = new Map();
   const $ = (selector) => {
-    if (!els.has(selector)) els.set(selector, { hidden: false, dataset: {}, textContent: '', value: '', title: '', classList: { toggle() {} }, setAttribute() {} });
+    if (!els.has(selector)) {
+      els.set(selector, {
+        hidden: false, dataset: {}, textContent: '', value: '', title: '', classList: { toggle() {} }, setAttribute() {}, replaceChildren(...kids) { this.kids = kids; },
+      });
+    }
     return els.get(selector);
   };
-  const page = { building: false, active, text: SONG, aborts: 0, marks: [], toasts: [], builds: [] };
+  const page = { building: false, active, text: SONG, aborts: 0, marks: [], toasts: [], builds: [], origins: {}, asked: [], jumps: [] };
   const host = {
     $,
     build: (options) => { const d = deferred(); page.builds.push({ d, options }); page.building = true; return d.promise.finally(() => { page.building = false; }); },
@@ -41,15 +45,18 @@ function rig({ active = 'song.amplet', entryPath = 'song.amplet', pause = 5, gap
     isSong: (path) => path.endsWith('.amplet'),
     hasSong: () => true,
     setMarks: (marks) => { page.marks = marks; },
+    origins: async (build) => { page.asked.push(build); if (page.hold) await page.hold.promise; return page.origins; },
     buildError: () => null,
     isBuilding: () => page.building,
     abortBuild: () => { page.aborts++; },
     pauseOutput() {},
     toast: (text) => page.toasts.push(text),
+    jumpTo: (offset) => page.jumps.push(offset),
   };
   globalThis.window = { AudioContext: FakeContext };
+  globalThis.document = { createElement: () => ({ append(...kids) { this.kids = kids; }, dataset: {} }), addEventListener() {} };
   const listen = createRemixListen(host, { pause, gap });
-  return { listen, page, context: () => listen.player().entry && null };
+  return { listen, page, el: $, context: () => listen.player().entry && null };
 }
 const finish = (r) => r.listen.stop();
 
@@ -258,4 +265,111 @@ test('the session: recover brings the status back to playing after a failed play
   session.recover(9);
   assert.equal(session.state().status, 'stopped', 'a stopped session stays stopped');
   fail = false;
+});
+
+const CHAIN_SONG = 'composition "a" { ample 1  tempo 120  master-seed 1 }\nmidi-clip theme {\n  melody "c4:1 d4:1 e4:1 g4:1"\n  bars 1\n}\n'
+  + 'midi-clip high at 1 for auto {\n  notes theme.notes |> transpose(+12)\n}\nmidi-clip low at 1 for auto {\n  notes theme.notes |> transpose(-12)\n}\n';
+const fromTheme = (pitch) => [0, 1, 2, 3].map((i) => ({ at: i * 1_000_000, len: 1_000_000, pitch: pitch + i, source: 'theme', index: i, lap: 0 }));
+
+test('note origin: the chains of the built song light the source notes, one colour per chain, from the origins of that build', async () => {
+  const r = rig();
+  r.page.text = CHAIN_SONG;
+  r.page.origins = { high: fromTheme(72), low: fromTheme(48) };
+  const started = r.listen.start();
+  await flush();
+  r.page.builds[0].d.resolve({ ...outcome('song.amplet', CHAIN_SONG, 12, 'o1'), files: [{ path: 'song.amplet', text: CHAIN_SONG }] });
+  await started; await flush();
+  assert.equal(r.page.asked.length, 1);
+  assert.equal(r.page.asked[0].text, CHAIN_SONG, 'asked for the text of the build, not of the editor');
+  assert.equal(r.page.asked[0].files[0].path, 'song.amplet');
+  r.listen.refreshMarks();
+  const lit = r.page.marks.filter((m) => m.attrs?.['data-lp-name']);
+  assert.deepEqual(lit.map((m) => m.attrs['data-lp-name']).sort(), ['high', 'low']);
+  assert.ok(lit.every((m) => m.cls.includes('lp-now') && /lp-user-[1-4]/.test(m.cls)), 'a colour class on every origin mark');
+  assert.equal(new Set(lit.map((m) => m.attrs['data-lp-user'])).size, 2, 'the two chains are told apart by number');
+  assert.ok(lit.every((m) => CHAIN_SONG.slice(m.from, m.to).startsWith('c4')), 'the first source note sounds at the start of the loop');
+  finish(r);
+});
+
+test('note origin: a build without chains has no origin marks, and the literal notes are marked as before', async () => {
+  const r = rig();
+  r.page.origins = {};
+  const started = r.listen.start();
+  await flush();
+  r.page.builds[0].d.resolve(outcome('song.amplet', SONG, 12, 'o1'));
+  await started; await flush();
+  r.listen.refreshMarks();
+  assert.equal(r.page.marks.filter((m) => m.attrs).length, 0);
+  assert.ok(r.page.marks.length > 0);
+  finish(r);
+});
+
+test('note origin: Stop while the origins are asked plays nothing and leaves no marks', async () => {
+  const r = rig();
+  r.page.text = CHAIN_SONG;
+  r.page.hold = deferred();
+  r.page.origins = { high: fromTheme(72) };
+  const started = r.listen.start();
+  await flush();
+  r.page.builds[0].d.resolve(outcome('song.amplet', CHAIN_SONG, 12, 'o1'));
+  await flush();
+  assert.equal(r.page.asked.length, 1, 'the origins are being asked');
+  r.listen.stop();
+  r.page.hold.resolve();
+  await started; await flush();
+  assert.equal(r.listen.player().entry, null, 'the late answer starts no sound');
+  r.listen.refreshMarks();
+  assert.deepEqual(r.page.marks, []);
+});
+
+async function playChains(r) {
+  r.page.text = CHAIN_SONG;
+  r.page.origins = { high: fromTheme(72), low: fromTheme(48) };
+  const started = r.listen.start();
+  await flush();
+  r.page.builds[0].d.resolve(outcome('song.amplet', CHAIN_SONG, 12, 'o1'));
+  await started; await flush();
+  r.listen.refreshMarks();
+}
+const originNames = (r) => r.page.marks.filter((m) => m.attrs?.['data-lp-name']).map((m) => m.attrs['data-lp-name']).sort();
+
+test('note origin: the used-by row is there while listening and gone after Stop', async () => {
+  const r = rig();
+  await playChains(r);
+  const box = r.el('#lite-listen-users');
+  assert.equal(box.hidden, false);
+  assert.equal(box.dataset.users, '1', 'one source (theme) with its users');
+  r.listen.stop();
+  assert.equal(box.hidden, true);
+});
+
+test('note origin: hovering a user shows only the notes of that user, leaving shows them all again, and Stop forgets it', async () => {
+  const r = rig();
+  await playChains(r);
+  assert.deepEqual(originNames(r), ['high', 'low']);
+  r.listen.isolate('high');
+  assert.deepEqual(originNames(r), ['high']);
+  r.listen.isolate(null);
+  assert.deepEqual(originNames(r), ['high', 'low']);
+  r.listen.isolate('low');
+  r.listen.stop();
+  const second = r.listen.start();   // a new session starts without an isolated user
+  await flush();
+  r.page.builds[1].d.resolve(outcome('song.amplet', CHAIN_SONG, 12, 'o2'));
+  await second; await flush();
+  r.listen.refreshMarks();
+  assert.deepEqual(originNames(r), ['high', 'low']);
+  r.listen.stop();
+});
+
+test('note origin: a click on a user jumps to its block, but only in the song that plays', async () => {
+  const r = rig();
+  await playChains(r);
+  r.listen.jump('high');
+  assert.deepEqual(r.page.jumps, [CHAIN_SONG.indexOf('midi-clip high')]);
+  r.page.active = 'components/echo.amplec';
+  r.listen.jump('low');
+  assert.equal(r.page.jumps.length, 1, 'no jump in another file');
+  assert.match(r.page.toasts.at(-1), /Open the song to jump to low/);
+  r.listen.stop();
 });

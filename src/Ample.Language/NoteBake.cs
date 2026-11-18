@@ -96,6 +96,39 @@ public static class NoteBake
         return new BakeOutcome(crlf ? result.Replace("\n", "\r\n", StringComparison.Ordinal) : result, null, null, entry.Result.Value!.Events.Count, string.Empty, string.Empty, string.Empty);
     }
 
+    /// <summary>
+    /// The source note of every note of a clip whose notes are a chain (note-origin plan, step 3): where it starts and how long it is (micro-beats),
+    /// its pitch and its origin (null for a note an operator made).
+    /// Empty for a clip whose notes are not a pipeline, and when the chain cannot be worked out.
+    /// </summary>
+    /// <param name="songText">The text of the song.</param>
+    /// <param name="spec">The language specification.</param>
+    /// <param name="block">The name of the clip.</param>
+    /// <param name="readFile">How a file of the project is read, or null.</param>
+    /// <param name="limit">The note limit.</param>
+    /// <param name="midiSource">How the notes of a midi block are read, or null.</param>
+    /// <param name="cancellation">Cancellation.</param>
+    /// <returns>The notes with their origin, in the order of the chain's result.</returns>
+    public static IReadOnlyList<(long At, long Len, int Pitch, NoteOrigin? Origin)> Origins(
+        string songText, SpecData spec, string block, Func<string, string?>? readFile, int limit, Func<BlockNode, PipeValue?>? midiSource = null, CancellationToken cancellation = default)
+    {
+        try
+        {
+            (_, _, _) = Find(songText.Replace("\r\n", "\n", StringComparison.Ordinal), spec, block, readFile, limit, midiSource, out AmpleDocument doc);
+            string tempo = (doc.Project?.Tempo ?? 120).ToString(CultureInfo.InvariantCulture);
+            LangLimits limits = LangLimits.From(doc.Settings);
+            FlowEntry entry = NoteFlow.Analyze(
+                doc.Blocks, tempo, limit, readFile, null, null, midiSource, doc.Project?.MasterSeed ?? 0, cancellation, doc.HelperTable, limits, null, doc.CapabilityPolicy, null, null, doc.Project?.BeatsPerBar ?? 4.0)[block];
+            return entry.Result.Value is { } value
+                ? [.. value.Events.Select(n => (n.At, n.Len, n.Pitch, n.Origin))]
+                : [];
+        }
+        catch (NoteBakeException)
+        {
+            return [];
+        }
+    }
+
     /// <summary>How a copy of a clip relates to the stable random namespaces of the original (docs/language/13-randomness.md section 5).</summary>
     public enum SeedCopyMode
     {
