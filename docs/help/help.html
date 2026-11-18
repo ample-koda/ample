@@ -2804,7 +2804,7 @@ ui {
 </ul>
 </li>
 <li><strong>CI enforces it:</strong> <code>node ample/tools/validate-spec.mjs</code> (schemas, unique ids, grammar equals prose, links, every static diagnostic and lint rule has a failing example) and, from chunk 12, <code>ample docs check</code> (the generated <code>help.html</code> is up to date and all examples compile or fail as stated). A change that breaks either is not done.</li>
-<li><strong>The help is generated, never edited by hand.</strong> It is built from this folder and <code>ample/spec/</code> (<a href="" class="repo-ref" title="Not part of this help; see the repository file 12-help-generator.md">chunk 12</a>).</li>
+<li><strong>The help is generated, never edited by hand.</strong> It is built from this folder and <code>ample/spec/</code> (chunk 12).</li>
 <li><strong>Codes and ids are never reused.</strong> Retire, do not delete.</li>
 <li><strong>Provisional is allowed, silent is not.</strong> A not-yet-decided detail is marked <code>provisional</code> in the data and listed in <code>../open-questions.md</code>; it is never guessed in code.</li>
 <li><strong>Corpus before code.</strong> When the implementation and the corpus disagree, decide which is right, fix the spec and the corpus first, then the code. Never edit the corpus just to make a test pass.</li>
@@ -2812,7 +2812,7 @@ ui {
 <h2 id="language-99-maintenance--review-points">Review points</h2>
 <ul>
 <li>Whenever a chunk that touches the language is marked done, the agent re-runs <code>validate-spec</code> and reads <a href="#language-index">README.md</a> for staleness.</li>
-<li>At each milestone (M1 to M5 in <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">the plan</a>) the owner reviews the spec index and the changelog.</li>
+<li>At each milestone (M1 to M5 in the plan) the owner reviews the spec index and the changelog.</li>
 <li>Before 1.0: a full read-through against the working product, with every difference fixed on the side that is wrong.</li>
 </ul>
 <h2 id="language-99-maintenance--where-the-corpus-came-from">Where the corpus came from</h2>
@@ -12199,10 +12199,10 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 </section>
 <section class="page" id="concept-readme" data-title="AMPLE overview">
 <h1>AMPLE overview</h1>
-<p><strong>Status (2026-10-11): this is AMPLE's design and knowledge base, not a statement that every described idea is implemented. Each feature page carries its own built/planned status; use the <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">build plan</a> for chunk status.</strong> The rationale below is historical. Mock examples and proposed CLI sessions are labelled on their pages.</p>
-<p><strong>Origin:</strong> two favourite songs, &quot;Always&quot; and &quot;Serendipity&quot;, could not be reproduced because their seeds were never stored; AMPLE is built so that this cannot happen again (the &quot;Always rule&quot; in <a href="" class="repo-ref" title="Not part of this help; see the repository file decisions.md">Decisions</a>).</p>
+<p><strong>Status (2026-10-11): this is AMPLE's design and knowledge base, not a statement that every described idea is implemented. Each feature page carries its own built/planned status; use the build plan for chunk status.</strong> The rationale below is historical. Mock examples and proposed CLI sessions are labelled on their pages.</p>
+<p><strong>Origin:</strong> two favourite songs, &quot;Always&quot; and &quot;Serendipity&quot;, could not be reproduced because their seeds were never stored; AMPLE is built so that this cannot happen again (the &quot;Always rule&quot; in Decisions).</p>
 <p>The original goal was a clean, standalone tool (C#) for writing songs as text: instrument tracks (textual MIDI) and AI voices/samples on one timeline, reproducible by default, with a web UI (plain HTML/JS/CSS on a local server, also on Windows). It does not depend on the prompt bridge or prompt-music; those (and the ACE-Step findings in Prompt bridge) are only background knowledge.</p>
-<p><strong>Building it:</strong> the build plan is in <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md"><code>../plan/</code></a> (chunks prefixed with their priority, lowest first). The <strong>language specification</strong> is in <a href="#language-index"><code>language/</code></a> (normative, kept maintained); the generated <code>help.html</code> comes from chunk 12.</p>
+<p><strong>Building it:</strong> the build plan is in <code>../plan/</code> (chunks prefixed with their priority, lowest first). The <strong>language specification</strong> is in <a href="#language-index"><code>language/</code></a> (normative, kept maintained); the generated <code>help.html</code> comes from chunk 12.</p>
 <h2 id="concept-readme--pages">Pages</h2>
 <table>
 <thead>
@@ -12213,11 +12213,11 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 </thead>
 <tbody>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file decisions.md">Decisions</a></td>
+<td>Decisions</td>
 <td>What was decided so far, grouped by topic, and what the design is based on. Start here.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file stereo.md">Mono and stereo</a></td>
+<td>Mono and stereo</td>
 <td>The <code>channels</code> parameter (auto, mono, stereo), the song default on the master block and the stereo meter.</td>
 </tr>
 <tr>
@@ -12241,11 +12241,11 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>Several deliverables of one song (full, edit, teaser), each rendered on purpose with an estimate first and exported with its own cut and fades.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file game-score.md">Game score</a></td>
+<td>Game score</td>
 <td>Layers and music states of a song as loopable stems plus a manifest, so a game can mix adaptive music live.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file game-score-live-server.md">Game score: live audio server</a></td>
+<td>Game score: live audio server</td>
 <td>Design note: what AMPLE would need to produce the game's music live instead of as stems, and what stays stable on the game side.</td>
 </tr>
 <tr>
@@ -12269,11 +12269,11 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>Codex proposes, AMPLE validates, you decide: server policy, project identity and mode, the proposal workspace, MCP context and skill.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file ai-browser.md">AI browser tool</a></td>
+<td>AI browser tool</td>
 <td>Visible Playwright browsing with task/project approval, screenshots, pointer hover, page media mute, aggregate diagnostics and optional page JavaScript.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file ai-saving-mode.md">Saving mode</a></td>
+<td>Saving mode</td>
 <td>How a coding agent works when asked to conserve usage: concise narration, safe batching of reads and edits, guarded edit scripts, focused verification.</td>
 </tr>
 <tr>
@@ -12281,7 +12281,7 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>What the web app does today (layout, palette, canvas, ports and links, groups, properties, undo, build), what is not yet there, honest differences from the sketch, how to run the browser tests.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">Client-side preview analysis</a></td>
+<td>Client-side preview analysis</td>
 <td>Block-by-block feasibility and requirements for browser-local previews, including server dependencies and explicit exclusions.</td>
 </tr>
 <tr>
@@ -12289,11 +12289,11 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>AMPLE-only guide for new plugins and views, Studio components/tokens, preview honesty, and a quick migration check for concurrent work.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file midi.md">MIDI support</a></td>
+<td>MIDI support</td>
 <td>Bounded SMF handling, note rendering, generated modules and nested module navigation.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file lite.md">AMPLE Lite</a></td>
+<td>AMPLE Lite</td>
 <td>The small code-first playground at <code>/lite/</code>: files, editor, demos, build and play, browser-local storage, Reset Lite, the safety boundary and the licences of its sounds.</td>
 </tr>
 <tr>
@@ -12317,31 +12317,31 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>The plugin manifest, the JSON-RPC protocol version 1 and what the host guarantees: clean environment, job folder, timeouts, crash containment, one GPU job at a time.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file faer-bridge.md">Faer bridge (in progress)</a></td>
+<td>Faer bridge (in progress)</td>
 <td>Optional per-project routing for ACE song and voice generation, voice cloning and stem separation to the authenticated Trooper.ai service; GPU acceptance checks remain.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file faer-operations.md">Faer deployment notes</a></td>
+<td>Faer deployment notes</td>
 <td>Verified Trooper.ai setup findings, measured install steps, deployment choices and open validation checks.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file faer-spark.md">FaerSpark</a></td>
+<td>FaerSpark</td>
 <td>The local ACE-Step server on demand: leases, start and stop, the &quot;Faer, else local&quot; route, and the model checks AMP5381, AMP5382 and AMP2014.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file play-lights.md">Play lights</a></td>
+<td>Play lights</td>
 <td>The Blocks view lights up while the song plays: which blocks are audible, where the signal flows, the motion per kind of block, when the lights are allowed.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file templates.md">Templates</a></td>
+<td>Templates</td>
 <td>The Templates tab: the built-in beats with a wizard (preview, kit, chords and bass), suggestions without a model, and your own templates saved per project.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file koda.md">Koda, the small helper</a></td>
+<td>Koda, the small helper</td>
 <td>The eighth note of the logo as a helper: ask about a block, code or a field (Ctrl+K), answers from the template docs, drafts shown dashed on the board, hide / peek / mute, the two lanes beside the assistant.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file faer-model-catalog.md">ACE-Step model catalog for Codex</a></td>
+<td>ACE-Step model catalog for Codex</td>
 <td>Live Trooper model inventory shape, ACE model roles, recommendations, quantization trade-offs and exact-file selection rules for Codex.</td>
 </tr>
 <tr>
@@ -12357,7 +12357,7 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>The four determinism levels, lock/freeze/pin/refresh, retries and checks, how reproducibility is verified.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file render-reproducibility.md">Render recipes and reproduction checks</a></td>
+<td>Render recipes and reproduction checks</td>
 <td>The generation-input audit, saved recipes/provenance, CFG baselines and comparison of old takes with current software.</td>
 </tr>
 <tr>
@@ -12369,7 +12369,7 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>Turning dynamic results into data blocks; recipe-exact versus data-exact.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a></td>
+<td>Tech</td>
 <td>C# core, local server and web UI, stable PRNG, toolprints, project folder, build order.</td>
 </tr>
 <tr>
@@ -12417,7 +12417,7 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>Release criteria, measured baselines, packaging, the open items before v1.0.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file open-points-2026-10-10.md">Open points 2026-10-10</a></td>
+<td>Open points 2026-10-10</td>
 <td>What is open after the long session of 2026-10-10: gaps, failures that were already there, voice clone and GPU, the AI assistant, and the design for moves proposed by Codex.</td>
 </tr>
 <tr>
@@ -12429,7 +12429,7 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>The learning help with pictures and a dictionary (open it with the Guide link in the app, or at /guide/); how it is made and kept up to date; <a href="" class="repo-ref" title="Not part of this help; see the repository file STYLE.md">the doc style</a> holds the house style rules.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file bundles.md">Library bundles</a></td>
+<td>Library bundles</td>
 <td>Save blocks with their files, seeds and audio in the library and place them in another song under new names.</td>
 </tr>
 <tr>
@@ -12437,7 +12437,7 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>The advanced sequencer block: channels, patterns, a playlist and lanes in a .seq file, and its workspace.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file assistant-tools.md">Assistant tools</a></td>
+<td>Assistant tools</td>
 <td>The tools of the assistant that are not AI: the beats catalogue, audio analysis, arrangement lint, mix hints and pattern generators.</td>
 </tr>
 <tr>
@@ -12445,15 +12445,15 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>Real instruments: sample drum kit and guitar blocks, sample sets, pattern and strum grammar, words from a file.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file sound-sources.md">Sound sources</a></td>
+<td>Sound sources</td>
 <td>A researched list of sample and sound effect sources and their licences for a commercial streaming release (2026-10-08, not legal advice).</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file dev-setup.md">Development setup</a></td>
+<td>Development setup</td>
 <td>Build AMPLE, run the focused tests and use the development tools.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file testing-parallelism.md">Test parallelism</a></td>
+<td>Test parallelism</td>
 <td>Current safe parallel groups and shared-state suites to keep serial or isolate first.</td>
 </tr>
 <tr>
@@ -12473,31 +12473,31 @@ settings <span class="tk-p">{</span> audio.latencyCompensation <span class="tk-k
 <td>The studio/music vocabulary AMPLE would use as keywords.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file future.md">Future ideas</a></td>
+<td>Future ideas</td>
 <td>Ideas tracked on purpose but left out of v1 (smarter merges, adopt block, A/B merge, ...).</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file open-questions.md">Open questions</a></td>
+<td>Open questions</td>
 <td>The questions still to be decided.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">Clickable sketch</a></td>
+<td>Clickable sketch</td>
 <td>One HTML file (plain JS, open it in a browser) that is also a knowledge base: ComfyUI-like canvas with groups and minimap, history and structure browser, variants, build with cache and preview playback, linked folders. Machine-readable notes inside (see its README). Mock only.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file parity-matrix.md">Mockup parity matrix</a></td>
+<td>Mockup parity matrix</td>
 <td>Every sketch feature mapped to delivery chunks, a plain-language scenario and eventual executable proof.</td>
 </tr>
 <tr>
-<td><a href="" class="repo-ref" title="Not part of this help; see the repository file cli-session.md">CLI session (mock)</a></td>
+<td>CLI session (mock)</td>
 <td>What the commands could look like (invented output).</td>
 </tr>
 </tbody>
 </table>
 <h2 id="concept-readme--example-files-examples">Example files (<code>examples/</code>)</h2>
-<p><a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>17-splitter-branches</code></a> duplicates mono drums into independent EQ and delay/reverb branches, with volume/channel controls and a stereo mix.
-<a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>25-piano-roll-tour</code></a> is a sample-free editable clip for exploring piano-roll tools and per-note properties.
-<code>01-hello</code> instruments only · <code>02-hybrid</code> instruments + AI voices + overlap + booth directions · <code>04-remix</code> importing audio, MIDI, old recipes, stems · <code>05-lyrics</code> timed words, checks, queries, retry policy · <a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>16-audio-vs-render</code></a> compares full effect chains on materialized audio and render recipes · <a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>21-fades</code></a> a crossfade between two drum patterns, a fade out as a formula and a fade block in seconds · <a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>22-sections</code></a> named drum patterns put in order · <a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>23-sequencer</code></a> a sequencer block with channels, patterns, a playlist and lanes · <a href="" class="repo-ref" title="Not part of this help; see the repository file "><code>24-tutorial-song</code></a> a full band song (sequencer, sample kit, guitar, a General MIDI choir and effect chains), built step by step in the guide · <code>packs/</code> soundset manifests · <code>plugins/acestep/plugin.json</code> · <code>ample.lock</code>.
+<p><code>17-splitter-branches</code> duplicates mono drums into independent EQ and delay/reverb branches, with volume/channel controls and a stereo mix.
+<code>25-piano-roll-tour</code> is a sample-free editable clip for exploring piano-roll tools and per-note properties.
+<code>01-hello</code> instruments only · <code>02-hybrid</code> instruments + AI voices + overlap + booth directions · <code>04-remix</code> importing audio, MIDI, old recipes, stems · <code>05-lyrics</code> timed words, checks, queries, retry policy · <code>16-audio-vs-render</code> compares full effect chains on materialized audio and render recipes · <code>21-fades</code> a crossfade between two drum patterns, a fade out as a formula and a fade block in seconds · <code>22-sections</code> named drum patterns put in order · <code>23-sequencer</code> a sequencer block with channels, patterns, a playlist and lanes · <code>24-tutorial-song</code> a full band song (sequencer, sample kit, guitar, a General MIDI choir and effect chains), built step by step in the guide · <code>packs/</code> soundset manifests · <code>plugins/acestep/plugin.json</code> · <code>ample.lock</code>.
 | <a href="" class="repo-ref" title="Not part of this help; see the repository file third-party-credits.md">Third-party credits</a> | What AMPLE learned from or uses that is not its own (MonkSynth for Delay Llama under MIT, the Delay Lama as inspiration, a CC0 demo voice), with licence and how it is used. |
 | <a href="" class="repo-ref" title="Not part of this help; see the repository file upstream-sources.md">Where things came from</a> | The specifications we implement, the projects we learned from, the sounds we fetch and the libraries we use, with the version of the time and what to watch when checking for upstream updates. |</p>
 </section>
@@ -12610,7 +12610,7 @@ master    { limiter -1 dB  target -14 LUFS }</code></pre></div>
 <ul>
 <li>It follows the dependency graph, the cache colours and the progress per block.</li>
 <li>Its preview sound is a <strong>stand-in synthesizer</strong>: piano and bass follow the chords you type in the chords block (one chord per bar, major or minor by name), drums play a fixed pattern, the voice is a seeded tone line. It is not the real engine and the voice is not a real take.</li>
-<li>It does not measure word timing, place takes with warping, or apply the voice-engine recipe; those are designed in <a href="#concept-variants">Variants</a>, <a href="#concept-bake">Bake</a>, <a href="#concept-modules">Modules</a> and <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>.</li>
+<li>It does not measure word timing, place takes with warping, or apply the voice-engine recipe; those are designed in <a href="#concept-variants">Variants</a>, <a href="#concept-bake">Bake</a>, <a href="#concept-modules">Modules</a> and Tech.</li>
 </ul>
 </section>
 <section class="page" id="concept-source-and-views" data-title="One song, three views: node editor, arrangement, source">
@@ -12807,7 +12807,7 @@ layout drums 280 20</code></pre></div>
 <li>The plain <strong>Blocks</strong> button uses the same popup when the text has errors.</li>
 </ul>
 <h2 id="concept-source-and-views--11-the-lock-file-ample-lock">11. The lock file (<code>ample.lock</code>)</h2>
-<p><code>ample.lock</code> is <strong>generated and read-only</strong>. It pins everything the song depends on that is not written in the song text, so the song reproduces later: plugin versions with their <strong>toolprints</strong>, soundset and sample packs by <strong>hash</strong>, templates and pinned blocks by hash, locked external data (the recorded weather value, when it was fetched, its hash) and model files. It plays the role of <code>package-lock.json</code>: the text says what you want, the lock says exactly what you got. It is part of every revision, changes only when you update a plugin, a pack or a pin, or lock external data, and <code>verify</code> and <code>upgrade-check</code> compare the present setup with it. See <a href="#concept-determinism">Determinism</a> and <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>.</p>
+<p><code>ample.lock</code> is <strong>generated and read-only</strong>. It pins everything the song depends on that is not written in the song text, so the song reproduces later: plugin versions with their <strong>toolprints</strong>, soundset and sample packs by <strong>hash</strong>, templates and pinned blocks by hash, locked external data (the recorded weather value, when it was fetched, its hash) and model files. It plays the role of <code>package-lock.json</code>: the text says what you want, the lock says exactly what you got. It is part of every revision, changes only when you update a plugin, a pack or a pin, or lock external data, and <code>verify</code> and <code>upgrade-check</code> compare the present setup with it. See <a href="#concept-determinism">Determinism</a> and Tech.</p>
 </section>
 <section class="page" id="concept-recording" data-title="Recording your voice">
 <h1>Recording your voice</h1>
@@ -12911,16 +12911,16 @@ layout drums 280 20</code></pre></div>
 <li><strong>What is guaranteed (three layers):</strong> (1) a stored take plus the deterministic mix is bit-identical, verified by hash; (2) everything AMPLE renders itself (built-in blocks, mixer, PRNG) is identical on every supported platform, proven by golden hashes; (3) regenerating an AI block is <strong>only guaranteed on the same machine and toolprint</strong>. For (3) the app shows a permanent warning and runs the safe regeneration flow (old take set aside, result verified, default answer &quot;restore previous&quot;): see <a href="#concept-regeneration">Regeneration safety</a>.</li>
 </ul>
 <h1 id="concept-determinism--generation-recipe-audit-2026-10-17">Generation recipe audit (2026-10-17)</h1>
-<p>Seeds alone are insufficient. The CFG investigation exposed missing effective defaults and discarded plugin provenance; see <a href="" class="repo-ref" title="Not part of this help; see the repository file render-reproducibility.md">the incident and mandatory end-to-end checklist</a>. Preserve the full recipe and immutable reference audio. A comparison with changed models/software may proceed with warnings; byte identity must be measured rather than inferred from a seed.</p>
+<p>Seeds alone are insufficient. The CFG investigation exposed missing effective defaults and discarded plugin provenance; see the incident and mandatory end-to-end checklist. Preserve the full recipe and immutable reference audio. A comparison with changed models/software may proceed with warnings; byte identity must be measured rather than inferred from a seed.</p>
 <h2 id="concept-determinism--browser-implementations">Browser implementations</h2>
-<p>The browser re-implementations of the effects are checked against renders of the real engine: see <a href="" class="repo-ref" title="Not part of this help; see the repository file conformance.md">clientside-preview/conformance.md</a>.</p>
+<p>The browser re-implementations of the effects are checked against renders of the real engine: see clientside-preview/conformance.md.</p>
 </section>
 <section class="page" id="concept-regeneration" data-title="Regeneration safety">
 <h1>Regeneration safety</h1>
 <blockquote>
 <p>Status (2026-10-02): built in chunk 58 (core service and CLI: <code>ample regen</code>, <code>verify-reproduction</code>, <code>explain</code>); the dialog and the health page entries come with chunks 76 and 77.</p>
 </blockquote>
-<p>The producer controls now offer <strong>Check reproduction…</strong> using the reference seed and current song/settings/software. The reference stays selected; configuration and provenance drift produce warnings. This is a comparison, not automatic replay of an older recipe. Recipe metadata can create a distinct take even when its audio bytes match. See <a href="" class="repo-ref" title="Not part of this help; see the repository file render-reproducibility.md">the recipe audit and review checklist</a>.</p>
+<p>The producer controls now offer <strong>Check reproduction…</strong> using the reference seed and current song/settings/software. The reference stays selected; configuration and provenance drift produce warnings. This is a comparison, not automatic replay of an older recipe. Recipe metadata can create a distinct take even when its audio bytes match. See the recipe audit and review checklist.</p>
 <p><strong>The rule in one line:</strong> regenerating an AI block is only guaranteed to give the same result on the same machine and the same toolprint, so AMPLE treats every regeneration as a risky act: the old take is set aside first, the result is verified against it, and if it differs the default answer is <strong>restore the previous take</strong>.</p>
 <h2 id="concept-regeneration--the-warning-always-visible">The warning (always visible)</h2>
 <p>On every AI block, on the regenerate button and in the freeze explainer:</p>
@@ -13273,7 +13273,7 @@ QUJDRA==...                 binary files: Base64 lines of 76 characters
 <li>One Codex account is used by one task at a time (its refresh token works once). Further tasks <strong>wait in a queue</strong> (the wizard says how many are ahead; a queued task can be cancelled) behind a lock file per account in <code>%LOCALAPPDATA%amplecodex-locks</code>, so it holds across projects and servers.</li>
 </ul>
 <h2 id="concept-ai-assistant--a-task">A task</h2>
-<p>AMPLE copies the files in scope (text files only) into <code>.ample/ai/work/&lt;task&gt;/project</code> with the reference, a <code>TASK.md</code>, an <code>AGENTS.md</code> and the skill <code>ample</code> (<code>.agents/skills/ample</code>), starts the <strong>Codex app server</strong> there (JSON-RPC over stdio), and gives Codex a read-only MCP server <code>ample</code> (the command <code>ample mcp</code>, with a token of this task that can only read): <code>ample_project</code>, <code>ample_faer_status</code>, <code>ample_docs</code>, <code>ample_block_types</code>, <code>ample_song</code>, <code>ample_block</code>, <code>ample_file</code>, <code>ample_analyze</code> (tempo, key, loudness, spectrum, pitch of a built block) and <code>ample_request_asset</code>. <code>ample_faer_status</code> reports the project's independent song/voice/separation routes, live capability readiness and the current ACE <code>.gguf</code> filenames, roles and sizes; it returns no credentials or job content. The <a href="" class="repo-ref" title="Not part of this help; see the repository file faer-model-catalog.md">ACE model catalog</a> explains model roles and recommendations. Codex keeps AMPLE's hardcoded family choices, combines them with live server offers, and can use the exact-file field for a server-listed unfamiliar variant. When relevant, the final proposal summary names the model choice so it is visible on Output, Changes and Checks.</p>
+<p>AMPLE copies the files in scope (text files only) into <code>.ample/ai/work/&lt;task&gt;/project</code> with the reference, a <code>TASK.md</code>, an <code>AGENTS.md</code> and the skill <code>ample</code> (<code>.agents/skills/ample</code>), starts the <strong>Codex app server</strong> there (JSON-RPC over stdio), and gives Codex a read-only MCP server <code>ample</code> (the command <code>ample mcp</code>, with a token of this task that can only read): <code>ample_project</code>, <code>ample_faer_status</code>, <code>ample_docs</code>, <code>ample_block_types</code>, <code>ample_song</code>, <code>ample_block</code>, <code>ample_file</code>, <code>ample_analyze</code> (tempo, key, loudness, spectrum, pitch of a built block) and <code>ample_request_asset</code>. <code>ample_faer_status</code> reports the project's independent song/voice/separation routes, live capability readiness and the current ACE <code>.gguf</code> filenames, roles and sizes; it returns no credentials or job content. The ACE model catalog explains model roles and recommendations. Codex keeps AMPLE's hardcoded family choices, combines them with live server offers, and can use the exact-file field for a server-listed unfamiliar variant. When relevant, the final proposal summary names the model choice so it is visible on Output, Changes and Checks.</p>
 <p>The <code>ample_project</code> response lists task-work files separately under <code>taskWorkFiles</code>. On path-based read calls such as <code>ample_file</code>, <code>ample_song</code> and <code>ample_block</code>, pass <code>location=work</code> to read one of those files; <code>location=project</code> (the default) reads the normal project file. The <code>path</code> stays a plain relative filename. Hidden internal files and <code>rpc.log</code> are excluded, and choosing <code>location=work</code> is read-only. The task composer has an unchecked <strong>Strict mode</strong> option. Off by default, Codex can ask for approval before accessing files or running commands outside its task work folder; the request is surfaced in the task UI and waits for the user's decision. When checked, the current strict policy applies. This is separate from the manual/auto/unsafe interaction choice: non-strict always uses sandboxed, on-request permissions so an external request cannot be silently refused or silently granted.</p>
 <p>For every <code>.amplet</code> containing <code>ace-music</code> or <code>ai-voice</code>, Codex must write <code>settings { acestep.backend server }</code> in that song, including baselines and every standalone variant. A project default is insufficient; missing it produces AMP2013 and prevents the ACE block from building with AMP5370. Apply the setting identically across seed-comparison files before rendering. This selects the ACE server backend; the project's separate local/Faer capability route decides where the request is sent. Resolve this preflight error before investigating Faer readiness, model loading or VRAM. Submit Faer renders sequentially so one GPU job owns the model load/render/release cycle at a time, and call <code>ample_present</code> immediately after each successful render before starting the next. This makes each playable sample available while later variants are still rendering; do not wait for the whole batch before presenting the first one.</p>
 <p>When Codex is done, AMPLE compares the copy with the baseline and shows: what Codex says, the changed files with a diff, the diagnostics, the build result (the proposal is built in a staged copy of the project, so you can listen to it) and warnings. The fixed tab row stays above each tab's scrollable content: the written summary appears in Output, Changes and Checks, while the newest presented sample is first in Output. The preview target follows the song Codex actually rendered or measured, including when a proposal adds multiple songs; the proposal window names that target, and <strong>Look at it in the block view</strong> opens that proposed song read-only while the project keeps its active song. A failed or refreshed proposal clears the prior build audio, and a lost task connection pauses playback and hides output until the newest task result is confirmed. If the user explicitly asks for no build or render, Codex calls <code>ample_skip_build</code>: AMPLE still checks source errors and warnings, labels the proposal <strong>Build not run (as requested)</strong> with the reason, and allows Accept without waiting for a build. The user can still choose <strong>Build and test again</strong>. <strong>Accept</strong> is refused when source errors exist or a build fails; <strong>Accept anyway</strong> applies a failed build (unsaved, undoable) after a clear warning. Accepting makes a checkpoint first, writes other files through the journal (undoable from the wizard) and applies the song as one undo step in the editor. If the project changed while Codex worked, the proposal is not applied blindly: <em>Try to rebase</em> (a three-way merge, conflicts are reported), <em>Regenerate</em>, or <em>Review anyway</em> (view only).</p>
@@ -13613,7 +13613,7 @@ $ ample cleanup           # later: lists archived leaves, shows impact, suggests
 <li><strong>Nothing is lost silently.</strong> Every move is a pointer move recorded in the operation log; only <code>cleanup</code> and <code>purge</code> remove data, and both are dangerous acts with a dry run, a backup suggestion and typed acceptance.</li>
 <li><strong>Everything stays reachable</strong> until it is deliberately removed: any revision, any line (also archived ones), any earlier arrangement of the lines.</li>
 <li><strong>Revisions are immutable</strong> and tamper-evident (their id is a hash of content and parent).</li>
-<li><strong>No merges in v1.</strong> Lines diverge; one is promoted. &quot;Adopt this block&quot; and structure-aware merge are tracked in <a href="" class="repo-ref" title="Not part of this help; see the repository file future.md">Future ideas</a>.</li>
+<li><strong>No merges in v1.</strong> Lines diverge; one is promoted. &quot;Adopt this block&quot; and structure-aware merge are tracked in Future ideas.</li>
 <li><strong>Natural navigation is by line, leaf, checkpoint and tag</strong>; hashes are the exception.</li>
 <li><strong>Two audiences, one model:</strong> a simple view that shows what matters, an advanced view that shows everything.</li>
 </ol>
@@ -13721,7 +13721,7 @@ release    id, tag, revision, sealed_hash, kind (recipe-exact | data-exact), lin
 </ul>
 <h2 id="concept-history-management--13-export-and-mirror">13. Export and mirror</h2>
 <ul>
-<li><strong>Export a slice</strong> (<code>ample export --scope line:garage</code> or <code>tag:v1.0</code> or <code>checkpoint:&quot;chorus works&quot;</code>) as a <code>.ample</code> file with chosen contents; opening it creates a new project or, later, imports the line into an existing one (see <a href="" class="repo-ref" title="Not part of this help; see the repository file future.md">Future ideas</a>: pull and push).</li>
+<li><strong>Export a slice</strong> (<code>ample export --scope line:garage</code> or <code>tag:v1.0</code> or <code>checkpoint:&quot;chorus works&quot;</code>) as a <code>.ample</code> file with chosen contents; opening it creates a new project or, later, imports the line into an existing one (see Future ideas: pull and push).</li>
 <li><strong>Git mirror</strong> (module): one-way mirror of lines and tags with the release hash in annotated tags; conversions both ways keep raw git objects for a lossless round trip.</li>
 </ul>
 <h2 id="concept-history-management--14-cli-twins">14. CLI twins</h2>
@@ -13768,7 +13768,7 @@ ample export --scope &lt;line|tag|checkpoint&gt; --contents sources,baked,takes,
 </tr>
 <tr>
 <td><strong>Link</strong></td>
-<td>A named folder outside the project that is exposed in the folder browser (see <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>, &quot;Linked folders&quot;). Global or per project, read-only or read-write.</td>
+<td>A named folder outside the project that is exposed in the folder browser (see Tech, &quot;Linked folders&quot;). Global or per project, read-only or read-write.</td>
 </tr>
 <tr>
 <td><strong>Take bank</strong></td>
@@ -13901,7 +13901,7 @@ The UI uses one red dialog for all of them so the shape is always recognisable.<
 <li><strong>Crash safety:</strong> SQLite in WAL mode; the take bank only ever adds files (write to temp, fsync, rename); a rolling daily copy of <code>history.db</code>.</li>
 <li><strong>Path safety:</strong> the engine serves only paths inside the project and its links; <code>..</code> never escapes; read-only links are never written to, also not by plugins.</li>
 <li><strong>Privacy:</strong> logs and the health report never contain lyrics, prompts or file names of takes; secrets live only in the sealed vault and never in <code>project.json</code>, exports (unless sealed on purpose) or logs.</li>
-<li><strong>Network:</strong> the server binds to <code>127.0.0.1</code>; remote use is explicit, with a token and an SSH tunnel (see <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>).</li>
+<li><strong>Network:</strong> the server binds to <code>127.0.0.1</code>; remote use is explicit, with a token and an SSH tunnel (see Tech).</li>
 </ul>
 <h2 id="concept-project-management--11-format-versions-and-migration">11. Format versions and migration</h2>
 <p><code>project.json</code> carries <code>format</code> (an integer). On open:</p>
@@ -13997,7 +13997,7 @@ ample import &lt;file|git-url|recipe&gt;     ample doctor [--full] [--fix]      
 <section class="page" id="concept-storage" data-title="Storage: the takebank, protection and clean-up">
 <h1>Storage: the takebank, protection and clean-up</h1>
 <blockquote>
-<p>Status (2026-10-11): overview, protection rules, clean-up (UI, CLI, API), soft limit, options, size and time estimate, compressed takes and the data path on another drive are built. Finals are also built; see <a href="#concept-finals">Finals</a>. Remaining storage plan parts: <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">plan/storage</a>.</p>
+<p>Status (2026-10-11): overview, protection rules, clean-up (UI, CLI, API), soft limit, options, size and time estimate, compressed takes and the data path on another drive are built. Finals are also built; see <a href="#concept-finals">Finals</a>. Remaining storage plan parts: plan/storage.</p>
 </blockquote>
 <p>Every render is kept as a take in <code>.ample/data</code>, so a song never renders twice. Over time that adds up (a dubstep session of a day reached 22 GB). The Storage page (Projects, Storage) and <code>ample storage</code> show where the space goes and give it back safely.</p>
 <h2 id="concept-storage--what-is-never-removed">What is never removed</h2>
@@ -14209,7 +14209,7 @@ ample serve --openapi docs/api/openapi.json     # writes the OpenAPI document an
 <p>The right title-bar dot is now a status control. Red <code>!</code> identifies a source/build error; amber <code>!</code> identifies a block skipped by an upstream error; blue pulses while building; filled green means newly rendered in the last build involving that block; outlined green means an existing take was reused. Grey means not built/out of date, with a dash when disabled. Status tooltips include the available error or build time. Clicking an error opens Log, selects Song log or Build log, follows upstream failure messages and scrolls/focuses the corresponding error row. Completed build/cache badges no longer occupy the block body; current step and detailed progress remain visible during a build, then disappear for each block as its result arrives. Semantic flags such as dynamic/baked remain separate.</p>
 <p>Ordinary Play/Stop actions use icons; Build and play/Cancel build retain their explanatory labels. The small arrow beside Play opens Loop, whose toggle keeps the menu open. The volume icon opens a vertical 0–150% fader with a reset to 100%; moving away from baseline gives the icon an amber tint and a tooltip explicitly distinguishing listening volume from master volume. It is held in this tab's memory, resets on reload, and is never written into song settings, output files or render plans. Shared playback, proposal audio, loop playback, file/clip previews, A/B, transcription stems, recording auditions and live MIDI previews use the local gain. Shared source meters remain before this gain. Values above 100% amplify playback and can clip at the device; they do not modify the rendered waveform.</p>
 <p>The default <code>studio-dark</code> theme is token-driven by <code>web/styles/tokens.css</code>. Shared element treatment lives in <code>skin.css</code>; Studio panels build on <code>studio.css</code>. Available themes are <code>studio-dark</code>, <code>light</code>, <code>high-contrast</code>, <code>auto</code> and <code>classic</code>; the selection is remembered in the browser. Custom graph and waveform drawing reads the same CSS tokens.</p>
-<p><code>ample serve</code> serves the web app at <code>/</code>. It looks like the <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">clickable sketch</a> on purpose: the sketch's CSS is the app's CSS, and the same regions, buttons and behaviours are used. What is real here that was a mock there: every change goes to the server as an edit of the song text, so the graph and the source are always the same document, and the history, the takes, the seeds and the audio are the real ones.</p>
+<p><code>ample serve</code> serves the web app at <code>/</code>. It looks like the clickable sketch on purpose: the sketch's CSS is the app's CSS, and the same regions, buttons and behaviours are used. What is real here that was a mock there: every change goes to the server as an edit of the song text, so the graph and the source are always the same document, and the history, the takes, the seeds and the audio are the real ones.</p>
 <h2 id="concept-web-ui--what-works">What works</h2>
 <h3 id="concept-web-ui--project-exports-2026-10-10">Project exports (2026-10-10)</h3>
 <p>Right-click a project file and choose <strong>Export</strong> to download its original saved bytes. Audio files additionally offer <strong>Export as → WAV / MP3 / FLAC</strong>. Folder menus omit ordinary Export and expose only <strong>Export as → ZIP</strong>. ZIP includes nested files and empty directories without following links or entering private <code>.ample</code> directories. Project sources are never overwritten.</p>
@@ -14828,8 +14828,8 @@ Alt+NumPad octave digits, draw drag stretch vs move, the Grid and strip rules ab
 <p>This guide is for AMPLE plugins, built-in blocks, editors and panel work. It explains how to fit new work into the default dark Studio UI and how to tell whether existing work needs migration.</p>
 <h2 id="concept-studio-ui-integration--start-here">Start here</h2>
 <ol>
-<li>Treat the <a href="" class="repo-ref" title="Not part of this help; see the repository file index.html">Studio mockup</a> as a historical reference only; it does not define current UI behavior and must not be updated. Read the <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">Studio UI plan</a> for current implementation guidance.</li>
-<li>Read <a href="#concept-web-ui">the web UI status</a> and the relevant chunk in the <a href="" class="repo-ref" title="Not part of this help; see the repository file README.md">plan table</a>. The plan distinguishes real behavior from mock-only behavior.</li>
+<li>Treat the Studio mockup as a historical reference only; it does not define current UI behavior and must not be updated. Read the Studio UI plan for current implementation guidance.</li>
+<li>Read <a href="#concept-web-ui">the web UI status</a> and the relevant chunk in the plan table. The plan distinguishes real behavior from mock-only behavior.</li>
 <li>Search the existing UI before adding a new control. Reuse its components, token names, command path and panel registration.</li>
 </ol>
 <h2 id="concept-studio-ui-integration--visual-language-and-controls">Visual language and controls</h2>
@@ -14842,7 +14842,7 @@ Alt+NumPad octave digits, draw drag stretch vs move, the Grid and strip rules ab
 <li>One pointer gesture should commit one edit. Preview the drag in the UI, then submit a single batched edit when it ends; Escape/cancel should leave the document unchanged.</li>
 </ul>
 <h3 id="concept-studio-ui-integration--source-editor">Source editor</h3>
-<p>The Source view is a locally bundled CodeMirror 6 editor. Its pinned dependencies and offline bundle are maintained by <code>package.json</code>, <code>package-lock.json</code>, <code>web/codemirror/ample-language.js</code> and <code>tools/build-codemirror.mjs</code>; rebuild with <code>npm run build:codemirror</code>. The AMPLE mode uses lexical facts from <code>spec/tokens.json</code> and the documented block-header shape. Theme colors use Studio tokens, and the bundle is lazy-loaded from <code>web/vendor/</code> with no CDN. Preserve the source view's LSP client, Apply/Save semantics, read-only file support, gutter, diagnostic/build overlays, links, completion, drops and keyboard actions when changing the editor. Focused browser acceptance is tracked in <a href="" class="repo-ref" title="Not part of this help; see the repository file cm01-codemirror-source-editor.md">CM01</a>.</p>
+<p>The Source view is a locally bundled CodeMirror 6 editor. Its pinned dependencies and offline bundle are maintained by <code>package.json</code>, <code>package-lock.json</code>, <code>web/codemirror/ample-language.js</code> and <code>tools/build-codemirror.mjs</code>; rebuild with <code>npm run build:codemirror</code>. The AMPLE mode uses lexical facts from <code>spec/tokens.json</code> and the documented block-header shape. Theme colors use Studio tokens, and the bundle is lazy-loaded from <code>web/vendor/</code> with no CDN. Preserve the source view's LSP client, Apply/Save semantics, read-only file support, gutter, diagnostic/build overlays, links, completion, drops and keyboard actions when changing the editor. Focused browser acceptance is tracked in CM01.</p>
 <h2 id="concept-studio-ui-integration--adding-a-block-plugin-or-view">Adding a block, plugin or view</h2>
 <ol>
 <li>Define the block/template contract in <code>spec/templates/</code> and its language/data behavior in the applicable spec and tests.</li>
@@ -14927,7 +14927,7 @@ Hidden properties tabs use <code>display: none</code>; only the active tab contr
 </ul>
 <h1 id="concept-studio-ui-integration--generation-settings-and-reproduction-2026-10-17">Generation settings and reproduction (2026-10-17)</h1>
 <p>For audio cards, request bounded server waveform summaries; never fetch/decode every complete song just to paint a thumbnail. Serialize background summary requests, cache their in-flight promises, and release media sources on Stop. Every recurring poll needs an in-flight guard and teardown cancellation. Avoid redundant polling of a task already shown in its dialog. Close event streams in hidden tabs and reconnect on return. Browser regression coverage: <code>spec-tests/parity/ai-network-budget.spec.ts</code>.</p>
-<p>Generation fields must display effective numeric defaults, including model-aware CFG, rather than leaving an ambiguous blank. Preserve explicit edits through source reload. Review <a href="" class="repo-ref" title="Not part of this help; see the repository file render-reproducibility.md">the seed/CFG near miss checklist</a> for source → request → take coverage. Producer controls expose Check reproduction with separate reference/new-render playback and warnings for changed configuration/software; the original take stays selected.</p>
+<p>Generation fields must display effective numeric defaults, including model-aware CFG, rather than leaving an ambiguous blank. Preserve explicit edits through source reload. Review the seed/CFG near miss checklist for source → request → take coverage. Producer controls expose Check reproduction with separate reference/new-render playback and warnings for changed configuration/software; the original take stays selected.</p>
 </section>
 <section class="page" id="concept-lsp" data-title="The language server (as built)">
 <h1>The language server (as built)</h1>
@@ -15066,7 +15066,7 @@ Hidden properties tabs use <code>display: none</code>; only the active tab contr
 <h1>Opening AMPLE projects</h1>
 <p><code>ample open &lt;project-folder&gt;</code> attaches to a registered server for that project or starts one in the background, waits for its local liveness check, and opens the private launch URL in the default browser. <code>--no-open</code> prints the launch URL instead. A <code>.amplet</code> or <code>.module</code> target resolves to its containing project. With no target, <code>ample open</code> lists recent projects; <code>--last</code> selects the newest one.</p>
 <p>The last successful port is saved in <code>recent.json</code>. A later open tries that port first and chooses a free port if it is already occupied. Child server output goes to <code>&lt;AMPLE_HOME&gt;/logs/&lt;project-id&gt;.log</code>; each log rolls at 1 MiB and retains two older files. Launch tokens are kept in the per-user <code>.launch</code> file and are not written to the server log. Set <code>AMPLE_HOME</code> or pass <code>--home</code> to use a different writable user-data folder.</p>
-<p><code>ample open --agent &lt;name&gt; --reason &lt;text&gt;</code> records self-reported agent attribution. When the sibling <code>Ample.Hub.exe</code> is installed, the CLI starts it if needed and sends a correlated v1 JSON-lines request over the current-user-only pipe. When the hub is not installed or reachable, agent starts use the visible CLI fallback. <code>AMPLE_AGENT</code> and <code>AMPLE_AGENT_REASON</code> provide the same attribution through the environment. The hub pipe's versioned fields and limits are documented in <a href="" class="repo-ref" title="Not part of this help; see the repository file L05-hub-app-skeleton.md">the L05 plan</a>; the pipe server is implemented by L05.</p>
+<p><code>ample open --agent &lt;name&gt; --reason &lt;text&gt;</code> records self-reported agent attribution. When the sibling <code>Ample.Hub.exe</code> is installed, the CLI starts it if needed and sends a correlated v1 JSON-lines request over the current-user-only pipe. When the hub is not installed or reachable, agent starts use the visible CLI fallback. <code>AMPLE_AGENT</code> and <code>AMPLE_AGENT_REASON</code> provide the same attribution through the environment. The hub pipe's versioned fields and limits are documented in the L05 plan; the pipe server is implemented by L05.</p>
 <p>The Windows installer (MSI) also installs the tray hub, <code>Ample.Hub.exe</code> (a WinForms program that needs the .NET 9 Desktop Runtime). It watches the instance registry, shows the main instance (the project <code>Welcome</code> in the AMPLE home, started with <code>ample serve --started-by hub</code>) and every other running instance, and can start, stop and restart the main one (its port and sign-in are in <code>hub.json</code> in the AMPLE home) and open, restart or shut down the others. A stop is a request to <code>POST /api/shutdown</code> with the launch token of the instance; the hub kills nothing. A registry record carries an optional <code>relaunch</code> recipe (program and arguments, never a token) that makes a restart possible, and a server started with <code>--no-hub</code> or <code>AMPLE_NO_HUB=1</code> is left alone. <strong>AMPLE Tune-up</strong> (<code>Ample.Setup.exe --mode reconfigure</code>, in the Start menu and the tray) switches the sign-in off or on or sets a new user, and runs <code>ample doctor --env --assistant --json</code> to offer the fixes AMPLE can do (the SoundFont and koda-browser packs, Python and FFmpeg with winget for the user, the .NET 9 Desktop Runtime for all users with winget, which asks for administrator permission).</p>
 <p><code>tools/AMPLE.bat [target]</code> is the Windows double-click/command launcher. It uses a packaged <code>ample.exe</code> beside the batch file or at the package root one folder above; otherwise it runs the CLI project from source. The classic <code>ample serve</code> command remains a foreground server, opens the browser by default, and prints its launch URL as before. If the instance registry cannot be written, classic serving stays active but <code>ample open</code> cannot discover that server.</p>
 <p>The optional <code>--song</code> value is validated by the CLI, but the web UI does not yet consume a song deep link.</p>
@@ -15280,7 +15280,7 @@ Hidden properties tabs use <code>display: none</code>; only the active tab contr
 <h2 id="concept-acestep-plugin--choosing-the-model-that-makes-the-sound-plugin-0-5-0-2026-10-03">Choosing the model that makes the sound (plugin 0.5.0, 2026-10-03)</h2>
 <p>A block can choose its own model (and where it runs) with its <code>engine</code> parameter, for example <code>engine &quot;faer:xl-sft&quot;</code>; that wins over <code>synthModel</code> and <code>synthModelFile</code> in the song settings for that block. <code>synthModel</code> picks the ACE-Step model for the synthesis: <code>default</code> (an explicitly resolved turbo model, 8 steps), <code>turbo</code>, <code>sft</code> (cleaner and softer voices, about 50 steps, slower; the usual choice for singing), <code>base</code> (the raw model, about 50 steps), or the large <code>xl-turbo</code>, <code>xl-sft</code> and <code>xl-base</code>. For automatic family selection, the plugin lists the models the server offers (<code>GET /props</code>) and takes the best file of that kind: <code>Q5_K_M</code> first, then <code>Q6_K</code>, <code>Q8_0</code>, <code>Q4_K_M</code> and <code>BF16</code>. <code>synthModelFile</code> names one file exactly and wins. On the server backend, an explicit filename is sent directly even if <code>/props</code> omits it, so ACE itself can accept or reject the attempt with its actual response; on the CLI backend it must be present in <code>modelsFolder</code>. The <code>steps</code> parameter defaults by family (turbo 8, SFT and base 50). Both ACE blocks expose <code>guidance</code> as CFG, visibly resolved to 7 for Base/SFT and 1 for Turbo; that exact value is sent as <code>guidance_scale</code> and recorded in take metadata. Changing CFG can change the generated result, so use the same value for seed comparisons. <code>shift</code> is also exposed (SFT 1, Base/Turbo 3); <code>solver</code> defaults explicitly to euler. The model that was used is written into the take (<code>synthModel</code>). Model selection remains in plugin settings.</p>
 <h2 id="concept-acestep-plugin--backend-server-command-line-tools-or-both-plugin-0-6-2-2026-10-17">Backend: server, command line tools or both (plugin 0.6.2, 2026-10-17)</h2>
-<p>Generation recipes must survive the complete path into the immutable take; seeds alone are insufficient. See the <a href="" class="repo-ref" title="Not part of this help; see the repository file render-reproducibility.md">2026-10-17 near miss and review checklist</a>. LM sampling is explicit: temperature 0.85, CFG 2, top-p 0.9, top-k 0 and an empty negative prompt. <code>lmModelFile</code> selects the LM explicitly for either backend; the legacy <code>cliLmModel</code> remains accepted. Otherwise an advertised 4B Q8 model is preferred, then a stable sorted selection. The resolved LM and synthesis requests, returned plan and available hashes are retained. These defaults are a reproducible baseline, not a listening-quality guarantee.</p>
+<p>Generation recipes must survive the complete path into the immutable take; seeds alone are insufficient. See the 2026-10-17 near miss and review checklist. LM sampling is explicit: temperature 0.85, CFG 2, top-p 0.9, top-k 0 and an empty negative prompt. <code>lmModelFile</code> selects the LM explicitly for either backend; the legacy <code>cliLmModel</code> remains accepted. Otherwise an advertised 4B Q8 model is preferred, then a stable sorted selection. The resolved LM and synthesis requests, returned plan and available hashes are retained. These defaults are a reproducible baseline, not a listening-quality guarantee.</p>
 <p>The setting <code>backend</code> says how the sound is made, and <strong>every song states it itself</strong> (the schema marks it <code>x-songRequired</code>; the project value is only the default for new songs, which is <code>server</code>):</p>
 <table>
 <thead>
@@ -15335,7 +15335,7 @@ Hidden properties tabs use <code>display: none</code>; only the active tab contr
 <blockquote>
 <p>Status: the service, the CLI and the API are built (see &quot;As built&quot; at the end); the library screens are not. The rest of this page is the design; where the built version differs it says so below, and section 8 (the screen) describes the planned screen only.</p>
 </blockquote>
-<p>A song depends on things that are not in its text: sample packs, sound fonts, voices, plugins and their models, block templates, external data, imported audio, lyrics and chord files. The <strong>library manager</strong> lists all of them in one place, shows <strong>where each one is used</strong>, and lets you <strong>replace</strong> one by another (with an impact analysis), also <strong>per folder</strong>. It builds on the <strong>linked folders</strong> (mounts) from <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>: global catalogs reach AMPLE as read-only links, and the library manager is how you browse and use them.</p>
+<p>A song depends on things that are not in its text: sample packs, sound fonts, voices, plugins and their models, block templates, external data, imported audio, lyrics and chord files. The <strong>library manager</strong> lists all of them in one place, shows <strong>where each one is used</strong>, and lets you <strong>replace</strong> one by another (with an impact analysis), also <strong>per folder</strong>. It builds on the <strong>linked folders</strong> (mounts) from Tech: global catalogs reach AMPLE as read-only links, and the library manager is how you browse and use them.</p>
 <h2 id="concept-library-manager--1-what-is-in-the-library">1. What is in the library</h2>
 <p>| Kind | Examples | Comes from |
 | --- | --- | --- |
@@ -15345,7 +15345,7 @@ Hidden properties tabs use <code>display: none</code>; only the active tab contr
 | plugin, model | <code>acestep 0.9</code>, <code>acestep-turbo-q8</code> | installed, with their pins in <code>ample.lock</code> |
 | block template | <code>drums 1.2</code>, <code>piano pinned 2.0</code> | the template library |
 | external data | <code>weather.example/api</code> (locked 2026-10-01) | recorded once, part of the project |
-Every entry has a <strong>name</strong>, <strong>kind</strong>, <strong>version</strong>, <strong>hash</strong> (content fingerprint, strict, content or loose per <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>), <strong>size</strong>, <strong>where it lives</strong> (catalog or project folder, with the virtual path), <strong>access</strong> (read-only or read-write) and a <strong>status</strong>:</p>
+Every entry has a <strong>name</strong>, <strong>kind</strong>, <strong>version</strong>, <strong>hash</strong> (content fingerprint, strict, content or loose per Tech), <strong>size</strong>, <strong>where it lives</strong> (catalog or project folder, with the virtual path), <strong>access</strong> (read-only or read-write) and a <strong>status</strong>:</p>
 <ul>
 <li><strong>ok:</strong> present and matches the hash in <code>ample.lock</code>.</li>
 <li><strong>changed:</strong> present but different from the pinned hash. You can accept the new hash (a change to the working copy) or restore the pinned file from the catalog or a backup.</li>
@@ -15361,7 +15361,7 @@ Every entry has a <strong>name</strong>, <strong>kind</strong>, <strong>version<
 </ul>
 <h2 id="concept-library-manager--3-global-asset-catalogs-linked-folders-hard-links">3. Global asset catalogs: linked folders (&quot;hard links&quot;)</h2>
 <ul>
-<li>A <strong>global catalog</strong> is a folder (for example <code>D:\Music\Samples</code>) linked into AMPLE for every project; a <strong>project link</strong> exists for one project only. Links are <strong>AMPLE-level virtual links</strong>, not filesystem hard links (see <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>, &quot;Linked folders (mounts)&quot;).</li>
+<li>A <strong>global catalog</strong> is a folder (for example <code>D:\Music\Samples</code>) linked into AMPLE for every project; a <strong>project link</strong> exists for one project only. Links are <strong>AMPLE-level virtual links</strong>, not filesystem hard links (see Tech, &quot;Linked folders (mounts)&quot;).</li>
 <li>A link is <strong>read-only or read-write</strong>. <strong>A read-only link is never written to (by AMPLE or by plugins) and can never be an output folder</strong>. Catalogs are almost always read-only.</li>
 <li>AMPLE <strong>indexes and fingerprints</strong> a catalog (content hashes, pack hashes, fingerprinter plugins; incrementally and cached), so the song can refer to an asset by <strong>id (shown as its name) and hash</strong>, and a changed or moved file is noticed.</li>
 <li>The library manager shows catalogs with a link and a lock icon, their folders as a tree, a <strong>missing</strong> badge when the link is unreachable, and offers: <strong>Relocate</strong> (where is this on this computer), <strong>make read-only / read-write</strong>, <strong>Unlink</strong> (dangerous act: it lists how many uses would turn missing), <strong>Link a folder</strong>.</li>
@@ -15618,7 +15618,7 @@ ample links add|remove|list|set-readonly       ample lib index &lt;catalog&gt; [
 <li><strong>Trust:</strong> plugins are pinned by hash in <code>ample.lock</code>; an updated plugin has to pass <code>upgrade-check</code> (does the release still reproduce) before it replaces a pinned one.</li>
 </ul>
 <h2 id="concept-modules--versions-and-compatibility">Versions and compatibility</h2>
-<p>Every module and plugin has a version, and a project records the range it works with. Compatibility groups are proven by canary renders, not just claimed (see <a href="#concept-determinism">Determinism</a> and <a href="" class="repo-ref" title="Not part of this help; see the repository file tech.md">Tech</a>). Format versions apply to <code>.amplet</code>, <code>.amplelrc</code>, <code>.ample</code> exports and <code>plugin.json</code>; readers keep unknown fields.</p>
+<p>Every module and plugin has a version, and a project records the range it works with. Compatibility groups are proven by canary renders, not just claimed (see <a href="#concept-determinism">Determinism</a> and Tech). Format versions apply to <code>.amplet</code>, <code>.amplelrc</code>, <code>.ample</code> exports and <code>plugin.json</code>; readers keep unknown fields.</p>
 <h2 id="concept-modules--open-details">Open details</h2>
 <ul>
 <li>Which modules ship in the first version (suggested: core, <code>lyrics</code>, <code>quality</code> minimal, <code>secrets</code>).</li>
@@ -15711,7 +15711,7 @@ ample links add|remove|list|set-readonly       ample lib index &lt;catalog&gt; [
 <h2 id="concept-journal--the-journal-and-the-always-rule">The journal and the Always rule</h2>
 <h2 id="concept-journal--1-the-idea">1. The idea</h2>
 <p>The history (lines, revisions, tags) holds the moments the producer chose to keep. <strong>AMPLE Redux</strong> is the append-only recovery journal underneath it. It records durable project changes and assistant-task artifacts so work can be inspected and recovered after a crash, a bad replace, a deleted block, a seed overwritten or an undo that went too far.</p>
-<p>It is the second half of the <strong>Always rule</strong> (<a href="" class="repo-ref" title="Not part of this help; see the repository file decisions.md">Decisions</a>): the Always rule says a take never exists without its plan; AMPLE Redux says <em>no change exists without a trace</em>.</p>
+<p>It is the second half of the <strong>Always rule</strong> (Decisions): the Always rule says a take never exists without its plan; AMPLE Redux says <em>no change exists without a trace</em>.</p>
 <h2 id="concept-journal--2-how-it-differs-from-the-other-layers">2. How it differs from the other layers</h2>
 <table>
 <thead>
@@ -16661,7 +16661,7 @@ The answer says how many parts, notes and bars there are, the <strong>tempo</str
 <h2 id="concept-release--how-to-make-a-release">How to make a release</h2>
 <ol>
 <li><code>pwsh ample/tools/check-all.ps1 -Full</code> (or <code>bash ample/tools/check-all.sh --full</code>) is green on both systems. Full mode fails rather than silently omitting the VS Code grammar or browser-parity suites.</li>
-<li>Raise <code>&lt;Version&gt;</code> in <code>ample/Directory.Build.props</code> and <code>ample/editors/vscode/package.json</code>; write the notes in <a href="" class="repo-ref" title="Not part of this help; see the repository file CHANGELOG.md">CHANGELOG</a>.</li>
+<li>Raise <code>&lt;Version&gt;</code> in <code>ample/Directory.Build.props</code> and <code>ample/editors/vscode/package.json</code>; write the notes in CHANGELOG.</li>
 <li>Re-run the audits of <a href="#concept-security-review">Security review</a>.</li>
 <li>Tag <code>ample-v&lt;version&gt;</code>; the release workflow builds the artefacts on Windows, runs <code>tools/smoke-package.ps1</code>, and attaches the files and <code>SHA256SUMS.txt</code> to a <strong>draft</strong> release. Sign them with <code>pwsh ample/tools/package.ps1 -Sign</code> on the machine that has the signing key (<code>ample keys generate</code> once; the passphrase comes from <code>AMPLE_VAULT_PASSPHRASE</code>), and check with <code>ample verify --file &lt;artefact&gt;</code>.</li>
 <li>The owner reads the draft, then publishes it.</li>
