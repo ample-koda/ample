@@ -122,9 +122,12 @@ test('bars are built from bar 1 (one bar past), only the chosen bars are downloa
   await expect(status(page)).toContainText('bars 3-4 as in the whole song: built from bar 1 (2 bars before the range rendered, not played)', { timeout: 30000 });
   expect(builds[builds.length - 1]).toMatchObject({ range: { firstBar: 1, bars: 5 }, intent: 'preview', listen: true });
   // the header, then only the bytes of bars 3-4: the buffer that plays is two bars long (120 BPM: 4 s), not the five bars that were built
+  // the status names the route as soon as the build is done, while the sound is still loading: wait for the second request and for the buffer
+  await expect.poll(() => ranges.length, { timeout: 30000 }).toBe(2);
   expect(ranges[0]).toBe('bytes=0-65535');
-  expect(ranges.length).toBe(2);
-  const heard = await page.evaluate(() => import('/app/listen-player.js').then((p) => { const e = p.listenPlayerState().entry; return { duration: e?.buffer?.duration, offset: e?.sliceOffset }; }));
+  const heardNow = () => page.evaluate(() => import('/app/listen-player.js').then((p) => { const e = p.listenPlayerState().entry; return { duration: e?.buffer?.duration, offset: e?.sliceOffset }; }));
+  await expect.poll(async () => (await heardNow()).duration ?? 0, { timeout: 30000 }).toBeGreaterThan(0);
+  const heard = await heardNow();
   expect(Math.abs((heard.duration ?? 0) - 4)).toBeLessThan(0.01);
   expect(Math.abs((heard.offset ?? 0) - 4)).toBeLessThan(0.01);
   await page.click('#lp-play');

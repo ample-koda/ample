@@ -86,9 +86,13 @@ test('a group says built when its blocks are built, and its waveform is drawn', 
   const fully = (title: string) => { const part = /^(\d+) of (\d+) built/.exec(title); return !/^not built/.test(title) && !(part && part[1] !== part[2]); };   // "1 of 2 built" is not all of it
   const statusOf = async () => (await group.locator('.node-status').getAttribute('title')) ?? '';
   await expect.poll(async () => fully(await statusOf())).toBe(false);   // not all of it is built yet
-  await group.click({ button: 'right', position: { x: 20, y: 36 } });
-  await chooseMenu(page, 'Build & export', 'Build the group');
-  await expect.poll(async () => fully(await statusOf()), { timeout: 30000 }).toBe(true);   // all of it is built (or reused)
+  await expect(async () => {   // the context menu can close before its item is chosen: ask again while the group still says it is not built
+    if (!fully(await statusOf())) {
+      await group.click({ button: 'right', position: { x: 20, y: 36 } });
+      await chooseMenu(page, 'Build & export', 'Build the group');
+    }
+    await expect.poll(async () => fully(await statusOf()), { timeout: 10000 }).toBe(true);   // all of it is built (or reused)
+  }).toPass({ timeout: 45000 });
   // something is drawn on the waveform
   await expect.poll(() => group.locator('.player canvas').evaluate((c: HTMLCanvasElement) => { const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data; return d.some((v, i) => i % 4 === 3 && v > 0); })).toBe(true);
 });
