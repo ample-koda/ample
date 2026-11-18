@@ -55,6 +55,14 @@ test('@audio a click track is made in the browser and runs through an effect wit
   await openApp(page, { reset: false });
   const started = await page.evaluate(async () => (await import('/app/live-chain.js')).startChain('echo2'));
   expect(started).toBe(true);
-  await expect.poll(() => page.evaluate(() => import('/app/live-chain.js').then((m) => m.chainLevels('tick')?.left ?? 0)), { timeout: 8000 }).toBeGreaterThan(0.01);
+  // a click is a few samples every beat and the meter holds the last 46 ms only: a poll from the test meets it now and then, so the page samples fast and keeps the peak
+  const peak = await page.evaluate(async () => {
+    const { chainLevels } = await import('/app/live-chain.js');
+    let max = 0;
+    const end = performance.now() + 4000;
+    while (performance.now() < end) { max = Math.max(max, chainLevels('tick')?.left ?? 0); await new Promise((resolve) => setTimeout(resolve, 5)); }
+    return max;
+  });
+  expect(peak).toBeGreaterThan(0.01);
   await page.evaluate(() => import('/app/live-chain.js').then((m) => m.stopChain()));
 });

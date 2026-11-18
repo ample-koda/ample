@@ -77,6 +77,8 @@ test('every shown input has a small meter; the empty input at the end is behind 
 });
 
 test('the mixer picker is a compact control above the row, not a column', async ({ page }) => {
+  await expect(page.locator('#b-mixer .mixscope')).toBeVisible();   // boundingBox() does not wait for the row to be drawn
+  await expect(page.locator('#b-mixer .mixstrip').first()).toBeVisible();
   const picker = await page.locator('#b-mixer .mixscope').boundingBox();
   const first = await page.locator('#b-mixer .mixstrip').first().boundingBox();
   expect(picker!.height).toBeLessThan(40);

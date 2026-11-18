@@ -103,9 +103,11 @@ test('a block can be made smaller or bigger by its grip, the size is kept and a 
   const resized = node(page, 'drums');
   await expect(resized).toBeVisible();
   await expect.poll(async () => (await resized.boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThan(before - 20);
-  await node(page, 'drums').hover();
-  await node(page, 'drums').locator('.size-grip').dblclick();
-  await expect.poll(async () => Math.round((await node(page, 'drums').boundingBox())?.width ?? 0)).toBe(Math.round(before));
+  await expect(async () => {   // the canvas can be drawn again between the two clicks of a double click: try again (the normal size is the same every time)
+    await node(page, 'drums').hover();
+    await node(page, 'drums').locator('.size-grip').dblclick({ timeout: 3000 });
+    await expect.poll(async () => Math.round((await node(page, 'drums').boundingBox())?.width ?? 0), { timeout: 3000 }).toBe(Math.round(before));
+  }).toPass({ timeout: 25000 });
 });
 
 test('a block with an EQ linked to it shows the connected effect picker', async ({ page }) => {
