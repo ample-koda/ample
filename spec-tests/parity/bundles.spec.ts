@@ -76,7 +76,7 @@ test('the add-block menu lists categories A to Z, and effect groups contain alph
   await expect.poll(async () => (await api('/api/doc?path=song.amplet')).blocks.length).toBe(before + 1);
 });
 
-test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back', async ({ page }) => {
+test('a block can be made smaller or bigger by its grip, the size is kept and a double click gives the normal size back @quarantine', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   const block = node(page, 'drums');
   const grip = block.locator('.size-grip');

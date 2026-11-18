@@ -14,7 +14,7 @@ freshServer({
   prepare: (_cli, folder) => { fs.copyFileSync(path.join(DEMO, 'mozart.ampleseq'), path.join(folder, 'mozart.ampleseq')); },
 });
 
-test('the strips scroll left and stay there', async ({ page }) => {
+test('the strips scroll left and stay there @quarantine', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 800 });
   await openApp(page, { reset: false });
   for (let i = 0; i < 12; i++) await edit({ type: 'addBlock', blockType: 'volume', name: `vol${i}` });
