@@ -1405,6 +1405,22 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
 
     private async Task<HttpResponseMessage> Post(string path, object body) => await http.PostAsync(path, Json(body), CancellationToken.None);
 
+    [Fact]
+    public async Task A_new_song_is_the_starter_song_with_the_settings_of_the_project_defaults_after_its_composition_line()
+    {
+        Directory.CreateDirectory(Path.Combine(folder, ".ample"));
+        await File.WriteAllTextAsync(Path.Combine(folder, ".ample", "plugin-settings.json"), "{\"koda.demo\":{\"depth\":\"3\"}}");
+        using HttpResponseMessage created = await http.PostAsync("/api/songs", Json(new { name = "fresh" }), CancellationToken.None);
+        created.EnsureSuccessStatusCode();
+        string text = await File.ReadAllTextAsync(Path.Combine(folder, "fresh.amplet"));
+        string[] lines = text.Split('\n');
+        Assert.StartsWith("composition \"fresh\" { ample 1  tempo 100  master-seed ", lines[0], StringComparison.Ordinal);
+        Assert.StartsWith("settings { koda.demo.depth ", lines[1], StringComparison.Ordinal);
+        Assert.Contains("\nmixer console {", text, StringComparison.Ordinal);
+        Assert.Contains("\nmaster out {", text, StringComparison.Ordinal);
+        Assert.Equal(Ample.Storage.Projects.StarterSong.Body.ReplaceLineEndings("\n"), text[(lines[0].Length + lines[1].Length + 2)..].TrimEnd('\n'));
+    }
+
     private async Task<HttpResponseMessage> Put(string path, object body) => await http.PutAsync(path, Json(body), CancellationToken.None);
 
     private static StringContent Json(object body) => new(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");

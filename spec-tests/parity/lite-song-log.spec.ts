@@ -20,6 +20,7 @@ test('the Song log of Remix shows the events of a build at the chosen level, and
   await page.click('#lite-demos-btn');
   await page.locator('#lite-demo-list li[data-demo="pixel-quest"] button').click();
   await expect(page.locator('#lite-demo-dialog')).toBeHidden();
+  await expect(page.locator('#lite-editor .cm-content')).toContainText('PIXEL QUEST');   // the editor takes the demo a moment after the dialog closes
   const before = await page.locator('#lite-editor .cm-content').innerText();
 
   // the default build keeps no log: the empty state says why

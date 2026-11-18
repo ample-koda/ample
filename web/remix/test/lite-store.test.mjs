@@ -124,3 +124,84 @@ test('a browser storage that never answers becomes an error with a hint, not a p
   const never = { open() { return {}; } };   // not even the open answers
   await assert.rejects(() => idbKv(never, 'y', { timeoutMs: 80 }).get('k'), /does not answer/);
 });
+
+// Limits and kinds under concurrency: a check and the write after it are one step, also between two tabs (a shared Web Lock), and a refused change leaves nothing behind.
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));   // every read and write of the store takes a moment, so that writes can overlap
+const slow = (kv, ms = 2) => ({
+  ...kv,
+  get: async (k) => { await pause(ms); return kv.get(k); },
+  put: async (k, v) => { await pause(ms); return kv.put(k, v); },
+});
+const lockedTabs = async (run) => {
+  let chain = Promise.resolve();
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: { request: (name, task) => { const r = chain.then(task); chain = r.catch(() => {}); return r; } } } });
+  try { await run(); } finally { if (saved) Object.defineProperty(globalThis, 'navigator', saved); else delete globalThis.navigator; }
+};
+
+test('two writes that each fit the file limit but not together: one is accepted, one refused, nothing half-written', async () => {
+  const { store } = make({ ...DEFAULT_LIMITS, maxFiles: 1 }, slow(memoryKv()));
+  const { id } = await store.createProject({ name: 'p' });
+  const results = await Promise.allSettled([store.writeFile(id, 'a.amplet', { text: 'a' }), store.writeFile(id, 'b.amplet', { text: 'b' })]);
+  assert.deepEqual(results.map((r) => r.status).sort(), ['fulfilled', 'rejected']);
+  assert.match(results.find((r) => r.status === 'rejected').reason.message, /at most 1 files/);
+  assert.equal((await store.listFiles(id)).length, 1);
+});
+
+test('two writes that each fit the project size but not together: the second is refused and the first stays whole', async () => {
+  const { store } = make({ ...DEFAULT_LIMITS, maxProjectBytes: 10 }, slow(memoryKv()));
+  const { id } = await store.createProject({ name: 'p' });
+  const results = await Promise.allSettled([store.writeFile(id, 'a.amplet', { text: '123456' }), store.writeFile(id, 'b.amplet', { text: '123456' })]);
+  assert.deepEqual(results.map((r) => r.status), ['fulfilled', 'rejected']);
+  assert.deepEqual((await store.listFiles(id)).map((f) => f.path), ['a.amplet']);
+});
+
+test('replacing files at the same time is measured against what is there, not against what was there when each started', async () => {
+  const { store } = make({ ...DEFAULT_LIMITS, maxProjectBytes: 10 }, slow(memoryKv()));
+  const { id } = await store.createProject({ name: 'p', files: [{ path: 'a.amplet', text: '1234' }] });
+  const results = await Promise.allSettled([store.writeFile(id, 'a.amplet', { text: '12345678' }), store.writeFile(id, 'b.amplet', { text: '123456' })]);
+  assert.deepEqual(results.map((r) => r.status), ['fulfilled', 'rejected']);
+  assert.equal((await store.readFile(id, 'a.amplet')).text, '12345678');
+  assert.equal((await store.listFiles(id)).length, 1);
+});
+
+test('a write and a rename at the same time cannot get past the limit', async () => {
+  const { store } = make({ ...DEFAULT_LIMITS, maxFiles: 2 }, slow(memoryKv()));
+  const { id } = await store.createProject({ name: 'p', files: [{ path: 'a.amplet', text: 'a' }, { path: 'b.amplet', text: 'b' }] });
+  const results = await Promise.allSettled([store.renameFile(id, 'a.amplet', 'c.amplet'), store.writeFile(id, 'd.amplet', { text: 'd' })]);
+  assert.deepEqual(results.map((r) => r.status), ['fulfilled', 'rejected']);
+  assert.deepEqual((await store.listFiles(id)).map((f) => f.path).sort(), ['b.amplet', 'c.amplet']);
+});
+
+test('two tabs on the same data share the limit through the Web Lock', async () => {
+  await lockedTabs(async () => {
+    const kv = slow(memoryKv());
+    const one = make({ ...DEFAULT_LIMITS, maxFiles: 1 }, kv).store, two = make({ ...DEFAULT_LIMITS, maxFiles: 1 }, kv).store;
+    const { id } = await one.createProject({ name: 'p' });
+    const results = await Promise.allSettled([one.writeFile(id, 'a.amplet', { text: 'a' }), two.writeFile(id, 'b.amplet', { text: 'b' })]);
+    assert.deepEqual(results.map((r) => r.status).sort(), ['fulfilled', 'rejected']);
+    assert.equal((await one.listFiles(id)).length, 1);
+  });
+});
+
+test('a refused change leaves the project as it was, and the next change still works', async () => {
+  const { store } = make({ ...DEFAULT_LIMITS, maxFiles: 1 });
+  const { id } = await store.createProject({ name: 'p', files: [{ path: 'a.amplet', text: 'a' }] });
+  await assert.rejects(store.writeFile(id, 'b.amplet', { text: 'b' }), /at most 1/);
+  assert.deepEqual((await store.listFiles(id)).map((f) => f.path), ['a.amplet']);
+  await store.writeFile(id, 'a.amplet', { text: 'again' });
+  assert.equal((await store.readFile(id, 'a.amplet')).text, 'again');
+});
+
+test('renaming keeps the kind of the content and the extension consistent, in both directions', async () => {
+  const { store } = make();
+  const kick = { path: 'k.wav', blob: new Blob([new Uint8Array([1, 2])]), mime: 'audio/wav' };
+  const { id } = await store.createProject({ name: 'p', files: [{ path: 'a.amplet', text: 'song' }, kick] });
+  await assert.rejects(store.renameFile(id, 'a.amplet', 'a.wav'), /holds text/);
+  await assert.rejects(store.renameFile(id, 'k.wav', 'k.amplet'), /holds audio/);
+  assert.deepEqual((await store.listFiles(id)).map((f) => `${f.path}:${f.kind}`).sort(), ['a.amplet:text', 'k.wav:binary'], 'the originals are intact');
+  assert.equal((await store.readFile(id, 'a.amplet')).text, 'song');
+  await store.renameFile(id, 'a.amplet', 'b.amplet');
+  await store.renameFile(id, 'k.wav', 'k2.wav');
+  assert.deepEqual((await store.listFiles(id)).map((f) => `${f.path}:${f.kind}`).sort(), ['b.amplet:text', 'k2.wav:binary']);
+});

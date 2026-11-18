@@ -25,6 +25,7 @@ export function createListenSession(deps) {
   // Stop and a new Listen end the session of the old token: its tasks see `cancelled` after every await and change nothing any more
   const endSession = () => { S.token.cancelled = true; S.token = { cancelled: false }; };
   const emit = () => deps.onChange?.(state());
+  let ready = null;   // a build that is made already, for the next run
 
   function state() {
     return {
@@ -46,7 +47,7 @@ export function createListenSession(deps) {
         S.building = number; S.status = 'building'; S.error = null; emit();
         let result = null;
         try {
-          result = await deps.build(job, signal);
+          if (ready) { result = ready; ready = null; } else result = await deps.build(job, signal);   // a build that was made before (Ctrl+Enter) plays without a new one
         } catch (error) {
           if (generation !== S.generation) return;
           S.error = error?.message || String(error); S.building = null;
@@ -64,7 +65,8 @@ export function createListenSession(deps) {
           await deps.play(result, number, token);
         } catch (error) {
           if (generation !== S.generation || !S.active) return;   // an old session's late failure is not the new session's
-          throw error;
+          S.error = error?.message || String(error); S.status = 'error'; emit();   // like a failed build: the last good build keeps playing
+          continue;
         }
 
         if (generation !== S.generation || !S.active) return;
@@ -78,12 +80,17 @@ export function createListenSession(deps) {
   return {
     state,
     /** Starts listening to a job (a target with its settings): builds at once and plays the result. */
-    start(job) {
+    /** Starts listening to a job. `readyResult` is a build of this job that is already made (the caller has checked that it is still good): it plays at once. */
+    start(job, readyResult = null) {
       endSession();
       S.generation++; S.running = false; S.again = false;
-      S.active = true; S.job = job; S.playing = null; S.error = null; S.status = 'idle';
+      S.active = true; S.job = job; S.playing = null; S.error = null; S.status = 'idle'; ready = readyResult;
       return run();
     },
+    /** The target changed in a way that needs no new build (another range of the same render): only the job that the next build and the status use. */
+    retarget(job) { S.job = job; emit(); },
+    /** The sound of build `number` plays now (a range that did not fit it before fits now): its error is over. */
+    recover(number) { if (!S.active) return; S.error = null; S.playing = number; if (S.status === 'error') S.status = 'playing'; emit(); },
     /** The target or its settings changed: a new build after the pause (or at once when `now`). */
     setJob(job, now = false) {
       S.job = job;

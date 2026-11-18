@@ -11,6 +11,9 @@ import { createListenSession } from '../lib/listen-session.mjs';
 import { barSeconds, barsLoop, playSegments, rangeBuild, silentWindows } from '../lib/listen-segments.mjs';
 import { moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
 import { createListenBuilder, playLoaded } from '../lib/listen-cancel.mjs';
+import { preparedOf, preparedUsable } from '../lib/listen-prepared.mjs';
+import { clipFirstBarOf, frameOf, litAt, songBarAt, timingSnapshot } from '../lib/listen-timing.mjs';
+import { api } from './api.js';
 import { applyPendingNow, listenPlayerState, loadTake, loadTakeSlice, onListenPlayer, playEntry, setLoading, stopListenPlayer } from './listen-player.js';
 
 const STORE = 'ample.listen';
@@ -19,7 +22,7 @@ const readSettings = () => { try { return { ...DEFAULTS, ...JSON.parse(localStor
 const settings = readSettings();
 if (settings.barsMethod === 'lead-in') settings.barsMethod = 'from-start';   // the two-bar lead-in was replaced (decision 13)
 const save = () => { try { const { pinned, ...kept } = settings; localStorage.setItem(STORE, JSON.stringify(kept)); } catch { /* storage may be blocked */ } };
-const L = { pinned: null, ports: {}, marksHook: null, editorText: () => S.doc?.text || '', lastText: null, frame: 0, lastMarkKey: '' };
+const L = { prepared: null, pinned: null, ports: {}, marksHook: null, editorText: () => S.doc?.text || '', lastText: null, frame: 0, lastMarkKey: '' };
 
 const AUDIO = (port) => port && port[1] === 'audio';
 const tempo = () => Number(S.doc?.project?.tempo) || 120;
@@ -102,7 +105,15 @@ const failedMessage = (report, id) => {
 };
 
 /** Builds a job with the store and says what to play: { take, role, loop, takeFirstBar, method, text, job }. */
+/** The build, with the timing of the song as this build takes it (the marks of the sound that plays follow that, also when the song changes meanwhile). */
 async function buildJob(job) {
+  const graph = flat(), timing = timingSnapshot({ tempo: tempo(), quarters: barBeats(), graph, timingOf });
+  const upstream = job.kind === 'block' ? [...upstreamOf(job.id, graph)] : null;
+  const made = await buildJobFor(job);
+  return made ? { ...made, timing: { ...timing, upstream } } : made;
+}
+
+async function buildJobFor(job) {
   const text = S.doc?.text || '', barSec = barSeconds(tempo(), barBeats());
   if (job.kind === 'block') {
     const report = await build(job.id, null, job.quality, false, { separate: true });   // its takes stay apart from S.build.takes (plan 6.1)
@@ -179,19 +190,35 @@ const session = createListenSession({
 });
 
 export const listening = () => session.state().active;
-export function startListening() {
+/** What is true now about the song, for deciding whether a build that Ctrl+Enter made may play: the files the song reads (their hash) and its version. */
+async function nowOf(job) {
+  let inputs = null;
+  try { inputs = (await api.get(`/api/doc/inputs?path=${encodeURIComponent(S.path)}`)).hash ?? null; } catch { /* unknown: the build is made again */ }
+  return { key: job.key, text: S.doc?.text ?? '', version: S.doc?.version, inputs, dynamic: S.doc?.stability === 'dynamic' };
+}
+
+export async function startListening() {
   const job = currentJob();
   if (job.fallback) toast(job.fallback);
   L.lastText = S.doc?.text ?? null;
   setLoading(false);   // a new session starts with nothing loading (a task of the old one no longer reports)
-  return session.start(job).catch((e) => toast(e.message || String(e)));
+  const prepared = L.prepared;
+  L.prepared = null;   // used once, or dropped: a later Ctrl+Enter makes a new one
+  const ready = prepared && preparedUsable(prepared, await nowOf(job)) ? prepared.result : null;
+  return session.start(job, ready).catch((e) => toast(e.message || String(e)));
 }
 export function stopListening() { session.stop(); }
 export function toggleListening() { if (listening()) stopListening(); else startListening(); }
 /** Ctrl+Enter: the valid editor content was applied; build the target now (and play it when listening; else it is ready for Play). */
 export async function buildTargetNow() {
   if (listening()) return session.setJob(currentJob(), true);
-  try { await listenBuilder.build(currentJob(), { cancelled: false }); toast('Built: Ctrl+Shift+Space plays it.'); } catch (e) { toast(e.message || String(e)); }
+  try {
+    const job = currentJob(), before = await nowOf(job);   // the version and the inputs as the build starts: a later change makes the build old
+    const result = await listenBuilder.build(job, { cancelled: false });
+    if (!result) return;
+    L.prepared = preparedOf({ result, version: before.version, inputs: before.inputs, dynamic: before.dynamic });
+    toast(before.dynamic ? 'Built. This song reads the clock, so Ctrl+Shift+Space builds it again.' : 'Built: Ctrl+Shift+Space plays this build while the song and its files stay as they are.');
+  } catch (e) { toast(e.message || String(e)); }
 }
 /** Ctrl+Shift+Enter: the waiting build runs at once (never a second one next to a running build). */
 export function flushListening() { return session.flush(); }
@@ -344,19 +371,12 @@ function updateMarks() {
   const target = L.pinned || (st.active && st.job?.kind === 'block' ? st.job.picked || st.job.id : null);
   if (target) marks.push(...playbackMarks({ text: typed, target }).filter((m) => m.cls === 'lp-target'));
   if (st.active && player.playing && result && player.takeTime !== null && result.takeFirstBar !== null) {
-    const barSec = barSeconds(tempo(), barBeats()), songBar = result.takeFirstBar + (player.takeTime + (result.sliceOffset || 0)) / barSec;
-    const graph = flat(), lit = activity(graph, Math.floor(songBar));
-    const active = result.job.kind === 'block' ? [...lit.nodes].filter((id) => upstreamOf(result.job.id, graph).has(id)) : [...lit.nodes];
-    // the bars of each block on the song's timeline: a placed block in song bars from bar 1, a block that is not placed in its own bars from 1 at its
-    // origin. A range build keeps the song's timeline (measured, plan 6.4: the same bars of a range build and of the whole song are the same samples).
-    const frames = new Map();
-    const frame = (name) => {
-      if (!frames.has(name)) { const t = timingOf(name); frames.set(name, t.placed ? { first: 1, offset: 0 } : { first: 1, offset: t.origin - 1 }); }
-      return frames.get(name);
-    };
-    const clipFirstBar = (name) => graph.nodes.find((n) => n.id === name)?.parts?.[0]?.at || 1;
+    // the timing of the build that plays: the song may have another tempo, meter or places by now (the next build is on its way)
+    const timing = result.timing, songBar = songBarAt(result, player.takeTime);
+    const lit = litAt(timing, songBar), active = timing.upstream ? lit.filter((id) => timing.upstream.includes(id)) : lit;
     const now = playbackMarks({
-      text: result.text, target: null, songBar, active, quartersPerBar: barBeats(), barSeconds: barSec, frame, clipFirstBar,
+      text: result.text, target: null, songBar, active, quartersPerBar: timing.quarters, barSeconds: timing.barSeconds,
+      frame: (name) => frameOf(timing, name), clipFirstBar: (name) => clipFirstBarOf(timing, name),
     });
     marks.push(...moveMarks(now, result.text, typed));
   }

@@ -112,7 +112,7 @@ test('Stop, then Listen again: an old context resume that finishes late does not
   assert.equal(session.state().playing, 2);
 });
 
-test('a load that fails in an old session is not an error of the new session', async () => {
+test('a load that fails in an old session is not an error of the new session, a load that fails in the current one is', async () => {
   const { session, loads } = rig();
   const first = session.start({ name: 'old' });
   await flush();
@@ -125,7 +125,9 @@ test('a load that fails in an old session is not an error of the new session', a
   assert.equal(session.state().error, null);
   assert.notEqual(session.state().status, 'error');
   loads[1].d.reject(new Error('the sound of the new take could not be read'));
-  await assert.rejects(second, /new take/, 'a failure of the current session is still reported');
+  await second;
+  assert.equal(session.state().status, 'error', 'a failure of the current session is reported as its status');
+  assert.match(session.state().error, /new take/);
 });
 
 test('every task gets the token of its session; Stop and a new Listen cancel the old one', async () => {
@@ -223,4 +225,21 @@ test('waitForFreeStore: true when the store is free, false when the task was can
   assert.equal(sleeps.length, 1, 'it did not wait again');
   assert.equal(await waitForFreeStore(() => false, { cancelled: false }, { sleep }), true);
   assert.equal(await waitForFreeStore(() => false, { cancelled: true }, { sleep }), false, 'a cancelled task does not go on even when the store is free');
+});
+
+test('a build that was made before plays at once, without a new build', async () => {
+  let builds = 0;
+  const played = [];
+  const session = createListenSession({
+    build: async () => { builds++; return { take: 'new' }; }, cancelBuild() {}, stopPlayback() {},
+    play: async (result) => { played.push(result.take); },
+  });
+  await session.start({ key: 'k' }, { take: 'prepared' });
+  assert.equal(builds, 0);
+  assert.deepEqual(played, ['prepared']);
+  assert.equal(session.state().status, 'playing');
+  session.stop();
+  await session.start({ key: 'k' });
+  assert.equal(builds, 1, 'without a prepared build the session builds');
+  assert.deepEqual(played, ['prepared', 'new']);
 });

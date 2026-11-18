@@ -1,20 +1,18 @@
-// Live Preview in the code editor (plan/live-preview/PLAN.md, WP2): a small Web Audio player that loops the segments of one take (a loop with skipped silences),
-// one lap at a time with a short look-ahead, so a new take can come in exactly at the loop boundary (or at once) and a cut never clicks (5 ms fades).
-// It plays through playbackOutput (the listening volume and the safety stage of every browser sound) and is registered with the header player, so one
-// Stop stops everything and only one thing plays. The arithmetic (segments, preview time and take time) is web/lib/listen-segments.mjs. @ample:listen-preview
+// Live Preview in the code editor (plan/live-preview/PLAN.md, WP2): the loop player of Studio. The engine (a loop with skipped silences, one lap at a time with a
+// short look-ahead, a new take at the loop boundary or at once, 5 ms fades) is web/lib/listen-loop.mjs, shared with Remix; this file gives it Studio's audio
+// context and output (playbackOutput: the listening volume and the safety stage of every browser sound), registers it with the header player so one Stop stops
+// everything and only one thing plays, and downloads the takes. The arithmetic is web/lib/listen-segments.mjs. @ample:listen-preview
 import { getToken } from './api.js';
 import { liveAudioContext } from './live-play.js';
 import { playbackOutput } from './playback-volume.js';
 import { setExternalPlayer, stop as stopOtherPlayers } from './player.js';
-import { heardLength, takeTimeAt, wavSlice } from '../lib/listen-segments.mjs';
-import { resumeUnlessCancelled } from '../lib/listen-cancel.mjs';
+import { wavSlice } from '../lib/listen-segments.mjs';
+import { createLoopPlayer } from '../lib/listen-loop.mjs';
 
-const FADE = 0.005, LOOKAHEAD = 0.12, TICK = 30;
-const P = { entry: null, pending: null, playing: false, lapStart: 0, scheduled: [], timer: 0, loading: false, version: 0, onStop: null };
+// one sound at a time: when this one starts from silence the other players (the header player, the loop player of the sequencer) stop
+const loop = createLoopPlayer({ context: liveAudioContext, output: playbackOutput, beforeStart: () => stopOtherPlayers() });
 const buffers = new Map();   // take:role -> AudioBuffer (the last few)
-const listeners = new Set();
-const emit = () => listeners.forEach((f) => f(listenPlayerState()));
-export const onListenPlayer = (f) => { listeners.add(f); return () => listeners.delete(f); };
+export const onListenPlayer = (f) => loop.onChange(f);
 
 /** Fetches and decodes one output of a take (cached for the last six). */
 export async function loadTake(takeId, role = '') {
@@ -56,93 +54,17 @@ export async function loadTakeSlice(takeId, role, fromSec, toSec) {
 }
 
 /** Where the playhead is: seconds into the take (null when nothing plays), and whether a new take waits for the loop boundary. */
-export function listenPlayerState() {
-  const entry = P.entry;
-  if (!P.playing || !entry) return { playing: false, loading: P.loading, takeTime: null, pending: !!P.pending, remaining: 0, entry };
-  const context = liveAudioContext(), length = heardLength(entry.segments);
-  const into = Math.max(0, context.currentTime - P.lapStart);
-  return {
-    playing: true, loading: P.loading, takeTime: takeTimeAt(entry.segments, into), previewTime: into % Math.max(length, 1e-6),
-    pending: !!P.pending, remaining: Math.max(0, length - into), entry,
-  };
-}
+export const listenPlayerState = () => loop.state();
 
-/** One lap of an entry from `at` (context time), starting `offset` seconds into the heard loop. */
-function scheduleLap(entry, at, offset = 0) {
-  const context = liveAudioContext(), out = playbackOutput(context);
-  let time = at, skip = offset;
-  for (const segment of entry.segments) {
-    const length = segment.to - segment.from;
-    if (skip >= length) { skip -= length; continue; }
-    const source = context.createBufferSource(), gain = context.createGain();
-    source.buffer = entry.buffer;
-    source.connect(gain).connect(out);
-    const play = length - skip;
-    gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(1, time + Math.min(FADE, play / 4));
-    gain.gain.setValueAtTime(1, Math.max(time + Math.min(FADE, play / 4), time + play - Math.min(FADE, play / 4)));
-    gain.gain.linearRampToValueAtTime(0, time + play);
-    source.start(time, segment.from + skip, play);
-    P.scheduled.push({ source, end: time + play });
-    time += play; skip = 0;
-  }
-  return time;
-}
-
-function tick() {
-  if (!P.playing) return;
-  const context = liveAudioContext();
-  P.scheduled = P.scheduled.filter((s) => s.end > context.currentTime - 0.5);
-  const lapEnd = P.lapStart + heardLength(P.entry.segments);
-  if (lapEnd - context.currentTime < LOOKAHEAD + TICK / 1000) {
-    // the next lap: the waiting take (swap at the boundary), else the same one again
-    if (P.pending) { P.entry = P.pending; P.pending = null; emit(); }
-    P.lapStart = lapEnd;
-    scheduleLap(P.entry, lapEnd);
-  }
-}
-
-function silenceAll() {
-  const context = liveAudioContext();
-  for (const s of P.scheduled) { try { s.source.stop(context.currentTime + FADE); } catch { /* already ended */ } }
-  P.scheduled = [];
-}
-
-/**
- * Plays an entry { buffer, segments }. When something plays: timing 'boundary' waits for the end of the current loop, 'now' swaps at once at the same
- * place in the loop. `signal` is the token of the session that hands the entry in: when Stop (or a new Listen) cancelled it before or while the context
- * resumed, nothing is queued or played and the player is left alone. Resolves false in that case.
- */
-export async function playEntry(entry, { timing = 'boundary', onStop = null, signal = null } = {}) {
-  const context = liveAudioContext();
-  if (!(await resumeUnlessCancelled(context, signal))) return false;
-  if (P.playing && timing === 'boundary') { P.pending = entry; emit(); return true; }
-  const into = P.playing ? Math.max(0, context.currentTime - P.lapStart) : 0;
-  if (!P.playing) { P.version++; stopOtherPlayers(); }   // one sound at a time (the header player, the loop player of the sequencer)
-  silenceAll();
-  P.entry = entry; P.pending = null; P.playing = true; P.onStop = onStop;
-  const offset = into % Math.max(heardLength(entry.segments), 1e-6), start = context.currentTime + 0.03;
-  P.lapStart = start - offset;
-  scheduleLap(entry, start, offset);
-  clearInterval(P.timer); P.timer = setInterval(tick, TICK);
-  emit();
-  return true;
-}
+/** Plays an entry { buffer, segments } (see createLoopPlayer: timing, onStop and the token of the session). */
+export const playEntry = (entry, options) => loop.playEntry(entry, options);
 
 /** Brings a waiting take in at once (Apply now). */
-export function applyPendingNow() { if (P.pending) { const next = P.pending; P.pending = null; return playEntry(next, { timing: 'now', onStop: P.onStop }); } return Promise.resolve(); }
+export const applyPendingNow = () => loop.applyPendingNow();
 
-export function setLoading(on) { P.loading = on; emit(); }
+export const setLoading = (on) => loop.setLoading(on);
 
 /** Stops the sound (and tells the owner of the session, unless it asked for the stop itself). */
-export function stopListenPlayer({ quiet = false } = {}) {
-  if (!P.playing && !P.pending) return;
-  clearInterval(P.timer); P.timer = 0;
-  silenceAll();
-  P.playing = false; P.pending = null;
-  const onStop = P.onStop; P.onStop = null;
-  emit();
-  if (!quiet) onStop?.();
-}
+export const stopListenPlayer = (options) => loop.stop(options);
 
-setExternalPlayer({ playing: () => P.playing, take: () => P.entry?.take ?? null, stop: () => stopListenPlayer() });
+setExternalPlayer({ playing: () => loop.isPlaying(), take: () => loop.currentTake(), stop: () => stopListenPlayer() });

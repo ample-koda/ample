@@ -24,8 +24,9 @@ import { installKeyboardGuard, installTouchMenu } from '../app/editor-touch-menu
 import { diagnosticsAt, tipClass, tipText } from './lite-diagnostic-tip.mjs';
 import { fileChoices, fileValueContext } from './lite-missing-files.mjs';
 
-export async function createLiteEditor(host, { text = '', readOnly = false, onChange = () => {}, complete = null, hover = null, definition = null, files = () => [], onOpenTarget = () => {} } = {}) {
+export async function createLiteEditor(host, { isCurrent = () => true, text = '', readOnly = false, onChange = () => {}, complete = null, hover = null, definition = null, files = () => [], onOpenTarget = () => {} } = {}) {
   const { createAmpleEditor } = await loadBundle();
+  if (!isCurrent()) return null;   // the page asked for another file meanwhile: this host belongs to that one now
   host.textContent = '';
   const mirror = {};
   const editor = createAmpleEditor(host, mirror, text);
@@ -38,6 +39,7 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
   let hoverTimer = 0;
   let overTip = false, pinned = false;   // the pointer is on a tip that has a button / a tip that was opened on a problem stays until the next click or Escape
   let diagnostics = [];   // what setDiagnostics marked: the tip over a mark says what it is
+  let diagMarks = [], playMarks = [];   // the marks of the problems and of the sound that plays (Live Preview); both are drawn together
 
   // a change of the text from any cause (typing, paste, undo, drop) is seen by comparing the document, so nothing depends on which event the browser sends
   const watch = setInterval(() => {
@@ -263,8 +265,14 @@ export async function createLiteEditor(host, { text = '', readOnly = false, onCh
         marks.push({ from, to, cls: `lite-diag-${d.severity}` });
         if (gutter[n] !== 'error') gutter[n] = d.severity;
       }
-      mirror.setMarks(marks);
+      diagMarks = marks;
+      mirror.setMarks(diagMarks.concat(playMarks));
       mirror.setGutter({ marks: gutter, notes: [] });
+    },
+    /** The marks of Live Preview (offsets { from, to, cls }): what plays now. They stay with the problem marks. */
+    setPlayMarks(marks) {
+      playMarks = marks;
+      mirror.setMarks(diagMarks.concat(playMarks));
     },
     /** Puts a problem in focus: the caret goes to it and its tip opens (with the quick fix, when there is one) and stays until the next click or Escape. */
     showProblem(d) {

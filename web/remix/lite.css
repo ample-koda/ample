@@ -29,6 +29,17 @@ button:disabled, .button[aria-disabled="true"] { opacity: .45; cursor: default; 
 .lite-row.folder { color: var(--dim); }
 
 #lite-work { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* Live Preview: one line, whatever the status says, so that typing never makes the page jump */
+.lite-listenbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 3px 10px; border-bottom: 1px solid var(--line); min-height: 32px; background: var(--panel); }
+.lite-listenbar > * { flex: 0 0 auto; }
+.lite-listenbar select, .lite-listenbar input { width: auto; }
+.lite-listenbar input[type="number"] { width: 4.2em; }
+.lite-listenbar #lite-listen-status { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lite-listenbar #lite-listen-status.bad { color: var(--bad, #ff6b6b); }
+.lite-listenbar #lite-listen-play[aria-pressed="true"] { border-color: var(--acc, #5aa9ff); color: var(--acc, #5aa9ff); }
+.cm-content .lp-now { background: color-mix(in srgb, var(--acc, #5aa9ff) 45%, transparent); border-radius: 3px; box-shadow: 0 0 0 1px var(--acc, #5aa9ff); }
+.cm-content .lp-line { text-decoration: underline dotted; text-decoration-color: var(--acc, #5aa9ff); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.cm-content .lp-active { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--acc, #5aa9ff) 60%, transparent); }
 #lite-filebar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--line); background: var(--panel); min-height: 2.2em; }
 #lite-filename { font-weight: 600; }
 #lite-editor { flex: 1; min-height: 0; position: relative; background: var(--panel3); }

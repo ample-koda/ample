@@ -3970,7 +3970,10 @@ public static class Routes
             }
         }
 
-        string text2 = $"composition \"{name}\" {{ ample 1  tempo 100  master-seed {s.Manifest.MasterSeed} }}\n" + (pairs.Count > 0 ? $"settings {{ {string.Join("  ", pairs)} }}\n" : string.Empty);
+        // the starter song (a pad, a bass and a beat through a mixer to the master); the settings line with the project defaults sits between the composition line and the rest
+        string starter = Ample.Storage.Projects.StarterSong.Text(name, "100", s.Manifest.MasterSeed.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        int afterComposition = starter.IndexOf('\n', StringComparison.Ordinal) + 1;
+        string text2 = starter[..afterComposition] + (pairs.Count > 0 ? $"settings {{ {string.Join("  ", pairs)} }}\n" : string.Empty) + starter[afterComposition..];
         await s.Bus.ExecuteAsync(new WriteFileCommand(rel, text2), ct);
         return Ok(new { path = rel, settings = pairs.Count });
     }

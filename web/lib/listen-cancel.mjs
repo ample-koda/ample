@@ -18,15 +18,21 @@ export async function waitForFreeStore(isBusy, signal, { sleep = (ms) => new Pro
 }
 
 /**
- * The builds of the session on top of the store. `build` waits for a build that is not ours and then builds; `cancel` (the session's cancelBuild) stops the
- * store's build only while it is a build of ours: a Stop during the wait leaves the normal build running.
- * @param {{ isBusy: () => boolean, buildNow: (job: object, signal: object) => Promise<any>, stopStore: () => void, sleep?: Function, delay?: number }} deps
+ * The builds of the session on top of the store. `build` waits for a build that is not ours, then for `beforeBuild` (a pause that is not a build, for example a
+ * distance between two builds; it says false when the task was cancelled), and then builds. `cancel` (the session's cancelBuild) stops the store's build only
+ * while the build runs that this builder started: a Stop during a wait leaves every other build running.
+ * @param {{ isBusy: () => boolean, buildNow: (job: object, signal: object) => Promise<any>, stopStore: () => void,
+ *   beforeBuild?: (job: object, signal: object) => Promise<boolean>, sleep?: Function, delay?: number }} deps
  */
-export function createListenBuilder({ isBusy, buildNow, stopStore, sleep, delay }) {
+export function createListenBuilder({ isBusy, buildNow, stopStore, beforeBuild, sleep, delay }) {
   let own = 0;
   return {
     async build(job, signal) {
-      if (!(await waitForFreeStore(isBusy, signal, { sleep, delay }))) return null;
+      for (;;) {
+        if (!(await waitForFreeStore(isBusy, signal, { sleep, delay }))) return null;
+        if (beforeBuild && !(await beforeBuild(job, signal))) return null;
+        if (!isBusy()) break;   // a build of the page started during the pause: wait for it too
+      }
       own++;
       try { return await buildNow(job, signal); } finally { own--; }
     },
