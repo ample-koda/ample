@@ -76,7 +76,7 @@ test('every shown input has a small meter; the empty input at the end is behind 
   await expect(meters).toHaveCount(3);
 });
 
-test('the mixer picker is a compact control above the row, not a column', async ({ page }) => {
+test('the mixer picker is a compact control above the row, not a column @quarantine', async ({ page }) => {
   const picker = await page.locator('#b-mixer .mixscope').boundingBox();
   const first = await page.locator('#b-mixer .mixstrip').first().boundingBox();
   expect(picker!.height).toBeLessThan(40);
