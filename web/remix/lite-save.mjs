@@ -28,7 +28,7 @@ export function createSaver({ write, onSaved = () => {}, onState = () => {} }) {
       }
     }
     const failed = [...dirty.values()].filter((e) => e.error);
-    onState({ failed, dirty: dirty.size });
+    if (tried.size > 0) onState({ failed, dirty: dirty.size });   // a flush with nothing to save says nothing: the label must not claim "saved" for text that is not queued yet
     return { ok: failed.length === 0, failed };
   }
 
