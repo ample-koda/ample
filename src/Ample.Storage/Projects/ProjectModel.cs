@@ -404,6 +404,13 @@ public static class ProjectFile
                     firstRunJson.TryGetProperty("doneVersion", out JsonElement doneVersionJson) && doneVersionJson.ValueKind == JsonValueKind.Number && doneVersionJson.TryGetInt32(out int doneVersion) && doneVersion > 0 ? doneVersion : 0,
                     firstRunJson.TryGetProperty("doneAt", out JsonElement doneAtJson) && doneAtJson.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(doneAtJson.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset doneAt) ? doneAt : null)
                 : FirstRunSettings.Default;
+            int? buildParallelism = settings.TryGetProperty("build", out JsonElement buildJson)
+                && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson)
+                && parallelismJson.ValueKind == JsonValueKind.Number
+                && parallelismJson.TryGetInt32(out int parallelism)
+                && parallelism > 0
+                ? parallelism
+                : null;
             string name = root.GetProperty("name").GetString() ?? throw new FormatException("name");
             return new ProjectManifest(
                 Guid.Parse(root.GetProperty("id").GetString()!),
@@ -419,7 +426,15 @@ public static class ProjectFile
                     projectPanel,
                     autoCheckpoint,
                     ai)
-                { Faer = faer, Koda = koda, FirstRun = firstRun, Observation = ObservationOf(settings), Capabilities = TextsOf(settings, "capabilities"), Unknown = UnknownOf(settings, KnownSettings), BuildParallelism = settings.TryGetProperty("build", out JsonElement buildJson) && buildJson.TryGetProperty("parallelism", out JsonElement parallelismJson) && parallelismJson.ValueKind == JsonValueKind.Number && parallelismJson.TryGetInt32(out int parallelism) && parallelism > 0 ? parallelism : null })
+                {
+                    Faer = faer,
+                    Koda = koda,
+                    FirstRun = firstRun,
+                    Observation = ObservationOf(settings),
+                    Capabilities = TextsOf(settings, "capabilities"),
+                    Unknown = UnknownOf(settings, KnownSettings),
+                    BuildParallelism = buildParallelism,
+                })
             { Unknown = UnknownOf(root, KnownTop) };
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or FormatException or InvalidOperationException or OverflowException)
