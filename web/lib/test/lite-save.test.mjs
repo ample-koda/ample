@@ -138,3 +138,13 @@ test('C3: two quick calls give one active build; a ticket frees only its own bui
   gate.release(third);
   assert.equal(gate.busy(), false);
 });
+
+test('a flush with nothing to save does not report a state (the page must not show "saved" for text that is not queued yet)', async () => {
+  const r = rig();
+  assert.deepEqual(await r.saver.flush(), { ok: true, failed: [] });
+  assert.equal(r.states.length, 0);
+  r.saver.queue('p', 'a.amplet', 'v');
+  const run = r.saver.flush();
+  await flush(); r.holds[0].resolve(); await run;
+  assert.equal(r.states.at(-1).dirty, 0);
+});

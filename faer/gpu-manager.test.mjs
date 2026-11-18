@@ -87,7 +87,9 @@ test('Faer waits for an in-flight idle unload before starting another GPU worker
   const second = { key: 'second', run: async () => { events.push('second-run'); return 'done'; }, unload: async () => {} };
   const gpu = createGpuManager({ workers: { song: first, separation: second }, warmMs: 1, retryDelaysMs: [] });
   await gpu.run('song', {}, new AbortController().signal, {});
-  await unloadingStarted;
+  // the warm timer of the manager is unref'd on purpose, so something else must keep the event loop alive while the test waits for it
+  const keepAlive = setInterval(() => {}, 20);
+  try { await unloadingStarted; } finally { clearInterval(keepAlive); }
   const next = gpu.run('separation', {}, new AbortController().signal, {});
   await Promise.resolve();
   assert.deepEqual(events, ['unload-start']);
