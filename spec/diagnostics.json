@@ -3342,7 +3342,7 @@
       "rightExample": "",
       "since": "1.0",
       "retired": false,
-      "stage": "static"
+      "stage": "runtime"
     },
     {
       "code": "AMP2076",

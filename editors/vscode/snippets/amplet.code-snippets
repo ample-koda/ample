@@ -154,11 +154,13 @@
       "bus ${1:bus} {",
       "  gains ${2:0 0 0 0}",
       "  pan ${3:c c c c}",
-      "  inputs ${4:4}",
-      "  gain ${5:0}",
-      "  mute ${6:off}",
-      "  solo ${7:off}",
-      "  channels ${8:auto}",
+      "  mutes ${4:off off off off}",
+      "  solos ${5:off off off off}",
+      "  inputs ${6:4}",
+      "  gain ${7:0}",
+      "  mute ${8:off}",
+      "  solo ${9:off}",
+      "  channels ${10:auto}",
       "}",
       "$0"
     ]
@@ -867,8 +869,10 @@
       "mixer ${1:mixer} {",
       "  gains ${2:0 0 0 0}",
       "  pan ${3:c c c c}",
-      "  inputs ${4:4}",
-      "  channels ${5:auto}",
+      "  mutes ${4:off off off off}",
+      "  solos ${5:off off off off}",
+      "  inputs ${6:4}",
+      "  channels ${7:auto}",
       "}",
       "$0"
     ]
@@ -1164,7 +1168,7 @@
     "prefix": [
       "shift"
     ],
-    "description": "Start the input a little later (or earlier): put it after one block to move only that block by some seconds or beats, without moving it on the timeline.",
+    "description": "Start the input audio a little later (or earlier): put it after one block to move only that block by some seconds or beats, without moving it on the timeline. MIDI notes are moved with the notes operator shift(length) in a note pipeline instead (notes theme.notes |> shift(3beats)).",
     "body": [
       "shift ${1:shift} {",
       "  enabled ${2:on}",
