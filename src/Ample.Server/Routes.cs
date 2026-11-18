@@ -1668,7 +1668,8 @@ public static class Routes
         add("POST", "/api/midi/clip-notes", "documents", "The notes a midi-clip block plays (from its chords, melody or notes), written as compact notes text, so the piano roll can make a clip with chords or a melody editable; nothing is changed or built.", false, s is null ? null : async (HttpContext c) =>
         {
             JsonElement body = await Body(c);
-            AmpleDocument document = s.ParseExpanded(await s.DocAsync(Str(body, "path"), c.RequestAborted).ConfigureAwait(false));
+            DocSession session = await s.DocAsync(Str(body, "path"), c.RequestAborted).ConfigureAwait(false);
+            AmpleDocument document = s.ParseExpanded(session);
             BlockNode block = document.Blocks.FirstOrDefault(candidate => candidate.Name == Str(body, "block") && candidate.Type == "midi-clip") ?? throw new AmpleException("AMP5501", "The block is not a midi-clip of this song.");
             int bars = int.TryParse(block.Parameters.FirstOrDefault(p => p.Name == "bars")?.Value.Trim().Trim('"'), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int parsedBars) && parsedBars is > 0 and <= 512 ? parsedBars : 16;
             long tempoMilli = (long)((document.Project?.Tempo ?? 120) * 1000 + 0.5);
@@ -1682,7 +1683,31 @@ public static class Routes
                 entries.Add($"{note.GetProperty("bar").GetInt32()}:{Text(note, "beat", 0)}:{Text(note, "beats", 1)}:{note.GetProperty("pitch").GetInt32()}:{(note.TryGetProperty("velocity", out JsonElement velocity) ? velocity.GetInt32() : 96)}");
             }
 
-            return Ok(new { text = string.Join(' ', entries), count = entries.Count, bars });
+            // origins: true also says, for a clip whose notes are a chain, which source note each note comes from (note-origin plan, step 3); the text stays as it was
+            bool wantOrigins = body.TryGetProperty("origins", out JsonElement originsFlag) && originsFlag.ValueKind == JsonValueKind.True;
+            object[] origins = [];
+            if (wantOrigins)
+            {
+                Ample.Engine.Modules.ModuleService midi = new(s.Root, () => s.Library, s.Manifest.Id.ToString("D"));
+                string? ReadProjectFile(string relative)
+                {
+                    try
+                    {
+                        string full = ProjectPath.Resolve(s.Root, relative);
+                        return File.Exists(full) ? File.ReadAllText(full) : null;
+                    }
+                    catch (AmpleException)
+                    {
+                        return null;
+                    }
+                }
+
+                origins = [.. NoteBake.Origins(session.Text, s.Spec, Str(body, "block"), ReadProjectFile, NotePipeline.HardCap, midi.ReadMidiNotes, c.RequestAborted)
+                    .Select(n => (object)new { at = n.At, len = n.Len, pitch = n.Pitch, source = n.Origin?.Source, index = n.Origin?.Index, lap = n.Origin?.Lap })];
+            }
+
+            string joined = string.Join(' ', entries);
+            return Ok(wantOrigins ? new { text = joined, count = entries.Count, bars, origins = (object[]?)origins } : new { text = joined, count = entries.Count, bars, origins = (object[]?)null });
         });
         add("POST", "/api/notes/bake", "documents", "Bakes the note pipeline of a midi-clip up to a stage (or detaches it into plain notes) and returns the new text of the song and, for a bake into a file, that file; nothing is written.", false, s is null ? null : async (HttpContext c) =>
         {

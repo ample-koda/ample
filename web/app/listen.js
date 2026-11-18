@@ -9,7 +9,8 @@ import { activity } from '../lib/block-activity.mjs';
 import { masterTakeOf, songState } from '../lib/transport-model.mjs';
 import { createListenSession } from '../lib/listen-session.mjs';
 import { barSeconds, barsLoop, playSegments, rangeBuild, silentWindows } from '../lib/listen-segments.mjs';
-import { moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { blockSpan, moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { chainClips, colourMarks, slotsFor, usersBySource } from '../lib/listen-users.mjs';
 import { createListenBuilder, playLoaded } from '../lib/listen-cancel.mjs';
 import { preparedOf, preparedUsable } from '../lib/listen-prepared.mjs';
 import { clipFirstBarOf, frameOf, litAt, songBarAt, timingSnapshot } from '../lib/listen-timing.mjs';
@@ -22,7 +23,7 @@ const readSettings = () => { try { return { ...DEFAULTS, ...JSON.parse(localStor
 const settings = readSettings();
 if (settings.barsMethod === 'lead-in') settings.barsMethod = 'from-start';   // the two-bar lead-in was replaced (decision 13)
 const save = () => { try { const { pinned, ...kept } = settings; localStorage.setItem(STORE, JSON.stringify(kept)); } catch { /* storage may be blocked */ } };
-const L = { prepared: null, pinned: null, ports: {}, marksHook: null, editorText: () => S.doc?.text || '', lastText: null, frame: 0, lastMarkKey: '' };
+const L = { prepared: null, pinned: null, ports: {}, marksHook: null, editorText: () => S.doc?.text || '', lastText: null, frame: 0, lastMarkKey: '', goto: null, isolate: null, usersKey: '' };
 
 const AUDIO = (port) => port && port[1] === 'audio';
 const tempo = () => Number(S.doc?.project?.tempo) || 120;
@@ -110,7 +111,17 @@ async function buildJob(job) {
   const graph = flat(), timing = timingSnapshot({ tempo: tempo(), quarters: barBeats(), graph, timingOf });
   const upstream = job.kind === 'block' ? [...upstreamOf(job.id, graph)] : null;
   const made = await buildJobFor(job);
-  return made ? { ...made, timing: { ...timing, upstream } } : made;
+  return made ? { ...made, timing: { ...timing, upstream }, origins: await originsOf(made.text) } : made;
+}
+
+/**
+ * Where the notes of every clip that is a chain come from (the clip-notes route with origins): { clip: [{ at, len, pitch, source, index, lap }] };
+ * {} when there is no chain or the server cannot say.
+ */
+async function originsOf(text) {
+  const names = chainClips(text, flat().nodes.map((n) => n.id));
+  const got = await Promise.all(names.map((block) => api.post('/api/midi/clip-notes', { path: S.path, block, origins: true }).then((r) => [block, r.origins || []], () => [block, []])));
+  return Object.fromEntries(got.filter(([, list]) => list.length));
 }
 
 async function buildJobFor(job) {
@@ -352,12 +363,39 @@ function paint() {
   status.classList.toggle('bad', st.status === 'error');
   status.classList.toggle('draft', result?.method === 'fast-draft');
   root.querySelector('#lp-target').value = settings.target;
+  paintUsers(root, result);
   scheduleMarks();
+}
+
+/** The "used by" list of the sources the heard build reads through chains: a dot with the number, the name and what the chain does; hover isolates, click jumps. */
+function paintUsers(root, result) {
+  const list = result?.origins && result.text ? usersBySource(result.text, result.origins) : [];
+  const key = JSON.stringify(list);
+  if (key === L.usersKey) return;
+  L.usersKey = key;
+  let box = root.ownerDocument.getElementById('lp-users');
+  if (!box) {
+    if (!list.length) return;
+    box = el('div', { id: 'lp-users', className: 'lp-users bmbar', 'aria-label': 'Used by' });   // its own row under the bar: the bar itself stays one line
+    root.insertAdjacentElement('afterend', box);
+  }
+  box.hidden = list.length === 0;
+  const isolate = (user) => () => { L.isolate = user; scheduleMarks(); };
+  const button = (u) => el('button', {
+    className: 'lp-user ' + (u.slot === null ? 'lp-user-n' : 'lp-user-' + (u.slot + 1)), type: 'button', textContent: u.label + ' ' + u.user, 'data-user': u.user,
+    title: u.chain ? u.user + ': ' + u.chain : u.user,
+    onmouseenter: isolate(u.user), onmouseleave: isolate(null), onfocus: isolate(u.user), onblur: isolate(null),
+    onclick: () => { const at = blockSpan(L.editorText(), u.user); if (at && L.goto) L.goto(at.from); },
+  });
+  box.replaceChildren(...list.map((s) => el('span', { className: 'lp-source' }, [
+    el('b', { textContent: s.source }), ' used by ', ...s.users.map(button),
+    s.extra ? el('span', { className: 'note', textContent: s.extra + ' without a colour' }) : '',
+  ])));
 }
 
 // ---- the marks: the target block, and what plays now (on the text of the build that plays, moved to the text in the editor) ----
 /** The source editor gives the hook that puts playback marks in the editor (source.js setPlaybackMarks) and how to read its text. */
-export function connectEditor({ setMarks, text }) { L.marksHook = setMarks; L.editorText = text; scheduleMarks(); }
+export function connectEditor({ setMarks, text, goto = null }) { L.marksHook = setMarks; L.editorText = text; L.goto = goto; scheduleMarks(); }
 
 function scheduleMarks() {
   if (L.frame) return;
@@ -376,11 +414,13 @@ function updateMarks() {
     const lit = litAt(timing, songBar), active = timing.upstream ? lit.filter((id) => timing.upstream.includes(id)) : lit;
     const now = playbackMarks({
       text: result.text, target: null, songBar, active, quartersPerBar: timing.quarters, barSeconds: timing.barSeconds,
-      frame: (name) => frameOf(timing, name), clipFirstBar: (name) => clipFirstBarOf(timing, name),
+      frame: (name) => frameOf(timing, name), clipFirstBar: (name) => clipFirstBarOf(timing, name), origins: result.origins || {},
     });
-    marks.push(...moveMarks(now, result.text, typed));
+    const slots = slotsFor(Object.keys(result.origins || {}));
+    const shown = L.isolate ? now.filter((m) => !m.user || m.user === L.isolate) : now;   // hovering a user: only the notes of that user
+    marks.push(...colourMarks(moveMarks(shown, result.text, typed), slots));
   }
-  const key = marks.map((m) => `${m.from}-${m.to}-${m.cls}`).join(',');
+  const key = marks.map((m) => `${m.from}-${m.to}-${m.cls}-${m.attrs?.['data-lp-name'] ?? ''}`).join(',');
   if (key === L.lastMarkKey) return;
   L.lastMarkKey = key;
   L.marksHook(marks);

@@ -18,6 +18,9 @@ public static class LiteLanguage
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>How many chain clips one request of <c>/api/remix/notes/origins</c> works out (the page asks for the clips that are chains, a song has few).</summary>
+    internal const int MaxOriginBlocks = 12;
+
     /// <summary>A reader for the files of a Lite project: relative paths as the language writes them (<c>./</c> and <c>\</c> tolerated), nothing outside the files that were given.</summary>
     /// <param name="files">The text files by path.</param>
     /// <returns>The reader.</returns>
@@ -79,6 +82,24 @@ public static class LiteLanguage
             if (CountedResult(governor, lim, context) is { } refusedComplete) return refusedComplete;
             (Func<string, string?> read, JsonElement body) = await Files(context, lim).ConfigureAwait(false);
             return Results.Json(ComponentsApi.Complete(spec, read, body.GetProperty("text").GetString() ?? string.Empty, body.GetProperty("line").GetInt32(), body.GetProperty("character").GetInt32()), Json);
+        });
+        app.MapPost("/api/remix/notes/origins", async (HttpContext context) =>
+        {
+            if (CountedResult(governor, lim, context) is { } refusedOrigins) return refusedOrigins;
+            (Func<string, string?> read, JsonElement body) = await Files(context, lim).ConfigureAwait(false);
+            string song = body.TryGetProperty("text", out JsonElement songText) && songText.ValueKind == JsonValueKind.String ? songText.GetString() ?? string.Empty : string.Empty;
+            JsonObject origins = [];
+            if (body.TryGetProperty("blocks", out JsonElement names) && names.ValueKind == JsonValueKind.Array)
+            {
+                foreach (string name in names.EnumerateArray().Select(n => n.GetString() ?? string.Empty).Where(n => n.Length > 0).Distinct(StringComparer.Ordinal).Take(MaxOriginBlocks))
+                {
+                    JsonArray list = [.. NoteBake.Origins(song, spec, name, read, NotePipeline.HardCap, null, context.RequestAborted)
+                        .Select(n => (JsonNode?)new JsonObject { ["at"] = n.At, ["len"] = n.Len, ["pitch"] = n.Pitch, ["source"] = n.Origin?.Source, ["index"] = n.Origin?.Index, ["lap"] = n.Origin?.Lap })];
+                    if (list.Count > 0) origins[name] = list;
+                }
+            }
+
+            return Results.Json(new { origins }, Json);
         });
     }
 

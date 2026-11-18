@@ -79,6 +79,25 @@ public sealed class NotePipelineRoutesTests : IAsyncLifetime, IDisposable
         Assert.Equal(played, read);
     }
 
+    // note-origin plan, step 3: with origins: true a clip whose notes are a chain says which source note each note comes from; without it nothing changes
+    [Fact]
+    public async Task Clip_notes_say_where_the_notes_of_a_chain_come_from_when_asked()
+    {
+        string song = "composition \"demo\" { ample 1  tempo 100  master-seed 1 }\n\n" +
+            "midi-clip theme {\n  melody \"c4:1 d4:1 e4:1 g4:1\"\n  bars 1\n}\n\n" +
+            "midi-clip high at 1 for auto {\n  notes theme.notes |> transpose(+12) |> repeat(2)\n}\n";
+        await File.WriteAllTextAsync(Path.Combine(folder, "song.amplet"), song);
+        JsonElement plain = await Post("/api/midi/clip-notes", new { path = "song.amplet", block = "high" });
+        Assert.Equal(JsonValueKind.Null, plain.GetProperty("origins").ValueKind);
+        JsonElement asked = await Post("/api/midi/clip-notes", new { path = "song.amplet", block = "high", origins = true });
+        Assert.Equal(plain.GetProperty("text").GetString(), asked.GetProperty("text").GetString());
+        static string Show(JsonElement o) => $"{o.GetProperty("source").GetString()}#{o.GetProperty("index").GetInt32()}@{o.GetProperty("lap").GetInt32()}:{o.GetProperty("pitch").GetInt32()}";
+        string[] origins = [.. asked.GetProperty("origins").EnumerateArray().Select(Show)];
+        Assert.Equal(["theme#0@0:72", "theme#1@0:74", "theme#2@0:76", "theme#3@0:79", "theme#0@1:72", "theme#1@1:74", "theme#2@1:76", "theme#3@1:79"], origins);
+        JsonElement literal = await Post("/api/midi/clip-notes", new { path = "song.amplet", block = "theme", origins = true });
+        Assert.Empty(literal.GetProperty("origins").EnumerateArray());   // a clip that is not a chain has no origins to give
+    }
+
     [Fact]
     public async Task Bake_returns_the_new_text_and_writes_nothing()
     {

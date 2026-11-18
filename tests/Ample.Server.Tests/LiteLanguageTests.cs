@@ -172,4 +172,43 @@ public sealed class LiteLanguageTests : IAsyncLifetime, IDisposable
         JsonElement items = (await complete.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("items");
         Assert.True(items.GetArrayLength() > 0);
     }
+
+    private static readonly string[] AskedBlocks = ["high", "theme", "nobody"];
+
+    private const string ChainSong = """
+        composition "demo" { ample 1  tempo 100  master-seed 1 }
+
+        midi-clip theme {
+          melody "c4:1 d4:1 e4:1 g4:1"
+          bars 1
+        }
+
+        midi-clip high at 1 for auto {
+          notes theme.notes |> transpose(+12) |> repeat(2)
+        }
+        """;
+
+    [Fact]
+    public async Task The_note_origins_of_lite_come_from_the_song_the_page_sends()
+    {
+        using HttpResponseMessage response = await http.PostAsJsonAsync("/api/remix/notes/origins", new { files = Array.Empty<object>(), text = ChainSong, blocks = AskedBlocks });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement origins = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("origins");
+        static string Show(JsonElement o) => $"{o.GetProperty("source").GetString()}#{o.GetProperty("index").GetInt32()}@{o.GetProperty("lap").GetInt32()}:{o.GetProperty("pitch").GetInt32()}";
+        Assert.Equal(
+            ["theme#0@0:72", "theme#1@0:74", "theme#2@0:76", "theme#3@0:79", "theme#0@1:72", "theme#1@1:74", "theme#2@1:76", "theme#3@1:79"],
+            [.. origins.GetProperty("high").EnumerateArray().Select(Show)]);
+        Assert.False(origins.TryGetProperty("theme", out _), "a clip that is not a chain is not listed");
+        Assert.False(origins.TryGetProperty("nobody", out _), "a name that is not a clip is not an error");
+        Assert.Equal(4_000_000, origins.GetProperty("high")[4].GetProperty("at").GetInt64());   // micro-beats from the start of the clip
+    }
+
+    [Fact]
+    public async Task The_note_origins_of_lite_work_out_at_most_twelve_clips_per_request()
+    {
+        string many = ChainSong + string.Concat(Enumerable.Range(0, 14).Select(i => "\nmidi-clip c" + i + " at 1 for auto {\n  notes theme.notes |> transpose(" + (i + 1) + ")\n}\n"));
+        using HttpResponseMessage response = await http.PostAsJsonAsync("/api/remix/notes/origins", new { files = Array.Empty<object>(), text = many, blocks = Enumerable.Range(0, 14).Select(i => $"c{i}").ToArray() });
+        JsonElement origins = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("origins");
+        Assert.Equal(12, origins.EnumerateObject().Count());
+    }
 }

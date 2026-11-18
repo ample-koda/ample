@@ -196,7 +196,7 @@ const marksField = StateField.define({
   create: () => Decoration.none,
   update(marks, tr) {
     marks = marks.map(tr.changes);
-    for (const effect of tr.effects) if (effect.is(setMarks)) marks = Decoration.set(effect.value.filter((r) => r.to > r.from).map((r) => Decoration.mark({ class: r.cls }).range(r.from, r.to)), true);
+    for (const effect of tr.effects) if (effect.is(setMarks)) marks = Decoration.set(effect.value.filter((r) => r.to > r.from).map((r) => Decoration.mark({ class: r.cls, attributes: r.attrs }).range(r.from, r.to)), true);
     return marks;
   },
   provide: (field) => EditorView.decorations.from(field),

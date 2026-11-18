@@ -9,7 +9,7 @@ import { isComponent, isSong } from './lite-paths.mjs';
 const SEVERITY = { 1: 'error', 2: 'warning', 3: 'info', 4: 'info' };
 const toDiagnostic = (d) => ({ line: d.range.start.line + 1, col: d.range.start.character + 1, endCol: d.range.end.character + 1, severity: SEVERITY[d.severity] ?? 'info', code: d.code ?? '', message: d.message });
 
-async function post(path, body) {
+export async function post(path, body) {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ample-Token': getToken() }, body: JSON.stringify(body) });
   if (!response.ok) throw new Error(`${response.status}`);
   return response.json();

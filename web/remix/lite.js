@@ -12,7 +12,8 @@ import { createRemixListen } from './lite-listen.js';
 import { songTemplate } from './lite-templates.mjs';
 import { createBuildGate, createSaver } from './lite-save.mjs';
 import { findClips, tempoOf } from './lite-roll-source.mjs';
-import { createLanguage } from './lite-language.js';
+import { createLanguage, post } from './lite-language.js';
+import { fetchOrigins } from './lite-origins.mjs';
 import { setReportEmail, showReportEmail } from './lite-contact.mjs';
 import { idbKv, memoryKv, setStoreName, storeName } from './lite-kv.mjs';
 import { createImporter } from './lite-import.js';
@@ -63,6 +64,8 @@ const listen = createRemixListen({
   getText: () => app.editor?.getText() ?? '',
   hasSong: () => !!app.project && !!pickEntry(app.files.map((f) => f.path), app.active, app.lastBuilt),
   setMarks: (marks) => app.editor?.setPlayMarks?.(marks),
+  origins: ({ text, files }) => fetchOrigins({ text, files, post }),
+  jumpTo: (offset) => { const lines = (app.editor?.getText() ?? '').slice(0, offset).split('\n'); app.editor?.goto(lines.length, lines[lines.length - 1].length + 1); },
   buildError: () => app.lastBuildError,
   isBuilding: () => gate.busy(),
   abortBuild: () => { gate.abort('listen'); },   // never the build the person started
@@ -656,7 +659,7 @@ async function build(options = {}) {
     }
     else {
       const played = await playOutput(result, entry, { play: !options.listen });
-      outcome = options.listen ? { ...result, blob: played.blob, entry, entryText } : result;
+      outcome = options.listen ? { ...result, blob: played.blob, entry, entryText, files } : result;
     }
   } catch (error) {
     app.lastBuildError = error?.name === 'AbortError' ? 'The build was cancelled.' : errorText(error);

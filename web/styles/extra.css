@@ -1094,6 +1094,15 @@ dialog.ask-dialog:has(textarea.notes-editor) #dlg-extra{max-width:100%}
 /* Live Preview of the code editor (plan/live-preview): the block listened to, the note tokens that sound now, the notes line of generated notes, the other blocks that sound */
 .cm-content .lp-target{background:color-mix(in srgb,var(--acc) 9%,transparent)}
 .cm-content .lp-now{background:color-mix(in srgb,var(--acc) 45%,transparent);border-radius:3px;box-shadow:0 0 0 1px var(--acc)}
+.lp-users{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12px}.lp-users[hidden]{display:none}
+.lp-users .lp-source{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+.lp-users .lp-user{border:1px solid var(--u,var(--muted));color:inherit;border-radius:10px;padding:0 8px;font:inherit;cursor:pointer;
+  background:color-mix(in srgb,var(--u,var(--muted)) 22%,transparent)}
+.lp-user-1{--u:#e69f00}.lp-user-2{--u:#56b4e9}.lp-user-3{--u:#009e73}.lp-user-4{--u:#cc79a7}.lp-user-n{--u:#8a8f98}
+.cm-content .lp-now[class*="lp-user-"]{background:color-mix(in srgb,var(--u) 45%,transparent);box-shadow:0 0 0 1px var(--u)}
+.cm-content .lp-now.lp-user-1{text-decoration:underline solid var(--u)}.cm-content .lp-now.lp-user-2{text-decoration:underline dashed var(--u)}
+.cm-content .lp-now.lp-user-3{text-decoration:underline dotted var(--u)}.cm-content .lp-now.lp-user-4{text-decoration:underline double var(--u)}
+.cm-content [data-lp-user]::after{content:attr(data-lp-user);font-size:.62em;font-weight:700;vertical-align:super;margin-left:1px}
 .cm-content .lp-line{text-decoration:underline dotted;text-decoration-color:var(--acc);text-decoration-thickness:2px;text-underline-offset:3px}
 .cm-content .lp-active{box-shadow:inset 3px 0 0 color-mix(in srgb,var(--acc) 60%,transparent)}
 /* one line that never changes height while the status changes (a wrapping bar made the editor jump while typing) */

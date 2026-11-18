@@ -1,7 +1,7 @@
 // Live Preview in Remix (the public Lite page): what the page needs that Studio takes from its store, from the text of the song alone, and the arithmetic of
 // the loop of a whole song or of a range of bars cut from the render of the whole song (exact: the bars are the same samples as in the whole song). @ample:listen-preview
 
-const HEADER = /^\s*([a-z][\w-]*)\s+("[^"]*"|[A-Za-z_][\w-]*)((?:\s+at\s+\d+)?(?:\s+for\s+\d+)?)\s*\{\s*$/;
+const HEADER = /^\s*([a-z][\w-]*)\s+("[^"]*"|[A-Za-z_][\w-]*)((?:\s+at\s+\d+)?(?:\s+for\s+(?:\d+|auto))?)\s*\{\s*$/;
 
 /**
  * The blocks of a song that stand on the timeline (`at N`, with `for M` bars when they have it): { name, type, at, bars }. `bars` is null when the block has no `for`.

@@ -13,6 +13,18 @@
 const DECLARATION = /^[\t ]*[A-Za-z0-9_.-]+\s+("(?:\\.|[^"\\])*"|[A-Za-z0-9_-]+)[^\n]*\{/gm;
 const NOTE = /(^|[\s"])(\d+):(\d+(?:\.\d+)?):(\d+(?:\.\d+)?):(\d+):(\d+)((?::\d+){0,4}(?:;[^\s"]*)?)/g;
 
+/** The names of the blocks of a type (`midi-clip`) in the text, in the order they are written. */
+export function blockNames(text, type) {
+  const out = [];
+  for (const match of text.matchAll(DECLARATION)) {
+    if (match[0].trim().split(/\s+/)[0] !== type) continue;
+    let name = match[1];
+    if (name.startsWith('"')) { try { name = JSON.parse(name); } catch { continue; } }
+    out.push(name);
+  }
+  return out;
+}
+
 /** The block named `name` in the text: { from, to, open, type } offsets of its first line start, its closing brace (exclusive) and its opening brace, and its block type; null when not found. */
 export function blockSpan(text, name) {
   for (const match of text.matchAll(DECLARATION)) {
@@ -86,6 +98,42 @@ function words(line, keyword) {
 }
 
 const mark = (w) => ({ from: w.from, to: w.to, cls: 'lp-now' });
+
+/**
+ * The token of the `index`-th note of a source block: a note of its literal `notes` line (in the order of the text) or a note word of its `melody` (rests and
+ * dynamic markers are not notes). Null for a source that is a chord list, a chain or a drum pattern: no note-level link there.
+ */
+export function sourceToken(text, sourceName, index) {
+  const span = blockSpan(text, sourceName);
+  if (!span || !Number.isInteger(index) || index < 0) return null;
+  const lines = notesLines(text, span);
+  if (lines.length) {
+    if (!lines.every((l) => l.literal)) return null;
+    const tokens = lines.flatMap((line) => [...text.slice(line.from, line.to).matchAll(NOTE)].map((m) => ({ from: line.from + m.index + m[1].length, to: line.from + m.index + m[0].length })));
+    return tokens[index] ?? null;
+  }
+  const melody = bodyLines(text, span).map((l) => words(l, 'melody')).find(Boolean);
+  if (!melody) return null;
+  const notes = melody.filter((w) => { const p = w.word.toLowerCase().split(':')[0]; return !(DYNAMICS.test(p) && !w.word.includes(':')) && /^[a-g](#|b(?=-?\d))?-?\d+$/.test(p); });
+  return notes[index] ? { from: notes[index].from, to: notes[index].to } : null;
+}
+
+/**
+ * The marks in the sources for the notes of a chain clip that sound at a song bar. `origins` is the list of the clip-notes route (`origins: true`) or of
+ * originList(): [{ at, len, pitch, source, index, lap }] in micro-beats from the start of the clip. Each mark carries `user` (the chain clip) and `lap` so that
+ * several users of one source can be told apart; a note that has no source note (made by an operator) marks nothing.
+ */
+export function originMarks({ text, user, origins, songBar, clipFirstBar = 1, quartersPerBar = 4 }) {
+  const clipBar = songBar - (clipFirstBar - 1), per = quartersPerBar * 1e6, out = [];
+  for (const o of origins ?? []) {
+    if (o.source == null || o.index == null) continue;
+    const start = 1 + o.at / per, end = start + o.len / per;
+    if (!(clipBar >= start && clipBar < end)) continue;
+    const token = sourceToken(text, o.source, o.index);
+    if (token) out.push({ ...token, cls: 'lp-now', user, lap: o.lap ?? 0 });
+  }
+  return out;
+}
 
 /** chords: one per bar of the request, repeating ((bar - 1) mod count); a dot shares the bar evenly (Renderers.ChordBars). */
 export function chordMarks(text, span, bar, quartersPerBar = 4) {
@@ -203,9 +251,11 @@ export function autoMarks(text, span, bar, first = 1, barSeconds = 2) {
  * `first`. Live Preview passes { first: 1, offset: 0 } for a placed block and { first: 1, offset: origin - 1 } for one that is not placed (plan 6.4).
  * `barSeconds` is the length of a bar (auto points in seconds).
  * @param {{ text: string, target?: string|null, songBar?: number|null, clipFirstBar?: (name: string) => number, active?: string[],
- *   quartersPerBar?: number, frame?: (name: string) => { first: number, offset: number }, barSeconds?: number }} input
+ *   quartersPerBar?: number, frame?: (name: string) => { first: number, offset: number }, barSeconds?: number, origins?: Record<string, object[]> }} input
  */
-export function playbackMarks({ text, target = null, songBar = null, clipFirstBar = () => 1, active = [], quartersPerBar = 4, frame = () => ({ first: 1, offset: 0 }), barSeconds = 2 }) {
+export function playbackMarks({
+  text, target = null, songBar = null, clipFirstBar = () => 1, active = [], quartersPerBar = 4, frame = () => ({ first: 1, offset: 0 }), barSeconds = 2, origins = {},
+}) {
   const marks = [];
   const lit = new Set();
   const markBlock = (name, isTarget) => {
@@ -234,6 +284,8 @@ export function playbackMarks({ text, target = null, songBar = null, clipFirstBa
         tokens.forEach((t) => { if (!lit.has(t.from)) { lit.add(t.from); marks.push(t); } });
       } else if (isTarget || active.includes(name)) marks.push({ from: line.from, to: line.to, cls: 'lp-line' });
     }
+    // a chain: the notes of its sources that sound now (origins of this clip, when the build brought them)
+    if (origins[name]) originMarks({ text, user: name, origins: origins[name], songBar, clipFirstBar: clipFirstBar(name), quartersPerBar }).forEach((m) => marks.push(m));
   };
   if (target) markBlock(target, true);
   for (const name of active) if (name !== target) markBlock(name, false);

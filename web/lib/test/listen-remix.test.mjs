@@ -65,3 +65,8 @@ test('the status line says what the session does, never "building #null"', () =>
   assert.equal(statusText(s(), { loading: true }), 'loading the sound...');
   assert.equal(statusText(s()), 'listening: builds when you stop typing');
 });
+
+test('a clip placed with `for auto` is a placed block that sounds from its bar on (its place is where its notes are marked)', () => {
+  const text = 'midi-clip high at 5 for auto {\n  notes theme.notes |> transpose(+12)\n}\n';
+  assert.deepEqual(placedBlocks(text), [{ name: 'high', type: 'midi-clip', at: 5, bars: null }]);
+});

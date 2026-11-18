@@ -22,7 +22,20 @@ public sealed record PipeIssue(string Id, string Message, int Start, int End, st
 }
 
 /// <summary>One note of a pipeline value, in exact micro-beats (1 beat = 1,000,000; 1 bar = 4 beats) from the origin of the value; the routing fields and the per-note extensions ride along as text.</summary>
-public sealed record PipeNote(long At, long Len, int Pitch, int Vel, string Tail, string Ext);
+public sealed record PipeNote(long At, long Len, int Pitch, int Vel, string Tail, string Ext)
+{
+    /// <summary>Gets where this note comes from: the source block and the place of the note in it (null for a note an operator made, or a literal). It lives in memory only: it is never written, hashed or compared.</summary>
+    public NoteOrigin? Origin { get; init; }
+
+    /// <summary>Notes are equal by what they sound; the origin does not count, so no recipe, hash or comparison changes.</summary>
+    public bool Equals(PipeNote? other) => other is not null && At == other.At && Len == other.Len && Pitch == other.Pitch && Vel == other.Vel && Tail == other.Tail && Ext == other.Ext;
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(At, Len, Pitch, Vel, Tail, Ext);
+}
+
+/// <summary>The source note of a note in a chain: the block it was read from, its index in that block's notes, and the lap (0 for the first; <c>repeat</c> makes copies with the next laps).</summary>
+public sealed record NoteOrigin(string Source, int Index, int Lap = 0);
 
 /// <summary>A value of the note pipelines: notes plus a span (the length of the value, in micro-beats).</summary>
 public sealed class PipeValue
@@ -1106,6 +1119,8 @@ public static partial class NotePipeline
                         recipe = $"ref:{r.Block}.{r.Port}@{info.Recipe}";
                         SensitiveInput |= info.Sensitive;
                         value = info.Value?.Copy();
+                        // every note of the reference knows its source note; a note that already has one (the source is a chain itself) keeps the deeper one
+                        if (value is not null) value = new PipeValue { Events = [.. value.Events.Select((e, i) => e.Origin is null ? e with { Origin = new NoteOrigin(r.Block, i) } : e)], Span = value.Span };
                         break;
                     }
 
@@ -2125,7 +2140,8 @@ public static partial class NotePipeline
                         if (!Int(node.Args[0], "times", 1, 1024, out long times)) return null;
                         if (value.Events.Count * times > context.Limit) { Problem(errors, "cap-events", $"repeat({times}) would make {value.Events.Count * times} notes; the limit is {context.Limit}", node); return null; }
                         List<PipeNote> copies = [];
-                        for (long k = 0; k < times; k++) copies.AddRange(value.Events.Select(e => e with { At = e.At + (k * value.Span) }));
+                        int lapSpan = 1 + value.Events.Select(e => e.Origin?.Lap ?? 0).DefaultIfEmpty(0).Max();   // laps of a repeat of a repeat stay apart
+                        for (long k = 0; k < times; k++) copies.AddRange(value.Events.Select(e => e with { At = e.At + (k * value.Span), Origin = e.Origin is null ? null : e.Origin with { Lap = e.Origin.Lap + ((int)k * lapSpan) } }));
                         return new PipeValue { Events = copies, Span = value.Span * times };
                     }
 

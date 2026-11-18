@@ -48,6 +48,7 @@ public static class LiteApi
         new("POST", "/api/remix/shares/{id}/manage", "lite", "The maker's management with the code: info, change the duration (counted from now) or take the share down.", false, true),
         new("POST", "/api/remix/components/check", "lite", "Checks the text of a component file with the files the page sends.", false, true),
         new("POST", "/api/remix/components/complete", "lite", "Completion in a component file with the files the page sends.", false, true),
+        new("POST", "/api/remix/notes/origins", "lite", "Where the notes of the chain clips of a song come from: the text of the song, the files the page sends and the names of the clips (at most 12); answers { origins: { clip: [{ at, len, pitch, source, index, lap }] } } for the clips that are chains.", false, true),
     ];
 
     /// <summary>Maps the Lite routes.</summary>

@@ -509,7 +509,10 @@ async function build() {
     const { installTouchMenu, installKeyboardGuard } = await import('./editor-touch-menu.js');
     if (made?.view) { installTouchMenu(made.view); installKeyboardGuard(made.view, closeComp); }   // a long press on a phone: copy, cut, paste, select all; selecting text brings no keyboard and closes the suggestions
   } finally { editorMade(); }
-  connectEditor({ setMarks: setPlaybackMarks, text: () => ($('#se-ta') ? $('#se-ta').value : SE.text) });
+  connectEditor({
+    setMarks: setPlaybackMarks, text: () => ($('#se-ta') ? $('#se-ta').value : SE.text),
+    goto: (offset) => { const area = $('#se-ta'); if (area) { area.focus(); area.setSelectionRange(offset, offset); } },
+  });
   ta.oninput = () => { setTimeout(updateSig, 0); setTimeout(updateBakeCall, 0); SE.text = ta.value; saveSourceDraftSoon(); syncSoon(); refreshSeqDiagnostics(); gutter(); overlay(); status(); refreshSaveControls(); if (isSong()) { S.sourceEditMessage = 'Checking source...'; scheduleSourceSync(); notifySelection(); } clearTimeout(SE.timer); SE.timer = setTimeout(() => { SE.timer = 0; if (isSong() && SE.offline) localDiagnostics(); else if (isSong() && SE.lsp) { SE.sentText = ta.value; SE.lsp.change(ta.value).catch(() => {}); } }, 250); };
   ta.onselectionchange = syncSourceCursor;
   ta.onscroll = () => { gut.scrollTop = ta.scrollTop; hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; lk.scrollTop = ta.scrollTop; lk.scrollLeft = ta.scrollLeft; ghost.scrollTop = ta.scrollTop; ghost.scrollLeft = ta.scrollLeft; };

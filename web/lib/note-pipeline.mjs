@@ -748,7 +748,8 @@ function evaluateCore(text, {
       }
     }
     const v = cache.get(key);
-    return { events: v.events.map((e) => ({ ...e })), span: v.span };
+    // every note of a reference knows its source note (in memory only: writeNotes never writes it); a note that has one already (the source is a chain) keeps the deeper one
+    return { events: v.events.map((e, i) => ({ ...e, origin: e.origin ?? { source: key, index: i, lap: 0 } })), span: v.span };
   };
 
   const micro = (q, unit, node) => {
@@ -1303,7 +1304,8 @@ function evaluateCore(text, {
       if (times === null) return null;
       if (value.events.length * times > limit) { problem(errors, 'cap-events', `repeat(${times}) would make ${value.events.length * times} notes; the limit is ${limit}`, node); return null; }
       const copies = [];
-      for (let k = 0; k < times; k++) for (const e of value.events) copies.push({ ...e, at: e.at + k * value.span });
+      const lapSpan = 1 + value.events.reduce((m, e) => Math.max(m, e.origin?.lap ?? 0), 0);   // laps of a repeat of a repeat stay apart
+      for (let k = 0; k < times; k++) for (const e of value.events) copies.push({ ...e, at: e.at + k * value.span, ...(e.origin ? { origin: { ...e.origin, lap: e.origin.lap + k * lapSpan } } : {}) });
       return { events: copies, span: value.span * times };
     }
     if (name === 'arp') {
@@ -1456,4 +1458,9 @@ export function stableNameOf(seedText) {
   const { ast } = parseExpression(seedText);
   const root = (n) => (n?.kind === 'call' && n.name === 'stable' && n.args.length === 1 && n.args[0].kind === 'string' ? n.args[0].value : n?.kind === 'method' ? root(n.target) : null);
   return root(ast);
+}
+
+/** The origins of the notes of a result, in the shape of `/api/midi/clip-notes` with `origins: true`: [{ at, len, pitch, source, index, lap }] (source is null for a note an operator made). */
+export function originList(events) {
+  return events.map((e) => ({ at: e.at, len: e.len, pitch: e.pitch, source: e.origin?.source ?? null, index: e.origin?.index ?? null, lap: e.origin?.lap ?? null }));
 }
