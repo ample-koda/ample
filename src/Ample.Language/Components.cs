@@ -29,7 +29,10 @@ public sealed record ComponentPort(string Name, string Type, bool Optional, stri
 /// <param name="Line">The 0-based line.</param>
 /// <param name="Attributes">The attributes above it.</param>
 /// <param name="Doc">The doc comment above it, or null.</param>
-public sealed record ComponentProperty(string Name, string Type, string? Default, string? Editor, int Line, IReadOnlyList<ComponentAnnotation> Attributes, DocComment? Doc);
+/// <param name="IsDynamic">Whether it is written <c>dynamic property</c>: its value may differ between builds, so a process that reads it is dynamic (plan D32).</param>
+/// <param name="IsPrivateDeclared">Whether it is written <c>private property</c> (the tools say so when they show the declaration).</param>
+public sealed record ComponentProperty(
+    string Name, string Type, string? Default, string? Editor, int Line, IReadOnlyList<ComponentAnnotation> Attributes, DocComment? Doc, bool IsDynamic = false, bool IsPrivateDeclared = false);
 
 /// <summary>The seal of a component: what the engine wrote when the version was sealed.</summary>
 /// <param name="Payload">The payload hash (<c>sha256:...</c>).</param>
@@ -258,8 +261,11 @@ public static partial class ComponentReader
     [GeneratedRegex(@"^(input|output)\s+([A-Za-z_][\w-]*)\s*:\s*([^{]+?)\s*(\{.*)?$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PortPattern();
 
-    [GeneratedRegex(@"^\s*private\s+(?=property\b)", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex(@"^\s*private\s+(?=(?:dynamic\s+)?property\b)", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PrivatePrefix();
+
+    [GeneratedRegex(@"^\s*dynamic\s+(?=property\b)", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex DynamicPrefix();
 
     [GeneratedRegex(@"^property\s+([A-Za-z_][\w-]*)\s*:\s*([^={]+?)\s*(?:=\s*([^{]*?))?\s*(\{.*)?$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PropertyPattern();
@@ -588,34 +594,39 @@ public static partial class ComponentReader
                 case "private":
                     {
                         string joined = JoinLines(lines, i, stmtEnd, raw);
-                        Match pm = PropertyPattern().Match(PrivatePrefix().Replace(joined, string.Empty, 1));
+                        string afterPrivate = PrivatePrefix().Replace(joined, string.Empty, 1);
+                        bool privateDynamic = DynamicPrefix().IsMatch(afterPrivate);
+                        Match pm = PropertyPattern().Match(DynamicPrefix().Replace(afterPrivate, string.Empty, 1));
                         if (!PrivatePrefix().IsMatch(joined) || !pm.Success)
                         {
                             issues.Add(new ComponentIssue(i, baseCol, lines[i].Length, "AMP2200", Severity.Error,
-                                "Expected: private property <name>: <Type> = <value> (for example private property gain: Gain = -3dB).", string.Empty));
+                                "Expected: private [dynamic] property <name>: <Type> = <value> (for example private property gain: Gain = -3dB).", string.Empty));
                             break;
                         }
 
                         string options = pm.Groups[4].Success ? pm.Groups[4].Value : string.Empty;
                         string? editor = Regex.Match(options, @"\beditor\s+([A-Za-z_][\w-]*)", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } em ? em.Groups[1].Value : null;
                         string? def = pm.Groups[3].Success && pm.Groups[3].Value.Trim().Length > 0 ? pm.Groups[3].Value.Trim() : null;
-                        privateProperties.Add(new ComponentProperty(pm.Groups[1].Value, pm.Groups[2].Value.Trim(), def, editor, i, [.. pendingAttrs], doc));
+                        privateProperties.Add(new ComponentProperty(pm.Groups[1].Value, pm.Groups[2].Value.Trim(), def, editor, i, [.. pendingAttrs], doc, privateDynamic, true));
                         break;
                     }
 
-                case "property":
+                case "dynamic" or "property":
                     {
-                        Match pm = PropertyPattern().Match(JoinLines(lines, i, stmtEnd, raw));
+                        string joinedProperty = JoinLines(lines, i, stmtEnd, raw);
+                        bool dynamicProperty = DynamicPrefix().IsMatch(joinedProperty);
+                        Match pm = PropertyPattern().Match(DynamicPrefix().Replace(joinedProperty, string.Empty, 1).TrimStart());
                         if (!pm.Success)
                         {
-                            issues.Add(new ComponentIssue(i, baseCol, lines[i].Length, "AMP2200", Severity.Error, "Expected: property <name>: <Type> [= <default>] (for example property copies: Int = 3).", string.Empty));
+                            issues.Add(new ComponentIssue(i, baseCol, lines[i].Length, "AMP2200", Severity.Error,
+                                "Expected: [dynamic] property <name>: <Type> [= <default>] (for example property copies: Int = 3).", string.Empty));
                             break;
                         }
 
                         string options = pm.Groups[4].Success ? pm.Groups[4].Value : string.Empty;
                         string? editor = Regex.Match(options, @"\beditor\s+([A-Za-z_][\w-]*)", RegexOptions.None, TimeSpan.FromSeconds(1)) is { Success: true } em ? em.Groups[1].Value : null;
                         string? def = pm.Groups[3].Success && pm.Groups[3].Value.Trim().Length > 0 ? pm.Groups[3].Value.Trim() : null;
-                        properties.Add(new ComponentProperty(pm.Groups[1].Value, pm.Groups[2].Value.Trim(), def, editor, i, [.. pendingAttrs], doc));
+                        properties.Add(new ComponentProperty(pm.Groups[1].Value, pm.Groups[2].Value.Trim(), def, editor, i, [.. pendingAttrs], doc, dynamicProperty));
                         break;
                     }
 
@@ -670,7 +681,7 @@ public static partial class ComponentReader
                     break;
             }
 
-            if (word is "input" or "output" or "property" or "private" or "process" or "ui" or "deprecated" or "migrate" or "seal") pendingAttrs.Clear();
+            if (word is "input" or "output" or "property" or "dynamic" or "private" or "process" or "ui" or "deprecated" or "migrate" or "seal") pendingAttrs.Clear();
             i = stmtEnd;
             _ = bodyDepth;
         }

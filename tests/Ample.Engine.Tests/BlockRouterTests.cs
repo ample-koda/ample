@@ -18,7 +18,7 @@ public sealed class BlockRouterTests
         public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
         {
             seen.Add(request.Settings);
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(new short[2000], 44100))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(new short[2000], 44100, cancellationToken))]);
         }
     }
 

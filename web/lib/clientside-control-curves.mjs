@@ -1,11 +1,12 @@
 // Controls and automated mixes in the client preview, with the integer arithmetic of the server so the preview follows the build:
 //  - a control (ControlCurve.cs): 1000 values a second from its first bar, read at a sample with a truncating straight line;
-//  - curve, map and follow (ControlBlocks.cs; follow without `auto` settings, which the server works out from the recording);
+//  - curve, map and follow (ControlBlocks.cs; the `auto` settings of follow are chosen from the recording as FollowAnalysis.Suggest);
 //  - a control connected to a parameter becomes points every millisecond, scaled to the range of the parameter (ControlBinding.Resolve);
 //  - points joined per sample (Automation.CurveAt) and the dry/wet blend of an automated mix (Effects.cs Blend).
 // Pure, tested in node (web/lib/test/clientside-control-curves.test.mjs).
 import { panPoints } from './live-pan-auto.mjs';
 import { volumeCurve } from './volume-auto.mjs';
+import { expressionToInt } from './control-expression.mjs';
 
 export const CONTROL_RATE = 1000;
 const unquote = (text) => String(text ?? '').trim().replace(/^"|"$/g, '');
@@ -114,18 +115,8 @@ function band(x, rate, text) {
 
 const isqrt = (value) => { if (value <= 0) return 0; let x = Math.floor(Math.sqrt(value)); while (x * x > value) x--; while ((x + 1) * (x + 1) <= value) x++; return x; };
 
-/**
- * The follow block (FollowRenderer) on a mono sound of whole numbers: { level, gate } controls, or null when a setting is `auto` (the server works it out
- * from the recording; the preview takes that block from the build).
- */
-export function followControl(params, mono, rate, firstBar) {
-  const text = (name) => unquote(params?.[name]);
-  if (['band', 'attack', 'release', 'baseline_window'].some((n) => text(n).toLowerCase() === 'auto')) return null;
-  const count = Math.floor(mono.length * CONTROL_RATE / rate) + 1, unit = unitOf(params);
-  if (text('enabled') === 'off') return { level: { firstBar, unit, values: new Int32Array(count) }, gate: { firstBar, unit: null, values: new Int32Array(count) } };
-  const attackMs = milliseconds(text('attack') || '80 ms', 80), releaseMs = milliseconds(text('release') || '600 ms', 600);
-  const windowMs = Math.max(1, milliseconds(text('baseline_window') || '10 s', 10000));
-  const signal = band(mono, rate, text('band') || 'full');
+/** The level of a band as one value per millisecond (ControlBlocks.Envelope): a rising and a falling one-pole envelope of the absolute value, in 8 extra bits. */
+function envelopeSeries(signal, rate, attackMs, releaseMs, count) {
   const attack = Math.max(1, Math.floor(65536 / (Math.floor(attackMs * rate / 1000) + 1))), release = Math.max(1, Math.floor(65536 / (Math.floor(releaseMs * rate / 1000) + 1)));
   const series = new Array(count).fill(0);
   let envelope = 0, next = 0;
@@ -135,6 +126,66 @@ export function followControl(params, mono, rate, firstBar) {
     while (next < count && Math.floor(next * rate / CONTROL_RATE) <= i) series[next++] = envelope;
   }
   while (next < count) series[next++] = envelope;
+  return series;
+}
+
+/** The middle and the loud end (95th percentile) of a series, as FollowAnalysis reads them. */
+function spreadOf(series) {
+  const sorted = Float64Array.from(series).sort();
+  return { median: sorted[Math.floor(sorted.length / 2)], top: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 95 / 100))] };
+}
+
+/** How much the loud end of a series stands out from its middle, per mille of the loud end (FollowAnalysis.Prominence). */
+function prominence(series) {
+  if (!series.length) return 0;
+  const { median, top } = spreadOf(series);
+  return top <= 0 ? 0 : Math.max(0, Math.min(1000, idiv((top - median) * 1000, top)));
+}
+
+/** The median length in milliseconds of the stretches above the middle of the background and the loud end (FollowAnalysis.MedianExcursion). */
+function medianExcursion(series) {
+  const { median, top } = spreadOf(series), level = median + idiv(top - median, 2), lengths = [];
+  let run = 0;
+  for (const v of series) {
+    if (v > level && top > median) run++;
+    else if (run > 0) { lengths.push(run); run = 0; }
+  }
+  if (run > 0) lengths.push(run);
+  if (!lengths.length) return 1000;
+  lengths.sort((a, b) => a - b);
+  return lengths[Math.floor(lengths.length / 2)];
+}
+
+/**
+ * The settings of a follow block that are `auto`, chosen from the recording (FollowAnalysis.Suggest): the band (low, mid or high) whose loud moments stand out most from their own
+ * background, and the times from how long such a moment lasts.
+ * @returns {{ band: string, baselineSeconds: number, attackMilliseconds: number, releaseMilliseconds: number }}
+ */
+export function suggestFollow(mono, rate) {
+  const count = Math.floor(mono.length * CONTROL_RATE / rate) + 1;
+  let best = 'low', bestScore = -1, bestSeries = null;
+  for (const name of ['low', 'mid', 'high']) {
+    const series = envelopeSeries(band(mono, rate, name), rate, 30, 250, count), score = prominence(series);
+    if (score > bestScore) { best = name; bestScore = score; bestSeries = series; }
+  }
+  const duration = bestSeries ? medianExcursion(bestSeries) : 1000, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  return { band: best, baselineSeconds: clamp(idiv(duration * 5, 1000) + 1, 3, 30), attackMilliseconds: clamp(idiv(duration, 8), 20, 300), releaseMilliseconds: clamp(idiv(duration, 3), 150, 2000) };
+}
+
+/**
+ * The follow block (FollowRenderer) on a mono sound of whole numbers: { level, gate } controls. A setting that is `auto` (band, attack, release, baseline_window) comes from
+ * the recording (suggestFollow), as on the server.
+ */
+export function followControl(params, mono, rate, firstBar) {
+  const text = (name) => unquote(params?.[name]), isAuto = (name) => text(name).toLowerCase() === 'auto';
+  const count = Math.floor(mono.length * CONTROL_RATE / rate) + 1, unit = unitOf(params);
+  if (text('enabled') === 'off') return { level: { firstBar, unit, values: new Int32Array(count) }, gate: { firstBar, unit: null, values: new Int32Array(count) } };
+  const suggestion = ['band', 'attack', 'release', 'baseline_window'].some(isAuto) ? suggestFollow(mono, rate) : null;
+  const attackMs = isAuto('attack') ? suggestion.attackMilliseconds : milliseconds(text('attack') || '80 ms', 80);
+  const releaseMs = isAuto('release') ? suggestion.releaseMilliseconds : milliseconds(text('release') || '600 ms', 600);
+  const windowMs = isAuto('baseline_window') ? suggestion.baselineSeconds * 1000 : Math.max(1, milliseconds(text('baseline_window') || '10 s', 10000));
+  const signal = band(mono, rate, isAuto('band') ? suggestion.band : text('band') || 'full');
+  const series = envelopeSeries(signal, rate, attackMs, releaseMs, count);
   let level = series;
   if (text('baseline') !== 'off') {
     const slow = Math.max(1, Math.floor(65536 / (windowMs + 1)));
@@ -171,6 +222,22 @@ export function connectedPoints(control, range, firstBar, barCount, samplesPerBa
   for (let ms = 0; ; ms++) {
     const t = start + Math.floor(ms * rate / CONTROL_RATE), value = controlAt(control, t, rate, samplesPerBar);
     points.push({ sample: t, value: control.unit === null ? min + idiv((max - min) * Math.max(0, Math.min(1000, value)) + 500, 1000) : idiv(value, 1000) });
+    if (t >= end) break;
+  }
+  return points;
+}
+
+/**
+ * The points of a parameter that is an expression over controls (ControlBinding.Resolve, the expression case): one every millisecond from the first bar of the render to its
+ * end, each the expression worked out in fixed point and rounded to a whole number. A reference that is not a control (null) reads 0.
+ * @param {{ evaluate: (valueOf: (index: number) => number) => number }} expression from parseExpression
+ * @param {(object | null)[]} controls the control of every reference, in the order of the references
+ */
+export function expressionPoints(expression, controls, firstBar, barCount, samplesPerBar, rate) {
+  const start = (firstBar - 1) * samplesPerBar, end = start + barCount * samplesPerBar, points = [];
+  for (let ms = 0; ; ms++) {
+    const t = start + Math.floor(ms * rate / CONTROL_RATE);
+    points.push({ sample: t, value: expressionToInt(expression.evaluate((i) => (controls[i] ? controlAt(controls[i], t, rate, samplesPerBar) : 0))) });
     if (t >= end) break;
   }
   return points;

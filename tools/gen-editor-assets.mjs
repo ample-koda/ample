@@ -77,9 +77,33 @@ const grammar = {
 };
 
 const snippets = Object.fromEntries(templates.map((t) => {
-  const params = t.parameters.map((p, i) => `  ${p.name} \${${i + 2}:${String(p.default).replace(/[\\$}]/g, '\\$&')}}`);
+  // a parameter whose default is empty is left out, as the editor does when it adds a block (an empty text or phonemes line is an error)
+  const params = t.parameters.filter((p) => String(p.default).length > 0).map((p, i) => `  ${p.name} \${${i + 2}:${String(p.default).replace(/[\\$}]/g, '\\$&')}}`);
   return [t.title || t.id, { prefix: [t.id], description: t.description || t.title, body: [`${t.id} \${1:${t.id}} {`, ...params, '}', '$0'] }];
 }));
+
+// two short snippets for the speech block next to the generic one: a sentence, and one word per note (the shapes that the docs teach)
+Object.assign(snippets, {
+  'Speech: say a sentence': {
+    prefix: ['speech-text'],
+    description: 'A speech block that says one sentence',
+    body: ['speech ${1:voice} at ${2:1} for ${3:1} {', '  text "${4:I am a robot.}"', '}', '$0'],
+  },
+  'Speech: one word per note': {
+    prefix: ['speech-words'],
+    description: 'A speech block that says one word on every note of a Notes block',
+    body: [
+      'speech ${1:voice} at ${2:1} for ${3:2} {',
+      '  mode "words"',
+      '  text "${4:Get down get funky}"',
+      '  duration_policy "${5|natural,gate,fit|}"',
+      '  gain 12',
+      '  from ${6:tune}.notes -> notes',
+      '}',
+      '$0',
+    ],
+  },
+});
 
 const outputs = [
   [path.join(root, 'editors', 'vscode', 'syntaxes', 'amplet.tmLanguage.json'), grammar],

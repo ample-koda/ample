@@ -26,7 +26,16 @@ public sealed record LiteDiagnostic(string Code, string Severity, int Line, int 
 /// <param name="AudioSeconds">The length of the audio.</param>
 /// <param name="Bytes">The size of the audio.</param>
 /// <param name="Observations">The events of the log view (log, debug, trace, warn) in the order they happened, bounded by the budgets of the sink; empty when the song logs nothing at its level.</param>
-public sealed record LiteBuildResult(bool Ok, IReadOnlyList<LiteDiagnostic> Diagnostics, string? OutputId, double Seconds, double AudioSeconds, long Bytes, IReadOnlyList<LiteObservation>? Observations = null);
+/// <param name="Speech">The words of every speech block that was built, so the page can light the word that sounds; null when there is no speech block.</param>
+public sealed record LiteBuildResult(
+    bool Ok, IReadOnlyList<LiteDiagnostic> Diagnostics, string? OutputId, double Seconds, double AudioSeconds, long Bytes, IReadOnlyList<LiteObservation>? Observations = null,
+    IReadOnlyList<LiteSpeechWords>? Speech = null);
+
+/// <summary>The words of one speech block: where each sounds in the take of the block (samples, half-open) and where it stands in the text (<c>From</c> and <c>To</c>).</summary>
+/// <param name="Block">The name of the block.</param>
+/// <param name="SampleRate">The sample rate the samples count at.</param>
+/// <param name="Words">The words as the take metadata of the block holds them (<c>speech.words</c>).</param>
+public sealed record LiteSpeechWords(string Block, int SampleRate, System.Text.Json.JsonElement Words);
 
 /// <summary>One event of the log view of a Remix build: the level, the event code, the message and hint as text (already redacted and cut), the context as JSON, where it happened (the origin is song or component:name, the line 1-based) and the call stack.</summary>
 public sealed record LiteObservation(long Seq, string Level, string? Code, string Message, string? Hint, System.Text.Json.JsonElement? Context, string? Origin, int Line, int Col, IReadOnlyList<string> Stack);
@@ -37,6 +46,9 @@ public sealed record LiteObservation(long Seq, string Level, string? Code, strin
 /// </summary>
 public static partial class LiteBuilder
 {
+    /// <summary>How many blocks of one Remix build render at the same time (the memory estimate of the speech blocks is the sum of the largest ones).</summary>
+    internal const int BlockParallelism = 2;
+
     [GeneratedRegex(@"[A-Za-z]:[\\/][^\s""'<>|]*|\\\\[^\s""']+|/(?:home|usr|var|tmp|etc|mnt|root|opt)/[^\s""']*", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex AbsolutePath();
 
@@ -85,7 +97,19 @@ public static partial class LiteBuilder
             LitePolicy.CheckSong(texts, doc, spec, limits);
             Takebank bank = Takebank.Open(fs, time, workspace.Root);
             log?.Invoke("The song passes the Remix rules. Rendering the blocks (2 at a time).", 0.1);
-            BuildOptions options = new("bake", null, null, Parallelism: 2);
+            if (limits.MaxSpeechOutputSeconds <= 0 || limits.MaxSpeechWorkingSamples <= 0 || limits.MaxSpeechPeakBytes <= 0
+                || limits.MaxSpeechInputCharacters <= 0 || limits.MaxSpeechNoteEvents <= 0 || limits.MaxSpeechBlocks <= 0)
+                throw new LiteRejectedException("AMPL924", 503, "Remix speech limits are not configured.");
+            BuildOptions options = new("bake", null, null, Parallelism: BlockParallelism)
+            {
+                RendererSettings = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["speech.max_output_samples"] = (limits.MaxSpeechOutputSeconds * 48_000L).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["speech.max_working_samples"] = limits.MaxSpeechWorkingSamples.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["speech.max_input_characters"] = limits.MaxSpeechInputCharacters.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["speech.max_note_events"] = limits.MaxSpeechNoteEvents.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                }
+            };
             if (log is not null) options = options with { Progress = ProgressLog(log, workspace.Root, doc.Blocks.Count), Detail = DetailLog(log, workspace.Root, doc.Blocks.Count) };
             BuildReport report = await new BuildEngine(bank, spec, open.Manifest.Id, workspace.Root).BuildAsync(doc, options, limit.Token).ConfigureAwait(false);
             // the engine reports a block it had to stop as cancelled, without throwing: when the time limit is what stopped it, that is the answer (AMPL923), not a failed block
@@ -120,7 +144,7 @@ public static partial class LiteBuilder
 
             log?.Invoke($"Master is {seconds:0.0} seconds long ({wav.LongLength / 1024} KB). Keeping it for playback.", 0.98);
             string id = outputs.Put(wav, limits);
-            return Result(events, true, found, id, clock, seconds, wav.LongLength);
+            return Result(events, true, found, id, clock, seconds, wav.LongLength) with { Speech = SpeechWordsOf(report, doc, bank) };
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -175,6 +199,43 @@ public static partial class LiteBuilder
     }
 
     private static double Overall(Dictionary<string, double> shown, int total) => 0.1 + (0.8 * Math.Min(1.0, shown.Values.Sum() / Math.Max(1, total)));
+
+    /// <summary>The words of the speech blocks of a build, read from the metadata of their takes (at most one entry per block, and only blocks that wrote word places).</summary>
+    private static List<LiteSpeechWords>? SpeechWordsOf(BuildReport report, AmpleDocument doc, Takebank bank)
+    {
+        List<LiteSpeechWords> found = [];
+        foreach (BlockResult block in report.Blocks.Where(b => b.TakeId is not null && doc.Blocks.Any(d => d.Name == b.Block && d.Type == "speech")))
+        {
+            try
+            {
+                using System.Text.Json.JsonDocument meta = System.Text.Json.JsonDocument.Parse(bank.GetTake(block.TakeId!).MetaJson);
+                System.Text.Json.JsonElement? speech = FindSpeech(meta.RootElement);
+                if (speech is { } s && s.TryGetProperty("words", out System.Text.Json.JsonElement words) && words.ValueKind == System.Text.Json.JsonValueKind.Array && words.GetArrayLength() > 0
+                    && s.TryGetProperty("sampleRate", out System.Text.Json.JsonElement rate) && rate.TryGetInt32(out int sampleRate))
+                {
+                    found.Add(new LiteSpeechWords(block.Block, sampleRate, words.Clone()));
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // a take without readable metadata has no marks; the sound is unchanged
+            }
+        }
+
+        return found.Count == 0 ? null : found;
+    }
+
+    private static System.Text.Json.JsonElement? FindSpeech(System.Text.Json.JsonElement element)
+    {
+        if (element.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
+        if (element.TryGetProperty("speech", out System.Text.Json.JsonElement direct)) return direct;
+        foreach (System.Text.Json.JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind == System.Text.Json.JsonValueKind.Object && property.Value.TryGetProperty("speech", out System.Text.Json.JsonElement inner)) return inner;
+        }
+
+        return null;
+    }
 
     private static LiteBuildResult Result(List<LiteObservation> events, bool ok, List<LiteDiagnostic> found, string? id, Stopwatch clock, double audio, long bytes) => new(ok, found, id, Math.Round(clock.Elapsed.TotalSeconds, 2), Math.Round(audio, 2), bytes, events);
 

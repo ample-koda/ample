@@ -42,6 +42,14 @@ namespace Ample.Server.Lite;
 /// <param name="BuildMaxFiles">Grandfathering: the most files a build still accepts when it is higher than MaxFiles (0 = no extra). Raise this to the old MaxFiles when lowering MaxFiles, so existing projects keep working and new files are refused.</param>
 /// <param name="BuildMaxProjectBytes">The same for the total size of a project.</param>
 /// <param name="MaxBuildMemoryMegabytes">The memory a build in its own process may use before it is stopped (with isolation).</param>
+/// <param name="MaxSpeechOutputSeconds">The longest span (placed length, silence included) of one speech block, in seconds.</param>
+/// <param name="MaxSpeechOutputSecondsPerBuild">The summed span of all speech blocks of a build, in seconds.</param>
+/// <param name="MaxSpeechInputCharactersPerBuild">The summed text and phoneme characters of all speech blocks of a build.</param>
+/// <param name="MaxSpeechPeakBytes">The estimated memory that the speech blocks that run at the same time may ask for in one Remix build (the sum of the largest ones).</param>
+/// <param name="MaxSpeechWorkingSamples">Maximum speech working sample units per block for a Remix build.</param>
+/// <param name="MaxSpeechInputCharacters">Maximum text or phoneme input characters per speech block.</param>
+/// <param name="MaxSpeechNoteEvents">Maximum note events inspected per speech block.</param>
+/// <param name="MaxSpeechBlocks">Maximum expanded speech blocks per build.</param>
 public sealed record LiteLimits(
     int MaxFiles = 200,
     int MaxDepth = 6,
@@ -80,7 +88,15 @@ public sealed record LiteLimits(
     int BuildMaxFiles = 0,
     long BuildMaxProjectBytes = 0,
     int BuildsPerFiveMinutes = 0,
-    int BuildsPerFifteenMinutes = 0)
+    int BuildsPerFifteenMinutes = 0,
+    int MaxSpeechOutputSeconds = 60,
+    int MaxSpeechOutputSecondsPerBuild = 120,
+    long MaxSpeechPeakBytes = 144L * 1024 * 1024,
+    int MaxSpeechWorkingSamples = 600_000,
+    int MaxSpeechInputCharacters = 4096,
+    int MaxSpeechInputCharactersPerBuild = 16_384,
+    int MaxSpeechNoteEvents = 1024,
+    int MaxSpeechBlocks = 8)
 {
     /// <summary>The most files a build still accepts: <see cref="MaxFiles"/>, or <see cref="BuildMaxFiles"/> when that is higher. Lower MaxFiles later and set BuildMaxFiles to the old value: projects that exist keep building, new files cannot be added past MaxFiles.</summary>
     public int FilesAccepted => Math.Max(MaxFiles, BuildMaxFiles);

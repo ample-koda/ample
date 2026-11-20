@@ -20,7 +20,7 @@ internal sealed class AudioRateRenderer(IBlockRenderer renderer) : IBlockRendere
             short[] left = Resample(channels.Left, rate, request.SampleRate, cancellationToken);
             inputs[port.Name] = ChannelAudio.IsStereo(audio)
                 ? StereoWav.Encode(new StereoBuffer(left, Resample(channels.Right, rate, request.SampleRate, cancellationToken)), request.SampleRate)
-                : Wav.Encode(left, request.SampleRate);
+                : Wav.Encode(left, request.SampleRate, cancellationToken);
         }
         return renderer.RenderAsync(request with { Inputs = inputs }, cancellationToken);
     }

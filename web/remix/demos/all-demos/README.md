@@ -52,3 +52,5 @@ song.amplet (Welcome to AMPLE) is the song that opens. Every other demo is in it
 - iron-furnace/song.amplet: Iron Furnace (Genres, Intermediate)
 - lanterns/song.amplet: Lanterns on the Water (Genres, Beginner)
 - backroom-groove/song.amplet: Backroom Groove (Genres, Intermediate)
+- speech-hello/song.amplet: Hello speech (Instruments, Beginner)
+- funk-it-up/song.amplet: Funk It Up (Genres, Advanced)

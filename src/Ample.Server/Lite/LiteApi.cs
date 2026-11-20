@@ -190,7 +190,17 @@ public static class LiteApi
         app.MapDelete("/api/remix/output/{id}", (string id) => outputs.Remove(id) ? Results.NoContent() : Results.NotFound());
     }
 
-    private static object Shape(LiteBuildResult result) => new { ok = result.Ok, diagnostics = result.Diagnostics, observations = result.Observations ?? [], outputId = result.OutputId, seconds = result.Seconds, audioSeconds = result.AudioSeconds, bytes = result.Bytes };
+    private static object Shape(LiteBuildResult result) => new
+    {
+        ok = result.Ok,
+        diagnostics = result.Diagnostics,
+        observations = result.Observations ?? [],
+        outputId = result.OutputId,
+        seconds = result.Seconds,
+        audioSeconds = result.AudioSeconds,
+        bytes = result.Bytes,
+        speech = result.Speech,
+    };
 
     /// <summary>A build that tells the page what it does: one JSON object per line (<c>log</c> with text and how far the build is, then <c>result</c>). The page cancels by closing the request.</summary>
     private static async Task<IResult> StreamBuild(HttpContext context, SpecData spec, string libraryHome, string entry, List<LiteFile> files, Dictionary<string, string> options, LiteLimits lim, LiteOutputs outputs, LiteGovernor governor, IReadOnlyList<string> keys, LiteIsolation? isolation)

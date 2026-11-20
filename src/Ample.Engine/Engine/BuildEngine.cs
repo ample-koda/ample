@@ -35,6 +35,9 @@ public sealed record BuildOptions(string Intent = "bake", BarRange? Range = null
     /// <summary>Gets unsaved project module sources to use for this build, keyed by relative project path.</summary>
     public IReadOnlyDictionary<string, string>? ModuleSources { get; init; }
 
+    /// <summary>Gets host-enforced renderer settings, keyed by renderer settings prefix and name.</summary>
+    public IReadOnlyDictionary<string, string>? RendererSettings { get; init; }
+
     /// <summary>Gets whether to only work out the plan of every block and look for its take (a dry run): nothing is rendered or stored, a block without a take is <c>stale</c>.</summary>
     public bool PlanOnly { get; init; }
 
@@ -124,7 +127,61 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
     /// The length of an unplaced sequencer (no placement, no <c>bars</c> parameter): the end of the last clip of its playlist, so that a long performance is not cut at the default of 8 bars.
     /// Null when the block is placed, has a length of its own, or its sequence cannot be read.
     /// </summary>
-    private static int? PlaylistBars(string projectRoot, BlockNode block)
+    private static int? PlaylistBars(string projectRoot, BlockNode block) => PlaylistBars(ReadProjectFile(projectRoot), block);
+
+    private static Func<string, string?> ReadProjectFile(string projectRoot) => file =>
+        Ample.Audio.IO.ProjectPath.Resolve(projectRoot, file) is { } full && File.Exists(full) ? File.ReadAllText(full) : null;
+
+    /// <summary>
+    /// The length in bars that a build gives a block: the placement span (gaps between placements included), its <c>bars</c> parameter, the playlist of an unplaced sequencer,
+    /// else the length of the block that feeds it, else 8. The build and a host policy (the Remix speech quota) both use this one definition.
+    /// </summary>
+    /// <param name="block">The block to measure.</param>
+    /// <param name="doc">The song the block belongs to.</param>
+    /// <param name="readFile">Reads a project file by the path a block names (null when it does not exist).</param>
+    /// <param name="spec">The templates of the song; when it is null the ones of the parsed document are used.</param>
+    public static int EffectiveBars(BlockNode block, AmpleDocument doc, Func<string, string?> readFile, SpecData? spec = null)
+    {
+        ArgumentNullException.ThrowIfNull(block);
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(readFile);
+        Dictionary<string, IBlockRenderer> renderers = BuiltInRenderers.All.ToDictionary(r => r.BlockType);
+        return BlockTiming.Bars(block, doc, [], InferredBars(doc, renderers, spec, readFile));
+    }
+
+    /// <summary>
+    /// The length in bars of a block that has no placement and no <c>bars</c> parameter, as far as it can be known before rendering: the end of the
+    /// playlist of a sequencer, or what the renderer of the block says about its own duration (<see cref="IBlockDurationPlanner"/>, speech).
+    /// The duration is counted at the full sample rate and only the number of bars is rounded up, so a preview and a full build give a block the same bars.
+    /// </summary>
+    internal static Func<BlockNode, int?> InferredBars(AmpleDocument doc, IReadOnlyDictionary<string, IBlockRenderer> renderers, SpecData? spec, Func<string, string?> readFile)
+    {
+        SpecData? known = spec ?? doc.Spec;
+        long tempoMilli = (long)((doc.Project?.Tempo ?? 92) * 1000 + 0.5);
+        int samplesPerBar = FixedAudio.SamplesPerBar(FullRate, tempoMilli, doc.Project?.MeterNumerator ?? 4, doc.Project?.MeterDenominator ?? 4);
+        return block =>
+        {
+            if (PlaylistBars(readFile, block) is int playlist) return playlist;
+            if (block.Parts.Count > 0 || block.Parameters.Any(p => p.Name == "bars")) return null;
+            if (!renderers.TryGetValue(block.Type, out IBlockRenderer? renderer) || renderer is not IBlockDurationPlanner planner) return null;
+            if (known is null || !known.Templates.TryGetValue(block.Type, out TemplateSpec? template)) return null;
+            long? samples;
+            try
+            {
+                samples = planner.PlannedSamples(block, template, FullRate);
+            }
+            catch (AmpleException)
+            {
+                return null;   // the render reports it
+            }
+
+            if (samples is not > 0 || samplesPerBar <= 0) return null;
+            long bars = (samples.Value + samplesPerBar - 1) / samplesPerBar;
+            return bars > int.MaxValue ? null : (int)bars;
+        };
+    }
+
+    private static int? PlaylistBars(Func<string, string?> readFile, BlockNode block)
     {
         if (block.Type != "sequencer" || block.Parts.Count > 0 || block.Parameters.Any(p => p.Name == "bars"))
         {
@@ -140,9 +197,9 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
             {
                 text = embedded;
             }
-            else if (file.Length > 0 && Ample.Audio.IO.ProjectPath.Resolve(projectRoot, file) is { } full && File.Exists(full))
+            else if (file.Length > 0 && readFile(file) is { } read)
             {
-                text = File.ReadAllText(full);
+                text = read;
             }
             else
             {
@@ -239,7 +296,8 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
     {
         ArgumentNullException.ThrowIfNull(doc);
         List<BlockNode> blocks = [.. doc.Blocks.Where(b => !b.Skipped && spec.Templates.ContainsKey(b.Type) && b.Class.Length > 0)];
-        return SongBars(blocks, b => PlaylistBars(projectRoot, b)) * 4 * 60.0 / (doc.Project?.Tempo ?? 92);
+        Dictionary<string, IBlockRenderer> known = BuiltInRenderers.All.ToDictionary(r => r.BlockType);
+        return SongBars(blocks, InferredBars(doc, known, spec, ReadProjectFile(projectRoot))) * 4 * 60.0 / (doc.Project?.Tempo ?? 92);
     }
 
     /// <summary>Builds the document.</summary>
@@ -263,7 +321,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         HashSet<string> wanted = options.Only is null ? [.. blocks.Select(b => b.Name)] : Needed(blocks, options.Only);
         List<List<BlockNode>> levels = Levels(blocks.Where(b => wanted.Contains(b.Name)).ToList());
 
-        int songBars = SongBars(blocks, b => PlaylistBars(projectRoot, b));
+        int songBars = SongBars(blocks, InferredBars(doc, renderers, spec, ReadProjectFile(projectRoot)));
         BarRange range = options.Range ?? new BarRange(1, songBars);
         int spb = FixedAudio.SamplesPerBar(rate, tempoMilli, doc.Project?.MeterNumerator ?? 4, doc.Project?.MeterDenominator ?? 4);
         ConcurrentDictionaryLike results = new();
@@ -375,7 +433,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         block = ResolveSing(block, doc);
         block = ApplyBusSolo(block, doc);
         // a sequencer that is not placed is as long as its playlist, not the default of 8 bars, and so is every unplaced block that follows it
-        int localBars = BlockTiming.Bars(block, doc, [], b => PlaylistBars(projectRoot, b));
+        int localBars = BlockTiming.Bars(block, doc, [], InferredBars(doc, renderers, spec, ReadProjectFile(projectRoot)));
         block = BlockTiming.Local(block);
         TemplateSpec template = spec.Templates[block.Type];
         if (block.Flags.Contains("disabled")) return new BlockResult(block.Name, "disabled", null, "AMP5254: this block is disabled.");
@@ -622,6 +680,13 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
                 {
                     songSettings[over.Key] = over.Value;
                 }
+            }
+
+            if (options.RendererSettings is not null)
+            {
+                // host limits are applied after the song's settings, so a song cannot loosen them
+                foreach ((string key, string value) in options.RendererSettings)
+                    if (key.StartsWith(prefix, StringComparison.Ordinal)) songSettings[key[prefix.Length..]] = value;
             }
 
             if (songSettings.Count > 0)

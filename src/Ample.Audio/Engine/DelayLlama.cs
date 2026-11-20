@@ -373,7 +373,7 @@ internal sealed class DelayLlamaRenderer : IBlockRenderer
         int length = r.BarCount * r.SamplesPerBar;
         if (Text("enabled") == "off")
         {
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(new short[length], r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(new short[length], r.SampleRate, cancellationToken))]);
         }
 
         DelayLlama.Settings defaults = new();
@@ -389,6 +389,6 @@ internal sealed class DelayLlamaRenderer : IBlockRenderer
         short[] l = [.. left.Select(v => (short)Math.Clamp(Math.Round(v * 32767), short.MinValue, short.MaxValue))];
         short[] rr = [.. right.Select(v => (short)Math.Clamp(Math.Round(v * 32767), short.MinValue, short.MaxValue))];
         bool stereo = settings.Unison > 1 || settings.Echo > 0;
-        return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", stereo ? StereoWav.Encode(new StereoBuffer(l, rr), r.SampleRate) : Wav.Encode(l, r.SampleRate))]);
+        return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", stereo ? StereoWav.Encode(new StereoBuffer(l, rr), r.SampleRate) : Wav.Encode(l, r.SampleRate, cancellationToken))]);
     }
 }

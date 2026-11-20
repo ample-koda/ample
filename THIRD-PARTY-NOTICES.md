@@ -11,6 +11,8 @@ AMPLE is MIT licensed. It uses the following third-party software and sound sets
 | Microsoft.Data.Sqlite | 10.0.12 | Microsoft Corporation | [MIT](LICENSES/dotnet-runtime.txt) |
 | SQLitePCLRaw | 2.1.12 | 2014-2024 SourceGear, LLC | [Apache-2.0](LICENSES/Apache-2.0.txt) |
 | SQLite | bundled by SQLitePCLRaw | none: public domain | https://www.sqlite.org/copyright.html |
+| Humanico voice (Klatt synthesis, phone tables and calibration ported or derived in `src/Ample.Speech`; pinned at revision ce793bc9304cf34637199b0efde72c8afe130b1d) | ce793bc9 | 2026 Jacob Garcia | [MIT](LICENSES/humanico-voice.txt) |
+| CMU Pronouncing Dictionary (cmudict.dict, embedded in `Ample.Speech`) | 2026-11-18 file, SHA-256 81917843C7F44CE2B094AC63873C2C7A4CF802040792C455BA3CA406891C3D22 | 1993-2015 Carnegie Mellon University | [BSD-2-Clause](LICENSES/cmudict.txt) |
 | NVorbis | 0.10.5 | 2020 Andrew Ward | [MIT](LICENSES/nvorbis.txt) |
 | spessasynth_core (vendored in `web/vendor/spessasynth/`) | 4.4.10 | spessasus | [Apache-2.0](LICENSES/Apache-2.0.txt) |
 | stb-vorbis (vendored, with spessasynth_core) | 0.0.7 | spessasus | [Apache-2.0](LICENSES/Apache-2.0.txt) |

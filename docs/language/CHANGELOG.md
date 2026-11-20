@@ -1,5 +1,10 @@
 # Language changelog
 
+## `private property` in audio components, and `dynamic property` (2026-11-19)
+- A `private property` works in an audio component too (AMP2263 is retired): it is worked out when the instance is built, in the order written, and an instance cannot set it.
+- `dynamic property name: Type = value` (also `private dynamic property`) marks a property whose value may differ between builds. A Notes component whose process reads one is a dynamic helper; the mark is in the semantic hash of a component that has it, and a component without it keeps its hash.
+- The editor: the hover shows `private` and `dynamic` and says what they mean, the completion offers `private property` and `dynamic property`.
+
 ## A melody or chords clip is a note pipeline source (2026-11-17)
 - `theme.notes |> shift(3beats)` and other pipelines may read a midi-clip written with `melody "..."` or `chords ...` (no `notes`): the source is the notes the clip plays, made by the same code as the build (`ClipShorthand`). Before, such a clip was AMP2028 ("has no notes to read"). A clip with neither notes, melody nor chords is still AMP2028. Songs that already checked clean are unchanged.
 

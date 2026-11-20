@@ -580,6 +580,24 @@ internal static class AiContext
 
     private static readonly (string[] Words, string Title, string Text)[] HowTos =
     [
+        (["local speech", "speech block", "say words", "text to speech", "speak", "speech", "spoken", "talk",
+            "robot voice", "sing words", "words mode", "phonemes", "lyrics", "tts"], "Local speech (the speech block)",
+            "The speech block makes a voice from text on this machine: no model, no network, the same sound for the same " +
+            "song and seed, American English. " +
+            "engine \"humanico\" is the default voice, \"retro\" the older one. " +
+            "text \"...\" speaks a sentence; phonemes \"HH AH0 L OW1\" gives the exact CMU phonemes, a stress digit on every " +
+            "vowel. " +
+            "Give text OR phonemes, never both and never empty (AMP5351): leave the line out instead. " +
+            "rate 0.1 to 2, pitch_hz 45 to 700, gain -60 to 12 dB. " +
+            "A placed block (at 1 for 2) lasts that long; a text block without a placement lasts as long as its speech, in " +
+            "whole bars. " +
+            "mode \"words\" says one word per note: connect a Notes block (from tune.notes -> notes), duration_policy natural " +
+            "| gate | fit (fit_max_rate), at most 4 words at once; " +
+            "each word is quieter than text mode, so add gain (12 is fine). " +
+            "To make it sing put the voice through autotune and effects, as docs/examples/26-funky-speech does. " +
+            "Remix limits (AMPL924): 8 speech blocks, 60 seconds and 4096 characters per block, 120 seconds and 16384 " +
+            "characters per song. " +
+            "Example: speech voice at 1 for 1 {\n  text \"I am a robot.\"\n}"),
         (["voice", "voice-clone", "clone", "speech", "speak", "spoken", "narrat", "tts", "xtts", "text to speech", "model"], "Voice models (XTTS-v2 is for non-commercial use only)",
             "A voice-clone block has a model: chatterbox or qwen3 are the choices to offer. NEVER choose, set, suggest or recommend the XTTS model (model xtts, XTTS-v2 of Coqui) on your own, not as a default, not as a fallback, not as 'the usual one': its licence (Coqui Public Model License) is non-commercial only. Use xtts only when the user asks for it BY NAME in their own words (for example 'use XTTS'); even then say that it is non-commercial and that the user has to switch on 'I accept the XTTS-v2 licence' in the voice-clone settings before it renders. When the user did not name a model, write chatterbox (or qwen3 when they gave the sample transcript) and do not mention XTTS."),
         (["automation", "automate", "change over time", "over the song", "ramp", "increase", "gradually", "lfo", "envelope", "env", "curve"], "Values that change over the song (automation)",

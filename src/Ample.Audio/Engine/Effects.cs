@@ -73,7 +73,7 @@ public static class AudioEffects
 
                 short[] rampSamples = input is null ? new short[length] : Wav.Decode(input).Samples;
                 int[] swept = TimeStretch.Speed([.. rampSamples.Select(s => (int)s)], speeds, r.SampleRate);
-                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode([.. swept.Select(v => FixedAudio.Clip(v))], r.SampleRate))]);
+                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode([.. swept.Select(v => FixedAudio.Clip(v))], r.SampleRate, cancellationToken))]);
             }
 
             if (blockType == "pitch" && Automation.Is(Text("semitones")) && Text("enabled") != "off")
@@ -87,7 +87,7 @@ public static class AudioEffects
                 short[][] source = stereo ? [bendChannels.Left, bendChannels.Right] : [bendChannels.Left];
                 double[][] bent = Autotune.Spectral(source, bendRate, position => cents[(int)Math.Clamp(position, 0, cents.Length - 1)] / 100.0, Text("method") == "voice", cancellationToken);
                 short[][] clipped = [.. bent.Select(channel => channel.Select(v => (short)Math.Clamp(Math.Round(v), short.MinValue, short.MaxValue)).ToArray())];
-                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", stereo ? StereoWav.Encode(new StereoBuffer(clipped[0], clipped[1]), bendRate) : Wav.Encode(clipped[0], bendRate))]);
+                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", stereo ? StereoWav.Encode(new StereoBuffer(clipped[0], clipped[1]), bendRate) : Wav.Encode(clipped[0], bendRate, cancellationToken))]);
             }
 
             // an automated mix, mix auto(bar:percent, ...): the effect runs fully wet and the dry and wet sound are blended per sample afterwards
@@ -137,7 +137,7 @@ public static class AudioEffects
                 short[] sweptLeft = [.. Sweep([.. both.Left.Select(v => (int)v)]).Select(v => FixedAudio.Clip(v))];
                 if (!stereo)
                 {
-                    return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(sweptLeft, filterRate))]);
+                    return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(sweptLeft, filterRate, cancellationToken))]);
                 }
 
                 short[] sweptRight = [.. Sweep([.. both.Right.Select(v => (int)v)]).Select(v => FixedAudio.Clip(v))];
@@ -181,7 +181,7 @@ public static class AudioEffects
                 }
 
                 int[][] keyedMono = keyedProcess(Number, r.SampleRate, key, thresholds, [[.. Wav.Decode(input).Samples.Select(v => (int)v)]]);
-                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode([.. keyedMono[0].Select(v => FixedAudio.Clip(v))], r.SampleRate))]);
+                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode([.. keyedMono[0].Select(v => FixedAudio.Clip(v))], r.SampleRate, cancellationToken))]);
             }
 
             if (stereo)
@@ -223,7 +223,7 @@ public static class AudioEffects
                 result = [.. wide.Select(v => FixedAudio.Clip(v))];
             }
 
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(result, r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(result, r.SampleRate, cancellationToken))]);
         }
     }
 
@@ -259,7 +259,7 @@ public static class AudioEffects
 
             if (Text("enabled") == "off")
             {
-                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", stereo ? input! : Wav.Encode(mono, r.SampleRate))]);
+                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", stereo ? input! : Wav.Encode(mono, r.SampleRate, cancellationToken))]);
             }
 
             string[] groups = [.. Text("pattern").Split('|').Select(g => g.Replace(" ", string.Empty, StringComparison.Ordinal)).Where(g => g.Length > 0)];
@@ -278,7 +278,7 @@ public static class AudioEffects
                 return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", StereoWav.Encode(new StereoBuffer(left, right), rate))]);
             }
 
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(Apply(mono, r, groups, bars, depth, mix), r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(Apply(mono, r, groups, bars, depth, mix), r.SampleRate, cancellationToken))]);
         }
 
         private static short[] Apply(short[] x, RenderRequest r, string[] groups, HashSet<int> bars, int depth, int mix)
@@ -372,7 +372,7 @@ public static class AudioEffects
             if (Text("enabled") == "off")
             {
                 // bypass: the sound goes through untouched, stereo stays the very same bytes
-                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", stereo ? input! : Wav.Encode(samples, r.SampleRate))]);
+                return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", stereo ? input! : Wav.Encode(samples, r.SampleRate, cancellationToken))]);
             }
 
             int[] gain = Curve(r, Text, samples.Length);
@@ -384,7 +384,7 @@ public static class AudioEffects
                 return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", StereoWav.Encode(new StereoBuffer(left, right), rate))]);
             }
 
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(Apply(samples, gain), r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(Apply(samples, gain), r.SampleRate, cancellationToken))]);
         }
 
         private static short[] Apply(short[] samples, int[] gain)

@@ -32,13 +32,32 @@ test('map rescales, inverts and limits like MapRenderer', () => {
   assert.deepEqual([...mapControl({ invert: 'on' }, source).values], [1000, 500, 0, 0]);
 });
 
-test('follow: a loud start gives a high level, then the release lets it fall; auto settings are left to the server', () => {
+test('follow: a loud start gives a high level, then the release lets it fall', () => {
   const rate = 8000, mono = new Int32Array(rate);
   for (let i = 0; i < 2000; i++) mono[i] = i % 2 ? 20000 : -20000;
   const made = followControl({ attack: '5 ms', release: '50 ms', baseline: 'off' }, mono, rate, 1);
   assert.ok(made.level.values[200] > 900);
   assert.ok(made.level.values[900] < 50);
-  assert.equal(followControl({ band: 'auto' }, mono, rate, 1), null);
+});
+
+test('follow: auto settings are chosen from the recording like FollowAnalysis.Suggest', async () => {
+  // a car in the low band (a 100 Hz tone for 1 s in every 4) over a steady hiss in the high band
+  const rate = 16000, seconds = 24, mono = new Int32Array(rate * seconds);
+  let seed = 7;
+  for (let i = 0; i < mono.length; i++) {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    const hiss = ((seed >> 8) % 2001) - 1000, car = Math.floor(i / rate) % 4 === 1 ? Math.round(Math.sin(i * 2 * Math.PI * 100 / rate) * 12000) : 0;
+    mono[i] = hiss + car;
+  }
+  const { suggestFollow } = await import('../clientside-control-curves.mjs');
+  const suggestion = suggestFollow(mono, rate);
+  assert.equal(suggestion.band, 'low');
+  assert.ok(suggestion.attackMilliseconds >= 20 && suggestion.attackMilliseconds <= 300);
+  assert.ok(suggestion.releaseMilliseconds >= 150 && suggestion.releaseMilliseconds <= 2000);
+  assert.ok(suggestion.baselineSeconds >= 3 && suggestion.baselineSeconds <= 30);
+  const made = followControl({ band: 'auto', attack: 'auto', release: 'auto', baseline_window: 'auto' }, mono, rate, 1);
+  assert.ok(made.level.values[1500] > made.level.values[3500], 'louder in the second of the car than in the quiet one after it');
+  assert.equal(followControl({ band: 'auto', enabled: 'off' }, mono, rate, 1).level.values.every((v) => v === 0), true);
 });
 
 test('a connected general control is scaled to the range of the parameter', () => {

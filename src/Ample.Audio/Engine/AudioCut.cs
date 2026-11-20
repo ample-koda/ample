@@ -138,7 +138,7 @@ internal sealed class CutRenderer : IBlockRenderer
 
     public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
     {
-        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate);
+        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate, cancellationToken);
         string Value(string name) => request.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value ?? request.Template.Parameters.GetValueOrDefault(name) ?? string.Empty;
         (StereoBuffer channels, int rate) = ChannelAudio.Decode(input);
         if (Value("enabled") == "off") return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", input), new RenderOutput("out", input)]);
@@ -207,7 +207,7 @@ internal sealed class ShiftRenderer : IBlockRenderer
 
     public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
     {
-        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate);
+        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate, cancellationToken);
         string Value(string name) => request.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value ?? request.Template.Parameters.GetValueOrDefault(name) ?? string.Empty;
         (StereoBuffer channels, int rate) = ChannelAudio.Decode(input);
         if (Value("enabled") == "off") return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", input), new RenderOutput("out", input)]);

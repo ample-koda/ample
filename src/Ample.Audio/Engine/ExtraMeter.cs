@@ -14,7 +14,7 @@ internal sealed class MeterRenderer : ExtraEffect
 
     protected override IReadOnlyList<RenderOutput> Process(RenderRequest r, CancellationToken cancellationToken)
     {
-        byte[] audio = r.Inputs.TryGetValue("in", out byte[]? input) ? input : Wav.Encode(new short[r.BarCount * r.SamplesPerBar], r.SampleRate);
+        byte[] audio = r.Inputs.TryGetValue("in", out byte[]? input) ? input : Wav.Encode(new short[r.BarCount * r.SamplesPerBar], r.SampleRate, cancellationToken);
         (short[] left, short[] right, int rate, bool stereo) = Input(r);
         short[] all = stereo ? [.. left, .. right] : left;
         double peak = AudioMeter.PeakDbfs(all);

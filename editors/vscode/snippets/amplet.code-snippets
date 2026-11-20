@@ -6,23 +6,14 @@
     "description": "Creates intended backing music or a full song. Lyrics are optional: without them it makes instrumental music.",
     "body": [
       "ace-music ${1:ace-music} {",
-      "  music_direction ${2:}",
-      "  steps ${3:}",
-      "  adapter ${4:}",
-      "  adapter_scale ${5:}",
-      "  voice_strength ${6:}",
-      "  guidance ${7:}",
-      "  shift ${8:}",
-      "  solver ${9:euler}",
-      "  lm_temperature ${10:0.85}",
-      "  lm_cfg_scale ${11:2}",
-      "  lm_top_p ${12:0.9}",
-      "  lm_top_k ${13:0}",
-      "  lm_negative_prompt ${14:}",
-      "  lm_seed ${15:derived}",
-      "  seed ${16:derived}",
-      "  channels ${17:auto}",
-      "  engine ${18:}",
+      "  solver ${2:euler}",
+      "  lm_temperature ${3:0.85}",
+      "  lm_cfg_scale ${4:2}",
+      "  lm_top_p ${5:0.9}",
+      "  lm_top_k ${6:0}",
+      "  lm_seed ${7:derived}",
+      "  seed ${8:derived}",
+      "  channels ${9:auto}",
       "}",
       "$0"
     ]
@@ -34,26 +25,15 @@
     "description": "Sings the linked timed lyrics as isolated vocals only; it never intentionally asks ACE-Step for backing music.",
     "body": [
       "ai-voice ${1:ai-voice} {",
-      "  voice ${2:}",
-      "  voice_sample ${3:}",
-      "  adapter ${4:}",
-      "  adapter_scale ${5:}",
-      "  voice_strength ${6:}",
-      "  sing ${7:}",
-      "  fit ${8:off}",
-      "  steps ${9:}",
-      "  guidance ${10:}",
-      "  shift ${11:}",
-      "  solver ${12:euler}",
-      "  lm_temperature ${13:0.85}",
-      "  lm_cfg_scale ${14:2}",
-      "  lm_top_p ${15:0.9}",
-      "  lm_top_k ${16:0}",
-      "  lm_negative_prompt ${17:}",
-      "  lm_seed ${18:derived}",
-      "  seed ${19:derived}",
-      "  channels ${20:auto}",
-      "  engine ${21:}",
+      "  fit ${2:off}",
+      "  solver ${3:euler}",
+      "  lm_temperature ${4:0.85}",
+      "  lm_cfg_scale ${5:2}",
+      "  lm_top_p ${6:0.9}",
+      "  lm_top_k ${7:0}",
+      "  lm_seed ${8:derived}",
+      "  seed ${9:derived}",
+      "  channels ${10:auto}",
       "}",
       "$0"
     ]
@@ -66,13 +46,10 @@
     "body": [
       "ambience ${1:ambience} {",
       "  enabled ${2:on}",
-      "  file ${3:}",
-      "  start ${4:}",
-      "  end ${5:}",
-      "  segment ${6:12}",
-      "  crossfade ${7:3}",
-      "  variation ${8:40}",
-      "  channels ${9:auto}",
+      "  segment ${3:12}",
+      "  crossfade ${4:3}",
+      "  variation ${5:40}",
+      "  channels ${6:auto}",
       "}",
       "$0"
     ]
@@ -107,8 +84,7 @@
       "  humanize ${6:30%}",
       "  vibrato ${7:keep}",
       "  method ${8:spectral}",
-      "  fixes ${9:}",
-      "  channels ${10:auto}",
+      "  channels ${9:auto}",
       "}",
       "$0"
     ]
@@ -189,11 +165,10 @@
       "  slices ${2:auto}",
       "  sensitivity ${3:50 %}",
       "  gap ${4:150 ms}",
-      "  pattern ${5:}",
-      "  step ${6:1}",
-      "  gate ${7:90 %}",
-      "  fit ${8:0 %}",
-      "  repeat ${9:1}",
+      "  step ${5:1}",
+      "  gate ${6:90 %}",
+      "  fit ${7:0 %}",
+      "  repeat ${8:1}",
       "}",
       "$0"
     ]
@@ -269,13 +244,12 @@
       "convolution ${1:convolution} {",
       "  enabled ${2:on}",
       "  ir ${3:file}",
-      "  file ${4:}",
-      "  mix ${5:30}",
-      "  predelay ${6:0}",
-      "  length ${7:3}",
-      "  level ${8:0}",
-      "  normalize ${9:on}",
-      "  channels ${10:auto}",
+      "  mix ${4:30}",
+      "  predelay ${5:0}",
+      "  length ${6:3}",
+      "  level ${7:0}",
+      "  normalize ${8:on}",
+      "  channels ${9:auto}",
       "}",
       "$0"
     ]
@@ -316,12 +290,8 @@
     "body": [
       "cut ${1:cut} {",
       "  enabled ${2:on}",
-      "  start ${3:}",
-      "  end ${4:}",
-      "  first ${5:}",
-      "  last ${6:}",
-      "  loop ${7:off}",
-      "  channels ${8:auto}",
+      "  loop ${3:off}",
+      "  channels ${4:auto}",
       "}",
       "$0"
     ]
@@ -438,13 +408,8 @@
       "  bars ${4:16}",
       "  steps ${5:16}",
       "  swing ${6:0}",
-      "  choke ${7:}",
-      "  map ${8:}",
-      "  fallback ${9:}",
-      "  humanize ${10:0}",
-      "  patterns ${11:}",
-      "  song ${12:}",
-      "  channels ${13:auto}",
+      "  humanize ${7:0}",
+      "  channels ${8:auto}",
       "}",
       "$0"
     ]
@@ -650,16 +615,13 @@
     "description": "Plays recorded guitar notes from a sample set of the project as a strummed chord pattern. It needs a sample set and notes, and gives audio.",
     "body": [
       "guitar ${1:guitar} {",
-      "  set ${2:}",
-      "  strum ${3:D...D...D.u.D.u.}",
-      "  steps ${4:16}",
-      "  voicing ${5:open}",
-      "  stagger ${6:22}",
-      "  gain ${7:0}",
-      "  humanize ${8:0}",
-      "  patterns ${9:}",
-      "  song ${10:}",
-      "  channels ${11:auto}",
+      "  strum ${2:D...D...D.u.D.u.}",
+      "  steps ${3:16}",
+      "  voicing ${4:open}",
+      "  stagger ${5:22}",
+      "  gain ${6:0}",
+      "  humanize ${7:0}",
+      "  channels ${8:auto}",
       "}",
       "$0"
     ]
@@ -671,17 +633,10 @@
     "description": "Plays an audio (WAV) file of the project as a sound source, optionally only a part of it, offset in time or looped. The file is identified by its content, so the song keeps working if the file is renamed. It needs a file and gives audio.",
     "body": [
       "import-audio ${1:import-audio} {",
-      "  file ${2:}",
-      "  start ${3:}",
-      "  end ${4:}",
-      "  offset ${5:}",
-      "  loop ${6:off}",
-      "  loop_start ${7:}",
-      "  loop_end ${8:}",
-      "  crossfade ${9:}",
-      "  crossfade_curve ${10:equal-power}",
-      "  fingerprint ${11:content}",
-      "  channels ${12:auto}",
+      "  loop ${2:off}",
+      "  crossfade_curve ${3:equal-power}",
+      "  fingerprint ${4:content}",
+      "  channels ${5:auto}",
       "}",
       "$0"
     ]
@@ -727,7 +682,6 @@
       "  lang ${2:nl}",
       "  timing ${3:per-word}",
       "  first5s ${4:check}",
-      "  file ${5:}",
       "}",
       "$0"
     ]
@@ -761,9 +715,7 @@
       "master ${1:master} {",
       "  limiter ${2:-1 dB}",
       "  target ${3:-14 LUFS}",
-      "  slice_from ${4:}",
-      "  slice_to ${5:}",
-      "  channels ${6:auto}",
+      "  channels ${4:auto}",
       "}",
       "$0"
     ]
@@ -788,14 +740,10 @@
     "description": "Reads a Standard MIDI File of the project and gives its notes, so that an instrument block can play them. It needs a .mid file; it can also give the audio of a built-in rendering.",
     "body": [
       "midi ${1:midi} {",
-      "  file ${2:}",
-      "  source-file ${3:}",
-      "  variant-file ${4:}",
-      "  variant-module ${5:}",
-      "  track ${6:all}",
-      "  bars ${7:8}",
-      "  limiter ${8:soft}",
-      "  channels ${9:auto}",
+      "  track ${2:all}",
+      "  bars ${3:8}",
+      "  limiter ${4:soft}",
+      "  channels ${5:auto}",
       "}",
       "$0"
     ]
@@ -808,21 +756,8 @@
     "body": [
       "midi-clip ${1:midi-clip} {",
       "  ppq ${2:1000000}",
-      "  chords ${3:}",
-      "  melody ${4:}",
-      "  notes ${5:}",
-      "  scale ${6:none}",
-      "  bars ${7:8}",
-      "  bend ${8:}",
-      "  bend_range ${9:}",
-      "  modwheel ${10:}",
-      "  volume ${11:}",
-      "  expression ${12:}",
-      "  pan ${13:}",
-      "  sustain ${14:}",
-      "  reverb_send ${15:}",
-      "  chorus_send ${16:}",
-      "  cc ${17:}",
+      "  scale ${3:none}",
+      "  bars ${4:8}",
       "}",
       "$0"
     ]
@@ -884,7 +819,6 @@
     "description": "Describes in words the scene and the emotion that the music should have, and gives that as style data to blocks that accept it (such as ace-music). It makes no sound itself.",
     "body": [
       "mood-scene ${1:mood-scene} {",
-      "  direction ${2:}",
       "}",
       "$0"
     ]
@@ -1004,9 +938,8 @@
       "pitch ${1:pitch} {",
       "  enabled ${2:on}",
       "  semitones ${3:0}",
-      "  range ${4:}",
-      "  method ${5:wsola}",
-      "  channels ${6:auto}",
+      "  method ${4:wsola}",
+      "  channels ${5:auto}",
       "}",
       "$0"
     ]
@@ -1074,16 +1007,15 @@
     "body": [
       "rewind ${1:rewind} {",
       "  enabled ${2:on}",
-      "  events ${3:}",
-      "  sound ${4:auto}",
-      "  fade ${5:5 ms}",
-      "  hardness ${6:100%}",
-      "  blend ${7:120 ms}",
-      "  smear ${8:0 ms}",
-      "  brake ${9:0 ms}",
-      "  curve ${10:motor}",
-      "  end ${11:stop}",
-      "  channels ${12:auto}",
+      "  sound ${3:auto}",
+      "  fade ${4:5 ms}",
+      "  hardness ${5:100%}",
+      "  blend ${6:120 ms}",
+      "  smear ${7:0 ms}",
+      "  brake ${8:0 ms}",
+      "  curve ${9:motor}",
+      "  end ${10:stop}",
+      "  channels ${11:auto}",
       "}",
       "$0"
     ]
@@ -1096,12 +1028,11 @@
     "body": [
       "sampler ${1:sampler} {",
       "  enabled ${2:on}",
-      "  file ${3:}",
-      "  root ${4:60}",
-      "  mode ${5:oneshot}",
-      "  release ${6:30 ms}",
-      "  gain ${7:0 dB}",
-      "  channels ${8:auto}",
+      "  root ${3:60}",
+      "  mode ${4:oneshot}",
+      "  release ${5:30 ms}",
+      "  gain ${6:0 dB}",
+      "  channels ${7:auto}",
       "}",
       "$0"
     ]
@@ -1128,9 +1059,8 @@
       "  enabled ${2:on}",
       "  pattern ${3:x.x.b...x.x.r...}",
       "  depth ${4:120 ms}",
-      "  bars ${5:}",
-      "  mix ${6:100%}",
-      "  channels ${7:auto}",
+      "  mix ${5:100%}",
+      "  channels ${6:auto}",
       "}",
       "$0"
     ]
@@ -1155,11 +1085,8 @@
     "description": "An advanced block: channels, patterns and a playlist from a .ampleseq file or kept in the song, mixed into one output and into up to eight lanes that name the channels they carry. It can read a sequence file and gives audio.",
     "body": [
       "sequencer ${1:sequencer} {",
-      "  file ${2:}",
-      "  lanes ${3:}",
-      "  gain ${4:0 dB}",
-      "  sequence ${5:}",
-      "  channels ${6:auto}",
+      "  gain ${2:0 dB}",
+      "  channels ${3:auto}",
       "}",
       "$0"
     ]
@@ -1187,6 +1114,27 @@
     "body": [
       "silence ${1:silence} {",
       "  length ${2:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Local speech": {
+    "prefix": [
+      "speech"
+    ],
+    "description": "Deterministic local CPU speech. Text mode speaks a sentence; words mode assigns each positive Notes event to the next word and maps MIDI pitch to voice pitch.",
+    "body": [
+      "speech ${1:speech} {",
+      "  engine ${2:humanico}",
+      "  mode ${3:text}",
+      "  duration_policy ${4:natural}",
+      "  text ${5:\"I am a robot.\"}",
+      "  rate ${6:1}",
+      "  fit_max_rate ${7:2}",
+      "  pitch_hz ${8:105}",
+      "  gain ${9:0}",
+      "  reference_midi ${10:60}",
+      "  reference_hz ${11:105}",
       "}",
       "$0"
     ]
@@ -1331,14 +1279,10 @@
     "description": "Speaks the text in a selected voice using a reference recording. The chosen voice sample is not connected to the song's audible mix.",
     "body": [
       "voice-clone ${1:voice-clone} {",
-      "  file ${2:}",
-      "  text ${3:}",
-      "  model ${4:chatterbox}",
-      "  language ${5:nl}",
-      "  reference_text ${6:}",
-      "  auto_detect ${7:off}",
-      "  channels ${8:auto}",
-      "  engine ${9:}",
+      "  model ${2:chatterbox}",
+      "  language ${3:nl}",
+      "  auto_detect ${4:off}",
+      "  channels ${5:auto}",
       "}",
       "$0"
     ]
@@ -1373,6 +1317,34 @@
       "  enabled ${2:on}",
       "  width ${3:100}",
       "  channels ${4:auto}",
+      "}",
+      "$0"
+    ]
+  },
+  "Speech: say a sentence": {
+    "prefix": [
+      "speech-text"
+    ],
+    "description": "A speech block that says one sentence",
+    "body": [
+      "speech ${1:voice} at ${2:1} for ${3:1} {",
+      "  text \"${4:I am a robot.}\"",
+      "}",
+      "$0"
+    ]
+  },
+  "Speech: one word per note": {
+    "prefix": [
+      "speech-words"
+    ],
+    "description": "A speech block that says one word on every note of a Notes block",
+    "body": [
+      "speech ${1:voice} at ${2:1} for ${3:2} {",
+      "  mode \"words\"",
+      "  text \"${4:Get down get funky}\"",
+      "  duration_policy \"${5|natural,gate,fit|}\"",
+      "  gain 12",
+      "  from ${6:tune}.notes -> notes",
       "}",
       "$0"
     ]
