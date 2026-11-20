@@ -108,7 +108,7 @@ public sealed class EngineTests
         {
             started.TrySetResult();
             await release.Task.WaitAsync(cancellationToken);
-            return [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate))];
+            return [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate, cancellationToken))];
         });
         Task<BuildReport> build = r.Engine.BuildAsync(EngineRig.Parse(EngineRig.Hello), new BuildOptions(ExtraRenderers: [slowDrums], Progress: (block, status) =>
         {

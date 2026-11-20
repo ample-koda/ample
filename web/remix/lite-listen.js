@@ -9,7 +9,8 @@
 import { alive, createListenBuilder, playLoaded } from '../lib/listen-cancel.mjs';
 import { createListenSession } from '../lib/listen-session.mjs';
 import { createLoopPlayer } from '../lib/listen-loop.mjs';
-import { blockSpan, moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { blockSpan, moveMarks, playbackMarks, speechWordMarks } from '../lib/listen-highlight.mjs';
+import { parseSpeechTiming } from '../lib/speech-timing.mjs';
 import { colourMarks, slotsFor, usersBySource } from '../lib/listen-users.mjs';
 import { activeBlocks, barAt, loopOf, meterBeats, placedBlocks, statusText } from '../lib/listen-remix.mjs';
 import { tempoOf } from './lite-roll-source.mjs';
@@ -84,7 +85,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
       const origins = await host.origins({ text: outcome.entryText ?? '', files: outcome.files ?? [] });
       if (!alive(signal)) return null;   // Stop while the origins were asked
       // the text of the song as the build took it: the tempo, the meter and the marks come from this, not from the file that is open now
-      return { blob: outcome.blob, text: outcome.entryText ?? '', entry: outcome.entry, take: outcome.outputId, origins };
+      return { blob: outcome.blob, text: outcome.entryText ?? '', entry: outcome.entry, take: outcome.outputId, origins, speech: outcome.speech ?? [] };
     },
   });
 
@@ -95,7 +96,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
     if (!cut) throw new Error(`The song has no bars ${job.firstBar}-${job.lastBar}: it is ${Math.floor(render.buffer.duration / barSeconds)} bars long.`);
     return {
       take: render.take, buffer: render.buffer, segments: cut.segments, loop: cut.loop, takeFirstBar: cut.firstBar,
-      text: render.text, path: render.entry, job, barSeconds, quarters, origins: render.origins ?? {},
+      text: render.text, path: render.entry, job, barSeconds, quarters, origins: render.origins ?? {}, speech: render.speech ?? [],
     };
   }
 
@@ -105,7 +106,7 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
     try {
       const buffer = await context().decodeAudioData(await result.blob.arrayBuffer());
       if (!alive(signal)) return null;
-      const render = { buffer, text: result.text, entry: result.entry, take: result.take, number, origins: result.origins ?? {} };
+      const render = { buffer, text: result.text, entry: result.entry, take: result.take, number, origins: result.origins ?? {}, speech: result.speech ?? [] };
       L.render = render;
       const entry = entryFor(render, currentJob());   // before it counts as the render that plays: a selection that does not fit leaves the last good one in place
       L.last = render;
@@ -140,6 +141,14 @@ export function createRemixListen(host, { pause = PAUSE_MS, gap = MIN_GAP_MS } =
       });
       const shown = L.isolate ? lit.filter((m) => !m.user || m.user === L.isolate) : lit;   // hovering a user: only the notes of that user
       marks = colourMarks(moveMarks(shown, entry.text, host.getText()), slotsFor(Object.keys(entry.origins)));
+      // the word of a speech block that sounds, in its text: the song time of a word is the start of its block plus its place in the take of the block
+      const songSeconds = now.takeTime;   // the buffer is the whole render: its time is the time of the song, as barAt reads it
+      for (const voice of entry.speech || []) {
+        const timing = parseSpeechTiming({ speech: { sampleRate: voice.sampleRate, words: voice.words } });
+        const start = ((at.get(voice.block) || 1) - 1) * entry.barSeconds;
+        const words = speechWordMarks({ text: entry.text, name: voice.block, words: timing.words, sampleRate: timing.sampleRate ?? voice.sampleRate, takeSeconds: songSeconds - start });
+        marks.push(...moveMarks(words, entry.text, host.getText()));
+      }
     }
     const key = marks.map((m) => `${m.from}-${m.to}-${m.cls}-${m.attrs?.['data-lp-name'] ?? ''}`).join(',');
     if (key === L.lastKey) return;

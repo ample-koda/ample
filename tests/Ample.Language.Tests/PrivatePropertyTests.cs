@@ -97,13 +97,6 @@ public sealed class PrivatePropertyTests
     }
 
     [Fact]
-    public void A_private_property_is_not_available_in_an_audio_component_yet()
-    {
-        string audio = "component koda.fx.hush version 1.0.0 {\n  input audio: Audio\n  private property level: Gain = -3dB\n  output audio: Audio\n  process {\n    emit audio |> gain(level)\n  }\n}\n\n";
-        Assert.Contains("AMP2263", Codes(audio));
-    }
-
-    [Fact]
     public void A_property_without_private_keeps_its_old_hashes_exactly()
     {
         string plain = Shifter.Replace("  private property halfSteps: Int = steps * 1\n  private property semitones: Int = halfSteps + 5\n  private property modelVersion: String = \"v3\"\n", string.Empty, StringComparison.Ordinal)

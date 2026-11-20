@@ -1299,6 +1299,44 @@
     "entry": "song.amplet"
   },
   {
+    "id": "speech-hello",
+    "name": "Hello speech",
+    "description": "A voice made from text: the speech block speaks a sentence, with a little reverb. Change the words and listen again.",
+    "category": "Instruments",
+    "level": "Beginner",
+    "tags": [
+      "speech",
+      "voice",
+      "text",
+      "humanico"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
+    "id": "funk-it-up",
+    "name": "Funk It Up",
+    "description": "A 90 second funk song with a General MIDI band (drums, slap bass, clavinet, guitar, electric piano, horns) and original lyrics sung by the speech block, one word per note, tuned to E dorian with autotune.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "funk",
+      "speech",
+      "lyrics",
+      "autotune",
+      "general midi",
+      "words"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": [],
+    "entry": "song.amplet"
+  },
+  {
     "id": "all-demos",
     "name": "All demos in one project",
     "description": "Every demo of Remix in one project, with Welcome to AMPLE open: one folder for each demo, the sounds shared. Browse the file list, open any song and play it.",
@@ -1433,6 +1471,8 @@
       "iron-furnace/song.amplet",
       "lanterns/song.amplet",
       "backroom-groove/song.amplet",
+      "speech-hello/song.amplet",
+      "funk-it-up/song.amplet",
       "README.md"
     ],
     "assets": [

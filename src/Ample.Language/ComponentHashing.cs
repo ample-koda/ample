@@ -74,13 +74,15 @@ public static partial class ComponentHashing
         foreach (ComponentProperty p in d.Properties)
         {
             sb.Append("property=").Append(p.Name).Append(':').Append(p.Type.TrimEnd('?')).Append(':').Append(Collapse(p.Default ?? string.Empty));
+            if (p.IsDynamic) sb.Append(":dynamic");   // the mark is part of the meaning (a process that reads it is dynamic); a component without it keeps its hash
             foreach (ComponentAnnotation a in p.Attributes.Where(a => !ComponentAttributes.Presentation.Contains(a.Name)).OrderBy(a => a.Name, StringComparer.Ordinal)) sb.Append(':').Append(a.Name).Append('(').Append(string.Join(',', a.Args)).Append(')');
             sb.Append('\n');
         }
 
         // a private property that the music reads is content; the others are metadata and only the payload hash (the seal) sees them
         foreach (ComponentProperty p in ComponentHelper.UsedPrivate(d))
-            sb.Append("private-property=").Append(p.Name).Append(':').Append(p.Type.TrimEnd('?')).Append(':').Append(Collapse(p.Default ?? string.Empty)).Append('\n');
+            sb.Append("private-property=").Append(p.Name).Append(':').Append(p.Type.TrimEnd('?')).Append(':').Append(Collapse(p.Default ?? string.Empty))
+                .Append(p.IsDynamic ? ":dynamic" : string.Empty).Append('\n');
         string fullBody = string.Join('\n', d.ProcessBody.Select(CanonicalProcessLine));
         sb.Append("process=").Append(Collapse(NotePipeline.BlankObservationStatements(fullBody) ?? fullBody)).Append('\n');
         foreach (string hash in dependencyHashes.Where(h => !h.StartsWith(SourceMark, StringComparison.Ordinal)).Order(StringComparer.Ordinal)) sb.Append("uses=").Append(hash).Append('\n');

@@ -128,7 +128,7 @@ internal abstract class ExtraEffect : IBlockRenderer
     {
         if (r.Template.Parameters.ContainsKey("enabled") && Text(r, "enabled") == "off")
         {
-            byte[] same = r.Inputs.TryGetValue("in", out byte[]? input) ? input : Wav.Encode(new short[r.BarCount * r.SamplesPerBar], r.SampleRate);
+            byte[] same = r.Inputs.TryGetValue("in", out byte[]? input) ? input : Wav.Encode(new short[r.BarCount * r.SamplesPerBar], r.SampleRate, cancellationToken);
             return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", same), new RenderOutput("audio", same)]);
         }
 

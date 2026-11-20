@@ -25,7 +25,7 @@ public static class TrimBlock
 
         public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest r, CancellationToken cancellationToken)
         {
-            byte[] input = r.Inputs.TryGetValue("in", out byte[]? given) ? given : Wav.Encode(new short[r.BarCount * r.SamplesPerBar], r.SampleRate);
+            byte[] input = r.Inputs.TryGetValue("in", out byte[]? given) ? given : Wav.Encode(new short[r.BarCount * r.SamplesPerBar], r.SampleRate, cancellationToken);
             if (ControlBlocks.Text(r, "enabled") == "off") return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", input), new RenderOutput("audio", input), new RenderOutput("report", Encoding.UTF8.GetBytes("trim is off"))]);
             bool stereo = ChannelAudio.IsStereo(input);
             short[] left, right;
@@ -95,7 +95,7 @@ public static class TrimBlock
                 report.Append(" WARNING: this recording holds several stretches of sound; the cut runs from the start of the first to the end of the last. Set sections to all (that is what you want), first or last to choose, and this warning goes away.");
             }
 
-            byte[] output = stereo ? StereoWav.Encode(new StereoBuffer(cutLeft, cutRight), rate) : Wav.Encode(cutLeft, rate);
+            byte[] output = stereo ? StereoWav.Encode(new StereoBuffer(cutLeft, cutRight), rate) : Wav.Encode(cutLeft, rate, cancellationToken);
             return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", output), new RenderOutput("audio", output), new RenderOutput("report", Encoding.UTF8.GetBytes(report.ToString()))]);
         }
 

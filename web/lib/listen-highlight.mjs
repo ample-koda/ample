@@ -10,6 +10,8 @@
 // The marks are made on the text of the build that plays and moved to the current text by matching lines (an edited line loses its mark).
 // Pure, tested in node (web/lib/test/listen-highlight.test.mjs).
 
+import { activeWordsAt, rawSpan, sampleAt } from './speech-timing.mjs';
+
 const DECLARATION = /^[\t ]*[A-Za-z0-9_.-]+\s+("(?:\\.|[^"\\])*"|[A-Za-z0-9_-]+)[^\n]*\{/gm;
 const NOTE = /(^|[\s"])(\d+):(\d+(?:\.\d+)?):(\d+(?:\.\d+)?):(\d+):(\d+)((?::\d+){0,4}(?:;[^\s"]*)?)/g;
 
@@ -253,6 +255,28 @@ export function autoMarks(text, span, bar, first = 1, barSeconds = 2) {
  * @param {{ text: string, target?: string|null, songBar?: number|null, clipFirstBar?: (name: string) => number, active?: string[],
  *   quartersPerBar?: number, frame?: (name: string) => { first: number, offset: number }, barSeconds?: number, origins?: Record<string, object[]> }} input
  */
+/**
+ * The speech words that sound at the playhead of the take of a speech block that is listened to on its own (the dry voice: its take starts where the
+ * block starts, so the playhead is the position on the axis of the words). The mark is the word in the written string of its `text` line; nothing is
+ * marked for a block whose text is not one written string, for phonemes, or for a word without a place. Pure; the text is the text of the build that plays.
+ * @param {{ text: string, name: string, words: { index: number, start: number, end: number, from: number | null, to: number | null }[], sampleRate: number, takeSeconds: number }} i
+ * @returns {{ from: number, to: number, cls: string }[]}
+ */
+export function speechWordMarks({ text, name, words, sampleRate, takeSeconds }) {
+  const span = blockSpan(text, name);
+  if (!span || span.type !== 'speech') return [];
+  const line = /^[\t ]*text[\t ]+"((?:\\.|[^"\\])*)"/m.exec(text.slice(span.open + 1, span.to - 1));
+  if (!line) return [];
+  const start = span.open + 1 + line.index + line[0].length - line[1].length - 1;
+  const marks = [];
+  for (const index of activeWordsAt(words, sampleAt(takeSeconds, sampleRate))) {
+    const word = words.find((item) => item.index === index);
+    const raw = word && word.from !== null ? rawSpan(line[1], word.from, word.to) : null;
+    if (raw) marks.push({ from: start + raw.from, to: start + raw.to, cls: 'lp-now' });
+  }
+  return marks;
+}
+
 export function playbackMarks({
   text, target = null, songBar = null, clipFirstBar = () => 1, active = [], quartersPerBar = 4, frame = () => ({ first: 1, offset: 0 }), barSeconds = 2, origins = {},
 }) {

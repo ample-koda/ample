@@ -19,7 +19,7 @@ public sealed class BuildSchedulingTests
         {
             started?.TrySetResult();
             await release.WaitAsync(cancellationToken);
-            return [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate))];
+            return [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate, cancellationToken))];
         }
     }
 
@@ -34,7 +34,7 @@ public sealed class BuildSchedulingTests
         public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
         {
             started.TrySetResult();
-            IReadOnlyList<RenderOutput> output = [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate))];
+            IReadOnlyList<RenderOutput> output = [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate, cancellationToken))];
             return ValueTask.FromResult(output);
         }
     }

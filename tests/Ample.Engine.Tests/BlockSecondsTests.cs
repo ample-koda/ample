@@ -18,7 +18,7 @@ public sealed class BlockSecondsTests
         public async ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
         {
             await Task.Delay(time, cancellationToken);
-            return [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate))];
+            return [new RenderOutput("audio", Wav.Encode(new short[request.SamplesPerBar * request.BarCount], request.SampleRate, cancellationToken))];
         }
     }
 

@@ -103,6 +103,9 @@ foreach ($rid in $Runtimes) {
   New-Item -ItemType Directory -Path $docs | Out-Null
   Copy-Item -Path (Join-Path $ample 'docs\*') -Destination $docs -Recurse -Exclude 'sketch'
   Copy-Item -LiteralPath (Join-Path $ample 'README.md') -Destination $root
+  # the licence of the program and the notices of what it contains (the CMU Pronouncing Dictionary and the Humanico voice are inside the program: their licence texts travel with it)
+  foreach ($notice in 'LICENSE', 'THIRD-PARTY-NOTICES.md') { Copy-Item -LiteralPath (Join-Path $ample $notice) -Destination $root }
+  Copy-Item -LiteralPath (Join-Path $ample 'LICENSES') -Destination $root -Recurse
   Step "zip $rid" { New-ZipTree $root (Join-Path $dist "ample-$version-$rid.zip") ($rid -like 'linux-*') }
   Remove-Item -LiteralPath $stage -Recurse -Force
 }

@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Ample.Audio.IO;
+using Ample.Engine.Engine;
 using Ample.Language;
+using Ample.Speech;
 
 namespace Ample.Server.Lite;
 
@@ -123,6 +125,75 @@ public static partial class LitePolicy
         return path;
     }
 
+    private static void CheckSpeech(IReadOnlyDictionary<string, string> texts, AmpleDocument doc, SpecData spec, LiteLimits limits)
+    {
+        if (limits.MaxSpeechBlocks <= 0 || limits.MaxSpeechOutputSeconds <= 0 || limits.MaxSpeechOutputSecondsPerBuild <= 0
+            || limits.MaxSpeechInputCharacters <= 0 || limits.MaxSpeechInputCharactersPerBuild <= 0 || limits.MaxSpeechPeakBytes <= 0)
+            throw new LiteRejectedException("AMPL924", 503, "Remix speech limits are not configured.");
+        List<BlockNode> blocks = [.. doc.Blocks.Where(block => block.Type == "speech")];
+        if (blocks.Count > limits.MaxSpeechBlocks)
+            throw new LiteRejectedException("AMPL924", 413, $"A Remix build allows at most {limits.MaxSpeechBlocks} speech blocks.");
+        string? Read(string file)
+        {
+            string key = file.Replace('\\', '/').TrimStart('.', '/');
+            return texts.TryGetValue(key, out string? found) ? found : null;
+        }
+
+        Func<string, string?> read = Read;
+        ProjectInfo? project = doc.Project;
+        double tempo = project is { Tempo: > 0 } ? project.Tempo : 120;
+        double secondsPerBar = 60.0 / tempo * (project?.MeterNumerator ?? 4) * 4.0 / (project?.MeterDenominator ?? 4);
+        double totalSeconds = 0;
+        List<(BlockNode Block, double Seconds)> spans = [];
+        int totalCharacters = 0;
+        foreach (BlockNode block in blocks)
+        {
+            // the same length the build gives the block (BuildEngine.EffectiveBars): the placement span with its gaps, a bars parameter, the playlist
+            // of a sequencer, the length of the block that feeds it, else 8 bars; an unplaced block is not free
+            double seconds = BuildEngine.EffectiveBars(block, doc, read, spec) * secondsPerBar;
+            if (seconds > limits.MaxSpeechOutputSeconds)
+                throw new LiteRejectedException("AMPL924", 413, $"The speech block \"{block.Name}\" is {seconds:0.#} seconds long; Remix allows at most {limits.MaxSpeechOutputSeconds} seconds per speech block.");
+            int characters = block.Parameters.Where(parameter => parameter.Name is "text" or "phonemes").Sum(parameter => SpeechCharacters(parameter.Value));
+            if (characters > limits.MaxSpeechInputCharacters)
+                throw new LiteRejectedException("AMPL924", 413, $"The speech block \"{block.Name}\" has {characters} characters of text; Remix allows at most {limits.MaxSpeechInputCharacters} per speech block.");
+            totalSeconds += seconds;
+            spans.Add((block, seconds));
+            totalCharacters += characters;
+        }
+
+        if (totalSeconds > limits.MaxSpeechOutputSecondsPerBuild)
+            throw new LiteRejectedException("AMPL924", 413, $"The speech blocks add up to {totalSeconds:0.#} seconds; Remix allows at most {limits.MaxSpeechOutputSecondsPerBuild} seconds of speech per build.");
+        if (totalCharacters > limits.MaxSpeechInputCharactersPerBuild)
+            throw new LiteRejectedException("AMPL924", 413, $"The speech blocks have {totalCharacters} characters of text in total; Remix allows at most {limits.MaxSpeechInputCharactersPerBuild} per build.");
+
+        // memory last, because it plans the text: the blocks of a build run BlockParallelism at a time, so the largest ones decide what is asked at once
+        long peak = spans.Select(span => EstimateSpeechBytes(span.Block, span.Seconds)).OrderByDescending(bytes => bytes).Take(LiteBuilder.BlockParallelism).Sum();
+        if (peak > limits.MaxSpeechPeakBytes)
+        {
+            long needed = peak / (1024 * 1024), allowed = limits.MaxSpeechPeakBytes / (1024 * 1024);
+            throw new LiteRejectedException("AMPL924", 413,
+                $"The speech blocks that run together need about {needed} MiB of memory; Remix allows at most {allowed} MiB. Make the speech shorter or the placement tighter.");
+        }
+    }
+
+    private static long EstimateSpeechBytes(BlockNode block, double seconds)
+    {
+        double rate = double.TryParse(WrittenText(block, "rate"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsed) ? parsed : 1;
+        string engine = WrittenText(block, "engine") is { Length: > 0 } named ? named.ToLowerInvariant() : "humanico";
+        bool words = string.Equals(WrittenText(block, "mode"), "words", StringComparison.OrdinalIgnoreCase);
+        const int fullRate = 44_100;   // the rate of a build
+        long span = (long)Math.Ceiling(seconds * fullRate);
+        return SpeechMemory.EstimateBlockBytes(span, WrittenText(block, "text"), WrittenText(block, "phonemes"), rate, engine, words, fullRate);
+    }
+
+    private static string? WrittenText(BlockNode block, string name)
+    {
+        string? value = block.Parameters.FirstOrDefault(parameter => parameter.Name == name)?.Value;
+        return value is { Length: >= 2 } && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
+    }
+
+    private static int SpeechCharacters(string value) => value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value.Length - 2 : value.Length;
+
     /// <summary>Checks the texts and the parsed song: no forbidden block, no capability beyond the defaults, no file parameter that points outside the project.</summary>
     /// <param name="texts">The text files (path, text).</param>
     /// <param name="doc">The parsed song.</param>
@@ -134,6 +205,8 @@ public static partial class LitePolicy
         ArgumentNullException.ThrowIfNull(texts);
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(spec);
+        ArgumentNullException.ThrowIfNull(limits);
+        CheckSpeech(texts, doc, spec, limits);
         foreach ((string path, string text) in texts)
         {
             if (CapabilityGrant().IsMatch(text)) throw new LiteRejectedException("AMPL910", 400, $"\"{path}\" asks for a capability that Remix does not give (environment, network, filesystem, external-process, external-plugin).");

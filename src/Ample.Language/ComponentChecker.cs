@@ -211,8 +211,6 @@ public static class ComponentChecker
     private static void CheckPrivate(ComponentDefinition d, List<ComponentIssue> issues)
     {
         if (d.PrivateProperties.Count == 0) return;
-        if (d.IsAudio) issues.Add(new ComponentIssue(d.PrivateProperties[0].Line, 0, 1, "AMP2263", Severity.Error,
-            "A private property is not available in an audio component yet.", "Use a public property for now."));
         for (int k = 0; k < d.PrivateProperties.Count; k++)
         {
             ComponentProperty p = d.PrivateProperties[k];

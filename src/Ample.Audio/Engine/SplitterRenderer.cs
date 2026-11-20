@@ -13,8 +13,8 @@ internal sealed class SplitterRenderer : IBlockRenderer
         byte[] input = request.Inputs["in"];
         (StereoBuffer channels, int rate) = ChannelAudio.Decode(input);
         return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([
-            new RenderOutput("left", Wav.Encode(channels.Left, rate)),
-            new RenderOutput("right", Wav.Encode(channels.Right, rate)),
+            new RenderOutput("left", Wav.Encode(channels.Left, rate, cancellationToken)),
+            new RenderOutput("right", Wav.Encode(channels.Right, rate, cancellationToken)),
             new RenderOutput("audio", input),
         ]);
     }

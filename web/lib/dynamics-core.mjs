@@ -162,7 +162,8 @@ export class CompressorCore {
   /** The sample rate of the key when it differs from the program (the filter then follows the key's own rate, as the offline render always did). */
   setKeyRate(rate) { this.keyRate = rate; this.alpha = cutoffAlpha(this.keyHz, rate); }
 
-  process(ins, outs, from, to, keys = null) {
+  /** limits: the threshold of every sample as the server's whole 1/32767 limit (an automated threshold; see thresholdLimits in clientside-compressor.mjs), indexed like the samples. */
+  process(ins, outs, from, to, keys = null, limits = null) {
     let envelope = this.envelope;
     const low = this.low, filtered = keys && this.keyHz > 0;
     while (keys && low.length < keys.length) low.push(0);
@@ -180,7 +181,7 @@ export class CompressorCore {
       // the server keeps the envelope in whole 16-bit steps and divides with truncation (Effects.Compress): a step smaller than the attack or release time in samples is lost, so the
       // envelope stops that far from the level (about -12 dBFS on the way down at a 180 ms release) and the compression is held. Float math here made the live sound 2.3 dB louder.
       envelope += Math.trunc((Math.round(level * 32768) - envelope) / (level * 32768 > envelope ? this.attack : this.release));
-      const limit = Math.trunc(this.threshold * 32767);
+      const limit = limits ? limits[i] : Math.trunc(this.threshold * 32767);
       const gain = envelope > limit && envelope > 0 ? Math.trunc((limit + Math.trunc((envelope - limit) / this.ratio)) * 32768 / envelope) / 32768 : 1;
       for (let c = 0; c < ins.length; c++) outs[c][i] = ins[c][i] * gain * this.makeup;
     }

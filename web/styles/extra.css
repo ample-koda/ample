@@ -754,6 +754,8 @@ header h1#brand{display:flex;align-items:center;margin:0 8px 0 0;line-height:0;c
 .lip.l{left:var(--lw,280px);border-left:0;border-radius:0 8px 8px 0}
 .lip.r{right:var(--rw,300px);border-right:0;border-radius:8px 0 0 8px}
 .lip.t{left:50%;right:auto;top:var(--hh,0px);transform:translateX(-50%);width:72px;height:16px;border-top:0;border-radius:0 0 8px 8px;display:none}
+/* the code editor is open: the tab of the properties lies over its scrollbar, so it goes (the properties toggle stays in the toolbar) */
+#work.src-open .lip.r{display:none}
 body.noH>header{display:none}
 body.noH{grid-template-rows:auto 1fr auto}
 body.noH .lip.t{top:0}
@@ -1383,7 +1385,7 @@ kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px sol
 .mixchm{cursor:pointer}
 .mixtools{display:flex;gap:4px;flex:none}.mixtools button{margin:0!important;font-size:11px;padding:2px 6px;min-height:0}.mixclear{font-size:11px}
 .mixfaders .mixchan:focus-within{outline:1px solid var(--acc);outline-offset:1px}
-@media(max-width:700px){.mixview .mixchan{width:50px}.mixview .mixfader{height:auto}.mixview .mixfw{min-height:90px}.mixview .mixsrc{max-width:46px;font-size:9px}.mixticks{width:16px}}
+@media(max-width:700px){.mixview .mixchan{width:92px}.mixview .mixfader{height:auto}.mixview .mixfw{min-height:90px}.mixview .mixsrc{max-width:46px;font-size:9px}.mixticks{width:16px}}
 #bbody:has(>#b-mixer.on){overflow:hidden;padding:0}#b-mixer.on{height:100%;min-height:0;box-sizing:border-box}
 .mixview .mixmeter{margin-left:0}.mixview{padding:6px 8px}.mixview .mixchan{padding-top:2px}
 

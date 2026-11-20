@@ -11,7 +11,7 @@ internal sealed class VolumeRenderer : IBlockRenderer
 
     public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
     {
-        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate);
+        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate, cancellationToken);
         string Value(string name) => request.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value.Trim().Trim('"') ?? request.Template.Parameters.GetValueOrDefault(name) ?? string.Empty;
         (StereoBuffer channels, int rate) = ChannelAudio.Decode(input);
         bool bypass = Value("enabled") == "off";
@@ -39,7 +39,7 @@ internal sealed class VolumeRenderer : IBlockRenderer
             channels.Right[i] = bypass || right ? FixedAudio.Clip((long)r * rightGain / (32768L * 32768)) : (short)0;
         }
         byte[] mixed = StereoWav.Encode(channels, rate);
-        return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("mixed", mixed), new RenderOutput("left", Wav.Encode(channels.Left, rate)), new RenderOutput("right", Wav.Encode(channels.Right, rate)), new RenderOutput("out", mixed), new RenderOutput("audio", mixed)]);
+        return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("mixed", mixed), new RenderOutput("left", Wav.Encode(channels.Left, rate, cancellationToken)), new RenderOutput("right", Wav.Encode(channels.Right, rate, cancellationToken)), new RenderOutput("out", mixed), new RenderOutput("audio", mixed)]);
     }
 }
 

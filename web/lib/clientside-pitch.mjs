@@ -1,17 +1,21 @@
-import { isAutomation, parseAuto } from './automation-model.mjs';
+import { isAutomation } from './automation-model.mjs';
+import { panPoints } from './live-pan-auto.mjs';
 import { bendChannels } from './clientside-autotune.mjs';
 import { absolute, parse } from './notes-model.mjs';
 import { barBeats } from './meter.mjs';
 export function pitchWorkingSetBytes(frames, channels, method) { return frames * channels * (method === 'wsola' ? 20 : 16); }
 
-/** The move in semitones per sample of a pitch curve (semitones auto(bar:value, ...)), as the engine reads it: values in semitones, or percent of range when range is set. */
+/**
+ * The move in semitones per sample of a pitch curve, as the engine reads it: semitones auto(bar:value, ...) (also in seconds), lfo, env, or the points of a control (a list of
+ * { sample, value }); values in semitones, or percent of range when range is set.
+ */
 export function pitchCurve(text, rangeText, sampleRate, tempo, firstBar, length) {
-  const points = parseAuto(text);
-  if (!points) throw new Error('Only a pitch curve with points in bars is previewed here.');
   const samplesPerBar = Math.floor(barBeats() * 60 * sampleRate * 1000 / Math.round(tempo * 1000));
+  const points = panPoints(text, samplesPerBar, sampleRate);
+  if (!points) throw new Error('Only a pitch curve with points is previewed here.');
   const range = Math.min(48, Math.max(0, Number.parseInt(String(rangeText ?? '').replace(/^"|"$/g, ''), 10) || 0));
   // the engine joins the points in hundredths of a semitone (whole numbers)
-  const cents = points.map((p) => ({ at: (p.bar - 1) * samplesPerBar, value: range > 0 ? Math.max(-100, Math.min(100, p.value)) * range : Math.max(-48, Math.min(48, p.value)) * 100 }));
+  const cents = points.map((p) => ({ at: p.sample, value: range > 0 ? Math.max(-100, Math.min(100, p.value)) * range : Math.max(-48, Math.min(48, p.value)) * 100 }));
   const curve = new Float64Array(length);
   let segment = 0;
   for (let i = 0; i < length; i++) {
@@ -26,8 +30,8 @@ export function pitchCurve(text, rangeText, sampleRate, tempo, firstBar, length)
 
 export async function processPitchChannels(inputChannels, sampleRate, params, signal, { tempo = 120, firstBar = 1 } = {}) {
   const method = String(params.method || 'wsola').toLowerCase();
-  if (isAutomation(params.semitones)) {
-    const curve = pitchCurve(String(params.semitones), params.range, sampleRate, tempo, firstBar, inputChannels[0].length);
+  if (isAutomation(params.semitones) || Array.isArray(params.semitones)) {
+    const curve = pitchCurve(params.semitones, params.range, sampleRate, tempo, firstBar, inputChannels[0].length);
     signal?.throwIfAborted();
     return bendChannels(inputChannels, sampleRate, (position) => curve[Math.min(curve.length - 1, Math.max(0, Math.round(position)))], method === 'voice');
   }

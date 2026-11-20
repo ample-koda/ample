@@ -46,6 +46,11 @@ import { renderBlockToFile } from './renderfile.js';
 import { TINTS, tintOf } from '../lib/tint.mjs';
 import { barBeats } from '../lib/meter.mjs';
 
+/** The edits for a list of { name, value } (set) and { name, remove: true } (remove the line) of one block. */
+const parameterEdits = (block, values) => values.map(({ name, value, remove }) => (remove
+  ? { type: 'removeParameter', block, name }
+  : { type: 'setParameter', block, name, value: String(value) }));
+
 const cv = $('#cv');
 const world = $('#world');
 const linksSvg = $('#links');
@@ -387,7 +392,31 @@ const effectPanelOptions = (effect) => {
       return takeId;
     };
   const renderInput = getSource()?.type === 'render';
-  return { type: effect.tpl, title: effect.title, block: effect.id, inputTitle: getInputTitle(), definitions: template?.parameters || [], getParams: () => current().nodes.find((item) => item.id === effect.id)?.params || effect.params, readOnly: readOnly() || effect.flags.includes('lock'), takeId: getTakeId(), getTakeId, loadInput, buildLabel: renderInput ? 'Build and use source variant' : 'Build and use input', playLabel: 'Play input', buildInput: getSource() ? buildAndSelectInput : null, realPreview: (params, inputTakeId) => { const source = getSource(); const takeId = inputTakeId || getTakeId(); if (!source || !takeId) throw new Error('Build and select the upstream input before previewing this effect.'); return api.effectPreview({ path: S.path, block: effect.id, takeId, fromMs: 0, toMs: 30_000, params }); }, loadImpulse: (params) => api.effectImpulse({ path: S.path, block: effect.id, params }), preview: (name, value) => chainPreview(effect.id, name, value), commit: (name, value) => edit([{ type: 'setParameter', block: effect.id, name, value: String(value) }]), commitMany: (values) => edit(values.map(({ name, value }) => ({ type: 'setParameter', block: effect.id, name, value: String(value) }))) };
+  return {
+    type: effect.tpl,
+    title: effect.title,
+    block: effect.id,
+    inputTitle: getInputTitle(),
+    definitions: template?.parameters || [],
+    getParams: () => current().nodes.find((item) => item.id === effect.id)?.params || effect.params,
+    readOnly: readOnly() || effect.flags.includes('lock'),
+    takeId: getTakeId(),
+    getTakeId,
+    loadInput,
+    buildLabel: renderInput ? 'Build and use source variant' : 'Build and use input',
+    playLabel: 'Play input',
+    buildInput: getSource() ? buildAndSelectInput : null,
+    realPreview: (params, inputTakeId) => {
+      const source = getSource();
+      const takeId = inputTakeId || getTakeId();
+      if (!source || !takeId) throw new Error('Build and select the upstream input before previewing this effect.');
+      return api.effectPreview({ path: S.path, block: effect.id, takeId, fromMs: 0, toMs: 30_000, params });
+    },
+    loadImpulse: (params) => api.effectImpulse({ path: S.path, block: effect.id, params }),
+    preview: (name, value) => chainPreview(effect.id, name, value),
+    commit: (name, value) => edit([{ type: 'setParameter', block: effect.id, name, value: String(value) }]),
+    commitMany: (values) => edit(parameterEdits(effect.id, values)),
+  };
 };
 /** Opens the advanced window of a block: every entry point (the card, the properties, the effect card) opens the same window with the same input, build and preview (issue 160). */
 export function openAdvancedFor(n) {
@@ -396,7 +425,22 @@ export function openAdvancedFor(n) {
   const audioSource = n.outs.some((port) => port[1] === 'audio');
   const takeId = source ? S.build.takes?.[source.from] : audioSource ? S.build.takes?.[n.id] : null;
   const buildInput = source ? async (how = {}) => { await build(source.from); const take = S.build.takes?.[source.from] || null; if (take && how.select !== false && how.stillWanted?.() !== false) await api.post('/api/control/select', { path: S.path, block: source.from, take }); return take; } : audioSource ? async () => { await build(n.id); return S.build.takes?.[n.id] || null; } : null;
-  const options = { type: n.tpl, title: n.title, block: n.id, definitions: template?.parameters || [], getParams: () => current().nodes.find((item) => item.id === n.id)?.params || n.params, readOnly: readOnly() || n.flags.includes('lock'), takeId, buildInput, buildLabel: audioSource && !source ? 'Build block' : 'Build and use input', playLabel: audioSource && !source ? 'Play block' : 'Play input', realPreview: null, preview: () => {}, commit: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value: String(value) }]), commitMany: (values) => edit(values.map(({ name, value }) => ({ type: 'setParameter', block: n.id, name, value: String(value) }))) };
+  const options = {
+    type: n.tpl,
+    title: n.title,
+    block: n.id,
+    definitions: template?.parameters || [],
+    getParams: () => current().nodes.find((item) => item.id === n.id)?.params || n.params,
+    readOnly: readOnly() || n.flags.includes('lock'),
+    takeId,
+    buildInput,
+    buildLabel: audioSource && !source ? 'Build block' : 'Build and use input',
+    playLabel: audioSource && !source ? 'Play block' : 'Play input',
+    realPreview: null,
+    preview: () => {},
+    commit: (name, value) => edit([{ type: 'setParameter', block: n.id, name, value: String(value) }]),
+    commitMany: (values) => edit(parameterEdits(n.id, values)),
+  };
   openStudioPanel({ ...options, ...(['eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'volume', 'denoise', 'chorus', 'normalize', 'tremolo', 'granular', 'reverse', 'rewind', 'autotune', 'convolution', 'master'].includes(n.tpl) ? effectPanelOptions(n) : {}), ...(n.tpl === 'master' ? { realPreview: null, tempo: S.doc?.project?.tempo || 120 } : {}), ...(n.tpl === 'autotune' ? { melody: flat().links.some((link) => !link.disabled && link.to === n.id && link.inName === 'target') } : {}) });
 }
 

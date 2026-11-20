@@ -128,7 +128,7 @@ internal static class ClipControls
                 right[i] = (short)Math.Clamp(rr, short.MinValue, short.MaxValue);
             }
 
-            result.Add(output with { Data = stereo || panCurve is not null ? StereoWav.Encode(new StereoBuffer(left, right), rate) : Wav.Encode(left, rate) });
+            result.Add(output with { Data = stereo || panCurve is not null ? StereoWav.Encode(new StereoBuffer(left, right), rate) : Wav.Encode(left, rate, cancellationToken) });
         }
 
         return result;

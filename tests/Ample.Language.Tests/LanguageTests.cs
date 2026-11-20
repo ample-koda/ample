@@ -131,6 +131,16 @@ public sealed class EditsAndQueriesTests
     }
 
     [Fact]
+    public void A_new_speech_block_starts_with_a_sample_sentence_and_never_with_an_empty_line()
+    {
+        string added = Apply(Song, Edits.AddBlock(Parse(Song), Corpus.Spec, "speech", "voice"));
+
+        Assert.Contains("  text \"I am a robot.", added, StringComparison.Ordinal);
+        Assert.DoesNotContain("text \"\"", added, StringComparison.Ordinal);
+        Assert.DoesNotContain("phonemes", added, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Connect_checks_ports_types_inputs_and_cycles_and_disconnect_undoes_it()
     {
         string text = Song + "bass bass {\n}\n";

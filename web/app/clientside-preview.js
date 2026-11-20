@@ -15,7 +15,8 @@ import { widthAudio } from '../lib/clientside-width.mjs';
 import { tremoloAudio } from '../lib/clientside-tremolo.mjs';
 import { clickAudio } from '../lib/clientside-click.mjs';
 import { controlledParams } from '../lib/clientside-controls.mjs';
-import { blendMix, connectedPoints, curveControl, followControl, mapControl, mixPercent } from '../lib/clientside-control-curves.mjs';
+import { looksLikeExpression, parseExpression } from '../lib/control-expression.mjs';
+import { blendMix, connectedPoints, curveControl, expressionPoints, followControl, mapControl, mixPercent } from '../lib/clientside-control-curves.mjs';
 import { AUTOMATABLE } from '../lib/automation-model.mjs';
 import { peqAudio } from '../lib/clientside-peq.mjs';
 import { volumeAudio } from '../lib/clientside-volume.mjs';
@@ -36,7 +37,7 @@ import { flangerAudio } from '../lib/clientside-flanger.mjs';
 import { phaserAudio } from '../lib/clientside-phaser.mjs';
 import { meterAudio } from '../lib/clientside-meter.mjs';
 import { limiterAudio } from '../lib/clientside-limiter.mjs';
-import { compressorAudio } from '../lib/clientside-compressor.mjs';
+import { compressorAudio, thresholdLimits } from '../lib/clientside-compressor.mjs';
 import { gateAudio } from '../lib/clientside-gate.mjs';
 import { denoiseWorkingSetBytes, processDenoiseChannels } from './studio/preview/denoise.js';
 import { granularWorkingSetBytes, parseEffectiveGranularSeed, processGranularChannels } from '../lib/clientside-granular.mjs';
@@ -115,9 +116,14 @@ async function planTakes(signal) {
 // The blocks of which the sound can be taken from the build instead of being made here: effects and mixes (a send has two outputs and a sequencer its lanes, so they are not).
 // the effects whose automated mix the server renders at mix 100 and blends per sample (Effects.cs mixAutomated)
 const MIX_BLENDED = new Set(['delay', 'reverb', 'chorus', 'flanger', 'phaser', 'bitcrusher']), AUTOMATED = /^\s*(?:auto|lfo|env|fadein|fadeout)\s*\(/i;
-// the parameters that follow the points of a control here (the others come from the server: volume gain stays with the build on purpose, see the volume branch;
-// compressor threshold, stretch speed and pitch semitones are not ported)
-const FOLLOWS_POINTS = { delay: ['mix'], reverb: ['mix'], chorus: ['mix'], flanger: ['mix'], phaser: ['mix'], bitcrusher: ['mix'], filter: ['cutoff', 'resonance'], pan: ['pan'] };
+// the parameters that follow the points of a control here (a gain that follows a curve or a control stays with the build when its sound is an approximate local instrument, see the volume branch)
+const FOLLOWS_POINTS = {
+  delay: ['mix'], reverb: ['mix'], chorus: ['mix'], flanger: ['mix'], phaser: ['mix'], bitcrusher: ['mix'],
+  filter: ['cutoff', 'resonance'], pan: ['pan'], compressor: ['threshold'], pitch: ['semitones'], stretch: ['speed'], volume: ['gain'],
+};
+// the range of an automatable parameter that the automation editor does not list (a connected control is scaled to it; the template says the same)
+const CONTROL_BLOCKS = new Set(['curve', 'map', 'follow']);
+const OTHER_RANGES = { stretch: { speed: { min: 25, max: 400 } } };
 const REUSABLE = new Set(['volume', 'eq', 'peq', 'filter', 'compressor', 'duck', 'distortion', 'delay', 'reverb', 'convolution', 'chorus', 'tremolo', 'pan', 'width', 'phaser', 'flanger', 'gate', 'limiter', 'deesser', 'bitcrusher', 'mixer', 'bus', 'master']);
 const reusableTake = (node, output) => REUSABLE.has(node.tpl) && ['', 'audio', 'out', 'mix', 'master'].includes(output || '') && Boolean(plannedTakes?.has(node.id));
 
@@ -467,22 +473,56 @@ export async function buildAndPlayClientPreview() {
       if (node.tpl === 'reverb') localEffectApproximations.add(node.id);
       return blendMix(source, wet, percent);
     };
-    /** A parameter that a curve, map or follow control is connected to becomes the points of that control, for the effects that follow points here. */
+    /** The points of a parameter that is an expression over controls (cutoff 600 + 3000 * traffic.level); null when a control it reads cannot be made here. */
+    const expressionOf = async (text) => {
+      const expression = parseExpression(String(text ?? '').trim().replace(/^"|"$/g, ''));
+      if (!expression) return null;
+      const controls = [];
+      for (const reference of expression.references) {
+        // the server reads 0 for what is not a control (a block that is missing or makes no control)
+        if (!CONTROL_BLOCKS.has(nodes.get(reference.block)?.tpl)) { controls.push(null); continue; }
+        const made = await controlOf(reference.block, reference.output, PREVIEW_RATE);
+        if (!made) return null;
+        controls.push(made);
+      }
+      return expressionPoints(expression, controls, rangeFirst(), rangeBars(), barSamples(PREVIEW_RATE), PREVIEW_RATE);
+    };
+    /** A parameter that a curve, map or follow control is connected to, or that is an expression over controls, becomes points, for the effects that follow points here. */
     const prepared = new Set();
     const prepareSteered = async (id) => {
       if (prepared.has(id)) return;
       prepared.add(id);
       const node = nodes.get(id);
       if (!node || isDisabled(node)) return;
-      const wires = graph.links.filter((l) => l.to === id && l.type === 'control' && !l.disabled && FOLLOWS_POINTS[node.tpl]?.includes(l.inName));
-      if (!wires.length) return;
+      const names = FOLLOWS_POINTS[node.tpl] || [];
+      const wires = graph.links.filter((l) => l.to === id && l.type === 'control' && !l.disabled && names.includes(l.inName));
+      const expressions = names.filter((name) => looksLikeExpression(String(node.params[name] ?? '').trim().replace(/^"|"$/g, '')));
+      if (!wires.length && !expressions.length) return;
       const params = { ...node.params };
-      for (const wire of wires) {
-        if (controlledParams({ id, params: { [wire.inName]: node.params[wire.inName] } }, graph.nodes, []).length) continue;   // an expression that reads a control stays with the server
-        const control = await controlOf(wire.from, wire.outName, PREVIEW_RATE);
-        if (control) params[wire.inName] = connectedPoints(control, AUTOMATABLE[node.tpl]?.[wire.inName], rangeFirst(), rangeBars(), barSamples(PREVIEW_RATE), PREVIEW_RATE);
+      for (const name of expressions) {
+        const points = await expressionOf(node.params[name]);
+        if (points) params[name] = points;
       }
-      nodes.set(id, { ...node, params });
+      for (const wire of wires) {
+        if (expressions.includes(wire.inName)) continue;   // the expression of the parameter wins over a link, as on the server
+        const control = await controlOf(wire.from, wire.outName, PREVIEW_RATE);
+        const range = AUTOMATABLE[node.tpl]?.[wire.inName] || OTHER_RANGES[node.tpl]?.[wire.inName];
+        if (control) params[wire.inName] = connectedPoints(control, range, rangeFirst(), rangeBars(), barSamples(PREVIEW_RATE), PREVIEW_RATE);
+      }
+      nodes.set(id, { ...node, params, original: node.params });   // original: what the block says, for the build when this block stays with the server
+    };
+    const serverNode = (node) => (node.original ? { ...node, params: node.original } : node);
+    /** Whether a sound that reaches this block went through a local instrument that is only approximate here (the build makes those louder or softer than this preview). */
+    const reachesApproximation = (start) => {
+      const seen = new Set(), todo = [start];
+      while (todo.length) {
+        const at = todo.pop();
+        if (seen.has(at)) continue;
+        seen.add(at);
+        if (localApproximationSources.has(at)) return true;
+        for (const link of graph.links) if (link.to === at && link.type !== 'control' && !link.disabled) todo.push(link.from);
+      }
+      return false;
     };
     const resolveNode = async (id, output) => {
       controller.signal.throwIfAborted();
@@ -515,7 +555,7 @@ export async function buildAndPlayClientPreview() {
       }
       if (steered.length) {
         localFallbackReasons.add(`${id}: ${steered.join(', ')} follow${steered.length === 1 ? 's' : ''} a control, which the browser preview does not apply yet`);
-        const audio = await buildAudio(node, context, controller.signal, audioCache, serverSources);
+        const audio = await buildAudio(serverNode(node), context, controller.signal, audioCache, serverSources);
         memo.set(key, audio);
         return audio;
       }
@@ -576,11 +616,18 @@ export async function buildAndPlayClientPreview() {
         memo.set(key, result);
         return result;
       }
-      // an automated gain stays on the build: its input is a local sequencer (piano, guitar), which the preview renders with its approximate synth, +3 to +13 dB louder than the build (OneMoreLight); taking the whole block from the build keeps those exact
-      if (node.tpl === 'volume' && !/^(?:auto|fadein|fadeout)\s*\(/i.test(String(node.params.gain || ''))) {
+      // a gain that follows a curve (auto, lfo, env, fadein, fadeout) or a control is made here as the server makes it. When its sound is a local instrument (piano, guitar) that the preview
+      // renders with its approximate synth, +3 to +13 dB louder than the build (OneMoreLight), the block comes from the build: the louder sound would show in the gain.
+      if (node.tpl === 'volume') {
         const link = graph.links.find((item) => item.to === id && item.type === 'audio' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = link ? await resolve(link.from, link.outName) : null;
         if (!source) { memo.set(key, null); return null; }
+        const shaped = Array.isArray(node.params.gain) || /^\s*(?:auto|lfo|env|fadein|fadeout)\s*\(/i.test(String(node.params.gain || ''));
+        if (shaped && reachesApproximation(link.from)) {
+          const audio = await buildAudio(serverNode(node), context, controller.signal, audioCache, serverSources);
+          memo.set(key, audio);
+          return audio;
+        }
         const result = volumeAudio(source, node.params, Number(S.doc?.project?.tempo) || 120, S.range?.firstBar || 1);
         memo.set(key, result);
         return result;
@@ -726,13 +773,15 @@ export async function buildAndPlayClientPreview() {
         memo.set(key, result);
         return result;
       }
-      if (node.tpl === 'compressor' && !/^(?:auto|lfo|env)\s*\(/i.test(String(node.params.threshold || ''))) {
+      if (node.tpl === 'compressor') {
         const audioLink = graph.links.find((item) => item.to === id && item.type === 'audio' && item.inName === 'in' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const keyLink = graph.links.find((item) => item.to === id && item.type === 'audio' && item.inName === 'key' && !item.disabled && !isDisabled(nodes.get(item.from) || {}));
         const source = audioLink ? await resolve(audioLink.from, audioLink.outName) : null;
         const keyAudio = keyLink ? await resolve(keyLink.from, keyLink.outName) : null;
         if (!source || (keyLink && !keyAudio)) { memo.set(key, null); return null; }
-        const result = await compressorAudio(source, node.params, keyAudio, controller.signal);
+        // an automated threshold (auto/lfo/env or a control) is a limit per sample, as the server
+        const limits = thresholdLimits(node.params.threshold, barSamples(source.sampleRate), source.sampleRate, rangeFirst(), source.channels[0].length);
+        const result = await compressorAudio(source, node.params, keyAudio, controller.signal, limits);
         memo.set(key, result);
         return result;
       }
@@ -920,7 +969,8 @@ export async function buildAndPlayClientPreview() {
         if (node.params.enabled === 'off') { memo.set(key, source); return source; }
         try {
           if (stretchWorkingSetBytes(source.channels[0].length, source.channels.length) > 128 * 1024 * 1024) throw new Error('local stretch preview exceeds the worker memory budget');
-          const channels = await processStretchChannels(source.channels, source.sampleRate, node.params, controller.signal);
+          const timing = { tempo: Number(S.doc?.project?.tempo) || 92, firstBar: S.range?.firstBar || 1 };
+          const channels = await processStretchChannels(source.channels, source.sampleRate, node.params, controller.signal, timing);
           const result = { sampleRate: source.sampleRate, channels };
           memo.set(key, result);
           return result;

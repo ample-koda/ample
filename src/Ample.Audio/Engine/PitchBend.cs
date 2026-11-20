@@ -98,7 +98,7 @@ public static class PitchBend
             short[][] source = stereo ? [channels.Left, channels.Right] : [channels.Left];
             double[][] bent = Autotune.Spectral(source, rate, position => curve[(int)Math.Clamp(position, 0, curve.Length - 1)], false, cancellationToken);
             short[][] clipped = [.. bent.Select(channel => channel.Select(v => (short)Math.Clamp(Math.Round(v), short.MinValue, short.MaxValue)).ToArray())];
-            result.Add(output with { Data = stereo ? StereoWav.Encode(new StereoBuffer(clipped[0], clipped[1]), rate) : Wav.Encode(clipped[0], rate) });
+            result.Add(output with { Data = stereo ? StereoWav.Encode(new StereoBuffer(clipped[0], clipped[1]), rate) : Wav.Encode(clipped[0], rate, cancellationToken) });
             changed = true;
         }
 

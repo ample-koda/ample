@@ -98,6 +98,23 @@ public sealed record RenderOutput(string Role, byte[] Data)
     public string? MetadataJson { get; init; }
 }
 
+/// <summary>
+/// An optional extra of a renderer whose output has a length of its own (speech): it says how long an unplaced block lasts before anything is rendered,
+/// so the build can give the block that many bars instead of the default of 8. The answer must come from the same plan that the render uses.
+/// </summary>
+public interface IBlockDurationPlanner
+{
+    /// <summary>
+    /// Gets the duration of the block in samples at <paramref name="sampleRate"/>, or null when the block has no length of its own (the build then uses its
+    /// ordinary rules). It must be pure and cheap: it runs before the build, for every unplaced block of this type. It may throw <see cref="AmpleException"/>
+    /// for input it cannot plan; the build then also uses its ordinary rules and the render reports the problem.
+    /// </summary>
+    /// <param name="block">The unplaced block.</param>
+    /// <param name="blockTemplate">The template of the block type.</param>
+    /// <param name="sampleRate">The sample rate that the duration is counted at.</param>
+    long? PlannedSamples(BlockNode block, TemplateSpec blockTemplate, int sampleRate);
+}
+
 /// <summary>Makes the outputs of one block type. Built-in renderers are pure and bit-reproducible; plugin renderers arrive in chunk 60.</summary>
 public interface IBlockRenderer
 {
@@ -127,7 +144,7 @@ public static partial class BuiltInRenderers
     internal static void ApplyMidiControllerGain(short[] samples, IReadOnlyList<(int Sample, int Controller, int Value)> events) => Midi.ApplyControllerGain(samples, events);
 
     /// <summary>Gets all built-in renderers, including SF2 General MIDI instruments.</summary>
-    public static IReadOnlyList<IBlockRenderer> All { get; } = [new MidiClip(), new Midi(), new MidiRender(), new Drums(), new Bass(), new Piano(), new SampledInstruments.Guitar(), new SampledInstruments.Gm(), new MachineExactRenderer(new SampledInstruments.Gm()), new MachineExactRenderer(new MidiRender()), new Mixer("mixer"), new Mixer("bus"), new Master(), new Group(), new Lyrics(), new MoodScene(), new SplitterRenderer(), new SynthRenderer(), new DelayLlamaRenderer(), new ImportAudioRenderer(), new RegionMergeRenderer(), new OneShotSamplerRenderer(), new SendRenderer(), new FadeRenderer(), new CrossfadeRenderer(), new SequencerRenderer(), .. MidiEffects.All, .. AudioEffects.All, .. ExtraEffects.All, .. ControlBlocks.All, .. TrimBlock.All, .. SilenceBlock.All, .. ClickBlock.All];
+    public static IReadOnlyList<IBlockRenderer> All { get; } = [new MidiClip(), new Midi(), new MidiRender(), new Drums(), new Bass(), new Piano(), new SampledInstruments.Guitar(), new SampledInstruments.Gm(), new MachineExactRenderer(new SampledInstruments.Gm()), new MachineExactRenderer(new MidiRender()), new Mixer("mixer"), new Mixer("bus"), new Master(), new Group(), new Lyrics(), new MoodScene(), new SplitterRenderer(), new SynthRenderer(), new DelayLlamaRenderer(), new SpeechRenderer(), new ImportAudioRenderer(), new RegionMergeRenderer(), new OneShotSamplerRenderer(), new SendRenderer(), new FadeRenderer(), new CrossfadeRenderer(), new SequencerRenderer(), .. MidiEffects.All, .. AudioEffects.All, .. ExtraEffects.All, .. ControlBlocks.All, .. TrimBlock.All, .. SilenceBlock.All, .. ClickBlock.All];
 
     /// <summary>Parses a chord name (<c>Am</c>, <c>F</c>, <c>C#m</c>, <c>Bb</c>) into a triad of MIDI notes around C3 (<see cref="ClipShorthand.Triad"/>).</summary>
     public static int[] Triad(string chord) => ClipShorthand.Triad(chord);
@@ -419,7 +436,7 @@ public static partial class BuiltInRenderers
             try { audio = await RenderMidiAudio(r, audioNotes, ppq, "pack:musescore-general", 0, file, tracks, cancellationToken, ties).ConfigureAwait(false); }
             catch (AmpleException ex) when (ex.DiagnosticCode == "AMP5311" && ex.Message.Contains("pack is not installed", StringComparison.Ordinal))
             {
-                audio = [new RenderOutput("audio", Wav.Encode(new short[checked(r.BarCount * r.SamplesPerBar)], r.SampleRate))];
+                audio = [new RenderOutput("audio", Wav.Encode(new short[checked(r.BarCount * r.SamplesPerBar)], r.SampleRate, cancellationToken))];
                 warnings.Add("MIDI audio is silent because the GM SoundFont pack is not installed; run tools/fetch-gm-soundfont.mjs --download.");
             }
             warnings.AddRange(audio.Where(o => o.Role == "warnings").SelectMany(o => Encoding.UTF8.GetString(o.Data).Split('\n', StringSplitOptions.RemoveEmptyEntries)));
@@ -612,7 +629,7 @@ public static partial class BuiltInRenderers
             try { audio = await Midi.RenderMidiAudio(r, notes, ppq, soundFont, gain, file, tracks, cancellationToken).ConfigureAwait(false); }
             catch (AmpleException ex) when (ex.DiagnosticCode == "AMP5311" && ex.Message.Contains("pack is not installed", StringComparison.Ordinal))
             {
-                audio = [new RenderOutput("audio", Wav.Encode(new short[checked(r.BarCount * r.SamplesPerBar)], r.SampleRate))];
+                audio = [new RenderOutput("audio", Wav.Encode(new short[checked(r.BarCount * r.SamplesPerBar)], r.SampleRate, cancellationToken))];
                 warnings.Add("MIDI audio is silent because the GM SoundFont pack is not installed.");
             }
             warnings.AddRange(audio.Where(o => o.Role == "warnings").SelectMany(o => Encoding.UTF8.GetString(o.Data).Split('\n', StringSplitOptions.RemoveEmptyEntries)));

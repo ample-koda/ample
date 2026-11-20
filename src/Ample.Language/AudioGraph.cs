@@ -226,6 +226,15 @@ public static partial class AudioGraphBuilder
         // a Notes input is a value of its own kind: only an instrument turns it into audio
         foreach (ComponentPort input in d.Inputs.Where(i => i.Type.TrimEnd('?') == "Notes")) { st.AudioNames[input.Name] = "in:" + input.Name; st.NotesSources.Add("in:" + input.Name); }
         foreach (ComponentProperty p in d.Properties) if (!st.Scope.ContainsKey(p.Name) && p.Default is not null) st.Scope[p.Name] = p.Default;
+        // a private property that the process reads is a value of this instance, worked out from its default in the order written, with the public properties and the private ones
+        // above it in scope (plan D36r); the others are metadata and never run. No instance can give one a value: the scope above holds public values only.
+        foreach (ComponentProperty p in ComponentHelper.UsedPrivate(d))
+        {
+            if (p.Default is null) continue;
+            string? worked = ComponentMigrations.EvaluateScoped(p.Default, st.Scope, out string? privateFailure);
+            if (worked is null) { st.Line = p.Line; st.Issues.Add(Issue(st, "AMP2232", $"The value of the private property {p.Name} cannot be calculated: {privateFailure}", p.Default)); }
+            else st.Scope[p.Name] = worked;
+        }
         Dictionary<string, string> outputs = new(StringComparer.Ordinal);
         List<Statement> statements = Statements(d, st.Issues);
         Stack<(bool ParentActive, bool Taken, bool Active)> branches = new();

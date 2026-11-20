@@ -126,7 +126,7 @@ internal sealed class FadeRenderer : IBlockRenderer
     public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest request, CancellationToken cancellationToken)
     {
         string Value(string name) => request.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value.Trim().Trim('"') ?? request.Template.Parameters.GetValueOrDefault(name) ?? string.Empty;
-        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate);
+        byte[] input = request.Inputs.TryGetValue("in", out byte[]? connected) ? connected : Wav.Encode(new short[request.BarCount * request.SamplesPerBar], request.SampleRate, cancellationToken);
         (StereoBuffer channels, int rate) = ChannelAudio.Decode(input);
         if (Value("enabled") != "off")
         {
