@@ -12,7 +12,167 @@ namespace Ample.Server.Tests;
 /// <summary>Lite: the limits and the capability boundary (unit), and the routes with a real build (integration). plan/lite/PLAN.md, section 5 and 9.</summary>
 public sealed class LiteTests : IAsyncLifetime, IDisposable
 {
+    [Fact]
+    public async Task Remix_build_refuses_a_speech_block_that_is_longer_than_the_limit()
+    {
+        const string song = "composition \"speech\" { ample 1 tempo 120 master-seed 1 }\n"
+            + "speech voice at 1 for 1 {\n  text \"hello\"\n}\n"
+            + "master out {\n  from voice.audio -> audio\n}\n";
+        LiteRejectedException error = await Assert.ThrowsAsync<LiteRejectedException>(() => LiteBuilder.BuildAsync(spec, home, "speech.amplet",
+            [Text("speech.amplet", song)], Limits with { MaxSpeechOutputSeconds = 1 },
+            new LiteOutputs(), CancellationToken.None));
+
+        Assert.Equal("AMPL924", error.Code);
+        Assert.Equal(413, error.Status);
+    }
+
+    private LiteRejectedException SpeechRefused(string text)
+    {
+        AmpleDocument doc = Parser.Parse(text, spec);
+        return Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = text }, doc, spec, LiteLimits.Default));
+    }
+
+    private const string SpeechHeader = "composition \"t\" { ample 1 tempo 120 master-seed 1 }\n";
+
+    [Fact]
+    public void Remix_speech_spans_are_counted_in_seconds_per_block_and_per_build()
+    {
+        // tempo 120, 4/4: one bar is two seconds
+        LiteRejectedException block = SpeechRefused(SpeechHeader + "speech a at 1 for 31 {\n text \"hello\"\n}\n");
+        Assert.Equal("AMPL924", block.Code);
+        Assert.Contains("62 seconds", block.Message, StringComparison.Ordinal);
+
+        string three = SpeechHeader + string.Concat(Enumerable.Range(0, 3).Select(i => $"speech s{i} at {1 + i * 21} for 21 {{\n text \"hello\"\n}}\n"));
+        LiteRejectedException build = SpeechRefused(three);
+        Assert.Equal("AMPL924", build.Code);
+        Assert.Contains("126 seconds", build.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_unplaced_speech_block_counts_as_long_as_the_build_makes_it()
+    {
+        // tempo 120, 4/4: bar = 2 s. A words-mode block without a placement is given 8 bars by the build (the Notes decide, not the text),
+        // so 8 blocks are 128 s, over the 120 s of a build
+        string eight = SpeechHeader + string.Concat(Enumerable.Range(0, 8).Select(i => $"speech s{i} {{\n mode \"words\"\n text \"hello\"\n}}\n"));
+        Assert.Contains("128 seconds", SpeechRefused(eight).Message, StringComparison.Ordinal);
+
+        // a bars parameter sets the length of an unplaced block (40 bars = 80 s, over the 60 s of one block)
+        Assert.Contains("80 seconds", SpeechRefused(SpeechHeader + "speech a {\n bars 40\n text \"hello\"\n}\n").Message, StringComparison.Ordinal);
+
+        // an unplaced block follows the length of the clip that feeds it
+        string fed = SpeechHeader + "midi-clip m at 1 for 40 {\n notes \"1:0:1:60:100\"\n}\n"
+            + "speech a {\n mode \"words\"\n text \"hello\"\n from m.notes -> notes\n}\n";
+        Assert.Contains("80 seconds", SpeechRefused(fed).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_unplaced_text_block_counts_as_long_as_its_speech_not_as_eight_bars()
+    {
+        // 8 short sentences without a placement: the build gives each one bar (about 1.2 s of speech in a 2 s bar), 16 s together
+        string text = SpeechHeader + string.Concat(Enumerable.Range(0, 8).Select(i => $"speech s{i} {{\n text \"I am a robot.\"\n}}\n"));
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = text }, Parser.Parse(text, spec), spec, LiteLimits.Default);
+
+        // a long text has a long block: 240 words (about 90 seconds) are over the 60 seconds of one block
+        string many = SpeechHeader + "speech a {\n text \"" + string.Join(' ', Enumerable.Repeat("the quick brown fox jumps over", 40)) + "\"\n}\n";
+        LiteRejectedException error = SpeechRefused(many);
+        Assert.Equal("AMPL924", error.Code);
+        Assert.Contains("seconds long", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Speech_blocks_that_run_together_are_refused_when_their_memory_estimate_is_over_the_limit()
+    {
+        // two blocks of 30 s (15 bars at 120 bpm), both placed: the 30 s words are spoken in one block each
+        string two = SpeechHeader + "speech a at 1 for 15 {\n text \"hello\"\n}\nspeech b at 16 for 15 {\n text \"hello\"\n}\n";
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = two }, Parser.Parse(two, spec), spec, LiteLimits.Default);
+
+        LiteLimits tight = LiteLimits.Default with { MaxSpeechPeakBytes = 20L * 1024 * 1024 };
+        LiteRejectedException error = Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = two }, Parser.Parse(two, spec), spec, tight));
+        Assert.Equal("AMPL924", error.Code);
+        Assert.Equal(413, error.Status);
+        Assert.Contains("MiB", error.Message, StringComparison.Ordinal);
+        Assert.Contains("at most 20 MiB", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_long_text_in_a_short_placement_costs_the_text_and_a_words_block_costs_more_than_a_text_block()
+    {
+        string words = string.Join(' ', Enumerable.Repeat("the quick brown fox jumps over", 12));
+        LiteLimits tight = LiteLimits.Default with { MaxSpeechPeakBytes = 6L * 1024 * 1024 };
+        string shortSpan = SpeechHeader + $"speech a at 1 for 1 {{\n text \"{words}\"\n}}\n";   // a 2 s placement, 26 s of text
+        LiteRejectedException refused = Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(
+            new Dictionary<string, string> { ["song.amplet"] = shortSpan }, Parser.Parse(shortSpan, spec), spec, tight));
+        Assert.Contains("MiB", refused.Message, StringComparison.Ordinal);
+
+        // the same text and span: about 32 MiB as text (under 40) and about 64 MiB as words (over 40) (words also keep the audio of every word)
+        LiteLimits between = LiteLimits.Default with { MaxSpeechPeakBytes = 40L * 1024 * 1024 };
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = shortSpan }, Parser.Parse(shortSpan, spec), spec, between);
+        string asWords = SpeechHeader + $"speech a at 1 for 1 {{\n mode \"words\"\n text \"{words}\"\n}}\n";
+        Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = asWords }, Parser.Parse(asWords, spec), spec, between));
+    }
+
+    [Fact]
+    public void Placements_far_apart_count_as_the_span_the_build_allocates()
+    {
+        // two one-bar placements 40 bars apart: the sum of the lengths is 2 bars, the span the build allocates is 40 bars = 80 s
+        LiteRejectedException gap = SpeechRefused(SpeechHeader + "speech a at 1 for 1, 40 for 1 {\n text \"hello\"\n}\n");
+        Assert.Equal(413, gap.Status);
+        Assert.Contains("80 seconds", gap.Message, StringComparison.Ordinal);
+
+        // exactly 60 s (30 bars) is allowed
+        string text = SpeechHeader + "speech a at 1 for 1, 30 for 1 {\n text \"hello\"\n}\n";
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = text }, Parser.Parse(text, spec), spec, LiteLimits.Default);
+    }
+
+    [Fact]
+    public async Task The_real_remix_build_route_refuses_an_unplaced_speech_overrun()
+    {
+        string song = SpeechHeader + string.Concat(Enumerable.Range(0, 8).Select(i => $"speech s{i} {{\n mode \"words\"\n text \"hello\"\n}}\n"))
+            + "master out {\n  from s0.audio -> audio\n}\n";
+        LiteRejectedException error = await Assert.ThrowsAsync<LiteRejectedException>(() => LiteBuilder.BuildAsync(spec, home, "song.amplet",
+            [Text("song.amplet", song)], Limits, new LiteOutputs(), CancellationToken.None));
+
+        Assert.Equal("AMPL924", error.Code);
+        Assert.Contains("128 seconds", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Remix_speech_text_is_counted_per_block_and_per_build()
+    {
+        string longText = new('a', 4097);
+        Assert.Contains("4097 characters", SpeechRefused(SpeechHeader + $"speech a at 1 for 1 {{\n text \"{longText}\"\n}}\n").Message, StringComparison.Ordinal);
+
+        string eachFits = new('a', 4000);
+        string five = SpeechHeader + string.Concat(Enumerable.Range(0, 5).Select(i => $"speech s{i} at {1 + i} for 1 {{\n text \"{eachFits}\"\n}}\n"));
+        Assert.Contains("20000 characters", SpeechRefused(five).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Remix_accepts_the_funk_demo_with_the_default_speech_limits()
+    {
+        string? folder = AppContext.BaseDirectory;
+        while (folder is not null && !Directory.Exists(Path.Combine(folder, "docs", "examples"))) folder = Path.GetDirectoryName(folder);
+        string text = File.ReadAllText(Path.Combine(folder!, "docs", "examples", "26-funky-speech", "funky-speech.amplet"));
+        AmpleDocument doc = Parser.Parse(text, spec);
+
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["funky-speech.amplet"] = text }, doc, spec, LiteLimits.Default);
+    }
+
     private const string Song = "composition \"t\" { ample 1  tempo 120  master-seed 1 }\n\nmidi-clip m at 1 for 1 {\n  notes 1:0:1:60:100 1:1:1:64:100\n}\n\nsynth s at 1 for 1 {\n  from m.notes -> notes\n}\n\nmaster out {\n  from s.audio -> audio\n}\n";
+
+    [Fact]
+    public void Remix_policy_counts_expanded_speech_blocks()
+    {
+        const string text = "composition \"t\" { ample 1 tempo 120 master-seed 1 }\n"
+            + "speech a at 1 for 1 {\n text \"hello\"\n}\n"
+            + "speech b at 1 for 1 {\n text \"hello\"\n}\n";
+        AmpleDocument doc = Parser.Parse(text, spec);
+        LiteRejectedException error = Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(
+            new Dictionary<string, string> { ["song.amplet"] = text }, doc, spec, Limits with { MaxSpeechBlocks = 1 }));
+
+        Assert.Equal("AMPL924", error.Code);
+        Assert.Equal(413, error.Status);
+    }
 
     private static readonly LiteLimits Limits = LiteLimits.Default;
 

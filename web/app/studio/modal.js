@@ -19,6 +19,7 @@ import './panels/denoise.js';
 import './panels/rewind.js';
 import './panels/autotune.js';
 import './panels/vocoder.js';
+import './panels/speech.js';
 import './panels/chop.js';
 import './panels/delay-llama.js';
 import './panels/limiter-pan-width.js';

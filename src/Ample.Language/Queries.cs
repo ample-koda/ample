@@ -136,6 +136,22 @@ public static class Queries
     private static string HelperText(HelperInfo h, string? inferred = null) => Signature(h.Name, h.Params.Select(p => $"{p.Type} {p.Name}" + (p.Default is null ? string.Empty : " = " + p.Default)), h.Returns ?? inferred);
 
     /// <summary>The hover of a variable (a let, a var, a constant, a parameter or a loop variable): what it is, its value, the type that was worked out without running anything and the types it can have; on the let or var keyword, what the keyword does and what it declares.</summary>
+    /// <summary>The hover of a parameter name: the first line as it always was, then what the template says about it (its documentation, its choices and its range).</summary>
+    private static string ParameterHover(TemplateSpec template, string blockType, string name, string defaultValue)
+    {
+        string text = $"{name}: parameter of {blockType}, default {defaultValue}.";
+        if (!template.ParameterSpecs.TryGetValue(name, out TemplateParameterSpec? parameter)) return text;
+        if (!string.IsNullOrWhiteSpace(parameter.Documentation)) text += $"\n\n{parameter.Documentation}";
+        if (parameter.Options is { Count: > 0 }) text += $"\n\nChoices: {string.Join(", ", parameter.Options)}.";
+        if (parameter is { Min: not null, Max: not null })
+        {
+            string unit = string.IsNullOrEmpty(parameter.Unit) ? string.Empty : " " + parameter.Unit;
+            text += string.Create(System.Globalization.CultureInfo.InvariantCulture, $"\n\nFrom {parameter.Min}{unit} to {parameter.Max}{unit}.");
+        }
+
+        return text;
+    }
+
     private static string? VariableHover(AmpleDocument doc, int line, int col, string word)
     {
         if (doc.HelperTable.VariableSpots.Count == 0) return null;
@@ -334,7 +350,7 @@ public static class Queries
         BlockNode? owner = doc.Blocks.FirstOrDefault(b => b.Line < line - 1 && (b.CloseLine < 0 || b.CloseLine >= line - 1));
         if (owner is not null && spec.Templates.TryGetValue(owner.Type, out TemplateSpec? ot) && ot.Parameters.TryGetValue(word, out string? def) && raw.TrimStart().StartsWith(word, StringComparison.Ordinal))
         {
-            return $"{word}: parameter of {owner.Type}, default {def}.";
+            return ParameterHover(ot, owner.Type, word, def);
         }
 
         BlockNode? block = BlockAt(doc, line, col);
@@ -706,10 +722,20 @@ public static class Queries
         if (d is null) return null;
         if (line0 == d.HeaderLine) return ComponentSummary(doc, spec, d);
         if (d.IsAudio && d.ProcessLine >= 0 && line0 > d.ProcessLine && AudioProcessors.Catalog(spec).TryGetValue(word, out AudioProcessor? processor)) return "**" + word + "**: " + AudioSignature(processor);
+        bool inProcess = d.ProcessLine >= 0 && line0 > d.ProcessLine;
+        if (d.PrivateProperties.FirstOrDefault(p => p.Name == word && (p.Line == line0 || inProcess)) is { } hidden)
+        {
+            return Declaration(hidden) + "\n\nPrivate: only the process of this component reads it. An instance cannot set it, and it is not in the property panel or the library."
+                + (hidden.IsDynamic ? " Reading it makes the component dynamic." : string.Empty)
+                + (ComponentHelper.UsedPrivate(d).Contains(hidden) ? string.Empty : " Nothing reads it yet, so it is metadata and never runs.")
+                + (hidden.Doc is { Summary.Length: > 0 } hiddenDoc ? "\n\n" + hiddenDoc.Summary : string.Empty);
+        }
+
         if (d.Properties.FirstOrDefault(p => p.Line == line0 && p.Name == word) is { } property)
         {
             string constraints = string.Join(", ", property.Attributes.Where(a => !ComponentAttributes.Presentation.Contains(a.Name)).Select(a => a.Name + "(" + string.Join(", ", a.Args) + ")"));
-            return $"`property {property.Name}: {property.Type}{(property.Default is null ? string.Empty : " = " + property.Default)}`" + (constraints.Length > 0 ? "\n\n" + constraints : string.Empty) + (property.Doc is { Summary.Length: > 0 } pd ? "\n\n" + pd.Summary : string.Empty) + "\n\nproperty";
+            return Declaration(property) + (constraints.Length > 0 ? "\n\n" + constraints : string.Empty)
+                + (property.Doc is { Summary.Length: > 0 } pd ? "\n\n" + pd.Summary : string.Empty) + "\n\nproperty";
         }
 
         ComponentPort? port = d.Inputs.Concat(d.Outputs).FirstOrDefault(p => p.Line == line0 && p.Name == word);
@@ -722,6 +748,12 @@ public static class Queries
         return null;
     }
 
+    /// <summary>The words before <c>property</c> in a declaration: <c>private </c> and <c>dynamic </c> as written.</summary>
+    private static string Declaration(ComponentProperty p) =>
+        $"`{PropertyMarks(p)}property {p.Name}: {p.Type}{(p.Default is null ? string.Empty : " = " + p.Default)}`";
+
+    private static string PropertyMarks(ComponentProperty p) => (p.IsPrivateDeclared ? "private " : string.Empty) + (p.IsDynamic ? "dynamic " : string.Empty);
+
     private static string ComponentSummary(AmpleDocument doc, SpecData spec, ComponentDefinition d)
     {
         SealCheck seal = ComponentHashing.Check(d, ComponentHashing.DependenciesOf(d, doc.Spec ?? spec, () => doc.HelperTable.ClosureHashes(string.Join('\n', d.ProcessBody)), [.. doc.Components, .. doc.ImportedComponents]));
@@ -729,6 +761,7 @@ public static class Queries
         if (d.Doc is { Summary.Length: > 0 } summary) parts.Add(summary.Summary);
         if (d.Inputs.Count > 0) parts.Add("**Inputs**\n" + string.Join('\n', d.Inputs.Select(i => $"- `{i.Name}: {i.Type}`" + (i.Optional ? " (optional" + (i.Fallback is null ? ")" : $", fallback `{i.Fallback}`)") : string.Empty))));
         if (d.Properties.Count > 0) parts.Add("**Properties**\n" + string.Join('\n', d.Properties.Select(p => $"- `{p.Name}: {p.Type}{(p.Default is null ? string.Empty : " = " + p.Default)}`" + (p.Doc is { Summary.Length: > 0 } pd ? " — " + pd.Summary : string.Empty))));
+        if (d.PrivateProperties.Count > 0) parts.Add($"**Private properties** {d.PrivateProperties.Count}: only the process reads them; an instance cannot set them.");
         if (d.Outputs.Count > 0) parts.Add("**Output** " + string.Join(", ", d.Outputs.Select(o => $"`{o.Name}: {o.Type}`")));
         parts.Add($"id `{d.Id}`, semantic `{ComponentHashing.Abbreviate(seal.Semantic)}`, payload `{ComponentHashing.Abbreviate(seal.Payload)}`");
         if (seal.State == SealState.Invalid) parts.Add("**Seal void:** " + seal.Reason);
@@ -746,7 +779,8 @@ public static class Queries
         if (d.UiLine >= 0 && line0 > d.UiLine && line0 <= d.UiEndLine) return UiCompletions(d, before);
         if (System.Text.RegularExpressions.Regex.IsMatch(before, @"#\[Widget\(\w*$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             return [.. ComponentUiCatalog.Widgets.Select(w => new CompletionItem(w.Key, "widget", w.Value))];
-        if (System.Text.RegularExpressions.Regex.IsMatch(before, @"^(?:input|output|property)\s+[\w-]+\s*:\s*[\w<>]*$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
+        const string declarationHead = @"^(?:input|output|(?:private\s+)?(?:dynamic\s+)?property)\s+[\w-]+\s*:\s*[\w<>]*$";
+        if (System.Text.RegularExpressions.Regex.IsMatch(before, declarationHead, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
             return [.. NoteCatalog.Types.Values.Select(t => new CompletionItem(t.Name, "type", t.Doc ?? string.Empty)), new("Notes", "type", "Notes"), new("Audio", "type", "Audio: a lazy graph of audio processors, rendered by the build"), new("Bool", "type", "true or false")];
         if (d.IsAudio && d.ProcessLine >= 0 && line0 > d.ProcessLine)
         {
@@ -767,6 +801,8 @@ public static class Queries
             new("input", "keyword", "input <name>: Notes { optional true  fallback <property> }"),
             new("output", "keyword", "output <name>: Notes"),
             new("property", "keyword", "property <name>: <Type> = <default>"),
+            new("private property", "keyword", "private property <name>: <Type> = <value>: a value only the process reads; no instance can set it"),
+            new("dynamic property", "keyword", "dynamic property <name>: <Type> = <default>: its value may differ between builds; a process that reads it is dynamic"),
             new("process", "keyword", "process { ... }: what the component makes (a helper body; emit the notes)"),
             new("requires", "keyword", "requires clock: the capabilities the process needs"),
             new("ui", "keyword", "ui { ... }: the layout of the property panel"),

@@ -73,6 +73,10 @@ test('a pitch curve is read like the engine reads it, and bends a tone', async (
   assert.equal(curve[3 * 32000 - 1], 12);
   // with range 12 the values are percent of an octave
   assert.equal(pitchCurve('auto(1:0, 3:100)', '12', RATE, 120, 1, 3 * 32000)[32000], 6);
+  // the points of a control (samples, not bars) and positions in seconds are read too
+  const points = [{ sample: 0, value: 0 }, { sample: 64000, value: 12 }];
+  assert.equal(pitchCurve(points, '', RATE, 120, 1, 3 * 32000)[32000], 6);
+  assert.equal(pitchCurve('auto(0s:0, 4s:12)', '', RATE, 120, 1, 3 * 32000)[32000], 6);
   const { bendChannels } = await import('../clientside-autotune.mjs');
   const bent = bendChannels([tone(440, 2)], RATE, () => 12)[0];
   assert.ok(Math.abs(pitch(bent) - 81) < 0.3, `pitch ${pitch(bent)}`);

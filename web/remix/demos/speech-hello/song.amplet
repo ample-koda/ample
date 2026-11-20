@@ -1,0 +1,19 @@
+composition "hello speech" { ample 1  tempo 100  master-seed 7 }
+
+# A voice made from text. The speech block speaks the text; the engine is humanico (a small retro formant voice), the default.
+# Try other words, add "rate 0.8" to slow it down, or engine "retro" for the older voice. Remix allows 60 seconds and 4096 characters per speech block.
+speech voice at 1 for 3 {
+  text "Hello from AMPLE. This voice is made from text, in a few seconds."
+}
+
+# A little room around it.
+reverb room {
+  size 30%
+  decay 25%
+  mix 15%
+  from voice.audio -> audio
+}
+
+master master {
+  from room.audio -> audio
+}

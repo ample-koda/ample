@@ -97,6 +97,24 @@ public static partial class ComponentHelper
         return [.. d.PrivateProperties.Where(p => used.Contains(p.Name))];
     }
 
+    /// <summary>
+    /// Whether the process reads a property that is written <c>dynamic property</c> (plan D32): named in the process (observation statements and strings do not count) or in the value
+    /// of a private property that is read. Reading it makes the helper of the component dynamic, the mark on the property is the permission; passing it along without reading does not count.
+    /// </summary>
+    /// <param name="d">The component.</param>
+    /// <returns>Whether the component is dynamic because of a property.</returns>
+    public static bool ReadsDynamicProperty(ComponentDefinition d)
+    {
+        ArgumentNullException.ThrowIfNull(d);
+        List<ComponentProperty> dynamicOnes = [.. d.Properties.Concat(UsedPrivate(d)).Where(p => p.IsDynamic)];
+        if (dynamicOnes.Count == 0) return false;
+        string body = string.Join('\n', d.ProcessBody);
+        string text = StringLiteral().Replace(NotePipeline.BlankObservationStatements(body) ?? NotePipeline.StripComments(body), " ");
+        text += "\n" + string.Join('\n', UsedPrivate(d).Where(p => p.Default is not null).Select(p => StringLiteral().Replace(NotePipeline.StripComments(p.Default!), " ")));
+        HashSet<string> words = [.. Word().Matches(text).Select(m => m.Value)];
+        return dynamicOnes.Any(p => words.Contains(p.Name));
+    }
+
     /// <summary>The text of the helper. Its first line stands where the <c>process</c> line stands and its body is the process body as written, so that the line of a problem in the helper is the line of the component.</summary>
     /// <param name="d">The component.</param>
     /// <param name="all">The components that are visible (a call of another Notes component is written as the call of its helper), or null.</param>
@@ -107,7 +125,7 @@ public static partial class ComponentHelper
         ArgumentNullException.ThrowIfNull(d);
         // the private properties that the music reads are lets at the start of the helper, on the line of the head so that no line of the process moves
         string lets = string.Concat(UsedPrivate(d).Select(p => $" let {p.Type.TrimEnd('?')} {p.Name} = {p.Default};"));
-        string head = $"helper {d.HelperName}({string.Join(", ", Parameters(d).Select(p => p.Type + " " + p.Name))}) -> Notes {{{lets}";
+        string head = $"{(ReadsDynamicProperty(d) ? "dynamic " : string.Empty)}helper {d.HelperName}({string.Join(", ", Parameters(d).Select(p => p.Type + " " + p.Name))}) -> Notes {{{lets}";
         List<string> body = [head];
         foreach (string line in all is null ? d.ProcessBody : ComponentNesting.Rewrite(d, all, issues))
         {

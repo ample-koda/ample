@@ -3,6 +3,7 @@
     <PackageReference Include="NVorbis" />
     <ProjectReference Include="../Ample.Core.Abstractions/Ample.Core.Abstractions.csproj" />
     <ProjectReference Include="../Ample.Language/Ample.Language.csproj" />
+    <ProjectReference Include="../Ample.Speech/Ample.Speech.csproj" />
     <InternalsVisibleTo Include="Ample.Core.Tests" />
     <InternalsVisibleTo Include="Ample.Audio.Tests" />
     <InternalsVisibleTo Include="Ample.Storage.Tests" />

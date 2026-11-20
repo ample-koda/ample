@@ -358,6 +358,7 @@ public static class AmpleServer
         return value is "/remix" or "/lsp/remix" or "/styles/tokens.css" or "/app/api.js" or "/app/lsp.js" or "/app/editor-touch-menu.js" or
           "/lib/notes-model.mjs" or "/lib/meter.mjs" or "/lib/file-refs.mjs" or "/lib/log-view.mjs" or "/vendor/codemirror-ample.js" or
           "/lib/listen-session.mjs" or "/lib/listen-cancel.mjs" or "/lib/listen-loop.mjs" or "/lib/listen-segments.mjs" or "/lib/listen-highlight.mjs" or "/lib/listen-remix.mjs"
+          or "/lib/listen-users.mjs" or "/lib/speech-timing.mjs"
             || path.StartsWithSegments("/remix", StringComparison.Ordinal) || path.StartsWithSegments("/api/remix", StringComparison.Ordinal);
     }
 

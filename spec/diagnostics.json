@@ -3754,12 +3754,12 @@
     {
       "code": "AMP2263",
       "severity": "error",
-      "title": "A private property is not available in an audio component yet",
-      "explanation": "Private properties work in components that make notes. In an audio component use a public property for now.",
-      "wrongExample": "composition \"x\" { ample 1  tempo 100  master-seed 1 }\n\ncomponent koda.fx.hush version 1.0.0 {\n  input audio: Audio\n  private property level: Gain = -3dB\n  output audio: Audio\n  process {\n    emit audio |> gain(level)\n  }\n}",
-      "rightExample": "composition \"x\" { ample 1  tempo 100  master-seed 1 }\n\ncomponent koda.fx.hush version 1.0.0 {\n  input audio: Audio\n  property level: Gain = -3dB\n  output audio: Audio\n  process {\n    emit audio |> gain(level)\n  }\n}",
+      "title": "Retired",
+      "explanation": "Retired: a private property now works in an audio component too (the process reads it like a public one; no instance can give it a value). This code is not used.",
+      "wrongExample": "",
+      "rightExample": "",
       "since": "1.0",
-      "retired": false,
+      "retired": true,
       "stage": "static"
     },
     {

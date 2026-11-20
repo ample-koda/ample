@@ -12,7 +12,7 @@ const KIND_OF = {
   pulse: ['drums', 'sampler', 'scratch', 'click'],
   low: ['bass'],
   note: ['midi-clip', 'midi', 'arpeggiator', 'chord', 'quantize', 'transpose', 'midi-humanize', 'piano', 'guitar', 'gm', 'synth', 'delay-llama', 'midi-render', 'fire'],
-  wave: ['ace-music', 'ai-voice', 'choir', 'voice-clone', 'import-audio', 'ambience', 'granular'],
+  wave: ['ace-music', 'ai-voice', 'choir', 'voice-clone', 'speech', 'import-audio', 'ambience', 'granular'],
   sweep: ['trim', 'follow', 'curve', 'map', 'rewind', 'filter', 'eq', 'peq', 'deesser', 'denoise', 'gate', 'tremolo', 'phaser', 'flanger', 'chorus', 'pitch', 'autotune', 'vocoder', 'chop', 'shift', 'stretch', 'reverse', 'bitcrusher', 'distortion', 'normalize', 'fade', 'cut', 'crossfade', 'width', 'pan', 'volume', 'meter'],
   echo: ['delay', 'reverb', 'convolution'],
   squash: ['compressor', 'limiter', 'duck'],

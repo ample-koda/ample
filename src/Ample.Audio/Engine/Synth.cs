@@ -27,7 +27,7 @@ internal sealed class SynthRenderer : IBlockRenderer
         int[] mix = new int[r.BarCount * r.SamplesPerBar];
         if (Text("enabled") == "off")
         {
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(new short[mix.Length], rate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(new short[mix.Length], rate, cancellationToken))]);
         }
 
         string wave = Text("wave");
@@ -101,7 +101,7 @@ internal sealed class SynthRenderer : IBlockRenderer
             if (right is not null) right = AudioEffects.LowPass(right, cutoff, rate);
         }
 
-        byte[] audio = right is null ? Wav.Encode([.. mix.Select(v => FixedAudio.Clip(v))], rate) : StereoWav.Encode(new StereoBuffer([.. mix.Select(v => FixedAudio.Clip(v))], [.. right.Select(v => FixedAudio.Clip(v))]), rate);
+        byte[] audio = right is null ? Wav.Encode([.. mix.Select(v => FixedAudio.Clip(v))], rate, cancellationToken) : StereoWav.Encode(new StereoBuffer([.. mix.Select(v => FixedAudio.Clip(v))], [.. right.Select(v => FixedAudio.Clip(v))]), rate);
         return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", audio)]);
     }
 

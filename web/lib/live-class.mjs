@@ -18,6 +18,7 @@ add('offline', 'A voice that plays from a browser render; live notes are planned
 add('midi', 'Changes notes; you hear it through the instrument after it.', 'transpose chord quantize midi-humanize arpeggiator midi-clip');
 add('sampled', 'Needs the SoundFont render of the server; the browser plays the built take.', 'gm midi-render midi');
 add('server', 'Made by a model on the server; the browser plays the built take, the generation itself is never live.', 'ace-music ai-voice voice-clone choir');
+add('server', 'The voice is made by the speech renderer of the server and never approximated in the browser; the browser plays the built take.', 'speech');
 add('visual', 'Display only: it analyses or selects, it makes no sound of its own.', 'scorer variants mood-scene lyrics');
 add('data', 'Shapes other values over time; it carries no audio.', 'curve fire follow map');
 add('buffer', 'Adds the body of a loop and its processed seam; it plays in the live chain as a sum that saturates at full scale.', 'region-merge');

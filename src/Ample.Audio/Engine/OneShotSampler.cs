@@ -24,7 +24,7 @@ internal sealed class OneShotSamplerRenderer : IBlockRenderer
         short[] buffer = new short[r.BarCount * r.SamplesPerBar];
         if (Text("enabled") == "off")
         {
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(buffer, r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(buffer, r.SampleRate, cancellationToken))]);
         }
 
         string value = Text("file");
@@ -84,6 +84,6 @@ internal sealed class OneShotSamplerRenderer : IBlockRenderer
             }
         }
 
-        return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(buffer, r.SampleRate))]);
+        return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(buffer, r.SampleRate, cancellationToken))]);
     }
 }

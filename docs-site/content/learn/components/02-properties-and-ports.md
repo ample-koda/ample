@@ -13,7 +13,7 @@ lead: The contract of a component: what goes in, what you can set, what comes ou
 
 ## Private properties
 
-`private property name: Type = value` is a value of the component that only its own process reads. It is not a setting of an instance: it is not in the property panel or the library, and an instance cannot set it. Use it for a number the component needs but the user should not change. The value is required, may be a calculation from the inputs, the public properties and the private properties above it, and is worked out for each instance. `private` is a rule about who may change it, not a secret: anyone who opens the component can read it. Audio components cannot have one yet.
+`private property name: Type = value` is a value of the component that only its own process reads. It is not a setting of an instance: it is not in the property panel or the library, and an instance cannot set it. Use it for a number the component needs but the user should not change. The value is required, may be a calculation from the inputs, the public properties and the private properties above it, and is worked out for each instance. `private` is a rule about who may change it, not a secret: anyone who opens the component can read it. It works the same in an audio component.
 
 ```ample
 #[MinValue(1), MaxValue(8), Step(1)]
@@ -21,6 +21,10 @@ property echoes: Int = 3
 
 private property spacing: Duration = 1beat
 ```
+
+## Dynamic properties
+
+`dynamic property name: Type = value` (or `private dynamic property`) says that the value may differ between builds, for example because a song gives it from the clock. A Notes component whose process reads such a property is dynamic itself, so its result is not treated as reproducible. Passing the value along without reading it does not count.
 
 ## Attributes
 

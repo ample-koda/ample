@@ -371,10 +371,10 @@ internal static class SampledInstruments
             // a voice that is still sounding when the block ends is cut there: it fades out softly, so that no click is heard where the next block of the instrument goes on
             foreach (long[]? tail in new[] { buffer, rightBuffer, sendBuffer, sendRight, chorusBuffer, chorusRight }) EndDeclick.Apply(tail, r.SampleRate);
             short[] pcm = [.. buffer.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))];
-            byte[] audio = rightBuffer is null ? Wav.Encode(pcm, r.SampleRate) : StereoWav.Encode(new StereoBuffer(pcm, [.. rightBuffer.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))]), r.SampleRate);
+            byte[] audio = rightBuffer is null ? Wav.Encode(pcm, r.SampleRate, cancellationToken) : StereoWav.Encode(new StereoBuffer(pcm, [.. rightBuffer.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))]), r.SampleRate);
             // no note sends anything: silence of the same length (a mono file, the same bytes for every such render, so the takebank keeps it once)
-            byte[] Send(long[] left, long[]? right) => !left.Any(sample => sample != 0) && !(right?.Any(sample => sample != 0) ?? false) ? Wav.Encode(new short[buffer.Length], r.SampleRate)
-                : right is null ? Wav.Encode([.. left.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))], r.SampleRate)
+            byte[] Send(long[] left, long[]? right) => !left.Any(sample => sample != 0) && !(right?.Any(sample => sample != 0) ?? false) ? Wav.Encode(new short[buffer.Length], r.SampleRate, cancellationToken)
+                : right is null ? Wav.Encode([.. left.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))], r.SampleRate, cancellationToken)
                 : StereoWav.Encode(new StereoBuffer([.. left.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))], [.. right.Select(sample => FixedAudio.Limit(sample, limiter == "soft"))]), r.SampleRate);
             return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", audio), new RenderOutput("send", Send(sendBuffer, sendRight)), new RenderOutput("chorus", Send(chorusBuffer, chorusRight)), new RenderOutput("warnings", Encoding.UTF8.GetBytes(string.Join('\n', warnings)))]);
         }
@@ -1633,7 +1633,7 @@ internal static class SampledInstruments
                 }
             }
 
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(buf, r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", Wav.Encode(buf, r.SampleRate, cancellationToken))]);
         }
 
         private static int[] Pitches(RenderRequest r, int bar)

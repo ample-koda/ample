@@ -9,7 +9,8 @@ import { activity } from '../lib/block-activity.mjs';
 import { masterTakeOf, songState } from '../lib/transport-model.mjs';
 import { createListenSession } from '../lib/listen-session.mjs';
 import { barSeconds, barsLoop, playSegments, rangeBuild, silentWindows } from '../lib/listen-segments.mjs';
-import { blockSpan, moveMarks, playbackMarks } from '../lib/listen-highlight.mjs';
+import { blockSpan, moveMarks, playbackMarks, speechWordMarks } from '../lib/listen-highlight.mjs';
+import { parseSpeechTiming } from '../lib/speech-timing.mjs';
 import { chainClips, colourMarks, slotsFor, usersBySource } from '../lib/listen-users.mjs';
 import { createListenBuilder, playLoaded } from '../lib/listen-cancel.mjs';
 import { preparedOf, preparedUsable } from '../lib/listen-prepared.mjs';
@@ -51,9 +52,9 @@ function outputRole(id) {
 }
 
 /**
- * Where a block's take sits, as the engine renders it (BlockTiming.cs): a block that is placed (it has parts, or its sound input comes from a placed block) renders
- * on the song timeline from bar 1, and its sound is in the span of those parts; a block that is not placed renders its own length from its origin, the first bar
- * of the first block above it with parts (through its sound, render or notes input).
+ * Where a block's take sits, as the engine renders it (BlockTiming.Local): the take is the block's own audio and starts where the block starts. A block that is placed
+ * (it has parts, or its sound input comes from a placed block) starts at the first bar of those parts; a block that is not placed renders its own length from its origin,
+ * the first bar of the first block above it with parts (through its sound, render or notes input).
  * Returns { placed, span: { first, last } | null, origin }.
  */
 function timingOf(id) {
@@ -111,7 +112,30 @@ async function buildJob(job) {
   const graph = flat(), timing = timingSnapshot({ tempo: tempo(), quarters: barBeats(), graph, timingOf });
   const upstream = job.kind === 'block' ? [...upstreamOf(job.id, graph)] : null;
   const made = await buildJobFor(job);
-  return made ? { ...made, timing: { ...timing, upstream }, origins: await originsOf(made.text) } : made;
+  return made ? { ...made, timing: { ...timing, upstream }, origins: await originsOf(made.text), speech: await speechOf(made) } : made;
+}
+
+/**
+ * The words of a speech block that is listened to on its own (its dry voice, so the playhead of its take is the time of the words), with their places in the text
+ * of this build: { sampleRate, words }; null for anything else or when the take has no places (a take made before they were written).
+ */
+async function speechOf(made) {
+  if (made.method === 'fast-draft') return null;   // a range built alone has its own time: the words cannot be placed
+  const graph = flat(), barSec = barSeconds(tempo(), barBeats());
+  const wanted = made.method === 'block' ? upstreamOf(made.job.id, graph) : null;   // a block: its own voice and the voices that feed it; the song and bars: every voice of the song
+  const voices = graph.nodes.filter((n) => n.tpl === 'speech' && (!wanted || wanted.has(n.id)) && made.takes?.[n.id]);
+  const found = [];
+  for (const voice of voices) {
+    try {
+      const got = await api.get(`/api/takes/${encodeURIComponent(made.takes[voice.id])}`);
+      const timing = parseSpeechTiming(got?.take?.metaJson ?? got?.take?.MetaJson ?? got?.Take?.MetaJson);
+      if (!timing.sampleRate || !timing.words.some((word) => word.from !== null)) continue;
+      const placed = timingOf(voice.id);
+      found.push({ id: voice.id, ...timing, startSeconds: ((placed.placed ? placed.span.first : placed.origin) - 1) * barSec });   // a take of a block starts where the block starts
+    } catch { /* no marks is the safe answer: the sound plays as ever */ }
+  }
+  if (!found.length) return null;
+  return { voices: found, baseSeconds: (made.takeFirstBar - 1) * barSec };   // the song time at which the take starts
 }
 
 /**
@@ -131,12 +155,12 @@ async function buildJobFor(job) {
     if (!report) { if (S.build.error) throw new Error(S.build.error); return null; }
     const failed = failedMessage(report, job.id);
     if (failed) throw new Error(failed);
-    const take = reportTakes(report)[job.id];   // only the take of this build, never a take of the normal build state
+    const takes = reportTakes(report), take = takes[job.id];   // only the takes of this build, never a take of the normal build state
     if (!take) throw new Error(`${job.id} made no sound in this build.`);
     const unpinned = report.unpinnedComponents || [];   // components a normal build would pin (plan 6.3): this preview is not reproducible yet
     const timing = timingOf(job.id);
-    const loop = timing.placed ? { start: (timing.span.first - 1) * barSec, end: timing.span.last * barSec } : null;   // not placed: the whole take loops
-    return { take, role: job.role, loop, takeFirstBar: timing.placed ? 1 : timing.origin, method: 'block', text, job, unpinned };
+    // the take of a block is its own audio (BlockTiming.Local): it starts where the block starts, placed or not, so the whole take loops and its first bar is that bar
+    return { take, role: job.role, loop: null, takeFirstBar: timing.placed ? timing.span.first : timing.origin, method: 'block', text, job, unpinned, takes };
   }
   if (job.kind === 'bars') {
     // decision 13 (plan 6.4): a full render of the code now: cut the bars out of it (exact); else build from bar 1 to one bar past the range (the timeline
@@ -144,7 +168,7 @@ async function buildJobFor(job) {
     const takes = S.build.takes || {}, nodes = flat().nodes, master = masterTakeOf(takes, nodes.map((n) => n.id), nodes);
     const made = S.build.master;
     if (master && made && made.range === null && made.text === text && songState(nodes, takes, S.build.status || {}).upToDate) {
-      return { take: master, role: '', loop: barsLoop(job.range, barSec, 1), takeFirstBar: 1, method: 'cut', text, job, slice: true };
+      return { take: master, role: '', loop: barsLoop(job.range, barSec, 1), takeFirstBar: 1, method: 'cut', text, job, slice: true, takes };
     }
     const plan = rangeBuild(job.range, { fastDraft: job.fastDraft });
     L.buildingNote = plan.method === 'from-start' && plan.before > 0
@@ -158,13 +182,16 @@ ${plan.before} bar${plan.before === 1 ? '' : 's'} before the range make it take 
     const take = report.masterTakeId ?? report.MasterTakeId;
     if (!take) throw new Error(report.builtWithErrors ? 'The range was built with errors: see the build log.' : 'The range made no sound.');
     const unpinned = report.unpinnedComponents || [];
-    return { take, role: '', loop: barsLoop(job.range, barSec, plan.takeFirstBar), takeFirstBar: plan.takeFirstBar, method: plan.method, before: plan.before, text, job, unpinned, slice: true };
+    return {
+      take, role: '', loop: barsLoop(job.range, barSec, plan.takeFirstBar), takeFirstBar: plan.takeFirstBar, method: plan.method, before: plan.before, text, job, unpinned, slice: true,
+      takes: reportTakes(report),
+    };
   }
   const report = await build(null, null, job.quality, false, { keepPlaying: true, separate: true });
   if (!report) { if (S.build.error) throw new Error(S.build.error); return null; }
   const take = report.masterTakeId ?? report.MasterTakeId;
   if (!take) throw new Error('The song made no sound.');
-  return { take, role: '', loop: null, takeFirstBar: 1, method: 'song', text, job, unpinned: report.unpinnedComponents || [] };
+  return { take, role: '', loop: null, takeFirstBar: 1, method: 'song', text, job, unpinned: report.unpinnedComponents || [], takes: reportTakes(report) };
 }
 
 /** The loop and its segments for the player: silence trimmed (or skipped) only for a block, and only as the setting says. */
@@ -419,6 +446,15 @@ function updateMarks() {
     const slots = slotsFor(Object.keys(result.origins || {}));
     const shown = L.isolate ? now.filter((m) => !m.user || m.user === L.isolate) : now;   // hovering a user: only the notes of that user
     marks.push(...colourMarks(moveMarks(shown, result.text, typed), slots));
+  }
+  // the words that sound, in the text of their speech blocks: the voice of the block that is listened to, the voices that feed it, or every voice of the song or the bars
+  // (the text of the build that plays, moved to what is typed now)
+  if (result?.speech && player.playing && player.takeTime !== null) {
+    const songSeconds = result.speech.baseSeconds + player.takeTime + (result.sliceOffset || 0);
+    for (const voice of result.speech.voices) {
+      const words = speechWordMarks({ text: result.text, name: voice.id, words: voice.words, sampleRate: voice.sampleRate, takeSeconds: songSeconds - voice.startSeconds });
+      marks.push(...moveMarks(words, result.text, typed));
+    }
   }
   const key = marks.map((m) => `${m.from}-${m.to}-${m.cls}-${m.attrs?.['data-lp-name'] ?? ''}`).join(',');
   if (key === L.lastMarkKey) return;

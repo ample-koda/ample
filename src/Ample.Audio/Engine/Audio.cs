@@ -8,11 +8,16 @@ namespace Ample.Audio.Engine;
 public static class Wav
 {
     /// <summary>Encodes samples as a 16-bit mono PCM WAV file.</summary>
-    public static byte[] Encode(ReadOnlySpan<short> samples, int sampleRate)
+    public static byte[] Encode(ReadOnlySpan<short> samples, int sampleRate) => Encode(samples, sampleRate, CancellationToken.None);
+
+    /// <summary>Encodes mono PCM while allowing a build cancellation token to stop a large publication.</summary>
+    public static byte[] Encode(ReadOnlySpan<short> samples, int sampleRate, CancellationToken cancellationToken)
     {
-        byte[] bytes = new byte[44 + samples.Length * 2];
+        cancellationToken.ThrowIfCancellationRequested();
+        int dataBytes = checked(samples.Length * sizeof(short));
+        byte[] bytes = new byte[checked(44 + dataBytes)];
         Encoding.ASCII.GetBytes("RIFF").CopyTo(bytes, 0);
-        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(4), 36 + samples.Length * 2);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(4), checked(36 + dataBytes));
         Encoding.ASCII.GetBytes("WAVEfmt ").CopyTo(bytes, 8);
         BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(16), 16);
         BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(20), 1);
@@ -22,16 +27,18 @@ public static class Wav
         BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(32), 2);
         BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(34), 16);
         Encoding.ASCII.GetBytes("data").CopyTo(bytes, 36);
-        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(40), samples.Length * 2);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(40), dataBytes);
         for (int i = 0; i < samples.Length; i++)
         {
+            if ((i & 4095) == 0) cancellationToken.ThrowIfCancellationRequested();
             BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(44 + i * 2), samples[i]);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return bytes;
     }
 
-    /// <summary>Decodes a WAV written by <see cref="Encode"/>.</summary>
+    /// <summary>Decodes a WAV written by <see cref="Encode(ReadOnlySpan{short}, int)"/>.</summary>
     public static (short[] Samples, int SampleRate) Decode(ReadOnlySpan<byte> bytes)
     {
         if (bytes.Length < 44 || Encoding.ASCII.GetString(bytes[..4]) != "RIFF")

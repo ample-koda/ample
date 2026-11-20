@@ -29,7 +29,7 @@ internal sealed class AmbienceRenderer : IBlockRenderer
                 throw new AmpleException("AMP5350", "The ambience block has no file: choose a recording of the project.");
             }
 
-            byte[] silence = Wav.Encode(new short[total], r.SampleRate);
+            byte[] silence = Wav.Encode(new short[total], r.SampleRate, cancellationToken);
             return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", silence), new RenderOutput("out", silence)]);
         }
 
@@ -118,7 +118,7 @@ internal sealed class AmbienceRenderer : IBlockRenderer
             }
         }
 
-        byte[] audio = stereo ? StereoWav.Encode(new StereoBuffer(ol, or), r.SampleRate) : Wav.Encode(ol, r.SampleRate);
+        byte[] audio = stereo ? StereoWav.Encode(new StereoBuffer(ol, or), r.SampleRate) : Wav.Encode(ol, r.SampleRate, cancellationToken);
         return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("audio", audio), new RenderOutput("out", audio)]);
     }
 }

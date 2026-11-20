@@ -42,7 +42,7 @@ internal sealed class SendRenderer : IBlockRenderer
 
         byte[] Encode(int[] left, int[] right) => stereo
             ? StereoWav.Encode(new StereoBuffer([.. left.Select(v => FixedAudio.Clip(v))], [.. right.Select(v => FixedAudio.Clip(v))]), rate)
-            : Wav.Encode([.. left.Select(v => FixedAudio.Clip(v))], rate);
+            : Wav.Encode([.. left.Select(v => FixedAudio.Clip(v))], rate, cancellationToken);
         return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("through", Encode(throughLeft, throughRight)), new RenderOutput("send", Encode(sendLeft, sendRight))]);
     }
 }

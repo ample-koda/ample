@@ -21,7 +21,7 @@ public static class SilenceBlock
             string length = ControlBlocks.Text(r, "length").Trim();
             int samples = r.BarCount * r.SamplesPerBar;
             if (length.Length > 0 && !length.Equals("auto", StringComparison.OrdinalIgnoreCase)) samples = (int)Math.Min(int.MaxValue / 4, (long)ControlBlocks.Milliseconds(length, 0) * r.SampleRate / 1000);
-            byte[] audio = Wav.Encode(new short[Math.Max(0, samples)], r.SampleRate);
+            byte[] audio = Wav.Encode(new short[Math.Max(0, samples)], r.SampleRate, cancellationToken);
             return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", audio)]);
         }
     }

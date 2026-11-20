@@ -37,7 +37,7 @@ public static class ClickBlock
                 }
             }
 
-            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(samples, r.SampleRate))]);
+            return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode(samples, r.SampleRate, cancellationToken))]);
         }
 
         private static void Burst(short[] samples, long start, int sampleRate, bool accent, int step)

@@ -20,6 +20,7 @@ export function setView(mode, force = false) {
   document.dispatchEvent(new CustomEvent('ample:view', { detail: mode }));
   const wrap = $('#canvaswrap');
   wrap.classList.toggle('bmode', mode !== 'blocks');
+  $('#work').classList.toggle('src-open', mode === 'src');   // the code editor has a scrollbar at the edge of the properties: the edge tab would lie over it (the toolbar button still toggles them)
   wrap.classList.toggle('lymode', mode === 'lyr' || mode === 'plug' || mode === 'pat' || mode === 'seq');
   Object.entries(SHOWN).forEach(([m, sel]) => { $(sel).style.display = mode === m ? 'flex' : 'none'; });
   const buttons = { blocks: '#vs-blocks', src: '#vs-source', lib: '#vs-library', bm: '#vs-branches' };
