@@ -331,5 +331,18 @@ body:has(#keys-dock), html:has(#keys-dock) { overscroll-behavior: none; }
   padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: inherit;
 }
 .studio-speech-panel .speech-hint { margin: 0; font-size: 12px; }
+.studio-speech-panel .speech-phone-error { margin: 0; font-size: 12px; color: var(--bad, #e07070); }
+.studio-speech-panel .speech-phone-error[hidden] { display: none; }
+.studio-speech-panel .speech-phone-error p { margin: 0 0 4px; }
+.studio-speech-panel .speech-phone-list[hidden] { display: none; }
+.studio-speech-panel .speech-phone-list summary { cursor: pointer; color: var(--dim); }
+.studio-speech-panel .speech-phone-keys { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.studio-speech-panel .speech-phone-key { min-width: 34px; min-height: 30px; padding: 2px 6px; font: 12px ui-monospace, monospace; cursor: pointer; }
+.studio-speech-panel .speech-knob-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+/* wide enough for the whole label of a choice: a phone stacks them */
+.studio-speech-panel .speech-select-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.studio-speech-panel .speech-knob-row > .studio-panel-control, .studio-speech-panel .speech-select-row > * { min-width: 0; }
+.studio-speech-panel .speech-mode-slot > .studio-panel-control { width: 100%; }
+.studio-speech-panel .studio-panel-control > .studio-selector { max-width: 100%; }
 .studio-speech-panel .speech-mode-controls { display: flex; flex-direction: column; gap: 8px; }
 .studio-speech-panel .speech-phoneme-toggle { font-size: 12px; }

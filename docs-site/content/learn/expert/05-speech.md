@@ -6,7 +6,7 @@ lead: A voice made from text, on your own computer, the same every time.
 
 The `speech` block turns text into a voice. It needs no account, no download and no internet connection: the voice is made inside AMPLE, so the same song with the same seed gives the same sound every time. It speaks American English.
 
-There are two voices. `humanico` is the default and the one to use. `retro` is an older, thinner voice that stays available. Pick one with `engine "retro"`.
+There are three voices. `humanico` is the default and the one to start with. `retro` is an older, thinner voice that stays available. `flite` is a classic diphone voice that reads any English text. Pick one with `engine "retro"` or `engine "flite"`.
 
 {{amplet Speak a sentence}}
 composition "hello speech" { ample 1  tempo 120  master-seed 7 }
@@ -21,6 +21,92 @@ master master {
 {{/amplet}}
 
 A new speech block in the Studio starts with this sentence, so it builds at once.
+
+## The Flite voice
+
+`flite` is a translation of Flite, the small speech synthesizer of Carnegie Mellon University, to C#, with its voice kal16 (a male American voice built from recordings of Alan W Black and Kevin Lenzo). It sounds closer to the text-to-speech of older systems than Humanico does, and it reads every word: numbers, dates, money and abbreviations are spoken, and a word it does not know is spelled out by letter-to-sound rules. A text of several sentences is spoken a sentence at a time. Like the other voices it needs no download and no internet, and the same song gives the same sound on every machine.
+
+{{amplet Speak with the Flite voice}}
+composition "flite speech" { ample 1  tempo 120  master-seed 7 }
+
+speech narrator at 1 for 2 {
+  engine "flite"
+  text "Hello from AMPLE. Today is the 20th of November, 2026."
+}
+
+master master {
+  from narrator.audio -> audio
+}
+{{/amplet}}
+
+What you can set on a Flite block:
+
+- `rate` is the speed (1 is normal) and `pitch_hz` the pitch of the voice (95 Hz when it is not written). `pitch_range` (0 to 200 Hz, default 11) is how far the pitch moves around it; 0 gives a flat voice.
+- `phonemes` works as for the other voices: the same CMU symbols with stress digits. Flite speaks a phoneme string as one phrase without pauses, so it sounds flatter than text.
+- `mode "words"` with a Notes block connected makes the voice sing: each note speaks the next word at one steady pitch from 50 to 480 Hz. A note outside that range is sung the same note an octave or more away. Flite cannot glide or add vibrato. It follows the same `duration_policy` as the other voices.
+- `lead_trim "on"` removes the quiet that the voice puts before its first word (about a fifth of a second), so a line starts on the beat. `pause_scale` from 0 to 4 scales the pauses between words (0 removes them, 2 doubles them). `brightness` from 0 to 12 dB lifts the high end of the 16 kHz voice.
+
+{{amplet A tighter Flite line}}
+composition "flite tight" { ample 1  tempo 120  master-seed 7 }
+
+speech narrator at 1 for 2 {
+  engine "flite"
+  text "Hello from AMPLE. Today is the 20th of November, 2026."
+  lead_trim "on"
+  pause_scale 0.6
+}
+
+master master {
+  from narrator.audio -> audio
+}
+{{/amplet}}
+
+Your own pronunciations and spelling (Flite only):
+
+- `lexicon` gives words their own phones: `lexicon "ample = AE1 M P AX L; tomato = T AH0 M EY1 T OW0"`. An entry is `word = PHONEMES`, entries are separated by `;`. The phonemes are the CMU symbols of the `phonemes` parameter; every vowel carries a stress digit (0 no stress, 1 stress, 2 is read as 1 because the voice knows two stresses), `AX` needs none. A word matches without regard to case, in the words of the text. A number or a word with punctuation cannot have an entry: write the words that are spoken.
+- `spell` reads words letter by letter: `spell "cpu usb"`, or `spell "all"` for every word of the text. A word is in `lexicon` or in `spell`, not in both.
+
+The voice reads a list of letters that it cannot pronounce ("gpu", "usb") letter by letter by itself. Give such a word an entry in `lexicon` and it is said with your phones instead.
+
+{{amplet Own pronunciations}}
+composition "flite lexicon" { ample 1  tempo 120  master-seed 7 }
+
+speech narrator at 1 for 2 {
+  engine "flite"
+  text "The ample tomato runs on a cpu."
+  lexicon "ample = AE1 M P AX L; tomato = T AH0 M EY1 T OW0"
+  spell "cpu"
+}
+
+master master {
+  from narrator.audio -> audio
+}
+{{/amplet}}
+
+Shaping single words in the text (Flite, text mode):
+
+- `<pitch 220>word</pitch>` speaks the words between the tags at that pitch, from 50 to 480 Hz. `<pitch +3st>` is a shift in semitones (-24 to +24) of the pitch of the block.
+- `<rate 1.3>words</rate>` speaks them at that speed (0.25 to 4; 1 is the speed of the block). Nested rates multiply.
+- `<range 25>words</range>` sets how far the pitch moves around the pitch of the block, in Hz (0 to 200); 0 is flat.
+- `<emph>word</emph>` stresses a word: three semitones higher and a bit longer.
+- `<break 300ms/>` (or `<break 0.5s/>`) is a pause of exactly that length, up to 5 seconds.
+
+The tags are not spoken and add no words. Tags may be nested. Write `&lt;`, `&gt;` and `&amp;` for the characters themselves; a `<` that is not followed by a letter or a slash is an ordinary character ("5 < 6"). In Live Preview the lit word is marked in the text as you wrote it, tags included. Tags work in text mode only: in words mode every word has its note.
+
+{{amplet Words that stand out}}
+composition "flite markup" { ample 1  tempo 120  master-seed 7 }
+
+speech narrator at 1 for 2 {
+  engine "flite"
+  text "This is <emph>really</emph> good,<break 400ms/> and <rate 0.7>this part is slow</rate>."
+}
+
+master master {
+  from narrator.audio -> audio
+}
+{{/amplet}}
+
+The Flite software and the voice are free for any use: AMPLE contains a modified C# translation of the code and the voice data in a compact form, and keeps their notices (see THIRD-PARTY-NOTICES.md). The translation is not made or approved by Carnegie Mellon University.
 
 ## How long the block is
 
@@ -48,7 +134,7 @@ master master {
 
 ## Rate, pitch and level
 
-`rate` is the speaking speed (1 is the normal speed, from 0.1 to 2). `pitch_hz` is the pitch of the voice in text mode (45 to 700 Hz, default 105). `gain` adds or removes decibels (-60 to +12). One voice at gain 0 peaks around -13 dBFS, so it leaves room; if a gain pushes the sound over the limit, the take reports it (`gain-clipped`) instead of hiding it.
+`rate` is the speaking speed (1 is the normal speed, from 0.1 to 2). `pitch_hz` is the pitch of the voice in text mode (45 to 700 Hz, default 105). `gain` adds or removes decibels (-60 to +12). `level` decides whether the three voices are equally loud: with `level "matched"` (the default) AMPLE adds a fixed amount to the gain of each voice (retro +5 dB, Humanico 0, Flite -3 dB), so the same `gain` sounds equally loud for all three, within a quarter of a loudness unit; `level "engine"` keeps the loudness that each voice makes. One voice at gain 0 peaks around -13 dBFS, so it leaves room; if a gain pushes the sound over the limit, the take reports it (`gain-clipped`) instead of hiding it.
 
 ## One word per note
 

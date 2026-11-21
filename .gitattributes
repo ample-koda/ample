@@ -6,3 +6,6 @@
 
 # Format-test inputs must keep their exact bytes (CRLF test)
 spec-tests/format/*.in.amplet -text
+
+# Converted Flite data (tools/flite-data): binary, never touched by line endings
+*.bin binary

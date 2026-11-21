@@ -1,0 +1,8 @@
+{
+  "fixtureVersion": 1,
+  "kind": "internal-port-contract",
+  "cases": [
+    { "id": "hello", "word": "hello", "phones": ["HH", "AH0", "L", "OW1"], "frameCountAtRate1": 81 },
+    { "id": "jazz", "word": "jazz", "phones": ["JH", "AE1", "Z"], "frameCountAtRate1": 75 }
+  ]
+}

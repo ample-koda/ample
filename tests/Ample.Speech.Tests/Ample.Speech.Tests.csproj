@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Ample.Speech.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../../src/Ample.Speech/Ample.Speech.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\humanico-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\humanico-segments.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\humanico-calibration.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\humanico-word.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m2-carts.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m2-calls.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m5-prosody.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

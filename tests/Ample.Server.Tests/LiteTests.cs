@@ -80,6 +80,23 @@ public sealed class LiteTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public void A_flite_speech_block_counts_like_any_speech_block_in_remix()
+    {
+        // a short sentence is accepted; a long text without a placement is longer than the 60 seconds of one block; a tight memory limit refuses a long text in a short placement
+        string one = SpeechHeader + "speech a {\n engine \"flite\"\n text \"I am a robot.\"\n}\n";
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = one }, Parser.Parse(one, spec), spec, LiteLimits.Default);
+
+        string many = SpeechHeader + "speech a {\n engine \"flite\"\n text \"" + string.Join(' ', Enumerable.Repeat("the quick brown fox jumps over", 40)) + "\"\n}\n";
+        LiteRejectedException long_ = SpeechRefused(many);
+        Assert.Equal("AMPL924", long_.Code);
+
+        string words = string.Join(' ', Enumerable.Repeat("the quick brown fox jumps over", 12));
+        string shortSpan = SpeechHeader + $"speech a at 1 for 1 {{\n engine \"flite\"\n text \"{words}\"\n}}\n";
+        LiteLimits tight = LiteLimits.Default with { MaxSpeechPeakBytes = 6L * 1024 * 1024 };
+        Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = shortSpan }, Parser.Parse(shortSpan, spec), spec, tight));
+    }
+
+    [Fact]
     public void Speech_blocks_that_run_together_are_refused_when_their_memory_estimate_is_over_the_limit()
     {
         // two blocks of 30 s (15 bars at 120 bpm), both placed: the 30 s words are spoken in one block each

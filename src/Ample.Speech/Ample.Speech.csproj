@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Ample.Speech</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- inside the assembly: nothing to lose or swap on disk; the hash is checked when it is loaded -->
+    <EmbeddedResource Include="Data\cmudict.dict" />
+    <None Include="Data\cmudict-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Data\humanico-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Data\humanico-calibration.json" />
+    <!-- the Flite data converted by tools/flite-data (plan/speech/flite/PLAN.md) -->
+    <EmbeddedResource Include="Flite\Data\*.bin" LogicalName="Ample.Speech.Flite.Data.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ample.Speech.Tests" />
+    <InternalsVisibleTo Include="Ample.Speech.Flite.Tests" />
+  </ItemGroup>
+</Project>
