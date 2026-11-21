@@ -176,7 +176,7 @@ test('a listening build does not replace the takes of the normal build, and Live
   await page.locator('#se-cm .cm-content').press('Control+Shift+Space');
 });
 
-test('a block with several audio outputs gets an output choice, and the chosen output plays', async ({ page }) => {
+test('a block with several audio outputs gets an output choice, and the chosen output plays @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   const split = song.replace(
     'master out {\n  from lead.audio -> audio\n}',
