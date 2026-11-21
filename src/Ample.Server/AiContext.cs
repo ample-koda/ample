@@ -584,7 +584,13 @@ internal static class AiContext
             "robot voice", "sing words", "words mode", "phonemes", "lyrics", "tts"], "Local speech (the speech block)",
             "The speech block makes a voice from text on this machine: no model, no network, the same sound for the same " +
             "song and seed, American English. " +
-            "engine \"humanico\" is the default voice, \"retro\" the older one. " +
+            "engine \"humanico\" is the default voice, \"retro\" the older one, \"flite\" the diphone voice kal16 " +
+            "(pitch_range 0 to 200 Hz, 95 Hz when pitch_hz is not written; it also takes phonemes, flatter than text; " +
+            "in words mode it sings each word at one steady pitch from 50 to 480 Hz, a note outside that is sung an octave away; " +
+            "lead_trim \"on\" drops its leading pause, pause_scale 0 to 4 scales the pauses between words, brightness 0 to 12 dB lifts the high end; " +
+            "lexicon \"tomato = T AH0 M EY1 T OW0; ample = AE1 M P AH0 L\" gives words their own phones, spell \"cpu usb\" (or \"all\") reads words letter by letter; " +
+            "in text mode the text takes tags: <pitch 220>word</pitch> or <pitch +3st>, <rate 1.3>, <range 25>, <emph> and <break 300ms/>). " +
+            "level \"matched\" makes retro, humanico and flite equally loud at the same gain and is the default (level \"engine\" keeps each engine as it was made before). " +
             "text \"...\" speaks a sentence; phonemes \"HH AH0 L OW1\" gives the exact CMU phonemes, a stress digit on every " +
             "vowel. " +
             "Give text OR phonemes, never both and never empty (AMP5351): leave the line out instead. " +

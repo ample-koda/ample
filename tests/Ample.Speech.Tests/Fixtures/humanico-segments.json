@@ -1,0 +1,952 @@
+{
+  "upstreamRevision": "ce793bc9304cf34637199b0efde72c8afe130b1d",
+  "cases": [
+    {
+      "phone": "AA",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AA",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AA",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AE",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AE",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AE",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AH",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AH",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AH",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AO",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AO",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AO",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AW",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "AW",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 74,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 90,
+          "transition": 82
+        }
+      ]
+    },
+    {
+      "phone": "AW",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "AX",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AX",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AX",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "AY",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "AY",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 74,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 90,
+          "transition": 82
+        }
+      ]
+    },
+    {
+      "phone": "AY",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "B",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 55,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "aspir",
+          "duration": 12,
+          "transition": 12
+        }
+      ]
+    },
+    {
+      "phone": "CH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 45,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "fric",
+          "duration": 110,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "D",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 50,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "aspir",
+          "duration": 12,
+          "transition": 12
+        }
+      ]
+    },
+    {
+      "phone": "DH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 70,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "EH",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "EH",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "EH",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "ER",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "ER",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "ER",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "EY",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "EY",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 74,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 90,
+          "transition": 82
+        }
+      ]
+    },
+    {
+      "phone": "EY",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "F",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 95,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "G",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 55,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "aspir",
+          "duration": 12,
+          "transition": 12
+        }
+      ]
+    },
+    {
+      "phone": "HH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 70,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "IH",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "IH",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "IH",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "IY",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "IY",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "IY",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "JH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 35,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "fric",
+          "duration": 85,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "K",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 70,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "aspir",
+          "duration": 35,
+          "transition": 12
+        }
+      ]
+    },
+    {
+      "phone": "L",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "liquid",
+          "duration": 85,
+          "transition": 45
+        }
+      ]
+    },
+    {
+      "phone": "M",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "nasal",
+          "duration": 95,
+          "transition": 35
+        }
+      ]
+    },
+    {
+      "phone": "N",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "nasal",
+          "duration": 90,
+          "transition": 35
+        }
+      ]
+    },
+    {
+      "phone": "NG",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "nasal",
+          "duration": 100,
+          "transition": 35
+        }
+      ]
+    },
+    {
+      "phone": "OW",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "OW",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 74,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 90,
+          "transition": 82
+        }
+      ]
+    },
+    {
+      "phone": "OW",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "OY",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "OY",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 74,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 90,
+          "transition": 82
+        }
+      ]
+    },
+    {
+      "phone": "OY",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 51,
+          "transition": 55
+        },
+        {
+          "kind": "vowel",
+          "duration": 63,
+          "transition": 57
+        }
+      ]
+    },
+    {
+      "phone": "P",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 70,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "aspir",
+          "duration": 35,
+          "transition": 12
+        }
+      ]
+    },
+    {
+      "phone": "R",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "liquid",
+          "duration": 85,
+          "transition": 45
+        }
+      ]
+    },
+    {
+      "phone": "S",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 115,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "SH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 110,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "T",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "sil",
+          "duration": 65,
+          "transition": 3
+        },
+        {
+          "kind": "burst",
+          "duration": 14,
+          "transition": 3
+        },
+        {
+          "kind": "aspir",
+          "duration": 35,
+          "transition": 12
+        }
+      ]
+    },
+    {
+      "phone": "TH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 85,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "UH",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "UH",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "UH",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "UW",
+      "stress": 0,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 85,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "UW",
+      "stress": 1,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 150,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "UW",
+      "stress": 2,
+      "segments": [
+        {
+          "kind": "vowel",
+          "duration": 100,
+          "transition": 50
+        }
+      ]
+    },
+    {
+      "phone": "V",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 75,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "W",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "glide",
+          "duration": 65,
+          "transition": 45
+        }
+      ]
+    },
+    {
+      "phone": "Y",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "glide",
+          "duration": 65,
+          "transition": 45
+        }
+      ]
+    },
+    {
+      "phone": "Z",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 90,
+          "transition": 20
+        }
+      ]
+    },
+    {
+      "phone": "ZH",
+      "stress": -1,
+      "segments": [
+        {
+          "kind": "fric",
+          "duration": 85,
+          "transition": 20
+        }
+      ]
+    }
+  ]
+}

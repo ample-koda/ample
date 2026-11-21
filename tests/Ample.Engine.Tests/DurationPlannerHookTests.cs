@@ -169,6 +169,27 @@ public sealed class SpeechDurationPlannerTests
         Assert.Equal(rendered.Samples.Length, planned);
     }
 
+    [Theory]
+    [InlineData(false, 1.0)]
+    [InlineData(true, 1.0)]
+    [InlineData(false, 0.0)]
+    [InlineData(true, 2.0)]
+    public void The_planned_length_of_a_flite_block_follows_lead_trim_and_pause_scale(bool leadTrim, double pauseScale)
+    {
+        const string text = "Hello world, this is a test. And another one.";
+        BlockNode block = new() { Type = "speech", Name = "voice" };
+        block.Parameters.Add(new Parameter("engine", "\"flite\"", 0));
+        block.Parameters.Add(new Parameter("text", text, 0));
+        block.Parameters.Add(new Parameter("lead_trim", leadTrim ? "\"on\"" : "\"off\"", 0));
+        block.Parameters.Add(new Parameter("pause_scale", pauseScale.ToString(System.Globalization.CultureInfo.InvariantCulture), 0));
+        IBlockRenderer renderer = BuiltInRenderers.All.Single(item => item.BlockType == "speech");
+        long? planned = ((IBlockDurationPlanner)renderer).PlannedSamples(block, EngineRig.Spec.Templates["speech"], 44_100);
+
+        Ample.Speech.SpeechRequest request = new(text, 44_100, 1, Ample.Speech.FliteSpeechEngine.DefaultPitchHz) { Engine = "flite", LeadTrim = leadTrim, PauseScale = pauseScale };
+        Ample.Speech.SpeechResult rendered = Ample.Speech.FliteSpeechEngine.Render(request);
+        Assert.Equal(rendered.Samples.Length, planned);
+    }
+
     [Fact]
     public async Task The_song_is_as_long_as_the_speech_and_the_block_builds()
     {

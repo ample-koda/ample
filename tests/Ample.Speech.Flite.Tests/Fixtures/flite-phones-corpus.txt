@@ -1,0 +1,501 @@
+aa
+ae
+ah
+ao
+aw
+ax
+axr
+ay
+b
+ch
+d
+dh
+dx
+eh
+el
+em
+en
+er
+ey
+f
+g
+hh
+hv
+ih
+iy
+jh
+k
+l
+m
+n
+nx
+ng
+ow
+oy
+p
+r
+s
+sh
+t
+th
+uh
+uw
+v
+w
+y
+z
+zh
+pau
+h#
+brth
+aa1
+ae1
+ah1
+ao1
+aw1
+ax1
+axr1
+ay1
+b1
+ch1
+d1
+dh1
+dx1
+eh1
+el1
+em1
+en1
+er1
+ey1
+f1
+g1
+hh1
+hv1
+ih1
+iy1
+jh1
+k1
+l1
+m1
+n1
+nx1
+ng1
+ow1
+oy1
+p1
+r1
+s1
+sh1
+t1
+th1
+uh1
+uw1
+v1
+w1
+y1
+z1
+zh1
+pau1
+h#1
+brth1
+aa0
+ae0
+ah0
+ao0
+aw0
+ax0
+axr0
+ay0
+b0
+ch0
+d0
+dh0
+dx0
+eh0
+el0
+em0
+en0
+er0
+ey0
+f0
+g0
+hh0
+hv0
+ih0
+iy0
+jh0
+k0
+l0
+m0
+n0
+nx0
+ng0
+ow0
+oy0
+p0
+r0
+s0
+sh0
+t0
+th0
+uh0
+uw0
+v0
+w0
+y0
+z0
+zh0
+pau0
+h#0
+brth0
+hh ax l ow
+hh ax l ow w er l d
+hh ax0 l ow1
+hh ax1 l ow0
+k ae t
+k ae1 t
+s p iy ch
+th ih s ih z ax t eh s t
+pau hh ax l ow pau
+h# hh ax l ow h#
+brth hh ax l ow
+hh ax l ow pau pau pau
+pau
+pau pau
+ay ae m ax r ow b aa t
+hh ax l ow    w er l d
+hh ax l ow	w er l d
+  hh ax l ow  
+hh ax - l ow
+- hh ax
+hh ax -
+-
+- -
+hh - ax - l - ow
+hh ax l ow ,
+hh ax l ow .
+hh ax l ow !
+"hh ax l ow"
+(hh ax) l ow
+hh, ax. l; ow:
+HH AH0 L OW1
+hh AH l ow
+xx
+hh xx l ow
+ax xy ax
+1
+0
+10
+hh1 ax0 l1 ow0
+hh ax1 ax1 ax1
+
+ 
+   
+	
+h
+hhh
+ow ow ow ow ow ow ow ow ow ow ow ow ow ow ow ow
+s s s s s s s s
+k k k k k k
+m m m m m m m m m m
+axr z0 ah1 y ih ah
+k0 ey iy f dx ah1 y l em0 aa0
+ax n0 l0 p r ay zh zh nx t
+ey uw0 ch0 b ao d ch0 pau ao r em ch
+sh eh dx
+ch g el th
+zh1
+aw ng1 th er g z k
+iy
+b
+eh k uw uh iy dx
+ey ey0 l ao m oy0 pau ey r pau
+iy en g0 eh g dh0 nx pau aw1
+t ow0 pau jh1 k axr w uh iy y th
+sh1 p el er sh y b0 uh hh en
+uh aa zh jh
+eh en0 eh1 b eh0 p oy pau
+ah aw th1 ey aw1 dx th
+z uw th ah0 z pau n nx ow ch dh1 er
+ow0 t pau uh1 uw uw pau z d ao
+d uh f nx dh ao axr uw n hh0 th1
+b0 n w sh1 hh
+ay iy ey eh z1
+hv sh w1 oy ay1 ah nx ay el
+uw0 ao l dx1 jh z uw en0 v f
+en1 ow n
+iy hh hh d aa
+p ae
+m th p aw1 axr
+ae1 d0 d b z1
+ng ng0
+s r
+th1 uh ih axr
+f dh1 sh0 p
+dh aw1 r dh jh ay t k ah0 ih ae pau hh
+hh r oy pau axr ax
+uh
+t pau dx hh axr f n s ae uw pau ow em
+v dh ay1 el hv r ng ng hh
+v l pau aw0 jh zh hh0 ah0 zh n uw dh
+f pau eh ow el ax ih1 ey b
+v nx0 en ax ay ao
+k hh hv1 pau y ax
+p w l ey er ch zh th1 r0
+uw d dx ih nx b uh0 ow dx
+ng l k0
+jh0 uh axr k p g1 ao th r
+y
+ay en ah1 ey zh el ch1 z axr1 w1 g1 zh
+ih z1 ow g p v p m uh uh dh
+v m1 d b g g ih th0 ng1
+th aw d em z sh0 hh d k em
+ah pau f ih jh f1
+r1 dx ax dh1 s zh ae w
+k1 y m
+iy1 d v hh aa uw m f
+aa eh t eh w1 ay el
+en uw axr aw1 ch0
+uw ow oy z p sh th ae1 p
+ao f0 pau ow n dx l pau f1 uh aw0 r p1 oy
+z l uh dx w ax ng ae0 p
+ah nx pau zh uw el pau dx uw er ah d ih1 eh
+s0 t w p dx ng g pau s sh
+el nx f
+ah ch uw oy eh em0 ow el nx1 t ae jh
+el ax em hh0
+r ax
+ng uh b b r ow ax m1 ng m
+iy w1 dx1 uh1 th v dh eh ch dx f ow
+sh z r
+sh pau iy l
+ih oy ah
+uw0 p zh pau
+ey pau dh zh1 s hv nx dh0 l eh sh
+t f ch nx jh p th0 g ax0 pau k l
+ao y hh1
+z pau
+ng0 zh y ch1 z ax g ow0 s axr ah0
+ey ay ae ae d1 f ae aa
+uh v ao ey axr ng
+ah0 ay aw ow0 l0
+nx ih0 s0 y axr
+v
+k y m eh s ow aa
+ch v
+ax0 n t er
+zh
+l
+aa
+th jh f1 k sh r0 b er ow
+ay1 zh1 zh1 g1 eh er
+ae w1 eh0 ow
+ih dx0 oy1 g t ao w b dh th ow
+dh f th n ih k uh
+el s0 ow d g
+r v er
+g ae en g1 ng dh ch y1 w
+b uh ih em k pau el w nx r k ah l
+v aa em iy1 d1 ax1 ng l
+dh ah em
+sh aw iy nx0 hh0 f0 w0 ay uw k1 pau em1
+b ah iy ey uh
+b ih1 er ao d z er pau dh
+aw ey m b k0
+axr
+ax1 ng eh dh
+iy zh ao n ih dh v er1 eh0 axr
+en1 ng ah ng em ey v axr iy ah oy ao
+ah1 er jh uh ae v eh ay ng pau v
+d ch
+w y0 ay dx en1 uw eh
+r ay
+axr g ao axr em pau hh1 ey0 pau dx1 aa0 m1 pau
+ch g
+ao
+ay oy aa ch1
+iy aa jh m er sh r w
+p y f p hh ch1 dh0
+zh r b m y
+ng1 pau ay
+eh nx ow hh hh1 k er dh hv1
+z axr aw1 ax hv1 z aa p t0
+ow t ih m ae1 uw1 ow
+p0 z p1 ax iy jh l w t hh1 y l
+ih0 pau ay uw y v eh ae1 b
+g oy0 d0 dx1 ah ey ax0
+r en v0 ng1 aa1 ch0 axr k ey
+v aw0 aa d
+hh ih oy0 ih ih jh0 ey
+oy1 ah1 g
+ah hh n1 t1 hv ey0 b0 ch ch1 z aa
+axr en aw pau dx0 w0 ao er ah pau z nx
+em0 hv
+k uw0 ch ao
+aw th ng m ax er0 y1 hv
+t ey ng0 n1 b v em oy pau iy1 pau s0
+dh dh0 ao axr th m hh n hv1 axr
+uw aw0 ay ow uh1 ax z b aw y el uh
+em g ow ay g0 em0 ao0 pau
+ch ax1 uw
+th oy el en0 ch ow0 er
+f dx y iy0
+y iy1 f
+n dx b n f v jh w b b ng uh
+hh b1 jh0
+k1 f s aw iy en1 sh s d
+uw eh f n
+iy ih ey t ey dh en
+er ey em dx ax pau ng ey t g ih
+th el w ax
+s0 hh d hh1 ey dx0 f
+ch hh0 th ey r dx jh1 sh el er
+s jh axr uh1 d y0 k em0 dh p
+l aw ax0 ow z1 aw ch0
+oy ow uh ao hv z ae k0 hh1 ah dh hh
+t
+oy ng pau z w v ch1 jh1 pau
+ng el nx w0 uh n ng sh
+iy iy0 ay pau hv1
+zh1 n1 w0 p dx pau n
+ao eh pau
+oy k s jh0
+w aa sh ao v pau p f v th1 p oy l
+zh
+ey iy r
+s hv ay1 nx er el1 pau hh
+ax1 z y
+iy f s uh s pau hh er en ae axr nx1
+zh ow0 f1 ao en1 v ih
+hv f uh m sh m1 th1 aa er ih1 uh
+ae0 pau s0 eh ao1 hv aw w
+ow
+el oy aa
+ng jh0 iy uh ax1 er t eh zh
+dx
+el sh1 w f ey er0
+ay iy ay v1 k ao em
+s pau eh ao v0 g b
+ch m hv0
+iy0 f ax hh ey1 z t ch ah
+uw er1 t k hh w1 ay n b w
+iy r
+m w l f aa s axr aa ng uh
+axr0 dh r ao z1 ch k aw pau uh1 n pau
+zh0 hh z hh1 ch d d nx th
+d d pau y s1 en0 l0 d0 en en pau hv0
+aw1 b0 f0 zh
+g iy w ax0 en jh aa
+aw r s y eh zh l ae
+w g
+iy ah axr b jh ng ch dx1 ah eh0 f
+nx m
+ow zh ih1 hv ey y hv hh1
+er zh axr pau v f hh dh en0
+w ow1 k sh ng y ng aw1 p nx1 ao1 ay
+axr ey0 ao w pau th em
+f uh w
+er th ay0 ax1 oy d k
+nx y ao1 nx1 v uw ey ih0
+sh nx eh axr
+dh ng b1 r pau oy axr b ey
+ah ng th n pau w m g hh pau ao th er er jh th ao em n nx eh nx eh zh1 w0 m k ih l ih pau ao0 l
+v n0 jh el uw th0 uw ey ey hh oy axr0 el v ax1 el zh zh1 w ey axr0 eh g ao l y dh ay y m hh jh uh ah em0 hv0 uw0 ng p0 el
+jh1 ae0 ao uh pau dx dh1 sh w iy z p aa ow l z ax k ae em eh aw d iy aa sh0 el n v ow dx er ih ng n0 iy z pau sh p ow
+en ae0 dx dx f hv ih dx ng dx nx pau hv em ey1 el0 el0 zh dh
+th dh em1 hh nx ay uw g ng pau em nx hh0 k w ey0 v0 z0 em er zh1 ax th nx ch1 er sh f zh sh1 uh m r0 hv pau t th ow z
+ey th v0 t0 eh ae hh ax1 ao pau aw pau aa jh0 ch y ah l ow ow d m
+dx d er er eh0 aw0 t iy g y er w ae0 dx eh
+ey ah dh f
+aw pau jh er iy nx eh em axr w ih p0 eh uh0 b k1 ae uw aw en pau g en0 em ay n eh k w w f
+jh
+axr f w k axr z el n iy dh0 b1 d zh1 z en y er jh l d
+em eh t ch axr z v n hv zh ih t ih uh0 em l sh dx dh ao0 t1 d aa1 em dx
+em f0 nx1 ng ng dh k oy0 ch0 oy dh ch sh ax p1 pau aa ch pau t pau d pau jh aw uh nx dx sh1 z0 w d m0 sh1 g em y
+ih en0 r1 t1 iy t g dx m pau aw1 r axr jh hh jh oy g0 t uh d p b jh
+g iy en axr0 aa ih0 f f jh0 dx y pau ih b em1 w ao ch m em k1 dh t1 oy iy0 f s pau k l p v r r uh oy b uw p ay s0 k0
+nx v ey1 nx pau
+s hh sh jh0 eh hh y0 y axr s ao d er th jh ow1 el ah ay oy oy iy zh1 hv oy en
+ah jh nx uh1 pau d v ey el th ow axr t v ao t eh1 y1 pau en ih1 hh zh
+ey v
+m uh b
+r1 b uw er aw1 aa eh eh ay1 v l1 sh0 axr pau aw1 er oy eh0 f l dx sh z1 jh l
+hv th ey ch
+p ao jh b0 ay hh ao0 y w dh n d jh y dh aa l oy uw ae0 ah f0 th v1 v z ih0 ey s eh
+ae aa dh th ow axr0 ax z dx0
+ax k1 er t em th zh sh
+ch1 b
+ay1 z p em axr axr eh ax zh0 jh1 ow1 uw t oy0 pau ng d t1 v l dx0 z sh ah aw0 pau y dx ow
+iy ng0 ay er ih aa oy0 uw eh g0 hv uh er pau zh p b pau aa g iy zh aw ao z pau dx1 ch f nx g pau t ey0 ey z p
+oy el w el0 hh0 en t ng ax ax z t1 dx
+oy r uw ng dx l pau f1 em k r ih uw ah ae aw0 jh ih n ng
+ax b ah nx uh aa th er ch ng g eh sh ao1
+b n ax en0 t ae hh1 dx0 s nx ow r1 eh ay aa ey axr ey em oy nx pau
+f0 s ae w ih ae b uh r ay1
+ow jh ch0 s1 dx ng g uw ae ow w ay ah ih ow w ay l1 n dx sh0 d aw n s em er g
+dx0 ay z ow
+d1 s pau en em v hv pau y w ao pau ah
+iy1
+hh em uh ng ah el pau ae0 pau th1 er0 ch oy s aw ng0 pau l b ng0 ow aw0 ae p ao g em k uw zh el1 ax em ng1
+oy en1 iy uh ae nx0 ah eh z aa ao m pau eh0 uh l0 ax ey el0 aw dx er eh eh uw aa er zh pau ey en dh1 p
+uw th f0 pau nx w w k sh g iy z aw0 aa dx l ae1 dh v0 p n t1 ng1 ch nx0 pau ay oy ow pau en0 nx nx l el y ao
+en t ax d ch1 ah z k hv em m ng ey k ay hh ao y hv zh aw pau v1 z aa1 f
+y jh y1 hh dx hv1 nx nx zh ax dx en er
+hv1 th th s k1 iy aw1 k hv uh0 oy f v1 d1 eh hv0 jh axr pau ao uw en1 d1 zh
+el ay er ey z d pau hv dx1 w uh v k1 l b nx0 th
+zh1 uw t1 ih0 ax0 ae axr em p d ch el0 iy1 r s ao z ax dh0 pau em ao0 g pau dh r
+y1 ax1 en0 pau iy ah ey ow z oy1 t
+aw th ch pau ey t b ng m nx er0 uw er0 axr ao1 r
+iy t1 ng1 en ng ax pau en th ch axr m ay hh1 v s zh1 n p dh nx ng m b1 jh s m0 v w ng
+k em ah ay sh ih1 axr jh sh0 jh b t m axr0 nx z0 axr b n0 pau oy0 hv ah z0 b em1 jh d b ey0 el
+p ao z hh - eh k th er pau en er th ow
+ae0 - uh sh ch pau iy sh dh1 r m v l0 - ih0 jh s0 - p ah r l en g pau z ay ax
+p uw0 ng iy uw0 ae1 uh0 p eh0 ng el aw y f iy ay ih d ax f v ch l n - eh - aa hv ih ao hh0 sh0 ch
+n ay el - oy0 eh uw iy el b pau jh n g s k dx ae ay y zh aw ay m el0 n1
+- ey d0 ch dx sh dh ae th1 g z nx el ao g g th t ey s - p aa0 hv ng1 ih aa k m
+em aw axr - b - f0 sh pau ng dx aa th pau m l1 ch ay aa0 ow ay0 pau b1 uw z1 ay dx1 m s1 ih z - ah l ae p f em y b ch1 zh0 ah0
+- hv
+- pau w zh m ch1 p
+z1 pau ax oy - - ao ow iy zh k1 - th l0 - hv zh m uw zh en1 hh1 ow v ow0 d nx ax eh0
+- r ao ay d jh m uh r1 ey axr d dx dx0 em ah k g s - - m
+oy er0 hh0 th zh hh -
+dh t t aw iy th en y t zh s ah axr l en - sh0 ax
+n - s el dx ah pau ch iy nx0 y v el b b f th - l aa l0 - m jh dh1 aw oy eh0 - dh eh hv1 r - uh
+dx ae ay ng w ah iy y em oy nx aw w sh1 en n1 y f uh ae ch ih n p pau g d f ch - pau p th em0 zh1 p em - w
+ih en1 - ax ah aa1 - nx1 t - y1 hh - w z - en ao zh1 th -
+- - - m z uh - ih0 g zh dh hh el ax - ay y1 z ey ng oy pau sh l hh ay0 m0 k ow1 pau v1 eh
+ih hv1 el0 v en0 uw y el ax t - l dh - - hv0 ao p er
+- en0 r pau f hh dh aw ao ae1 s pau ow1 aa
+zh oy1 s sh d0 uh l pau el dx w ey jh ch v w f
+dh1 r hh - hh1 m ch en0 m ao sh0 oy oy d er - -
+oy ax - ah axr - oy axr aw g y m
+f ey zh ao em1 sh hv p r1 hv1 - ae - ay ae aw dx sh - r k1 uw ih
+b ih d v eh dx pau zh1 y dx en oy l zh - dh uh nx1 t th w t1 v0 th jh ng sh1 er
+f1 axr ch w jh ch r0 ax ah d - aa pau g - t dx f - axr em ax axr sh1 oy p r - eh1 b1 ay ae0 ae0 ax ah
+oy p dh pau - ah pau hv pau ao axr g1 th y eh oy0 s s t en uh g
+d dx w axr y - el1 m
+jh iy sh m0 t - el n uw w er1 ey ey0 em1 axr ng ay - aw1
+l ay m dh jh l
+ah en f1 en1 ih ch th th1 ow0 uh1 hv hv em ah1 aa d ih aa ay ch0 dx0 uh y - w0 ch oy s er l g ah el ao ah ay uh1 nx w
+uh em nx - th1 - p n0 el0 b ao iy ih ng r s nx l pau ng0 ch eh nx zh f ao uw uh - hv0
+- m em ow ax pau ae uw1 l hh r0 - nx y t - k aw jh uw ih1 - l jh sh1 hh
+ae1 aw ch1 b m1 g - w ae
+sh el el aa axr ax0 - dx t -
+axr - oy0 oy r - hh t0 jh axr ax dx p el0 r w ao0 hv ay g nx g0 f hh d axr1 sh em th1 f w1 ay
+- em w oy b1 dx z ax pau ah0 - k uw aa uw er0
+el uw ah s iy p y ng0 - m dh - en ng hv0 ax ow uh0 ae hv zh k
+aa1 y ax0 nx hv uh1 n ow th axr - w v ao1 iy
+l hv eh em0 - pau ih - hh en ay ah ae ng l ax en - f er r m0 p z pau w1 pau eh pau ah - - y0 ey0 ao
+ih0 iy s em p sh en z b v uw ae en w ah1 - en th v0 - ey ao axr axr
+ae ih - w0 f v em er sh0 n1 hv - oy w nx z0 uw t
+ey d iy el1 ow1 uh ay z1 ih hv iy1 g1 ao th ow y0 - ah dh n r r0 jh pau uw
+dh aw0 v iy en ow axr hh uh k pau t b
+oy uw z ax b er ch - iy0 ey aa ao ae0 r f s ow ih hv ow zh0 uw f
+l er ch ey er1 z t - ch th0 b - em ch
+ao - hv f1 aw k0 y aa eh m
+uh r th sh zh ao0 ae1 ng el ao b pau ax1 ng v p hv - pau ao ae - dx r en d pau sh - ax jh1 - b er hh pau m - - aa - sh
+ey s0 - p - nx
+l uh - - axr en ey dh1 - m0 - ow w r dh d aa ae - pau d1 er - d dx0 axr1 oy d t f - w oy - eh - f zh
+aa0 b z1 hv
+oy aa d nx el dh0
+p hv m1 ah aa s ah hh nx el er r r ay hv v sh m ng hh el1 ax1 ch z ey hv hh hh jh iy aw ih d sh dx k1 l eh hh axr g1 th em en1 y f en1 s1 er er em hh er m aa w k ey d y jh em aw1 r1 en aa ay ae ax oy dx axr axr iy g th hv d en ch uw z ch en uh sh w nx eh eh jh en sh1 jh1 g aa ih1 v b el f m t dx1 zh aa g ae aw axr r z hh y aa uw en b1 ao1 r1 p1 jh ae dh s g ah th ow ow p uw uw1 ch z1 w v el l er z d d eh t ch t1 b1 aa ng aa1 hh hh ah m oy1 ih sh g ax dh ah p ng ey ax ae ae axr ah p1 k v z aa z ax1 dx em1 ah g nx w en g axr uh dx hh z1 jh g ch dx m b em m uw aa ih1 g ax zh axr ih th ch ah aw r ow t aa1 el l dh ng t z ow oy uw t y ao ch el ih dx t oy el y iy hh hh eh v uh sh ay ow oy ow dh dh t aa y aa iy n1 en en sh1 f1 ow1 z ih1 ey em ow hh ey r ch eh ae g v ax1 ax iy dh em d dx f axr dh1 y ey uw eh n g eh ah uw s r r1 f uh eh ah ih aa en ng g aw p ao jh1 ay el ah hh th dx1 aa y nx1 ow ay th axr uw s sh aw1 ih ah ow ch hh1 aw dh b v k er ay ao hh1 el k th eh r axr d uw t ng1 z1 em th w m ah d1 p oy axr th aa v sh1 k hh th jh r er sh en dh ah l jh k ey r y v ao er b v p1 y s f axr sh em ah aw ae ae n b g t nx ey1 dh

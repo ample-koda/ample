@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Ample.Speech.Flite.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../../src/Ample.Speech/Ample.Speech.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\flite-data-digests.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-cg-data-digests.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the converted clustergen voices are not embedded in the assembly (their recordings have no confirmed licence): the tests read them from the source folder -->
+    <None Include="..\..\src\Ample.Speech\Flite\Cg\Data\*.bin" Link="Fixtures\cg\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m6-*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m3-*.golden.gz" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m7-*.gz" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-m8-*.gz" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\lexicon-digests.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\phones-stage.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-phones-*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-x1-*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-x5-*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-x6-*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

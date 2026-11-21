@@ -3,6 +3,8 @@ using System.Text.Json;
 using Ample.Core.Abstractions;
 using Ample.Language;
 using Ample.Speech;
+using Ample.Speech.Flite.Data;
+using Ample.Speech.Flite.Lexicon;
 
 namespace Ample.Audio.Engine;
 
@@ -15,21 +17,24 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
 
     public string Id => "builtin.speech";
 
-    public string Version => "1.5";
+    public string Version => "1.8";
 
     public string Determinism => "machine-exact";
 
     public string SettingsKey => "speech";
 
-    private static readonly string[] ToolprintEngines = ["retro/formant-2", HumanicoSpeechEngine.HumanicoIdentity];
+    private static readonly string[] ToolprintEngines = ["retro/formant-2", HumanicoSpeechEngine.HumanicoIdentity, FliteSpeechEngine.Identity];
 
     public string ToolprintJson => JsonSerializer.Serialize(new
     {
         engines = ToolprintEngines,
         algorithm = "splitmix64-formant-glottal-linear-resample",
-        algorithmVersion = 6,
+        algorithmVersion = 8,
+        speechLevels = SpeechLevels.Table,
         humanicoCalibrationSha256 = HumanicoCalibratedSegments.CalibrationSha256,
         humanicoPcmScale = HumanicoCalibratedVoice.PcmScale,
+        fliteDataSha256 = FliteDataIdentity.DataSha256,
+        fliteSourceCommit = FliteDataIdentity.SourceCommit,
         seedAlgorithm = SpeechSeed.AlgorithmIdentity,
         wordsMixVoiceHeadroom = 4,
         gateFadeMilliseconds = 8,
@@ -55,17 +60,23 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         string engine = Written("engine").ToLowerInvariant() is { Length: > 0 } named ? named : "humanico";
         try
         {
-            SpeechRequest request = new(text, sampleRate, Number("rate", 1), Number("pitch_hz", 105))
+            SpeechRequest request = new(text, sampleRate, Number("rate", 1), engine == "flite" && Written("pitch_hz").Length == 0 ? FliteSpeechEngine.DefaultPitchHz : Number("pitch_hz", 105))
             {
                 Engine = engine,
-                Phonemes = phonemes.Length == 0 ? null : phonemes
+                Phonemes = phonemes.Length == 0 ? null : phonemes,
+                PitchRangeHz = Number("pitch_range", FliteSpeechEngine.DefaultPitchRangeHz),
+                LeadTrim = Written("lead_trim").Equals("on", StringComparison.OrdinalIgnoreCase),
+                PauseScale = Number("pause_scale", 1),
+                BrightnessDb = Number("brightness", 0),
+                Lexicon = Written("lexicon") is { Length: > 0 } plannedLexicon ? plannedLexicon : null,
+                Spell = Written("spell") is { Length: > 0 } plannedSpell ? plannedSpell : null
             };
             SpeechPlan plan = SpeechPlanner.Plan(request);
             return plan.OutputSamples > 0 ? plan.OutputSamples : null;
         }
         catch (ArgumentException)
         {
-            return null;   // invalid phonemes, an unknown engine: the render says so
+            return null;   // invalid phonemes, an unknown engine or voice: the render says so
         }
     }
 
@@ -92,7 +103,8 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         string Written(string name) => Decode(request.Block.Parameters.FirstOrDefault(p => p.Name == name)?.Value ?? string.Empty);
         string inputText = Written("text");
         string phonemes = Written("phonemes");
-        if (maxInputCharacters > 0 && (inputText.Length > maxInputCharacters || phonemes.Length > maxInputCharacters))
+        string lexiconText = Written("lexicon"), spellText = Written("spell");
+        if (maxInputCharacters > 0 && (inputText.Length > maxInputCharacters || phonemes.Length > maxInputCharacters || lexiconText.Length + spellText.Length > maxInputCharacters))
             throw new SpeechResourceLimitException($"Speech input exceeds the configured limit of {maxInputCharacters} characters.");
         int length = checked(request.BarCount * request.SamplesPerBar);
         string mode = Text("mode").ToLowerInvariant() is { Length: > 0 } selected ? selected : "text";
@@ -104,12 +116,21 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         if (maxWorkingSamples > 0 && outputWorkingEquivalent > maxWorkingSamples)
             throw new SpeechResourceLimitException($"Speech output buffer needs {outputWorkingEquivalent} working samples, above the configured limit of {maxWorkingSamples}.");
         short[] output = new short[length];
-        double rate = Number("rate", 1), pitch = Number("pitch_hz", 105);
+        string engine = Text("engine").ToLowerInvariant() is { Length: > 0 } selectedEngine ? selectedEngine : "humanico";
+        if (engine is not ("retro" or "humanico" or "flite")) throw new AmpleException("AMP5351", "The speech engine must be 'retro', 'humanico' or 'flite'.");
+        // flite has its own pitch (the voice sits lower): a block that does not write pitch_hz gets that one, not the 105 Hz of the other engines
+        double rate = Number("rate", 1), pitch = engine == "flite" && Written("pitch_hz").Length == 0 ? FliteSpeechEngine.DefaultPitchHz : Number("pitch_hz", 105);
+        double pitchRange = Number("pitch_range", FliteSpeechEngine.DefaultPitchRangeHz);
+        string voice = Text("voice").ToLowerInvariant() is { Length: > 0 } namedVoice ? namedVoice : FliteSpeechEngine.VoiceName;
         double gainDb = Number("gain", 0);
         if (gainDb is < -60 or > 12) throw new AmpleException("AMP5351", "The speech gain must be between -60 and 12 dB.");
+        string leadTrimText = Text("lead_trim").ToLowerInvariant() is { Length: > 0 } leadTrimChoice ? leadTrimChoice : "off";
+        if (leadTrimText is not ("on" or "off")) throw new AmpleException("AMP5351", "The speech lead_trim must be 'on' or 'off'.");
+        bool leadTrim = leadTrimText == "on";
+        double pauseScale = Number("pause_scale", 1), brightness = Number("brightness", 0);
+        string level = Text("level").ToLowerInvariant() is { Length: > 0 } levelChoice ? levelChoice : SpeechLevels.Default;
+        if (level is not (SpeechLevels.Engine or SpeechLevels.Matched)) throw new AmpleException("AMP5351", "The speech level must be 'engine' or 'matched'.");
         double fitMaxRate = Number("fit_max_rate", 2);
-        string engine = Text("engine").ToLowerInvariant() is { Length: > 0 } selectedEngine ? selectedEngine : "humanico";
-        if (engine is not ("retro" or "humanico")) throw new AmpleException("AMP5351", "The speech engine must be 'retro' or 'humanico'.");
         // plan 3.x: the text must be given on purpose. An explicit empty text (or one with no words in it) is silence; leaving it out is a mistake
         // owner decision 2026-11-19: text and phonemes are given on purpose and are never empty (leave the line out instead); never both
         var textParameter = request.Block.Parameters.FirstOrDefault(p => p.Name == "text");
@@ -125,33 +146,101 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         if (mode == "words" && hasPhonemes) throw new AmpleException("AMP5351", "phonemes is only valid in text mode.");
         int originBar = request.ActiveBars.Count == 0 ? request.FirstBar : request.ActiveBars.Min();
         if (mode is not ("text" or "words")) throw new AmpleException("AMP5351", "The speech mode must be 'text' or 'words'.");
+        // a new block carries the template defaults (voice kal16, pitch_range 11): they are only an error when they ask for something else than the default, like duration_policy
+        bool fliteSettingsChanged = voice != FliteSpeechEngine.VoiceName || pitchRange != FliteSpeechEngine.DefaultPitchRangeHz;
+        if (engine != "flite" && fliteSettingsChanged) throw new AmpleException("AMP5351", "voice and pitch_range belong to the flite engine.");
+        if (engine == "flite" && hasPhonemes)
+        {
+            try
+            {
+                FlitePhoneTable.Translate(phonemes);
+            }
+            catch (ArgumentException error)
+            {
+                throw new AmpleException("AMP5351", error.Message.Split(" (Parameter")[0]);
+            }
+        }
+
+        if (engine == "flite" && voice != FliteSpeechEngine.VoiceName) throw new AmpleException("AMP5351", "The only voice of the flite engine is kal16.");
+        if (engine == "flite" && pitchRange is < 0 or > 200) throw new AmpleException("AMP5351", "The speech pitch_range must be between 0 and 200 Hz.");
+        // the shaping of the flite voice: a new block carries the template defaults (off, 1, 0), which are only an error next to another engine when they ask for something else
+        if (engine != "flite" && (leadTrim || pauseScale != 1 || brightness != 0)) throw new AmpleException("AMP5351", "lead_trim, pause_scale and brightness belong to the flite engine.");
+        if (pauseScale is < 0 or > 4) throw new AmpleException("AMP5351", "The speech pause_scale must be between 0 and 4.");
+        if (mode == "words" && (leadTrim || pauseScale != 1))
+            throw new AmpleException("AMP5351", "lead_trim and pause_scale shape the text of the flite voice: words mode already starts every word with its note.");
+        if (brightness is < 0 or > 12) throw new AmpleException("AMP5351", "The speech brightness must be between 0 and 12 dB.");
+        // the words of the block: their own phones and the words that are read letter by letter (the flite engine; a new block has neither line)
+        FliteUserLexicon userLexicon = FliteUserLexicon.Empty;
+        if (lexiconText.Length > 0 || spellText.Length > 0)
+        {
+            if (engine != "flite") throw new AmpleException("AMP5351", "lexicon and spell belong to the flite engine.");
+            if (hasPhonemes) throw new AmpleException("AMP5351", "lexicon and spell work on a text: they do not apply to phonemes.");
+            try
+            {
+                userLexicon = FliteUserLexicon.Parse(lexiconText, spellText);
+            }
+            catch (ArgumentException error)
+            {
+                throw new AmpleException("AMP5351", error.Message.Split(" (Parameter")[0]);
+            }
+        }
+
+        // the inline markup of the text (<pitch>, <rate>, <range>, <emph>, <break/>): the flite engine in text mode reads it, nothing else speaks it
+        if (FliteMarkup.LooksLikeMarkup(inputText))
+        {
+            if (engine != "flite") throw new AmpleException("AMP5351", "The tags in the text (<pitch>, <rate>, <range>, <emph>, <break/>) belong to the flite engine.");
+            if (mode == "words") throw new AmpleException("AMP5351", "The tags in the text work in text mode: in words mode every word has its note, with its own pitch.");
+        }
+
+        if (engine == "flite" && mode == "text" && inputText.Length > 0)
+        {
+            try
+            {
+                FliteMarkup.Parse(inputText, pitch);
+            }
+            catch (ArgumentException error)
+            {
+                throw new AmpleException("AMP5351", error.Message.Split(" (Parameter")[0]);
+            }
+        }
+
         string durationPolicy = Text("duration_policy").ToLowerInvariant() is { Length: > 0 } policy ? policy : "natural";
         if (durationPolicy is not ("natural" or "gate" or "fit")) throw new AmpleException("AMP5351", "The speech duration_policy must be 'natural', 'gate' or 'fit'.");
         if (mode == "text" && durationPolicy != "natural") throw new AmpleException("AMP5351", "duration_policy is only valid in words mode.");
         if (mode == "words" && durationPolicy == "fit" && (fitMaxRate < rate || fitMaxRate > 2))
             throw new AmpleException("AMP5351", "fit_max_rate must be at least rate and no greater than 2.");
+        SpeechRequest speechRequest = new(inputText, request.SampleRate, rate, pitch, request.Seed, maxSamples, maxWorkingSamples)
+        {
+            Engine = engine,
+            Phonemes = phonemes.Length == 0 ? null : phonemes,
+            Voice = voice,
+            PitchRangeHz = pitchRange,
+            LeadTrim = leadTrim,
+            PauseScale = pauseScale,
+            BrightnessDb = brightness,
+            Lexicon = lexiconText.Length == 0 ? null : lexiconText,
+            Spell = spellText.Length == 0 ? null : spellText,
+            Progress = progress => request.Report?.Invoke(new ProgressReport(
+                (double)progress.Completed / Math.Max(1, progress.Total), progress.Stage, (double)progress.Completed / Math.Max(1, progress.Total)))
+        };
         SpeechResult speech = mode == "text" && request.ActiveBars.Count > 0
-            ? HumanicoSpeechEngine.Render(new SpeechRequest(inputText, request.SampleRate, rate, pitch, request.Seed, maxSamples, maxWorkingSamples)
-            {
-                Engine = engine,
-                Phonemes = phonemes.Length == 0 ? null : phonemes,
-                Progress = progress => request.Report?.Invoke(new ProgressReport((double)progress.Completed / Math.Max(1, progress.Total), progress.Stage, (double)progress.Completed / Math.Max(1, progress.Total)))
-            }, cancellationToken)
-            : new([], request.SampleRate, [], engine == "humanico" ? HumanicoSpeechEngine.HumanicoIdentity : "retro/formant-2");
+            ? engine == "flite" ? FliteSpeechEngine.Render(speechRequest, cancellationToken) : HumanicoSpeechEngine.Render(speechRequest, cancellationToken)
+            : new([], request.SampleRate, [], IdentityOf(engine));
         SpeechWordsRender musical = mode == "words" && request.ActiveBars.Count > 0
             ? RenderWords(request, output, inputText, rate, pitch, fitMaxRate, durationPolicy, engine,
-                maxWorkingSamples, maxNoteEvents, cancellationToken)
+                maxWorkingSamples, maxNoteEvents, brightness, userLexicon, cancellationToken)
             : new([], []);
         IReadOnlyList<SpeechWordTiming> musicalTimings = musical.Timings;
         if (mode != "words") CopyText(request, output, speech, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        long gainClipped = ApplyGain(output, gainDb, cancellationToken);
+        double levelDb = level == SpeechLevels.Matched ? SpeechLevels.OffsetDb(engine) : 0;   // level matched: the same gain is equally loud for every engine
+        long gainClipped = ApplyGain(output, gainDb + levelDb, cancellationToken);
         // saturation is never the normal strategy and never silent: it is reported with the take (kind and the number of samples that were cut)
         List<SpeechWarning> reported = [.. musical.Warnings];
         if (musical.MixClippedSamples > 0) reported.Add(new("mix-clipped", -1) { Samples = musical.MixClippedSamples });
         if (gainClipped > 0) reported.Add(new("gain-clipped", -1) { Samples = gainClipped });
         // where each word stands in the (decoded) text of this take, so that an editor can mark it; none for phonemes (they are not words of a text)
-        IReadOnlyList<SpeechWordSpan>? spans = phonemes.Length == 0 ? SpeechText.WordSpans(inputText) : null;
+        IReadOnlyList<SpeechWordSpan>? spans = mode != "words" && engine == "flite" ? speech.Spans : phonemes.Length == 0 ? SpeechText.WordSpans(inputText) : null;
         List<SpeechTimingMetadata> wordMetadata = [];
         foreach (SpeechWordTiming word in speech.Words.Concat(musicalTimings))
         {
@@ -164,14 +253,26 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
             speech = new
             {
                 mode,
-                engine = mode == "words" ? (engine == "humanico" ? HumanicoSpeechEngine.HumanicoIdentity : "retro/formant-2") : speech.EngineIdentity,
+                engine = mode == "words" ? IdentityOf(engine) : speech.EngineIdentity,
                 provisional = engine == "humanico",
-                algorithm = engine == "humanico" ? "candidate-calibrated-klatt-linear-resample" : "splitmix64-formant-glottal-linear-resample",
+                algorithm = engine switch
+                {
+                    "humanico" => "candidate-calibrated-klatt-linear-resample",
+                    "flite" => "flite-kal16-diphone-lpc-linear-resample",
+                    _ => "splitmix64-formant-glottal-linear-resample"
+                },
                 calibrationSha256 = engine == "humanico" ? HumanicoCalibratedSegments.CalibrationSha256 : null,
                 pcmScale = engine == "humanico" ? HumanicoCalibratedVoice.PcmScale : (double?)null,
-                internalSampleRate = 10_000,
-                dictionarySha256 = HumanicoReferenceManifest.PinnedFixture.DictionarySha256,
-                upstreamRevision = HumanicoReferenceManifest.PinnedFixture.UpstreamRevision,
+                internalSampleRate = engine == "flite" ? FliteSpeechEngine.InternalRate : 10_000,
+                dictionarySha256 = engine == "flite" ? null : HumanicoReferenceManifest.PinnedFixture.DictionarySha256,
+                upstreamRevision = engine == "flite" ? FliteDataIdentity.SourceCommit : HumanicoReferenceManifest.PinnedFixture.UpstreamRevision,
+                fliteDataSha256 = engine == "flite" ? FliteDataIdentity.DataSha256 : null,
+                level,
+                levelOffsetDb = levelDb,
+                leadTrim = engine == "flite" ? leadTrim : (bool?)null,
+                pauseScale = engine == "flite" ? pauseScale : (double?)null,
+                brightnessDb = engine == "flite" ? brightness : (double?)null,
+                userLexicon = engine == "flite" && !userLexicon.IsEmpty ? userLexicon.Canonical : null,
                 sampleRate = speech.SampleRate,
                 renderer = Id,
                 rendererVersion = Version,
@@ -186,6 +287,13 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", wav) { MetadataJson = metadata }]);
     }
+
+    private static string IdentityOf(string engine) => engine switch
+    {
+        "humanico" => HumanicoSpeechEngine.HumanicoIdentity,
+        "flite" => FliteSpeechEngine.Identity,
+        _ => "retro/formant-2"
+    };
 
     private static void CopyText(RenderRequest request, short[] output, SpeechResult speech, CancellationToken token)
     {
@@ -204,7 +312,7 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
     {
         if (gainDb == 0) return 0;
         long clipped = 0;
-        double factor = Math.Pow(10, gainDb / 20);
+        double factor = DeterministicMath.Exp10(gainDb / 20);   // not Math.Pow: the C library of the platform may differ in the last bit, and a sample could round the other way
         for (int i = 0; i < samples.Length; i++)
         {
             if ((i & 1023) == 0) token.ThrowIfCancellationRequested();
@@ -217,7 +325,7 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
     }
 
     private static SpeechWordsRender RenderWords(RenderRequest request, short[] output, string text, double rate, double pitch,
-        double fitMaxRate, string policy, string engine, int maxWorkingSamples, int maxNoteEvents, CancellationToken token)
+        double fitMaxRate, string policy, string engine, int maxWorkingSamples, int maxNoteEvents, double brightness, FliteUserLexicon userLexicon, CancellationToken token)
     {
         int[] mix = new int[output.Length];
         string[] words = [.. SpeechText.Words(text)];
@@ -246,7 +354,7 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         int referenceMidi = (int)Math.Round(ReadNumber(request, "reference_midi", 60));
         double referenceHz = ReadNumber(request, "reference_hz", pitch);
         IReadOnlyList<SpeechWordNote> assignments = [.. HumanicoWordNotePlanner.Assign(words, events.Select(e => e.Note))];
-        if (maxWorkingSamples > 0)
+        if (maxWorkingSamples > 0 && engine != "flite")   // flite cannot count the samples of a word before it speaks it: it keeps the budget while it renders
         {
             long plannedWorkingSamples = 0;
             foreach (SpeechWordNote assignment in assignments)
@@ -268,6 +376,7 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         List<SpeechWordTiming> timings = [];
         List<SpeechWarning> warnings = [];
         List<WordVoice> voices = [];
+        long fliteWorkingSamples = 0;
         foreach (SpeechWordNote assignment in assignments)
         {
             token.ThrowIfCancellationRequested();
@@ -276,41 +385,51 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
             token.ThrowIfCancellationRequested();
             (SpeechNoteEvent Note, long Start, long Gate) placement = events.Single(e => e.Note.Ordinal == assignment.Note.Ordinal);
             SpeechNotePitch mapped = HumanicoNotePitchMapper.Map(placement.Note, referenceMidi, referenceHz);
-            IReadOnlyList<SpeechPhone> phones = HumanicoFrontEnd.WordToPhones(assignment.Word);
-            int frameLimit = maxWorkingSamples > 0 ? Math.Max(1, maxWorkingSamples / 50) : 0;
-            double effectiveRate = rate;
-            int frameCount = engine == "humanico"
-                ? HumanicoCalibratedVoice.PlanPhones(phones, rate, frameLimit, token).Count
-                : SpeechPlanner.PlanWord(assignment.Word, mapped.FundamentalHz, rate, token).Count;
-            int internalSamples = checked(frameCount * 50);
-            if (maxWorkingSamples > 0 && internalSamples > maxWorkingSamples)
-                throw new SpeechResourceLimitException($"Speech word {assignment.WordIndex + 1} requires {internalSamples} working samples, above the configured limit of {maxWorkingSamples}.");
-            if (policy == "fit")
-            {
-                double naturalSamples = frameCount * 50d * request.SampleRate / 10_000d;
-                double fitRate = Math.Min(fitMaxRate, rate * naturalSamples / placement.Gate);
-                if (fitRate > rate)
-                {
-                    warnings.Add(new("fit-accelerated", assignment.WordIndex));
-                    effectiveRate = fitRate;
-                }
-            }
-            ulong wordSeed = SpeechSeed.ForWord(request.Seed, assignment.WordIndex);
             short[] samples;
-            if (engine == "humanico")
+            if (engine == "flite")
             {
-                double[] audio = HumanicoCalibratedVoice.RenderPhones(phones, mapped.FundamentalHz,
-                    effectiveRate, wordSeed, frameLimit, token);
-                HumanicoPcmResult pcm = HumanicoCalibratedVoice.ToPcm(audio, token);
-                if (pcm.ClippedSamples > 0) throw new InvalidOperationException("Humanico voice exceeded its PCM headroom.");
-                samples = pcm.Samples;
+                // the pitch of the note is made without a library function (the mapper above checks the note and gives the amplitude)
+                double noteHz = FliteSpeechEngine.NotePitchHz(placement.Note.MidiPitch, referenceMidi, referenceHz);
+                samples = RenderFliteWord(request, assignment, noteHz, rate, policy, fitMaxRate, placement.Gate, warnings, ref fliteWorkingSamples,
+                    maxWorkingSamples, brightness, userLexicon, token);
             }
             else
             {
-                IReadOnlyList<SpeechFrame> frames = SpeechPlanner.PlanWord(assignment.Word, mapped.FundamentalHz, effectiveRate, token);
-                samples = HumanicoFrameSynthesizer.Render(frames, wordSeed, token);
+                IReadOnlyList<SpeechPhone> phones = HumanicoFrontEnd.WordToPhones(assignment.Word);
+                int frameLimit = maxWorkingSamples > 0 ? Math.Max(1, maxWorkingSamples / 50) : 0;
+                double effectiveRate = rate;
+                int frameCount = engine == "humanico"
+                    ? HumanicoCalibratedVoice.PlanPhones(phones, rate, frameLimit, token).Count
+                    : SpeechPlanner.PlanWord(assignment.Word, mapped.FundamentalHz, rate, token).Count;
+                int internalSamples = checked(frameCount * 50);
+                if (maxWorkingSamples > 0 && internalSamples > maxWorkingSamples)
+                    throw new SpeechResourceLimitException($"Speech word {assignment.WordIndex + 1} requires {internalSamples} working samples, above the configured limit of {maxWorkingSamples}.");
+                if (policy == "fit")
+                {
+                    double naturalSamples = frameCount * 50d * request.SampleRate / 10_000d;
+                    double fitRate = Math.Min(fitMaxRate, rate * naturalSamples / placement.Gate);
+                    if (fitRate > rate)
+                    {
+                        warnings.Add(new("fit-accelerated", assignment.WordIndex));
+                        effectiveRate = fitRate;
+                    }
+                }
+                ulong wordSeed = SpeechSeed.ForWord(request.Seed, assignment.WordIndex);
+                if (engine == "humanico")
+                {
+                    double[] audio = HumanicoCalibratedVoice.RenderPhones(phones, mapped.FundamentalHz,
+                        effectiveRate, wordSeed, frameLimit, token);
+                    HumanicoPcmResult pcm = HumanicoCalibratedVoice.ToPcm(audio, token);
+                    if (pcm.ClippedSamples > 0) throw new InvalidOperationException("Humanico voice exceeded its PCM headroom.");
+                    samples = pcm.Samples;
+                }
+                else
+                {
+                    IReadOnlyList<SpeechFrame> frames = SpeechPlanner.PlanWord(assignment.Word, mapped.FundamentalHz, effectiveRate, token);
+                    samples = HumanicoFrameSynthesizer.Render(frames, wordSeed, token);
+                }
+                samples = Resample(samples, 10_000, request.SampleRate, request.Report, token);
             }
-            samples = Resample(samples, request.SampleRate, request.Report, token);
             long start = placement.Start;
             long limit = policy == "natural" ? samples.Length : Math.Min(samples.Length, placement.Gate);
             if (policy != "natural" && samples.Length > placement.Gate)
@@ -365,10 +484,52 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
         }
     }
 
-    private static short[] Resample(short[] source, int outputRate, Action<ProgressReport>? report, CancellationToken token)
+    /// <summary>
+    /// One word of the flite engine in words mode: the note pitch (inside the range the voice can follow; outside it the word is sung an octave away and the take says so),
+    /// the speed of the policy (fit speaks a word faster, up to <paramref name="fitMaxRate"/>, when its note is shorter), kept inside the working budget, at the rate of the block.
+    /// </summary>
+    private static short[] RenderFliteWord(RenderRequest request, SpeechWordNote assignment, double requestedHz, double rate, string policy, double fitMaxRate, long gate,
+        List<SpeechWarning> warnings, ref long workingSamples, int maxWorkingSamples, double brightness, FliteUserLexicon userLexicon, CancellationToken token)
+    {
+        // a note outside the range of the voice is sung an octave (or more) away, as the same note name, and so is a word that would click at that pitch; the take says which words were moved
+        // the working budget counts samples at 10 kHz (as for Humanico); the same number of seconds is allowed at the 16 kHz of the voice
+        long limit = maxWorkingSamples > 0 ? Math.Max(1, (long)maxWorkingSamples * FliteSpeechEngine.InternalRate / 10_000) : 0;
+        long spent = workingSamples;   // a local function cannot read a ref parameter
+        long Left() => limit > 0 ? Math.Max(1, limit - spent) : 0;
+        bool moved = false;
+        short[] Sing(double atRate)
+        {
+            short[] made = FliteSpeechEngine.RenderSungWord(assignment.Word, requestedHz, atRate, Left(), userLexicon.IsEmpty ? null : userLexicon, out double sung, token);
+            if (Math.Abs(sung - requestedHz) > 1e-9) moved = true;
+            return made;
+        }
+
+        short[] sound = Sing(rate);
+        if (policy == "fit" && sound.Length > 0)
+        {
+            double natural = sound.Length * (double)request.SampleRate / FliteSpeechEngine.InternalRate;
+            double fitRate = Math.Min(fitMaxRate, rate * natural / gate);
+            if (fitRate > rate)
+            {
+                warnings.Add(new("fit-accelerated", assignment.WordIndex));
+                sound = Sing(fitRate);
+            }
+        }
+
+        if (moved) warnings.Add(new("pitch-folded", assignment.WordIndex));
+
+        workingSamples = checked(workingSamples + sound.Length);
+        if (limit > 0 && workingSamples > limit)
+            throw new SpeechResourceLimitException($"Speech words require {workingSamples} working samples at 16 kHz, above the configured limit of {limit}.");
+        FliteSpeechEngine.Brighten(sound, brightness);   // the tone control of the voice, as in text mode (the word is our own array)
+        return Resample(sound, FliteSpeechEngine.InternalRate, request.SampleRate, request.Report, token);
+    }
+
+    private static short[] Resample(short[] source, int sourceRate, int outputRate, Action<ProgressReport>? report, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        int length = checked((int)Math.Round(source.Length * outputRate / 10_000d));
+        if (source.Length == 0) return [];
+        int length = checked((int)Math.Round(source.Length * (double)outputRate / sourceRate));
         short[] output = new short[length];
         for (int i = 0; i < output.Length; i++)
         {
@@ -379,7 +540,7 @@ internal sealed class SpeechRenderer : IBlockRenderer, IConfigurableRenderer, IB
                 report?.Invoke(new ProgressReport(fraction, "speech-resampling", fraction));
                 token.ThrowIfCancellationRequested();
             }
-            double position = i * 10_000d / outputRate;
+            double position = i * (double)sourceRate / outputRate;
             int left = Math.Min((int)position, source.Length - 1);
             int right = Math.Min(left + 1, source.Length - 1);
             output[i] = (short)Math.Round(source[left] + (source[right] - source[left]) * (position - left), MidpointRounding.ToEven);

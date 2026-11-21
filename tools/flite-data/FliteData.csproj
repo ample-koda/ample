@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Development tool, not part of the solution and never shipped: reads the generated C data of the pinned Flite source and writes the .bin resources of Ample.Speech. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>FliteData</RootNamespace>
+    <AssemblyName>flite-data</AssemblyName>
+    <!-- a short-lived tool: its section writers live as long as the run -->
+    <NoWarn>$(NoWarn);CA1001</NoWarn>
+  </PropertyGroup>
+</Project>

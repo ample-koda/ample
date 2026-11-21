@@ -2,6 +2,7 @@
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
 import { knobPrecision } from '../../../lib/studio-math.js';
+import { knobStart } from '../../../lib/knob-start.mjs';
 
 const ns = 'http://www.w3.org/2000/svg';
 
@@ -34,7 +35,8 @@ export function control(context, params, name, label, min, max, unit, scale = 'l
 
   const precision = knobPrecision(unit, min);
   return el('div', { className: 'studio-panel-control' }, [knob({   // the knob draws its own name: no second label outside it (issue 188)
-    label, value: number(params, name, min), min, max, unit, scale, size, step: precision.step, decimals: precision.display, disabled: context.readOnly, learn: learnOf(context, name),
+    label, value: knobStart(params, name, context.definitions, min), min, max, unit, scale, size,
+    step: precision.step, decimals: precision.display, disabled: context.readOnly, learn: learnOf(context, name),
     onPreview: (next) => { context.preview?.(name, next); onPreview?.(next); },
     onCommit: (next) => context.commit(name, `${Number(next.toFixed(precision.commit))}${unit ? ` ${unit}` : ''}`),
   })]);

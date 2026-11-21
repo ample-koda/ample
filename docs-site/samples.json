@@ -4957,6 +4957,32 @@
   "code": "composition \"Silence\" { ample 1  tempo 96  master-seed 81 }\n\nmidi-clip phrase {\n  chords C Am F G\n  bars 4\n}\n\nsynth source {\n  wave triangle\n  gain -9 dB\n  from phrase.notes -> notes\n}\n\nsilence gap {\n  length 2 s\n}\n\nmixer room {\n  inputs 4\n  from source.audio -> audio1\n  from gap.audio -> audio2\n}\n\nmaster output {\n  from room.audio -> audio\n}\n"
  },
  {
+  "id": "ex-ef45aec197fa",
+  "src": "example",
+  "fx": "dry",
+  "title": "Local speech example",
+  "bpm": 96,
+  "bars": null,
+  "seconds": 7.5,
+  "example": "speech",
+  "stats": {
+   "seconds": 7.5,
+   "full": 7.5,
+   "cut": false,
+   "peakDb": -13.645791,
+   "rmsDb": -39.741272
+  },
+  "deps": [],
+  "built": {
+   "cli": "AMPLE 0.1.25 (beta, commit unknown)",
+   "commit": "a91d04a94",
+   "at": "2026-11-21",
+   "song": "ef45aec197fa"
+  },
+  "song": "ef45aec197fa",
+  "code": "composition \"Speech example\" { ample 1  tempo 96 master-seed 17 }\n\nspeech voice at 1 for 3 {\n  text \"I am a robot.\"\n}\n\nmaster master {\n  from voice.audio -> audio\n}\n"
+ },
+ {
   "id": "ex-294fb9be8835",
   "src": "example",
   "fx": "dry",

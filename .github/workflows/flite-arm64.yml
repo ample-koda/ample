@@ -1,0 +1,65 @@
+name: Flite on x64 and arm64
+
+# Run by hand (Actions, "Flite on x64 and arm64", Run workflow). The Flite voice must give the same waveform on every processor: the sound path is integer arithmetic and the
+# durations and pitch targets are float steps that are cast like the C program does. This workflow builds on an x64 and an arm64 runner, runs the Flite tests on both, writes the SHA-256 of
+# thirty fixed renderings on each and compares the two lists line by line.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flite:
+    name: Flite (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Show the processor
+        run: uname -m
+      - name: Build the Flite tests
+        run: dotnet build tests/Ample.Speech.Flite.Tests --configuration Release --nologo
+      - name: Run the Flite tests
+        run: dotnet test tests/Ample.Speech.Flite.Tests --configuration Release --no-build --nologo
+      - name: Write the digests of thirty renderings
+        env:
+          FLITE_HASH_REPORT: ${{ github.workspace }}/flite-hashes-${{ matrix.arch }}.txt
+        run: |
+          dotnet test tests/Ample.Speech.Flite.Tests --configuration Release --no-build --nologo --filter "FullyQualifiedName~FliteHashReportTests"
+          cat "$FLITE_HASH_REPORT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flite-hashes-${{ matrix.arch }}
+          path: flite-hashes-${{ matrix.arch }}.txt
+
+  compare:
+    name: Compare x64 and arm64
+    needs: flite
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: flite-hashes-*
+          merge-multiple: true
+      - name: Compare the two lists
+        run: |
+          set -euo pipefail
+          wc -l flite-hashes-x64.txt flite-hashes-arm64.txt
+          if diff -u flite-hashes-x64.txt flite-hashes-arm64.txt; then
+            echo "Identical: all $(wc -l < flite-hashes-x64.txt) digests are the same on x64 and arm64."
+          else
+            echo "The lists differ (first difference above)." >&2
+            exit 1
+          fi
