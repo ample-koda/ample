@@ -1,0 +1,90 @@
+The Flite voices slt, rms and awb (the recordings of the CMU ARCTIC speech databases)
+
+The Flite clustergen voices cmu_us_slt (US English, female), cmu_us_rms (US English, male) and cmu_us_awb (Scottish English, male) were built by
+Carnegie Mellon University from recordings of the speakers slt, rms and awb. AMPLE converts the generated data of these three voices into a compact
+binary form (src/Ample.Speech/Flite/Cg/Data). The conversion is a modification: it does not change a value, and it is checked against the compiled
+Flite program. The converted data is not endorsed by Carnegie Mellon University or by the authors of Flite or of the ARCTIC databases.
+
+The terms below are the terms of the ARCTIC databases (1), of the Festvox project that built the voices (2) and of Flite, which carries them (3).
+Every holder named here keeps its name: Carnegie Mellon University, Alan W Black, Kevin A. Lenzo, John Kominek.
+
+
+1. The CMU ARCTIC speech databases
+
+John Kominek and Alan W Black, "CMU ARCTIC databases for speech synthesis", CMU-LTI-03-177, version 0.95, Language Technologies Institute,
+School of Computer Science, Carnegie Mellon University, 2003. Appendix A, "Licensing". The text was read at
+https://fhgspco.github.io/ssmgan_spco/cmu_arctic_report.pdf and is quoted here word for word.
+
+The Arctic databases are distributed as "free software" under the following terms.
+
+                                      Carnegie Mellon University
+                                             Copyright (c) 2003
+
+                                           All Rights Reserved.
+   Permission to use, copy, modify, and license this software and its
+   documentation for any purpose, is hereby granted without fee,
+   subject to the following conditions:
+
+     1. The code must retain the above copyright notice, this list of
+          conditions and the following disclaimer.
+
+     2. Any modifications must be clearly marked as such.
+     3. Original authors' names are not deleted.
+   THE AUTHORS OF THIS WORK DISCLAIM ALL WARRANTIES WITH REGARD TO
+   THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+   AND FITNESS, IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+   AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+   ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+   THIS SOFTWARE.
+
+All voice talents have signed a waiver agreeing to distribution of their recordings
+under these terms.
+
+The 2003 report names four speakers: bdl, slt, jmk and awb. The speakers slt and awb are among them. The speaker rms is not named in that report:
+rms is covered by the Flite distribution terms; the ARCTIC 2003 report lists four other speakers (the Flite terms are in 3 below).
+
+
+2. Festvox (the project that builds the voices), COPYING
+
+                   Carnegie Mellon University and
+                   Alan W Black and Kevin A. Lenzo
+                      Copyright (c) 1998-2020
+                        All Rights Reserved.
+
+  Permission is hereby granted, free of charge, to use and distribute
+  this software and its documentation without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of this work, and to
+  permit persons to whom this work is furnished to do so, subject to
+  the following conditions:
+   1. The code must retain the above copyright notice, this list of
+      conditions and the following disclaimer.
+   2. Any modifications must be clearly marked as such.
+   3. Original authors' names are not deleted.
+   4. The authors' names are not used to endorse or promote products
+      derived from this software without specific prior written
+      permission.
+
+  CARNEGIE MELLON UNIVERSITY AND THE CONTRIBUTORS TO THIS WORK
+  DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+  ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT
+  SHALL CARNEGIE MELLON UNIVERSITY NOR THE CONTRIBUTORS BE LIABLE
+  FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+  AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+  ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+  THIS SOFTWARE.
+
+(Read at https://github.com/festvox/festvox, file COPYING.)
+
+
+3. Flite (the program that carries the voices), COPYING
+
+The full text is in LICENSES/flite.txt (Copyright (c) 1999-2017 Carnegie Mellon University, with the conditions: keep the notice, mark modifications,
+keep the authors' names, do not use their names to endorse). The files of the voices (lang/cmu_us_slt, lang/cmu_us_rms, lang/cmu_us_awb) carry the
+header "Language Technologies Institute, Carnegie Mellon University, Copyright (c) 1999-2007" with the same four conditions and name Alan W Black as
+their author. The COPYING of Flite says: "All files within this distribution have the above license except the following", and the list that follows
+names no voice data (it names the NITECH/NAIST files of the vocoder, the files of Cepstral and Cobalt, the text of Alice in Wonderland, the regular
+expression code of Henry Spencer and the rate converter of Markus Mummert).
