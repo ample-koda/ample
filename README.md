@@ -27,6 +27,9 @@ AMPLE is MIT licensed. It builds on the open-source software and sound sets belo
 | [Markdig](https://github.com/xoofx/markdig) | Turns the Markdown pages into the help. | [BSD-2-Clause](LICENSES/markdig.txt) | 2026-10-02 |
 | [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore), [SQLitePCLRaw](https://github.com/ericsink/SQLitePCL.raw), [SQLite](https://www.sqlite.org/copyright.html) | The database of takes and library. | [MIT](LICENSES/dotnet-runtime.txt), [Apache-2.0](LICENSES/Apache-2.0.txt), public domain | 2026-10-02 |
 | [NVorbis](https://github.com/NVorbis/NVorbis) | Decodes the Ogg Vorbis samples of SF3 SoundFonts. | [MIT](LICENSES/nvorbis.txt) | 2026-11-03 |
+| [Humanico voice](https://github.com/JacobEGarcia/humanico-voice) | The local speech voice (ported and derived in `Ample.Speech`). | [MIT](LICENSES/humanico-voice.txt) | 2026-11-19 |
+| [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict) | Pronunciation of the speech voice. | [BSD-2-Clause](LICENSES/cmudict.txt) | 2026-11-19 |
+| [Flite](https://github.com/festvox/flite) | The Flite speech voice (kal16, translated to C# in `Ample.Speech`, with its data, dictionary and rules). | [CMU licence](LICENSES/flite.txt) | 2026-11-21 |
 | [PdfPig](https://github.com/UglyToad/PdfPig) | Reads PDF files. | [Apache-2.0](LICENSES/Apache-2.0.txt) | 2026-10-10 |
 | [System.CommandLine](https://github.com/dotnet/command-line-api) | The command line of `ample`. | [MIT](LICENSES/dotnet-runtime.txt) | 2026-10-02 |
 | [Microsoft.Extensions.Logging.Abstractions](https://github.com/dotnet/runtime) | Logging interfaces. | [MIT](LICENSES/dotnet-runtime.txt) | 2026-10-02 |
