@@ -42,6 +42,22 @@ test('the third-party list and the data notice name the voice and the licence fi
   assert.match(data, /Festival licence/);
 });
 
+test('the licence of the recordings of the voices slt, rms and awb names its holders and the three voices, and the lists point to it', () => {
+  const text = fs.readFileSync(new URL('LICENSES/cmu-arctic.txt', root), 'utf8');
+  for (const holder of ['Carnegie Mellon University', 'Alan W Black', 'Kevin A. Lenzo', 'John Kominek']) assert.ok(text.includes(holder), holder);
+  for (const voice of ['cmu_us_slt', 'cmu_us_rms', 'cmu_us_awb']) assert.ok(text.includes(voice), voice);
+  assert.match(text, /All voice talents have signed a waiver/);
+  assert.match(text, /rms is covered by the Flite distribution terms; the ARCTIC 2003 report lists four other speakers/);
+  assert.match(text, /not endorsed by Carnegie Mellon University/);
+  const list = fs.readFileSync(new URL('THIRD-PARTY-NOTICES.md', root), 'utf8');
+  assert.match(list, /cmu_us_slt/);
+  assert.match(list, /LICENSES\/cmu-arctic\.txt/);
+  const data = fs.readFileSync(new URL('src/Ample.Speech/Flite/Cg/Data/FLITE-CG-NOTICE.md', root), 'utf8');
+  assert.match(data, /These files are modified/);
+  assert.match(data, /LICENSES\/cmu-arctic\.txt/);
+  assert.doesNotMatch(data, /Not shipped, not public/);
+});
+
 test('no Flite source uses a fused multiply-add or a single-precision math library call (the JIT must give the same bits on x64 and arm64)', () => {
   const found = [];
   for (const file of sources(new URL('.', flite).pathname.replace(/^\/([A-Za-z]:)/, '$1'))) {
