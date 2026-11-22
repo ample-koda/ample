@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CPS reads DebuggerFlavor from this rule to pick the launch provider for F5: "Ample" is AmpleDebugLaunchProvider ([ExportDebugger("Ample")]). -->
+<Rule Name="DebuggerGeneral" DisplayName="Debugger General" PageTemplate="generic" Description="Debugger options"
+      xmlns="http://schemas.microsoft.com/build/2009/properties">
+  <Rule.DataSource>
+    <DataSource Persistence="ProjectFileWithXamlDefaults" HasConfigurationCondition="False" />
+  </Rule.DataSource>
+  <StringProperty Name="DebuggerFlavor" Visible="False" Default="Ample" />
+</Rule>

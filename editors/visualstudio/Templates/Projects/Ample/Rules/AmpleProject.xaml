@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Rule Name="AmpleProject" DisplayName="AMPLE Project" PageTemplate="generic" Description="Shared AMPLE project settings" xmlns="http://schemas.microsoft.com/build/2009/properties">
+  <Rule.DataSource>
+    <DataSource Persistence="ProjectFileWithXamlDefaults" HasConfigurationCondition="False" />
+  </Rule.DataSource>
+  <StringProperty Name="AmpleStartupSong" DisplayName="Startup Song" Description="Project-relative .amplet file played when you press F5." />
+</Rule>

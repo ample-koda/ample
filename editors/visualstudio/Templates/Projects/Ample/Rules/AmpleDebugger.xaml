@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Rule Name="Ample" DisplayName="AMPLE" PageTemplate="debugger" Description="AMPLE launch settings" xmlns="http://schemas.microsoft.com/build/2009/properties">
+  <Rule.DataSource>
+    <DataSource Persistence="UserFileWithXamlDefaults" HasConfigurationCondition="False" />
+  </Rule.DataSource>
+  <DynamicEnumProperty Name="AmpleInstanceSelection" DisplayName="Instance" Description="Manage an instance or attach to an active instance for this project." EnumProvider="AmpleInstanceSelectionProvider" Default="managed" />
+</Rule>

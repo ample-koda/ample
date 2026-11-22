@@ -1,0 +1,27 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="Build" />
+  <Target Name="Clean" />
+  <Target Name="Rebuild" DependsOnTargets="Clean;Build" />
+  <PropertyGroup>
+    <AmpleExecutable Condition="'$(AmpleExecutable)' == '' and '$(AMPLE_CLI)' != ''">$(AMPLE_CLI)</AmpleExecutable>
+    <AmpleExecutable Condition="'$(AmpleExecutable)' == ''">ample.exe</AmpleExecutable>
+    <AmpleSongPath Condition="'$(AmpleSongPath)' == ''">$(MSBuildProjectDirectory)\$(AmpleStartupSong)</AmpleSongPath>
+    <AmpleOutputFile Condition="'$(AmpleOutputFile)' == ''">$(MSBuildProjectDirectory)\obj\Ample\$(MSBuildProjectName).wav</AmpleOutputFile>
+    <AmpleBuildInstanceArguments Condition="'$(AmpleInstanceSelection)' != '' and '$(AmpleInstanceSelection)' != 'managed'">--require-instance --instance-project-id &quot;$(AmpleInstanceSelection)&quot;</AmpleBuildInstanceArguments>
+  </PropertyGroup>
+  <Target Name="AmpleBuild" BeforeTargets="Build">
+    <Exec Command="&quot;$(AmpleExecutable)&quot; build &quot;$(AmpleSongPath)&quot; --project &quot;$(MSBuildProjectDirectory)&quot; --through-instance $(AmpleBuildInstanceArguments) --out &quot;$(AmpleOutputFile)&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(AmpleOutputFile)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="AmpleClean" BeforeTargets="Clean">
+    <Delete Files="$(AmpleOutputFile)" />
+  </Target>
+  <!-- the project's own property rules (debugger choice for F5, AMPLE settings); Visual Studio reads them from these files -->
+  <ItemGroup>
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)Rules\DebuggerGeneral.xaml"><Context>Project</Context></PropertyPageSchema>
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)Rules\AmpleDebugger.xaml"><Context>Project</Context></PropertyPageSchema>
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)Rules\AmpleProject.xaml"><Context>Project</Context></PropertyPageSchema>
+  </ItemGroup>
+</Project>

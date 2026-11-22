@@ -1,0 +1,31 @@
+<VSTemplate Version="3.0.0" Type="Project" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005">
+  <TemplateData>
+    <Name>AMPLE Project</Name>
+    <Description>Create a Visual Studio project for an AMPLE project folder.</Description>
+    <Icon>ample.ico</Icon>
+    <ProjectType>AMPLE</ProjectType>
+    <LanguageTag>AMPLE</LanguageTag>
+    <PlatformTag>windows</PlatformTag>
+    <ProjectTypeTag>other</ProjectTypeTag>
+    <TemplateID>{E927F179-8555-48C6-9443-89C20ACD0B45}</TemplateID>
+    <DefaultName>NewAmpleProject</DefaultName>
+    <SortOrder>100</SortOrder>
+    <CreateNewFolder>true</CreateNewFolder>
+    <ProvideDefaultName>true</ProvideDefaultName>
+  </TemplateData>
+  <TemplateContent>
+    <Project TargetFileName="$safeprojectname$.ampleproj" File="Ample.ampleproj" ReplaceParameters="true">
+      <ProjectItem ReplaceParameters="true">README.txt</ProjectItem>
+      <ProjectItem ReplaceParameters="false">Ample.targets</ProjectItem>
+      <Folder Name="Rules" TargetFolderName="Rules">
+        <ProjectItem ReplaceParameters="false">DebuggerGeneral.xaml</ProjectItem>
+        <ProjectItem ReplaceParameters="false">AmpleDebugger.xaml</ProjectItem>
+        <ProjectItem ReplaceParameters="false">AmpleProject.xaml</ProjectItem>
+      </Folder>
+    </Project>
+  </TemplateContent>
+  <WizardExtension>
+    <Assembly>Ample.ProjectSystem, Version=0.1.23.0, Culture=neutral, PublicKeyToken=f78bbff3bca01b4d</Assembly>
+    <FullClassName>Ample.VisualStudio.AmpleProjectWizard</FullClassName>
+  </WizardExtension>
+</VSTemplate>
