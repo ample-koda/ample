@@ -1,0 +1,38 @@
+<Project DefaultTargets="Build">
+  <!-- The MSBuild base that the Visual Studio project system (CPS) expects; AMPLE's own Build, Clean and Rebuild come last (Ample.targets). -->
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|AnyCPU">
+      <Configuration>Debug</Configuration>
+      <Platform>AnyCPU</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|AnyCPU">
+      <Configuration>Release</Configuration>
+      <Platform>AnyCPU</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
+    <OutputPath>obj\Ample\</OutputPath>
+    <AmpleProjectRoot>.</AmpleProjectRoot>
+    <AmpleStartupSong>demo.amplet</AmpleStartupSong>
+    <AmpleInstanceSelection>managed</AmpleInstanceSelection>
+    <DebuggerFlavor>Ample</DebuggerFlavor>
+    <!-- the standard capabilities and item schemas of MSBuild: without them the project system refuses the project ("missing critical imports") -->
+    <DefineCommonCapabilities>true</DefineCommonCapabilities>
+    <DefineCommonItemSchemas>true</DefineCommonItemSchemas>
+  </PropertyGroup>
+  <Import Project="$(MSBuildProjectFullPath).user" Condition="Exists('$(MSBuildProjectFullPath).user')" />
+  <ItemGroup>
+    <ProjectCapability Include="AmpleProject" />
+    <ProjectCapability Include="ProjectConfigurationsDeclaredAsItems" />
+    <ProjectCapability Include="HandlesOwnReload" />
+    <ProjectCapability Include="OpenProjectFile" />
+    <ProjectCapability Include="UseFileGlobs" />
+    <!-- every file of the AMPLE project (songs, components, samples, MIDI, lyrics, notes), not the project's own plumbing or history -->
+    <None Include="**\*" Exclude=".ample\**;.git\**;.vs\**;bin\**;obj\**;_conflicts\**;Rules\**;Ample.targets;*.ampleproj;*.ampleproj.user;*.sln" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
+  <Import Project="Ample.targets" />
+</Project>
