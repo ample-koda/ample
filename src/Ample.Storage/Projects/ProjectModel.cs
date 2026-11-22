@@ -49,6 +49,10 @@ public sealed record AiAssistantSettings(string Assistant, string Mode, DateTime
 {
     /// <summary>Whether AI proposal builds may reuse exact-plan audio from the active project's takebank through a read-only cache view.</summary>
     public bool ExposeTakebankCache { get; init; } = true;
+
+    /// <summary>Opt-in (off by default): the assistant and Koda may search the web and download a link without asking for each one.</summary>
+    public bool WebWithoutApproval { get; init; }
+
     /// <summary>Gets the assistants a project can choose.</summary>
     public static IReadOnlyList<string> Assistants { get; } = ["none", "codex-server", "codex-device"];
 
@@ -277,6 +281,7 @@ public static class ProjectFile
 
             WriteOptional(w, "linkedAt", m.Settings.Ai.LinkedAt);
             if (!m.Settings.Ai.ExposeTakebankCache) w.WriteBoolean("exposeTakebankCache", false);
+            if (m.Settings.Ai.WebWithoutApproval) w.WriteBoolean("webWithoutApproval", true);
             w.WriteEndObject();
 
             w.WriteStartObject("faer");
@@ -386,7 +391,7 @@ public static class ProjectFile
                 ? new AutoCheckpointSettings(auto.GetProperty("enabled").GetBoolean(), auto.GetProperty("minutes").GetInt32())
                 : AutoCheckpointSettings.Default;
             AiAssistantSettings ai = settings.TryGetProperty("ai", out JsonElement aiJson)
-                ? new AiAssistantSettings(aiJson.GetProperty("assistant").GetString()!, aiJson.GetProperty("mode").GetString()!, ReadOptional(aiJson, "acknowledged"), ReadOptional(aiJson, "unsafeAcknowledged"), aiJson.TryGetProperty("linkedAccount", out JsonElement account) ? account.GetString() : null, ReadOptional(aiJson, "linkedAt")) { ExposeTakebankCache = !aiJson.TryGetProperty("exposeTakebankCache", out JsonElement expose) || expose.GetBoolean() }
+                ? new AiAssistantSettings(aiJson.GetProperty("assistant").GetString()!, aiJson.GetProperty("mode").GetString()!, ReadOptional(aiJson, "acknowledged"), ReadOptional(aiJson, "unsafeAcknowledged"), aiJson.TryGetProperty("linkedAccount", out JsonElement account) ? account.GetString() : null, ReadOptional(aiJson, "linkedAt")) { ExposeTakebankCache = !aiJson.TryGetProperty("exposeTakebankCache", out JsonElement expose) || expose.GetBoolean(), WebWithoutApproval = aiJson.TryGetProperty("webWithoutApproval", out JsonElement webFree) && webFree.ValueKind == JsonValueKind.True }
                 : AiAssistantSettings.Default;
             FaerRoutes faer = settings.TryGetProperty("faer", out JsonElement faerJson)
                 ? new FaerRoutes(faerJson.GetProperty("song").GetString()!, faerJson.GetProperty("voice").GetString()!, faerJson.GetProperty("separation").GetString()!)

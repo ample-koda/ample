@@ -36,6 +36,7 @@ internal static class ServeCommands
         Option<bool> noBrowser = new("--no-browser") { Description = "Do not open the browser." };
         Option<bool> visible = new("--visible") { Description = "Keep the server in a visible console window." };
         Option<bool> noTokenOutput = new("--no-token-output") { Description = "Do not print the private token launch URL." };
+        Option<bool> noConsoleOutput = new("--no-console-output") { Description = "Suppress server console output after a successful start." };
         Option<bool> allowLan = new("--allow-lan") { Description = "Accept other host names. Only on a trusted network: the session token is the only protection." };
         Option<bool> login = new("--login") { Description = "Also accept a sign-in with the user and password set by `ample auth set-password` (page: /login). The launch token keeps working." };
         Option<bool> allowAll = new("--allow-all") { Description = "Listen on every address and accept any host name (for a tunnel). Only together with --login." };
@@ -48,7 +49,9 @@ internal static class ServeCommands
         Option<string?> agentReason = new("--agent-reason") { Description = "Reason for an agent-started server." };
         Option<bool> noHub = new("--no-hub") { Description = "Do not let the tray hub manage this server (also AMPLE_NO_HUB=1)." };
         Option<string?> openapi = new("--openapi") { Description = "Write the OpenAPI document to this file and exit (no project needed)." };
-        Command serve = new("serve", "Starts the local server with the web UI, the API and the help (127.0.0.1 only).") { project, create, root, home, port, maxUploadMb, forbidCapabilities, envAllow, noBrowser, visible, noTokenOutput, allowLan, login, allowAll, bind, parallelism, liteOnly, logFile, startedBy, agentName, agentReason, noHub, openapi };
+        Command serve = new("serve", "Starts the local server with the web UI, the API and the help (127.0.0.1 only).") { project,
+            create, root, home, port, maxUploadMb, forbidCapabilities, envAllow, noBrowser, visible, noTokenOutput, noConsoleOutput,
+            allowLan, login, allowAll, bind, parallelism, liteOnly, logFile, startedBy, agentName, agentReason, noHub, openapi };
         serve.SetAction(async (p, t) =>
         {
             try
@@ -111,6 +114,12 @@ internal static class ServeCommands
                 Ample.Engine.Engine.BuildParallelism.ConfigureServer(p.GetValue(parallelism) ?? (int.TryParse(Environment.GetEnvironmentVariable("AMPLE_PARALLELISM"), out int fromEnvironment) ? fromEnvironment : null));
                 ServerOptions options = new(Path.GetFullPath(p.GetValue(project) ?? Directory.GetCurrentDirectory()), ample, p.GetValue(port), null, p.GetValue(allowLan), p.GetValue(home) ?? Library.DefaultHome(), maxUploadMegabytes * 1024L * 1024) { StartedBy = source, Agent = agent, Login = p.GetValue(login), AllowAll = p.GetValue(allowAll), BindAddress = p.GetValue(bind), LiteOnly = p.GetValue(liteOnly), SeedDemo = true, NoHub = p.GetValue(noHub) || Environment.GetEnvironmentVariable("AMPLE_NO_HUB") == "1", Relaunch = RelaunchRecipe() };
                 await using RunningServer server = await AmpleServer.StartAsync(options, t);
+                if (p.GetValue(noConsoleOutput))
+                {
+                    output = TextWriter.Null;
+                    Console.SetOut(output);
+                    Console.SetError(output);
+                }
                 output.WriteLine($"AMPLE is running at {server.Url}");
                 output.WriteLine(p.GetValue(noTokenOutput) ? "Open: private launch URL is in the instance registry." : $"Open: {server.LaunchUrl}");
                 if (p.GetValue(login)) output.WriteLine($"Sign in: {server.Url}/login (user and password from `ample auth set-password`).");

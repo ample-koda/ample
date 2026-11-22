@@ -15,6 +15,10 @@
     <InternalsVisibleTo Include="Ample.Cli.Tests" />
     <!-- the catalog of the downloadable sample packs with the SHA-256 of every zip (made by tools/build-sample-pack-zips.mjs) -->
     <EmbeddedResource Include="../../audio-packs/packs-index.json" LogicalName="audio-packs-index.json" />
+    <!-- the Visual Studio project files that "ample vs init" writes into an AMPLE folder (one copy: the VSIX template) -->
+    <EmbeddedResource Include="../../editors/visualstudio/Templates/Projects/Ample/Ample.ampleproj" LogicalName="vs-template/Ample.ampleproj" />
+    <EmbeddedResource Include="../../editors/visualstudio/Templates/Projects/Ample/Ample.targets" LogicalName="vs-template/Ample.targets" />
+    <EmbeddedResource Include="../../editors/visualstudio/Templates/Projects/Ample/Rules/*.xaml" LogicalName="vs-template/Rules/%(Filename)%(Extension)" />
     <PackageReference Include="System.CommandLine" />
     <ProjectReference Include="../Ample.Engine/Ample.Engine.csproj" />
     <ProjectReference Include="../Ample.Docs/Ample.Docs.csproj" />

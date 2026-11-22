@@ -21,6 +21,16 @@ public sealed class TransportTests
     }
 
     [Fact]
+    public void A_response_with_nothing_to_return_still_has_a_null_result()
+    {
+        // JSON-RPC requires "result" on success; Visual Studio dropped the connection on {"jsonrpc":"2.0","id":13} (a hover over empty space)
+        string empty = LspServer.Response(System.Text.Json.Nodes.JsonValue.Create(13), null);
+        Assert.Equal("{\"jsonrpc\":\"2.0\",\"id\":13,\"result\":null}", empty);
+        string full = LspServer.Response(System.Text.Json.Nodes.JsonValue.Create("a"), new { contents = "x", range = (object?)null });
+        Assert.Equal("{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"result\":{\"contents\":\"x\"}}", full);
+    }
+
+    [Fact]
     public async Task A_truncated_body_ends_the_stream()
     {
         using MemoryStream wire = new(Encoding.ASCII.GetBytes("Content-Length: 50\r\n\r\n{\"short\":1}"));

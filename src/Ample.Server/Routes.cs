@@ -2097,7 +2097,7 @@ public static class Routes
 
             if (b.TryGetProperty("braveSearchApiKey", out JsonElement braveKey) && braveKey.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(braveKey.GetString())) AiProjectSecretStore.Save(s.Library.Home, m.Id, braveKey.GetString()!.Trim());
             if (b.TryGetProperty("clearBraveSearchApiKey", out JsonElement clearBraveKey) && clearBraveKey.ValueKind == JsonValueKind.True) AiProjectSecretStore.Clear(s.Library.Home, m.Id);
-            AiAssistantSettings ai = old.Ai with { ExposeTakebankCache = b.TryGetProperty("exposeTakebankCache", out JsonElement exposeCache) ? exposeCache.GetBoolean() : old.Ai.ExposeTakebankCache };
+            AiAssistantSettings ai = old.Ai with { ExposeTakebankCache = b.TryGetProperty("exposeTakebankCache", out JsonElement exposeCache) ? exposeCache.GetBoolean() : old.Ai.ExposeTakebankCache, WebWithoutApproval = b.TryGetProperty("webWithoutApproval", out JsonElement webFree) ? webFree.ValueKind == JsonValueKind.True : old.Ai.WebWithoutApproval };
             int? parallelism = old.BuildParallelism;
             if (b.TryGetProperty("buildParallelism", out JsonElement parallelismJson))
             {
@@ -2430,7 +2430,7 @@ public static class Routes
         add("GET", "/api/wc", "documents", "The working copy of a text file that is not a song (path): its text, the saved text, the version and whether it has unsaved changes. Without a path: the files with unsaved changes. A build, check or play of a song reads these working copies instead of the disk for the components and modules it uses.", false, s is null ? null : async (HttpContext c) =>
         {
             string path = c.Request.Query["path"].ToString();
-            if (path.Length == 0) return Ok(new { dirty = s.Texts.Dirty() });
+            if (path.Length == 0) return Ok(new { dirty = s.Texts.Dirty().Concat(s.DirtyDocs()).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase) });
             (string text, string saved, long version, bool dirty) = s.Texts.Get(WorkingPath(path));
             return await Task.FromResult(Ok(new { path, text, saved, version, dirty }));
         });
@@ -3206,7 +3206,9 @@ public static class Routes
         });
         add("GET", "/api/doc/symbols", "documents", "The outline of a song.", false, s is null ? null : async (HttpContext c) => Ok(Queries.DocumentSymbols(s.Parse(await s.DocAsync(c.Request.Query["path"].ToString(), c.RequestAborted)))));
         add("GET", "/api/doc/hover", "documents", "Hover text at a position.", false, s is null ? null : async (HttpContext c) => Ok(new { text = Queries.HoverAt(s.Parse(await s.DocAsync(c.Request.Query["path"].ToString(), c.RequestAborted)), s.Spec, Pos(c, "line"), Pos(c, "col")) }));
-        add("GET", "/api/doc/complete", "documents", "Completions at a position.", false, s is null ? null : async (HttpContext c) => Ok(Queries.CompletionAt(s.Parse(await s.DocAsync(c.Request.Query["path"].ToString(), c.RequestAborted)), s.Spec, Pos(c, "line"), Pos(c, "col"), s.SettingHints())));
+        add("GET", "/api/doc/complete", "documents", "Completions at a position.", false,
+            s is null ? null : async (HttpContext c) => Ok(Queries.CompletionAt(s.Parse(await s.DocAsync(c.Request.Query["path"].ToString(),
+            c.RequestAborted)), s.Spec, Pos(c, "line"), Pos(c, "col"), s.SettingHints(), Ample.Lsp.ProjectFiles.Cached(s.Root))));
 
         // --- build and takes ---
         add("POST", "/api/build", "build", "Builds a song (the cache decides what is rendered); progress goes to the event stream. An optional override { block, name, value } builds with that one parameter replaced, without changing the song, and without events (a draft, for listening to an edit before it is applied).", true, s is null ? null : async (HttpContext c) =>

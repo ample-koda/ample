@@ -751,6 +751,29 @@ public static partial class NotePipeline
         internal bool Sensitive { get; init; }
     }
 
+    /// <summary>Where the evaluation is about to run a statement: its offsets in the source text of the running helper or expression, and the stack.</summary>
+    /// <param name="Start">First character of the statement.</param>
+    /// <param name="End">After the last character of the statement.</param>
+    /// <param name="Site">The file, line and column of the statement, or null when an expression of a block (not helper code) runs.</param>
+    /// <param name="Stack">The helper calls that lead here, innermost first.</param>
+    public sealed record DebugStop(int Start, int End, SourceSite? Site, IReadOnlyList<StackFrameInfo> Stack)
+    {
+        /// <summary>Gets the variables visible at the statement, innermost scope first, with values shown the way logs show them (secrets hidden).</summary>
+        public IReadOnlyList<DebugVariable> Variables { get; init; } = [];
+
+        /// <summary>Gets the variables of every frame, innermost first (index 0 is the same as <see cref="Variables"/>): what each caller had when it made its call.</summary>
+        public IReadOnlyList<IReadOnlyList<DebugVariable>> FrameVariables { get; init; } = [];
+    }
+
+    /// <summary>One variable at a debug stop.</summary>
+    /// <param name="Name">The name.</param>
+    /// <param name="Value">The value as text (redacted when it is secret).</param>
+    /// <param name="Type">The type name.</param>
+    public sealed record DebugVariable(string Name, string Value, string Type);
+
+    /// <summary>A debugger's hook for the evaluations that run on this async flow (a debug session sets it around one build; flows of other requests do not see it).</summary>
+    public static readonly AsyncLocal<Action<DebugStop>?> AmbientDebug = new();
+
     /// <summary>Everything an evaluation needs from the outside.</summary>
     public sealed class Context
     {
@@ -768,6 +791,13 @@ public static partial class NotePipeline
 
         /// <summary>Gets or sets a lookup that only returns already evaluated notes and never resolves a block.</summary>
         public Func<string, SourceInfo?>? PeekSource { get; set; }
+
+        /// <summary>
+        /// Gets or sets a debugger's hook: called before each statement of helper code runs, with the statement's place and the call stack
+        /// (plan/visual-studio-integration.md, VS06). Null in normal builds, which then only pay one null check per statement. The hook may
+        /// block (a breakpoint) and may throw to end the run; it must not change the program.
+        /// </summary>
+        public Action<DebugStop>? Debug { get; set; }
 
         /// <summary>Gets or sets the observation sink of the enclosing evaluation session.</summary>
         public ObservationSink? Observations { get; set; }

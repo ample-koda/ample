@@ -595,7 +595,7 @@ public static partial class BuiltInRenderers
 
         public string BlockType => "midi-render";
         public string Id => "builtin.midi-render";
-        public string Version => "5/gm" + new SampledInstruments.Gm().Version;   // notes are played with the GM renderer, so its version is part of this one
+        public string Version => "6/gm" + new SampledInstruments.Gm().Version;   // notes are played with the GM renderer, so its version is part of this one
         public async ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest r, CancellationToken cancellationToken)
         {
             if (!r.Inputs.TryGetValue("sequence", out byte[]? sourceBytes))
@@ -622,11 +622,13 @@ public static partial class BuiltInRenderers
             }
             int gain = AudioEffects.ReadDb(r.Block.Parameters.FirstOrDefault(p => p.Name == "gain")?.Value, 0, -24, FixedAudio.WideMaxDb);
             string soundFont = r.Block.Parameters.FirstOrDefault(p => p.Name == "file")?.Value.Trim().Trim('"') ?? "pack:musescore-general";
-            IReadOnlyList<(int Bar, int Pitch, long Beat, long Length, int Velocity, int Channel, int Bank, int Program)> notes = Midi.MapTempoNotes(r, file, sourceNotes, ppq, warnings);
+            // the part of a note after a bar line continues the note (it is not struck again), as in the midi block
+            HashSet<(int Bar, int Pitch, int Channel)> ties = [];
+            IReadOnlyList<(int Bar, int Pitch, long Beat, long Length, int Velocity, int Channel, int Bank, int Program)> notes = Midi.MapTempoNotes(r, file, sourceNotes, ppq, warnings, ties);
             int? bankOverride = SourceOverride(r, "bank", 16_383), programOverride = SourceOverride(r, "program", 127);
             if (bankOverride is not null || programOverride is not null) notes = [.. notes.Select(n => (n.Bar, n.Pitch, n.Beat, n.Length, n.Velocity, n.Channel, bankOverride ?? n.Bank, programOverride ?? n.Program))];
             IReadOnlyList<RenderOutput> audio;
-            try { audio = await Midi.RenderMidiAudio(r, notes, ppq, soundFont, gain, file, tracks, cancellationToken).ConfigureAwait(false); }
+            try { audio = await Midi.RenderMidiAudio(r, notes, ppq, soundFont, gain, file, tracks, cancellationToken, ties).ConfigureAwait(false); }
             catch (AmpleException ex) when (ex.DiagnosticCode == "AMP5311" && ex.Message.Contains("pack is not installed", StringComparison.Ordinal))
             {
                 audio = [new RenderOutput("audio", Wav.Encode(new short[checked(r.BarCount * r.SamplesPerBar)], r.SampleRate, cancellationToken))];

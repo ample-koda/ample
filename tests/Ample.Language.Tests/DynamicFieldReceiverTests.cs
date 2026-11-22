@@ -57,4 +57,20 @@ public sealed class DynamicFieldReceiverTests
         Assert.True(result.Dynamic);
         Assert.True(result.Tainted);
     }
+
+    [Fact]
+    public void A_debug_hook_sees_each_statement_with_the_helper_stack_and_changes_nothing()
+    {
+        const string inner = "helper inner() -> Int {\n  let a = 1\n  return a\n}";
+        const string outer = "helper outer() -> Int {\n  let b = inner()\n  return b\n}";
+        List<NotePipeline.DebugStop> stops = [];
+        NotePipeline.Context context = new() { Tempo = "120", Helpers = NotePipeline.HelperTable.Build([(inner, 0), (outer, 40)], []) };
+        PipeResult plain = NotePipeline.Evaluate("outer()", context);
+        context.Debug = stops.Add;
+        PipeResult watched = NotePipeline.Evaluate("outer()", context);
+
+        Assert.Equal(plain.Errors.Count, watched.Errors.Count);
+        Assert.Equal(4, stops.Count);
+        Assert.Contains(stops, s => s.Stack.Count == 2 && s.Stack[0].Name.Contains("inner") && s.Stack[1].Name.Contains("outer"));
+    }
 }

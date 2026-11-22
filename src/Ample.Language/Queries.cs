@@ -368,7 +368,10 @@ public static class Queries
     /// <param name="line">The 1-based line.</param>
     /// <param name="col">The 1-based column.</param>
     /// <param name="settingHints">What the installed plugins accept in a <c>settings</c> line; null or empty when it is not known.</param>
-    public static IReadOnlyList<CompletionItem> CompletionAt(AmpleDocument doc, SpecData spec, int line, int col, IReadOnlyList<SettingHint>? settingHints = null)
+    /// <param name="projectFiles">The files of the project (relative paths with '/'), for the values of file and sample-set parameters;
+    /// null where no project is known (component editor, tests).</param>
+    public static IReadOnlyList<CompletionItem> CompletionAt(
+        AmpleDocument doc, SpecData spec, int line, int col, IReadOnlyList<SettingHint>? settingHints = null, IReadOnlyList<string>? projectFiles = null)
     {
         spec = doc.Spec ?? spec;
         string raw = Line(doc, line);
@@ -506,6 +509,13 @@ public static class Queries
                 }
             }
         }
+        // the value of a file or sample-set parameter: the project's files and folders that fit, and the GM pack ("file |", "kit samples/|")
+        if (parts.Length >= 1 && t2.ParameterSpecs.TryGetValue(parts[0], out TemplateParameterSpec? pathSpec) && pathSpec.Kind is "file" or "sampleset"
+            && !(parts.Length == 2 && parts[1].StartsWith("pack:", StringComparison.Ordinal)))
+        {
+            return ProjectPathCompletions(owner.Type, pathSpec, parts.Length == 2 ? parts[1].Trim('"') : string.Empty, projectFiles ?? []);
+        }
+
         if (parts.Length == 2 && parts[0] == "file" && (owner.Type is "gm" or "midi-render") && parts[1].StartsWith("pack:", StringComparison.Ordinal))
         {
             const string pack = "musescore-general";
@@ -519,6 +529,38 @@ public static class Queries
 
         return [];
     }
+
+    /// <summary>
+    /// Values for a file parameter (project files with an accepted extension, plus the GM pack for gm and midi-render) or a sample-set
+    /// parameter (folders that hold WAV files, and .sfz files), starting with what is typed. At most 200, in path order.
+    /// </summary>
+    private static List<CompletionItem> ProjectPathCompletions(string blockType, TemplateParameterSpec parameter, string typed, IReadOnlyList<string> files)
+    {
+        List<CompletionItem> items = [];
+        if (parameter.Kind == "file")
+        {
+            if (blockType is "gm" or "midi-render" && "pack:musescore-general".StartsWith(typed, StringComparison.OrdinalIgnoreCase))
+            {
+                items.Add(new("pack:musescore-general", "value", "The installed General MIDI SoundFont pack."));
+            }
+            IEnumerable<string> fitting = files.Where(f => parameter.Accept is not { Count: > 0 } accept
+                || accept.Any(e => f.EndsWith(e, StringComparison.OrdinalIgnoreCase)));
+            items.AddRange(fitting.Where(f => f.StartsWith(typed, StringComparison.OrdinalIgnoreCase)).Order(StringComparer.OrdinalIgnoreCase).Take(200)
+                .Select(f => new CompletionItem(PathValue(f), "file", "Project file")));
+        }
+        else
+        {
+            IEnumerable<string> folders = files.Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) && f.Contains('/', StringComparison.Ordinal))
+                .Select(f => f[..f.LastIndexOf('/')]);
+            IEnumerable<string> sfz = files.Where(f => f.EndsWith(".sfz", StringComparison.OrdinalIgnoreCase));
+            items.AddRange(folders.Concat(sfz).Distinct(StringComparer.OrdinalIgnoreCase).Where(f => f.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
+                .Order(StringComparer.OrdinalIgnoreCase).Take(200).Select(f => new CompletionItem(PathValue(f), "folder", "Sample set in the project")));
+        }
+
+        return items;
+    }
+
+    private static string PathValue(string path) => path.Contains(' ', StringComparison.Ordinal) ? "\"" + path + "\"" : path;
 
     /// <summary>The type of the output a from line names ("beat.audio"), or null when the block or the output is not known.</summary>
     private static string? OutputType(AmpleDocument doc, SpecData spec, string source)
