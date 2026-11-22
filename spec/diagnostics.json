@@ -738,6 +738,17 @@
       "stage": "static"
     },
     {
+      "code": "AMP2098",
+      "severity": "warning",
+      "title": "Level list is in whole decibels",
+      "explanation": "The levels of a mixer or a bus (gains) are in whole decibels. An entry with a decimal part is rounded to the nearest whole decibel (halves away from zero), and an entry that is not a number counts as 0 dB. Before 0.1.27 an entry with a decimal part was read as 0 dB without a word.",
+      "wrongExample": "gains 0 -4.5",
+      "rightExample": "gains 0 -5",
+      "since": "1.0",
+      "retired": false,
+      "stage": "static"
+    },
+    {
       "code": "AMP5001",
       "severity": "warning",
       "title": "Plugin not installed",

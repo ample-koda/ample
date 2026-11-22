@@ -1407,6 +1407,46 @@
     "assets": []
   },
   {
+    "id": "sailor-cg-crew",
+    "name": "Drunken Sailor — Three Hands on Deck",
+    "description": "The voices slt, rms and awb sing a traditional sea shanty together, one word per note, with accordion, bass and drums.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "speech",
+      "singing",
+      "sea shanty",
+      "flite",
+      "slt",
+      "rms",
+      "awb"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "sailor-cg-watches",
+    "name": "Drunken Sailor — Watch by Watch",
+    "description": "Slt, rms and awb each take a watch of a traditional sea shanty, and at the end all three sing together, with accordion, bass and drums.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "speech",
+      "singing",
+      "sea shanty",
+      "flite",
+      "slt",
+      "rms",
+      "awb"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
     "id": "all-demos",
     "name": "All demos in one project",
     "description": "Every demo of Remix in one project, with Welcome to AMPLE open: one folder for each demo, the sounds shared. Browse the file list, open any song and play it.",
@@ -1547,6 +1587,8 @@
       "sailor-humanico/song.amplet",
       "sailor-flite/song.amplet",
       "sailor-three-voices/song.amplet",
+      "sailor-cg-crew/song.amplet",
+      "sailor-cg-watches/song.amplet",
       "README.md"
     ],
     "assets": [

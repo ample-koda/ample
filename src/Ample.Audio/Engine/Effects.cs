@@ -445,6 +445,26 @@ public static class AudioEffects
     /// </summary>
     internal static int ReadDb(string? text, int fallback, int min, int max) => Math.Clamp(Read((text ?? string.Empty).Trim().Trim('"').Trim(), fallback), min, max);
 
+    /// <summary>
+    /// Reads one level of a list of levels (the <c>gains</c> of a mixer or a bus): <c>-4</c>, <c>-4.5</c>, <c>-4 dB</c>. A decimal part rounds to the nearest whole decibel (halves away from zero),
+    /// because the mixer works in whole decibels; an entry that is not a number gives <paramref name="fallback"/>.
+    /// </summary>
+    internal static int ReadRoundedDb(string text, int fallback)
+    {
+        string t = (text ?? string.Empty).Trim().Trim('"').Trim();
+        int end = 0;
+        bool dot = false;
+        while (end < t.Length && (char.IsDigit(t[end]) || (end == 0 && t[end] is '-' or '+') || (!dot && end > 0 && t[end] == '.')))
+        {
+            dot |= t[end] == '.';
+            end++;
+        }
+
+        return double.TryParse(t[..end], NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double v) && !double.IsNaN(v) && Math.Abs(v) < 1e6
+            ? (int)Math.Round(v, MidpointRounding.AwayFromZero)
+            : fallback;
+    }
+
     /// <summary>Reads the leading whole number of a value like <c>-3 dB</c> or <c>40%</c>.</summary>
     internal static int Read(string text, int fallback)
     {

@@ -2125,6 +2125,31 @@ public static partial class Parser
                     }
                 }
 
+                foreach (Parameter p in b.Parameters)
+                {
+                    // a list of levels (the gains of a mixer or a bus) is in whole decibels: say so when an entry has a decimal part or is not a number
+                    bool isLevelList = t.ParameterSpecs.TryGetValue(p.Name, out TemplateParameterSpec? listSpec)
+                        && listSpec.Kind == "channels" && string.Equals(listSpec.Unit, "dB", StringComparison.Ordinal);
+                    if (!isLevelList) continue;
+                    foreach (string entry in p.Value.Trim().Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        System.Text.RegularExpressions.Regex whole = new(@"^[+-]?\d+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(2));
+                        if (whole.IsMatch(entry)) continue;
+                        System.Text.RegularExpressions.Regex decimalPart = new(@"^([+-]?\d+(?:\.\d+)?)(?:dB)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+                        System.Text.RegularExpressions.Match found = decimalPart.Match(entry);
+                        // the mixer rounds the same way (halves away from zero)
+                        int rounded = found.Success ? (int)Math.Round(double.Parse(found.Groups[1].Value, CultureInfo.InvariantCulture), MidpointRounding.AwayFromZero) : 0;
+                        string message = found.Success
+                            ? $"{b.Type} {p.Name}: \"{entry}\" has a decimal part, and the {b.Type} works in whole decibels; it is read as {rounded} dB."
+                            : $"{b.Type} {p.Name}: \"{entry}\" is not a number of decibels; it is read as 0 dB.";
+                        string hint = found.Success
+                            ? "Write a whole number, for example " + rounded.ToString(CultureInfo.InvariantCulture) + "."
+                            : "Write a whole number of decibels, for example -6.";
+                        Add(p.Line, "AMP2098", Severity.Warning, message, new Opts { Needle = entry, Hint = hint });
+                        break;
+                    }
+                }
+
                 Parameter? structuredNotes = b.Type == "midi-clip" ? b.Parameters.FirstOrDefault(p => p.Name == "notes") : null;
                 Parameter? midiPpq = b.Type == "midi-clip" ? b.Parameters.FirstOrDefault(p => p.Name == "ppq") : null;
                 int ppq = midiPpq is null || !int.TryParse(midiPpq.Value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsedPpq) ? StructuredMidiNotes.MicrobeatsPerBeat : parsedPpq;
