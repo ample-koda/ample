@@ -58,3 +58,5 @@ song.amplet (Welcome to AMPLE) is the song that opens. Every other demo is in it
 - sailor-humanico/song.amplet: Drunken Sailor — Humanico (Genres, Advanced)
 - sailor-flite/song.amplet: Drunken Sailor — Flite (Genres, Advanced)
 - sailor-three-voices/song.amplet: Drunken Sailor — Three Voices (Genres, Advanced)
+- sailor-cg-crew/song.amplet: Drunken Sailor — Three Hands on Deck (Genres, Advanced)
+- sailor-cg-watches/song.amplet: Drunken Sailor — Watch by Watch (Genres, Advanced)

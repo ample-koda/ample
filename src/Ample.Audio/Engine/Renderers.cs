@@ -971,7 +971,7 @@ public static partial class BuiltInRenderers
 
         public string Id => "builtin." + blockType;
 
-        public string Version => blockType == "bus" ? "1" : "3";
+        public string Version => blockType == "bus" ? "2" : "4";   // 2 and 4: a gain with a decimal part is rounded, it was 0 dB
 
         /// <summary>The positions of the mix that an input covers: where it starts in the range, and the positions it overlaps (all of the input when it is padded to the range already).</summary>
         private static (int From, int To, long Offset) Overlap(RenderRequest r, int k, int mixLength, int inputLength)
@@ -1006,7 +1006,7 @@ public static partial class BuiltInRenderers
                     continue;
                 }
 
-                int db = k - 1 < gains.Length && int.TryParse(gains[k - 1], out int g) ? g : 0;
+                int db = k - 1 < gains.Length ? AudioEffects.ReadRoundedDb(gains[k - 1], 0) : 0;   // whole decibels: 4.5 is read as 5 (it used to be read as 0)
                 int gain = On(mutes, k) || (anySolo && !On(solos, k)) ? 0 : FixedAudio.GainFromDbWide(db);
                 if (rightSum is not null)
                 {
