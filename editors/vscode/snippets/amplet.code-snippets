@@ -1122,7 +1122,7 @@
     "prefix": [
       "speech"
     ],
-    "description": "Deterministic local CPU speech. Text mode speaks a sentence; words mode assigns each positive Notes event to the next word and maps MIDI pitch to voice pitch (the flite engine sings each word at one steady pitch from 50 to 480 Hz; a note outside that range is sung the same note an octave or more away).",
+    "description": "Deterministic local CPU speech. Text mode speaks a sentence; words mode assigns each positive Notes event to the next word and maps MIDI pitch to voice pitch (the flite engine sings each word at one steady pitch: kal16 from 50 to 480 Hz, slt from 74 to 650, rms from 55 to 450 and awb from 114 to 486; a note outside that range is sung the same note an octave or more away).",
     "body": [
       "speech ${1:speech} {",
       "  engine ${2:humanico}",
