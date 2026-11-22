@@ -18,7 +18,8 @@ test('every translated source file says that it is a modified port of Flite', ()
   for (const part of translated) {
     for (const file of sources(new URL(part + '/', flite).pathname.replace(/^\/([A-Za-z]:)/, '$1'))) {
       const head = fs.readFileSync(file, 'utf8').split('\n').slice(0, 14).join('\n');
-      const marked = /Port of (the string conventions of )?Flite \(CMU/.test(head) && /Translated to C# and modified/.test(head);
+      // the exp and log of the vocoder come from ARM optimized-routines (MIT, LICENSES/arm-optimized-routines.txt), everything else from Flite
+      const marked = (/Port of (the string conventions of )?Flite \(CMU/.test(head) || /Port of ARM optimized-routines/.test(head)) && /Translated to C# and modified/.test(head);
       if (!marked) missing.push(path.relative(new URL('.', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'), file));
     }
   }
@@ -63,6 +64,17 @@ test('no Flite source uses a fused multiply-add or a single-precision math libra
   for (const file of sources(new URL('.', flite).pathname.replace(/^\/([A-Za-z]:)/, '$1'))) {
     const text = fs.readFileSync(file, 'utf8');
     if (/FusedMultiplyAdd|MathF\.|Vector\d*\.|System\.Runtime\.Intrinsics/.test(text)) found.push(file);
+  }
+
+  assert.deepEqual(found, []);
+});
+
+test('the clustergen path calls no function of the maths library of the platform (owner rule, 2026-11-21: exp and log are CgMath, sqrt is exact)', () => {
+  const found = [];
+  for (const file of sources(new URL('Cg/', flite).pathname.replace(/^\/([A-Za-z]:)/, '$1'))) {
+    const text = fs.readFileSync(file, 'utf8');
+    const code = text.split('\n').filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('///')).join('\n');
+    if (/\b(Math|MathF|System\.Math)\.(Exp|Log|Log2|Log10|Pow|Sin|Cos|Tan|Asin|Acos|Atan|Atan2|Sinh|Cosh|Tanh|Cbrt|Exp2|ScaleB|IEEERemainder|BitIncrement|BitDecrement)\b/.test(code)) found.push(file);
   }
 
   assert.deepEqual(found, []);

@@ -10,6 +10,10 @@ public static class SpeechMemory
     /// <summary>Gets the allocated bytes of a render per byte of 16-bit output that the estimate allows.</summary>
     public const int AllocationFactor = 13;
 
+    /// <summary>Gets the bytes that a clustergen voice (flite <c>slt</c>, <c>rms</c> or <c>awb</c>) allocates per second of speech that the estimate allows: measured 4.3 to 4.7 MiB per second
+    /// (the frames of 5 ms with their relations, the parameter tracks and the vocoder), so 5.5 MiB leaves a margin of 18 per cent. This is on top of what the output of the block costs.</summary>
+    public const long ClustergenBytesPerSecond = 5_767_168;
+
     /// <summary>
     /// Gets the upper bound in bytes for one speech block: what the speech of its text costs (the whole text is spoken before it is cut to the placement,
     /// so a long text in a short placement costs the text) or what its output span costs, whichever is more; a words-mode block also keeps the audio of every
@@ -22,12 +26,16 @@ public static class SpeechMemory
     /// <param name="engine">The engine, retro or humanico.</param>
     /// <param name="wordsMode">Whether the block speaks one word per note.</param>
     /// <param name="sampleRate">The sample rate of the build.</param>
-    public static long EstimateBlockBytes(long spanSamples, string? text, string? phonemes, double rate, string engine, bool wordsMode, int sampleRate)
+    /// <param name="voice">The voice of the flite engine; the clustergen voices cost more than the others (<see cref="ClustergenBytesPerSecond"/>).</param>
+    public static long EstimateBlockBytes(long spanSamples, string? text, string? phonemes, double rate, string engine, bool wordsMode, int sampleRate, string voice = "kal16")
     {
         long spoken = 0;
+        bool clustergen = engine == "flite" && FliteSpeechEngine.IsClustergen(voice);
         try
         {
             SpeechRequest request = new(text ?? string.Empty, sampleRate, rate) { Engine = engine, Phonemes = string.IsNullOrWhiteSpace(phonemes) ? null : phonemes };
+            // the plan of a clustergen voice is its render: with the pitch and the range of the voice (what a block that writes none has) a render that follows finds it in the memo
+            if (clustergen) request = request with { Voice = voice, PitchHz = FliteSpeechEngine.DefaultPitchHzOf(voice), PitchRangeHz = FliteSpeechEngine.DefaultPitchRangeHzOf(voice) };
             spoken = SpeechPlanner.Plan(request).OutputSamples;
         }
         catch (ArgumentException)
@@ -36,6 +44,12 @@ public static class SpeechMemory
         }
 
         long bytes = EstimateBytes(Math.Max(spanSamples, spoken));
+        if (clustergen)
+        {
+            // the speech of the voice itself, counted in seconds of speech (the whole text is spoken before it is cut to the placement)
+            bytes = checked(bytes + (long)Math.Ceiling(spoken / (double)sampleRate * ClustergenBytesPerSecond));
+        }
+
         return wordsMode ? checked(bytes + EstimateBytes(spoken)) : bytes;
     }
 

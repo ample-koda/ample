@@ -75,7 +75,7 @@ internal static class ExtractCg
             foreach (string value in values) filters.Raw(BitConverter.GetBytes(CSource.Double(value)));
         }
 
-        return
+        List<KeyValuePair<string, byte[]>> sections =
         [
             new("consts", consts.ToArray()), new("types", typeSection.ToArray()), new("min", FloatBytes(min)), new("range", FloatBytes(range)),
             new("dynwin", FloatBytes(dynwin)), new("mefilters", filters.ToArray()), new("params", Params(root, voice, frames, channels)),
@@ -83,6 +83,47 @@ internal static class ExtractCg
             new("mceptrees", Trees(root, voice, "cg_single_mcep_trees", $"{prefix}_single_mcep_", $"{prefix}_single_mcep_carts[] =", types)),
             new("durcart", DurationCart(root, voice)), new("durstats", DurationStats(root, voice)), new("states", PhoneStates(root, voice, types))
         ];
+
+        // the accent and phrase F0 model (spamf0) that only some voices use (rms); the files of the other voices are not read
+        if (Eval(37) != 0) sections.AddRange(Spamf0(root, voice));
+        return sections;
+    }
+
+    /// <summary>The data of <c>cst_spamf0</c>: the accent tree, the phrase tree and the accent vectors (<c>num_frames_spamf0_accent</c> rows of <c>num_channels_spamf0_accent</c> floats).</summary>
+    private static List<KeyValuePair<string, byte[]>> Spamf0(string root, string voice)
+    {
+        string prefix = $"cmu_us_{voice}_spamf0_";
+        string cg = Cs(root, voice, $"cmu_us_{voice}_cg.c");
+        Dictionary<string, string> defines = CSource.Defines(cg);
+        int channels = CSource.Eval($"cmu_us_{voice}_spamf0_accent_num_channels", defines), frames = CSource.Eval($"cmu_us_{voice}_spamf0_accent_num_frames", defines);
+        List<KeyValuePair<string, byte[]>> sections = [];
+        foreach (string kind in new[] { "accent", "phrase" })
+        {
+            string header = Cs(root, voice, $"{prefix}{kind}.h"), code = Cs(root, voice, $"{prefix}{kind}.c");
+            string nodes = CSource.Body(code, $"{prefix}{kind}_cart_nodes[] =");
+            string featureTable = $"{prefix}{kind}_feat_table[] =";
+            sections.Add(new("spamf0" + kind, Extract.CartBytes(nodes, CSource.Defines(header), Extract.CartValues(header), CSource.Items(CSource.Body(code, featureTable)))));
+        }
+
+        string text = Cs(root, voice, $"{prefix}accent_params.c");
+        MatchCollection rows = Regex.Matches(text, $@"static const float {prefix}accent_frame_(\d+)\[\] = \{{([^}}]*)\}};", RegexOptions.CultureInvariant);
+        Check(rows.Count == frames, $"The accent vectors have {rows.Count} rows, the voice says {frames}.");
+        SectionWriter vectors = new();
+        vectors.Int(channels);
+        vectors.Int(frames);
+        for (int f = 0; f < rows.Count; f++)
+        {
+            Check(int.Parse(rows[f].Groups[1].Value, CultureInfo.InvariantCulture) == f, $"Accent vector {f} is out of order.");
+            string[] values = rows[f].Groups[2].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            Check(values.Length == channels, $"Accent vector {f} has {values.Length} values, expected {channels}.");
+            foreach (string value in values) vectors.Float(CSource.Float(value));
+        }
+
+        string[] table = [.. CSource.Items(CSource.Body(text, $"{prefix}accent_vectors[] ="))];
+        Check(table.Length == frames, "The accent vector table has the wrong length.");
+        for (int f = 0; f < table.Length; f++) Check(table[f] == $"{prefix}accent_frame_{f}", $"The accent vector table is out of order at {f}.");
+        sections.Add(new("spamf0vectors", vectors.ToArray()));
+        return sections;
     }
 
     private static float[] Floats(string body) => [.. CSource.Items(body).Select(CSource.Float)];

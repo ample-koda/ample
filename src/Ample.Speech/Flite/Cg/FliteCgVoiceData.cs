@@ -8,7 +8,7 @@ namespace Ample.Speech.Flite.Cg;
 
 /// <summary>The converted data of one Flite clustergen voice (<c>slt</c>, <c>rms</c> or <c>awb</c>; the C structure is <c>cst_cg_db</c>): the cluster vectors, the trees that choose
 /// a cluster for each frame, the duration model, the states of each phone and the constants of the voice. The data is read from a file written by tools/flite-data (<c>--cg</c>):
-/// the files are not embedded in the assembly until the licence of the voice recordings is confirmed. The values are exactly those of the C tables; nothing is interpreted here.</summary>
+/// the files are embedded in the assembly (licence of the recordings: LICENSES/cmu-arctic.txt). The values are exactly those of the C tables; nothing is interpreted here.</summary>
 public sealed class FliteCgVoiceData
 {
     private readonly ushort[] parameters;
@@ -67,10 +67,63 @@ public sealed class FliteCgVoiceData
         for (int i = 0; i < durations.Length; i++) durations[i] = new FliteDurationStat(stats.Text(), stats.Single(), stats.Single());
         DurationStats = durations;
 
+        if (Spamf0)
+        {
+            Spamf0AccentTree = FliteCartCodec.Read("spamf0-accent", file.Section("spamf0accent"));
+            Spamf0PhraseTree = FliteCartCodec.Read("spamf0-phrase", file.Section("spamf0phrase"));
+            FliteBinReader vectors = file.Reader("spamf0vectors");
+            int channels = vectors.Int32(), rows = vectors.Int32();
+            float[][] accent = new float[rows][];
+            for (int i = 0; i < rows; i++)
+            {
+                accent[i] = new float[channels];
+                for (int j = 0; j < channels; j++) accent[i][j] = vectors.Single();
+            }
+
+            Spamf0AccentVectors = accent;
+        }
+
         FliteBinReader states = file.Reader("states");
         string[][] phones = new string[states.Int32()][];
         for (int i = 0; i < phones.Length; i++) phones[i] = states.TextList();
         PhoneStates = phones;
+    }
+
+    /// <summary>Gets the names of the voices whose data is embedded in the assembly.</summary>
+    public static IReadOnlyList<string> VoiceNames { get; } = ["slt", "rms", "awb"];
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<FliteCgVoiceData>> Shared = new(StringComparer.Ordinal);
+
+    /// <summary>Gets the voice with this name from the data embedded in the assembly; it is read once and shared (the data is immutable). The hash of the embedded file is checked.</summary>
+    /// <param name="voice">The name: <c>slt</c>, <c>rms</c> or <c>awb</c>.</param>
+    /// <exception cref="ArgumentOutOfRangeException">There is no such voice.</exception>
+    /// <exception cref="InvalidOperationException">The embedded file is missing or does not have the expected hash.</exception>
+    public static FliteCgVoiceData Embedded(string voice)
+    {
+        ArgumentNullException.ThrowIfNull(voice);
+        if (!VoiceNames.Contains(voice, StringComparer.Ordinal)) throw new ArgumentOutOfRangeException(nameof(voice), $"There is no clustergen voice '{voice}'.");
+        return Shared.GetOrAdd(voice, name => new Lazy<FliteCgVoiceData>(() => ReadEmbedded(name), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+    }
+
+    /// <summary>Gets the identity of the takes that the voice makes: the Flite source, the converted data of the voice and the shared front end (a changed value invalidates cached takes).</summary>
+    /// <param name="voice">The name: <c>slt</c>, <c>rms</c> or <c>awb</c>.</param>
+    public static string IdentityOf(string voice)
+    {
+        ArgumentNullException.ThrowIfNull(voice);
+        if (!FliteCgDataIdentity.Sha256.TryGetValue(voice, out string? hash)) throw new ArgumentOutOfRangeException(nameof(voice), $"There is no clustergen voice '{voice}'.");
+        return $"flite/cmu_us_{voice}/{FliteCgDataIdentity.SourceCommit[..8]}+{hash[..16]}+{FliteDataIdentity.DataSha256[..8]}";
+    }
+
+    private static FliteCgVoiceData ReadEmbedded(string voice)
+    {
+        string name = $"Ample.Speech.Flite.Cg.Data.flite-cg-{voice}.bin";
+        using Stream stream = typeof(FliteCgVoiceData).Assembly.GetManifestResourceStream(name)
+            ?? throw new InvalidOperationException($"The data file of the voice '{voice}' is not part of the assembly.");
+        byte[] bytes = new byte[stream.Length];
+        stream.ReadExactly(bytes);
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+        if (hash != FliteCgDataIdentity.Sha256[voice]) throw new InvalidOperationException($"The data of the voice '{voice}' does not have the expected hash.");
+        return new FliteCgVoiceData(FliteBin.FromBytes(bytes));
     }
 
     /// <summary>Reads the converted file of a voice from disk.</summary>
@@ -165,6 +218,15 @@ public sealed class FliteCgVoiceData
 
     /// <summary>Gets the states of each phone: the phone name followed by the names of its states, in the order of the table of the C file.</summary>
     public IReadOnlyList<IReadOnlyList<string>> PhoneStates { get; }
+
+    /// <summary>Gets the tree of the accent F0 model (<c>spamf0</c>) that chooses a row of <see cref="Spamf0AccentVectors"/> for a syllable; null when the voice has no spamf0.</summary>
+    public FliteCart? Spamf0AccentTree { get; }
+
+    /// <summary>Gets the tree of the phrase F0 model (<c>spamf0</c>) that gives the F0 level of a segment as a float; null when the voice has no spamf0.</summary>
+    public FliteCart? Spamf0PhraseTree { get; }
+
+    /// <summary>Gets the accent vectors of spamf0 (the peak, the amplitude, the duration and the tilt of a tilt event, in the order of the columns); null when the voice has no spamf0.</summary>
+    public IReadOnlyList<float[]>? Spamf0AccentVectors { get; }
 
     /// <summary>Gets all cluster vectors one after the other: <see cref="NumFrames"/> rows of <see cref="NumChannels"/> values.</summary>
     public ReadOnlyMemory<ushort> Parameters => parameters;

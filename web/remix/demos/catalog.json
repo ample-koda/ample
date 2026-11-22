@@ -1337,6 +1337,76 @@
     "entry": "song.amplet"
   },
   {
+    "id": "sailor-retro",
+    "name": "Drunken Sailor — Retro",
+    "description": "A traditional sea shanty with MIDI-driven speech, accordion, bass and drums. Voices: retro, retro, retro.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "speech",
+      "singing",
+      "sea shanty",
+      "retro"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "sailor-humanico",
+    "name": "Drunken Sailor — Humanico",
+    "description": "A traditional sea shanty with MIDI-driven speech, accordion, bass and drums. Voices: humanico, humanico, humanico.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "speech",
+      "singing",
+      "sea shanty",
+      "humanico"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "sailor-flite",
+    "name": "Drunken Sailor — Flite",
+    "description": "A traditional sea shanty with MIDI-driven speech, accordion, bass and drums. Voices: flite, flite, flite.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "speech",
+      "singing",
+      "sea shanty",
+      "flite"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
+    "id": "sailor-three-voices",
+    "name": "Drunken Sailor — Three Voices",
+    "description": "Retro, Humanico and Flite sing a traditional sea shanty in turn, then together, with accordion, bass and drums.",
+    "category": "Genres",
+    "level": "Advanced",
+    "tags": [
+      "speech",
+      "singing",
+      "sea shanty",
+      "retro",
+      "humanico",
+      "flite"
+    ],
+    "files": [
+      "song.amplet"
+    ],
+    "assets": []
+  },
+  {
     "id": "all-demos",
     "name": "All demos in one project",
     "description": "Every demo of Remix in one project, with Welcome to AMPLE open: one folder for each demo, the sounds shared. Browse the file list, open any song and play it.",
@@ -1473,6 +1543,10 @@
       "backroom-groove/song.amplet",
       "speech-hello/song.amplet",
       "funk-it-up/song.amplet",
+      "sailor-retro/song.amplet",
+      "sailor-humanico/song.amplet",
+      "sailor-flite/song.amplet",
+      "sailor-three-voices/song.amplet",
       "README.md"
     ],
     "assets": [

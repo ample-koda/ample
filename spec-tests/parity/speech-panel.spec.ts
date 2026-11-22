@@ -205,3 +205,47 @@ test('a tap on a phoneme inserts it at the cursor, and the choices and knobs sit
   await voice.selectOption('humanico');
   await expect(dialog.locator('details.speech-phone-list')).toBeHidden();
 });
+
+test('the voices slt, rms and awb are in the voice choice: they write the voice, show the pitch of their recording, offer no phonemes and sing in words mode', async ({ page }) => {
+  await openApp(page, { reset: false });
+  await node(page, 'voice').getByRole('button', { name: 'Advanced', exact: true }).evaluate((b: HTMLElement) => b.click());
+  const dialog = page.locator('#studio[open]');
+  const readout = (name: string) => dialog.getByRole('button', { name: `Edit ${name} value` });
+  const voice = dialog.getByRole('combobox', { name: 'Voice' });
+  await voice.selectOption('flite');
+  await expect.poll(docText).toContain('engine "flite"');
+  await expect(readout('Voice pitch')).toHaveText('95 Hz');
+  await voice.selectOption('flite:slt');
+  await expect.poll(docText).toContain('voice "slt"');
+  // the pitch of the other voice is not carried over: the voice keeps the pitch and the range of its own recording
+  expect(await docText()).not.toMatch(/pitch_hz/);
+  await expect(readout('Voice pitch')).toHaveText('172 Hz');
+  await expect(readout('Pitch range')).toHaveText('27 Hz');
+  await expect(dialog.getByText('Flite slt is a statistical US English voice')).toBeVisible();
+  await expect(dialog.getByText('Write phonemes instead of text')).toBeHidden();   // no phonemes for these voices
+  await expect(dialog.getByRole('combobox', { name: 'Mode' }).locator('option')).toHaveCount(2);
+  // words mode: each voice names the range that it sings
+  await dialog.getByRole('combobox', { name: 'Mode' }).selectOption('words');
+  await expect.poll(docText).toContain('mode "words"');
+  await expect(dialog.getByText('Flite sings a pitch from 74 to 650 Hz')).toBeVisible();
+  await voice.selectOption('flite:awb');
+  await expect(dialog.getByText('Flite sings a pitch from 114 to 486 Hz')).toBeVisible();
+  await voice.selectOption('flite:rms');
+  await expect(dialog.getByText('Flite sings a pitch from 55 to 450 Hz')).toBeVisible();
+  await voice.selectOption('flite:slt');
+  await dialog.getByRole('combobox', { name: 'Mode' }).selectOption('text');
+  await expect.poll(docText).toContain('mode "text"');
+  await voice.selectOption('flite:awb');
+  await expect.poll(docText).toContain('voice "awb"');
+  await expect(readout('Voice pitch')).toHaveText('132 Hz');
+  await voice.selectOption('flite:rms');
+  await expect(readout('Voice pitch')).toHaveText('98 Hz');
+  // back to kal16: the voice line goes (kal16 is what a block without one has), and the pitch of kal16 is shown again
+  await voice.selectOption('flite');
+  await expect.poll(docText).not.toContain('voice "rms"');
+  await expect(readout('Voice pitch')).toHaveText('95 Hz');
+  await expect(dialog.getByText('Write phonemes instead of text')).toBeVisible();
+  await voice.selectOption('humanico');
+  await expect.poll(docText).toContain('engine "humanico"');
+  expect(await docText()).not.toMatch(/voice "/);
+});

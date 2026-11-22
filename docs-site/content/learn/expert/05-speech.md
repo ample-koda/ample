@@ -106,7 +106,16 @@ master master {
 }
 {{/amplet}}
 
-The Flite software and the voice are free for any use: AMPLE contains a modified C# translation of the code and the voice data in a compact form, and keeps their notices (see THIRD-PARTY-NOTICES.md). The translation is not made or approved by Carnegie Mellon University.
+### Three more voices: slt, rms and awb
+
+`voice "slt"` (US English, female), `voice "rms"` (US English, male) and `voice "awb"` (Scottish English, male) are statistical voices from the CMU ARCTIC recordings. They sound smoother than kal16 and read the text the same way. Write the voice next to `engine "flite"`:
+
+- They speak text. `rate`, `lead_trim`, `pause_scale`, `brightness`, the tags in the text, `lexicon` and `spell` all work as for kal16. They do not speak `phonemes` (the build says so with AMP5351).
+- `mode "words"` makes them sing like kal16: each note speaks the next word at one steady pitch. The pitch they follow is from 74 to 650 Hz for slt, from 55 to 450 Hz for rms and from 114 to 486 Hz for awb; a note outside that range is sung the same note an octave or more away. Inside the range the pitch is within a few cents of the note.
+- `pitch_hz` and `pitch_range` are optional. Without them the voice keeps the pitch and the range of its own recording (slt 172 Hz, rms 98 Hz, awb 132 Hz); then the sound is exactly the plain sound of the voice.
+- They take more time and memory than kal16: about 5 MiB of memory for each second of speech, and a render runs about 15 times faster than real time. A short line is no problem; long speech in Remix may be refused for its memory.
+
+The Flite software and the voices are free for any use: AMPLE contains a modified C# translation of the code and the voice data in a compact form, and keeps their notices (see THIRD-PARTY-NOTICES.md; the recordings of slt, rms and awb come from the CMU ARCTIC databases, LICENSES/cmu-arctic.txt). The translation is not made or approved by Carnegie Mellon University.
 
 ## How long the block is
 

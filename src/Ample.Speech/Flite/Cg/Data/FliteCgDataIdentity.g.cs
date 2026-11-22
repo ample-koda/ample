@@ -12,7 +12,7 @@ public static class FliteCgDataIdentity
     public static readonly IReadOnlyDictionary<string, string> Sha256 = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["awb"] = "ef1d86a05db9157ecdba6bb7ef3aaae96f0a04cdc4bb04886749e59592bb9113",
-        ["rms"] = "052b3b427ff122fa83689126757d70308d7da26b924bfeb92ea1060bfe7d8dee",
+        ["rms"] = "c7f029934ea83115bfb4a940a28160015a0e1aadb1ff4a43accbcab53c56c942",
         ["slt"] = "0cffe57fa7d43306524c769241ddaef4de5a9505fdc2d1623c929f68e650232d",
     };
 }

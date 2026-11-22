@@ -90,13 +90,13 @@ public sealed record LiteLimits(
     int BuildsPerFiveMinutes = 0,
     int BuildsPerFifteenMinutes = 0,
     int MaxSpeechOutputSeconds = 60,
-    int MaxSpeechOutputSecondsPerBuild = 120,
+    int MaxSpeechOutputSecondsPerBuild = 240,
     long MaxSpeechPeakBytes = 144L * 1024 * 1024,
-    int MaxSpeechWorkingSamples = 600_000,
+    int MaxSpeechWorkingSamples = 1_200_000,
     int MaxSpeechInputCharacters = 4096,
     int MaxSpeechInputCharactersPerBuild = 16_384,
     int MaxSpeechNoteEvents = 1024,
-    int MaxSpeechBlocks = 8)
+    int MaxSpeechBlocks = 16)
 {
     /// <summary>The most files a build still accepts: <see cref="MaxFiles"/>, or <see cref="BuildMaxFiles"/> when that is higher. Lower MaxFiles later and set BuildMaxFiles to the old value: projects that exist keep building, new files cannot be added past MaxFiles.</summary>
     public int FilesAccepted => Math.Max(MaxFiles, BuildMaxFiles);

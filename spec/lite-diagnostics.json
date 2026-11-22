@@ -191,9 +191,9 @@
       "code": "AMPL924",
       "severity": "error",
       "title": "A speech limit of Remix is exceeded",
-      "explanation": "Remix limits speech: at most 8 speech blocks per build, 60 seconds and 4096 characters of text per block, and 120 seconds and 16384 characters in all. The span of a block counts: the length the build gives it (its placed length with silence included, its bars, or for a block without a placement the length of its speech). The speech blocks that run together also have a memory limit (about 144 MiB, estimated from the length of the speech and of the text). Over a limit the build is refused with HTTP 413; when the host has no speech limits configured it is refused with HTTP 503.",
+      "explanation": "Remix limits speech: at most 16 speech blocks per build, 60 seconds and 4096 characters of text per block, and 240 seconds and 16384 characters in all. The span of a block counts: the length the build gives it (its placed length with silence included, its bars, or for a block without a placement the length of its speech). The speech blocks that run together also have a memory limit (about 144 MiB, estimated from the length of the speech and of the text). Over a limit the build is refused with HTTP 413; when the host has no speech limits configured it is refused with HTTP 503.",
       "wrongExample": "Nine speech blocks, or one speech block placed over 40 bars at tempo 120.",
-      "rightExample": "At most eight speech blocks, each spanning at most 60 seconds, 120 seconds in all.",
+      "rightExample": "At most sixteen speech blocks, each spanning at most 60 seconds, 240 seconds in all.",
       "since": "1.0",
       "retired": false,
       "stage": "runtime"

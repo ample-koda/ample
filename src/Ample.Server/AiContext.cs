@@ -584,9 +584,12 @@ internal static class AiContext
             "robot voice", "sing words", "words mode", "phonemes", "lyrics", "tts"], "Local speech (the speech block)",
             "The speech block makes a voice from text on this machine: no model, no network, the same sound for the same " +
             "song and seed, American English. " +
-            "engine \"humanico\" is the default voice, \"retro\" the older one, \"flite\" the diphone voice kal16 " +
+            "engine \"humanico\" is the default voice, \"retro\" the older one, \"flite\" has four voices: voice \"kal16\" (the default) is a diphone voice, " +
+            "and voice \"slt\" (US female), \"rms\" (US male) and \"awb\" (Scottish male) are statistical voices that speak text, " +
+            "with tags, lexicon and spell, and sing words, but take no phonemes; " +
+            "they use the pitch and the range of their own recording when pitch_hz and pitch_range are not written. The rest of this is about kal16 unless it says otherwise: " +
             "(pitch_range 0 to 200 Hz, 95 Hz when pitch_hz is not written; it also takes phonemes, flatter than text; " +
-            "in words mode it sings each word at one steady pitch from 50 to 480 Hz, a note outside that is sung an octave away; " +
+            "in words mode it sings each word at one steady pitch (kal16 from 50 to 480 Hz, slt 74 to 650, rms 55 to 450, awb 114 to 486), a note outside that is sung an octave away; " +
             "lead_trim \"on\" drops its leading pause, pause_scale 0 to 4 scales the pauses between words, brightness 0 to 12 dB lifts the high end; " +
             "lexicon \"tomato = T AH0 M EY1 T OW0; ample = AE1 M P AH0 L\" gives words their own phones, spell \"cpu usb\" (or \"all\") reads words letter by letter; " +
             "in text mode the text takes tags: <pitch 220>word</pitch> or <pitch +3st>, <rate 1.3>, <range 25>, <emph> and <break 300ms/>). " +
@@ -601,7 +604,7 @@ internal static class AiContext
             "| gate | fit (fit_max_rate), at most 4 words at once; " +
             "each word is quieter than text mode, so add gain (12 is fine). " +
             "To make it sing put the voice through autotune and effects, as docs/examples/26-funky-speech does. " +
-            "Remix limits (AMPL924): 8 speech blocks, 60 seconds and 4096 characters per block, 120 seconds and 16384 " +
+            "Remix limits (AMPL924): 16 speech blocks, 60 seconds and 4096 characters per block, 240 seconds and 16384 " +
             "characters per song. " +
             "Example: speech voice at 1 for 1 {\n  text \"I am a robot.\"\n}"),
         (["voice", "voice-clone", "clone", "speech", "speak", "spoken", "narrat", "tts", "xtts", "text to speech", "model"], "Voice models (XTTS-v2 is for non-commercial use only)",
