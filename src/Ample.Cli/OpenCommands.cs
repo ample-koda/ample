@@ -396,9 +396,16 @@ internal static class OpenCommands
     private static int WriteOpenResult(TextWriter output, string launchUrl, string status, InstanceRecord? instance)
     {
         if (instance is null) return 1;
-        output.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { status, projectId = instance.ProjectId,
-            pid = instance.Pid, processStart = instance.ProcessStart.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
-            port = instance.Port, folder = instance.Folder, launchUrl }));
+        output.WriteLine(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status,
+            projectId = instance.ProjectId,
+            pid = instance.Pid,
+            processStart = instance.ProcessStart.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            port = instance.Port,
+            folder = instance.Folder,
+            launchUrl
+        }));
         return 0;
     }
 
