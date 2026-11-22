@@ -505,6 +505,48 @@ public sealed class MidiTests
     }
 
     [Fact]
+    public async Task Midi_render_continues_a_note_over_a_bar_line_like_the_midi_block()
+    {
+        // a note from beat 3 of bar 1 to beat 1 of bar 2: the part after the bar line must go on sounding, not be struck again
+        // (midi-render did not pass the ties, so every note over a bar line was heard twice; with a tempo map many notes cross the bar lines)
+        string root = Path.Combine(Path.GetTempPath(), "ample-midi-render-tie-" + Guid.NewGuid().ToString("N"));
+        string bankFolder = Path.Combine(root, "audio-packs", "licensed", "musescore-general");
+        Directory.CreateDirectory(bankFolder);
+        try
+        {
+            Sf2Fixture.Zone looped = new((Sf2Fixture.SampleModes, 1), (Sf2Fixture.SampleId, 0));
+            Sf2Fixture.Zone piano = new((Sf2Fixture.Instrument, 0));
+            byte[] sf2 = Sf2Fixture.Build([("sample", 512, (32u, 480u), 60)], [("instrument", [looped])], [("piano", 0, 0, [piano])]);
+            await File.WriteAllBytesAsync(Path.Combine(bankFolder, "MuseScore_General.sf2"), sf2);
+            SmfFile file = new(0, 480, [new SmfTrack([
+                new SmfEvent(0, SmfEventKind.Meta, 0, 0, 0, 0x51, [0x0B, 0x71, 0xB0]),   // 80 BPM, the tempo of the song below
+                new SmfEvent(1440, SmfEventKind.NoteOn, 0, 60, 100, null, []),
+                new SmfEvent(2400, SmfEventKind.NoteOff, 0, 60, 0, null, []),
+                new SmfEvent(2400, SmfEventKind.Meta, 0, 0, 0, 0x2F, [])])]);
+            byte[] bytes = SmfWriter.Write(file, SmfLimits.Standard);
+            string midiPath = Path.Combine(root, "cross.mid");
+            await File.WriteAllBytesAsync(midiPath, bytes);
+            HashSet<int> bars = [1, 2];
+
+            BlockNode midiBlock = new() { Type = "midi", Name = "source" };
+            midiBlock.Parameters.Add(new Parameter("file", "cross.mid", 0));
+            RenderRequest midiRequest = new(midiBlock, EngineRig.Spec.Templates["midi"], 44_100, 132_300, 1, 2, bars, new Dictionary<string, byte[]>(), 0, root, null, null);
+            byte[] fromMidi = (await BuiltInRenderers.All.Single(r => r.Id == "builtin.midi").RenderAsync(midiRequest, CancellationToken.None)).Single(o => o.Role == "audio").Data;
+
+            BlockNode renderBlock = new() { Type = "midi-render", Name = "player" };
+            Dictionary<string, byte[]> sequence = new() { ["sequence"] = bytes };
+            RenderRequest renderRequest = new(renderBlock, EngineRig.Spec.Templates["midi-render"], 44_100, 132_300, 1, 2, bars, sequence, 0, root, null, null);
+            byte[] fromRender = (await BuiltInRenderers.All.Single(r => r.Id == "builtin.midi-render").RenderAsync(renderRequest, CancellationToken.None)).Single(o => o.Role == "audio").Data;
+
+            Assert.True(fromMidi.AsSpan().SequenceEqual(fromRender), "midi-render must play a note over a bar line as one note, like the midi block");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void Midi_block_rejects_project_path_escapes()
     {
         BlockNode block = new() { Type = "midi", Name = "source" };

@@ -32,6 +32,19 @@ public static partial class NotePipeline
 
             public bool DefinedHere(string name) => vars.ContainsKey(name);
 
+            /// <summary>The variables that are visible here, innermost scope first; a name hidden by an inner one is listed once.</summary>
+            public IEnumerable<(string Name, Val Value)> Visible()
+            {
+                HashSet<string> seen = new(StringComparer.Ordinal);
+                for (Env? e = this; e is not null; e = e.up)
+                {
+                    foreach (KeyValuePair<string, (Val Value, bool Mutable)> v in e.vars)
+                    {
+                        if (seen.Add(v.Key)) yield return (v.Key, v.Value.Value);
+                    }
+                }
+            }
+
             public Env Root => up?.Root ?? this;
 
             public void Define(string name, Val value, bool mutable) => vars[name] = (value, mutable);
@@ -76,6 +89,9 @@ public static partial class NotePipeline
         private readonly SortedSet<string> closure = new(StringComparer.Ordinal);
         private readonly List<string> dynamicInputs = [];
         private readonly List<StackFrameInfo> callStack = [];
+        /// <summary>For a debugger: the variables of the statement that was running in each caller when it made its call (innermost last), and now.</summary>
+        private readonly List<Env?> callerEnvs = [];
+        private Env? currentEnv;
         private string runningHelper = string.Empty;
         private readonly Dictionary<string, Val> constants = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> constantsBusy = new(StringComparer.OrdinalIgnoreCase);
@@ -269,6 +285,18 @@ public static partial class NotePipeline
         private string Describe(Val v) => v is NotesV ? "Notes" : $"{SafeText(v)} ({TypeName(v)})";
 
         private string SafeText(Val v) => IsSensitive(v) ? ObsRedactor.Redacted : ValText(v);
+
+        private List<DebugVariable> Describe(Env env) =>
+            [.. env.Visible().Select(v => new DebugVariable(v.Name, DebugText(v.Value), TypeName(v.Value)))];
+
+        /// <summary>A value for a debugger: notes show their count and the first notes (like a notes string), everything else as logs show it; secrets stay hidden.</summary>
+        private string DebugText(Val v)
+        {
+            if (v is not NotesV notes || IsSensitive(v)) return SafeText(v);
+            string text = NotePipeline.WriteNotes(notes.V.Events.Take(16));
+            int count = notes.V.Events.Count;
+            return $"{count} note{(count == 1 ? string.Empty : "s")}: {text}{(count > 16 ? " ..." : string.Empty)}";
+        }
 
         private static bool IsSensitive(Val v) => (DeepMarks(v) & ValueMarks.Sensitive) != 0;
 
@@ -1053,6 +1081,8 @@ public static partial class NotePipeline
             string callerText = sourceText;
             string callerHelper = runningHelper;
             callStack.Add(new StackFrameInfo(canonical, CallSite(c), context.ObservationRoot));
+            Env? savedEnv = currentEnv;
+            callerEnvs.Add(currentEnv);
             runningHelper = canonical;
             sourceText = table.TextOf(canonical) ?? callerText;
             try
@@ -1073,6 +1103,8 @@ public static partial class NotePipeline
             finally
             {
                 callStack.RemoveAt(callStack.Count - 1);
+                callerEnvs.RemoveAt(callerEnvs.Count - 1);
+                currentEnv = savedEnv;
                 runningHelper = callerHelper;
                 depth--;
                 sourceText = callerText;
@@ -1082,10 +1114,16 @@ public static partial class NotePipeline
         /// <summary>Where a call stands: the place in the file of the helper that makes it, or null for the expression of a block.</summary>
         private SourceSite? CallSite(CallNode call)
         {
+            return SiteOfRange(call.Start, call.End);
+        }
+
+        /// <summary>The place in the file of a range of the running helper's text, or null when an expression of a block is running.</summary>
+        private SourceSite? SiteOfRange(int start, int end)
+        {
             if (runningHelper.Length == 0) return null;
             SourceSite? original = context.ObservationHelperSites?.GetValueOrDefault(runningHelper);
             int firstLine = original is null ? table.LineOf(runningHelper) : original.Line - 1;
-            return SiteResolver.At(original?.Origin ?? "song", sourceText, firstLine, call.Start, call.End);
+            return SiteResolver.At(original?.Origin ?? "song", sourceText, firstLine, start, end);
         }
 
         /// <summary>The call stack, innermost first, at most as many frames as the configuration allows (24 by default).</summary>
@@ -1155,6 +1193,14 @@ public static partial class NotePipeline
         private Flow Exec(Node statement, Env env, Frame frame)
         {
             Tick(statement);
+            currentEnv = env;
+            if ((context.Debug ?? NotePipeline.AmbientDebug.Value) is { } debug)
+            {
+                List<DebugVariable> variables = Describe(env);
+                List<IReadOnlyList<DebugVariable>> frames = [variables];
+                for (int k = callerEnvs.Count - 1; k >= 0; k--) frames.Add(callerEnvs[k] is { } callerEnv ? Describe(callerEnv) : []);
+                debug(new DebugStop(statement.Start, statement.End, SiteOfRange(statement.Start, statement.End), StackSnapshot()) { Variables = variables, FrameVariables = frames });
+            }
             switch (statement)
             {
                 case LetStmt let:

@@ -20,17 +20,21 @@ internal static class OpenCommands
         Option<bool> last = new("--last") { Description = "Open the most recently used project." };
         Option<bool> visible = new("--visible") { Description = "Show a console window for the server." };
         Option<bool> noOpen = new("--no-open") { Description = "Start or attach without opening a browser." };
+        Option<bool> attachOnly = new("--attach-only") { Description = "Attach to an already running project instance; never start the hub or server." };
+        Option<bool> asJson = new("--json") { Description = "Write launch details and instance ownership as JSON." };
         Option<string?> song = new("--song") { Description = "Song path to open when song deep links are supported." };
         Option<string?> agent = new("--agent") { Description = "Self-reported agent name; requires --reason." };
         Option<string?> reason = new("--reason") { Description = "Why the agent is opening this project." };
         Option<string?> home = new("--home") { Description = "The AMPLE user data folder (default: AMPLE_HOME or the local application data folder)." };
-        Command command = new("open", "Attaches to or starts the server for a project.") { target, last, visible, noOpen, song, agent, reason, home };
+        Command command = new("open", "Attaches to or starts the server for a project.") { target, last, visible, noOpen, attachOnly, asJson, song, agent, reason, home };
         command.SetAction(async (parse, cancellationToken) => await RunAsync(
             output,
             parse.GetValue(target),
             parse.GetValue(last),
             parse.GetValue(visible),
             parse.GetValue(noOpen),
+            parse.GetValue(attachOnly),
+            parse.GetValue(asJson),
             parse.GetValue(song),
             parse.GetValue(agent),
             parse.GetValue(reason),
@@ -39,7 +43,9 @@ internal static class OpenCommands
         return command;
     }
 
-    private static async Task<int> RunAsync(TextWriter output, string? target, bool last, bool visible, bool noOpen, string? song, string? agentName, string? reason, string? requestedHome, CancellationToken cancellationToken)
+    private static async Task<int> RunAsync(TextWriter output, string? target, bool last, bool visible, bool noOpen,
+        bool attachOnly, bool asJson, string? song, string? agentName, string? reason, string? requestedHome,
+        CancellationToken cancellationToken)
     {
         if (last && target is not null)
         {
@@ -95,7 +101,7 @@ internal static class OpenCommands
         string projectId = manifest.Id.ToString("D");
         InstanceRegistry registry = new(home, Clock, new SystemInstanceProbe());
         InstanceRecord? running = await registry.FindAsync(projectId, cancellationToken).ConfigureAwait(false);
-        if (agentName is not null && OperatingSystem.IsWindows())
+        if (agentName is not null && OperatingSystem.IsWindows() && !attachOnly)
         {
             HubPipeResponse? response;
             try
@@ -130,8 +136,15 @@ internal static class OpenCommands
 
                 Uri launch = new(response.LaunchUrl!);
                 RecentProjects.Touch(home, projectRoot, manifest.Name, projectId, Clock, launch.Port);
+                if (asJson) return WriteOpenResult(output, response.LaunchUrl!, response.Status!, await registry.FindAsync(projectId, cancellationToken).ConfigureAwait(false));
                 return OpenBrowser(output, response.LaunchUrl!, noOpen);
             }
+        }
+
+        if (running is null && attachOnly)
+        {
+            output.WriteLine("No running AMPLE instance is registered for this project; attach-only mode will not start one.");
+            return 1;
         }
 
         if (running is not null)
@@ -144,6 +157,7 @@ internal static class OpenCommands
                 return 1;
             }
 
+            if (asJson) return WriteOpenResult(output, launchUrl, "attached", running);
             return OpenBrowser(output, launchUrl, noOpen);
         }
 
@@ -207,6 +221,7 @@ internal static class OpenCommands
                     return 1;
                 }
 
+                if (asJson) return WriteOpenResult(output, launchUrl, "started", running);
                 return OpenBrowser(output, launchUrl, noOpen);
             }
 
@@ -313,7 +328,7 @@ internal static class OpenCommands
     private static Process StartServer(string projectRoot, string ampleRoot, string home, int port, string logPath, bool visible, string? agentName, string? reason)
     {
         string processPath = Environment.ProcessPath ?? throw new InvalidOperationException("The current executable path is unavailable.");
-        ProcessStartInfo start = new() { UseShellExecute = false, CreateNoWindow = !visible, WorkingDirectory = projectRoot };
+        ProcessStartInfo start = new() { UseShellExecute = false, CreateNoWindow = !visible, RedirectStandardOutput = !visible, RedirectStandardError = !visible, WorkingDirectory = projectRoot };
         if (string.Equals(Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase))
         {
             start.FileName = processPath;
@@ -333,6 +348,7 @@ internal static class OpenCommands
         start.ArgumentList.Add("--no-browser");
         if (visible) start.ArgumentList.Add("--visible");
         start.ArgumentList.Add("--no-token-output");
+        if (!visible) start.ArgumentList.Add("--no-console-output");
         start.ArgumentList.Add("--log-file");
         start.ArgumentList.Add(logPath);
         if (agentName is not null)
@@ -345,7 +361,15 @@ internal static class OpenCommands
             start.ArgumentList.Add(reason!);
         }
 
-        return Process.Start(start) ?? throw new InvalidOperationException("The AMPLE server process could not be created.");
+        Process process = Process.Start(start) ?? throw new InvalidOperationException("The AMPLE server process could not be created.");
+        if (!visible)
+        {
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, _) => { };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+        }
+        return process;
     }
 
     private static int OpenBrowser(TextWriter output, string url, bool noOpen)
@@ -367,6 +391,15 @@ internal static class OpenCommands
             output.WriteLine($"The browser could not be started. Open: {url}");
             return 0;
         }
+    }
+
+    private static int WriteOpenResult(TextWriter output, string launchUrl, string status, InstanceRecord? instance)
+    {
+        if (instance is null) return 1;
+        output.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { status, projectId = instance.ProjectId,
+            pid = instance.Pid, processStart = instance.ProcessStart.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            port = instance.Port, folder = instance.Folder, launchUrl }));
+        return 0;
     }
 
     private static void WriteRecents(TextWriter output, IReadOnlyList<RecentProject> recents)

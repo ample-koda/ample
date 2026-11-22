@@ -12,7 +12,13 @@ namespace Ample.Lsp;
 /// <c>Ample.Language</c> (parser, queries, formatter, edits), so the editor, the CLI and the UI never disagree.
 /// Requests are handled one after another, which also keeps results in order; a cancelled request that has not started is dropped.
 /// </summary>
-public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnlyList<Ample.Language.SettingHint>? settingHints = null, Func<string, string?>? readFile = null, Func<IReadOnlyList<BlockNode>, IReadOnlyList<string>, IReadOnlyList<Ample.Language.Diagnostic>>? preflight = null, Func<string, (IReadOnlyList<ComponentDefinition> Components, IReadOnlyList<Ample.Language.Diagnostic> Issues)>? components = null, Func<ConfigLayerInput?>? observationSession = null, Func<ConfigLayerInput?>? observationProject = null, Func<IReadOnlyDictionary<string, string>?>? projectCapabilities = null)
+public sealed class LspServer(SpecData spec, string helpBase = "/help",
+    IReadOnlyList<Ample.Language.SettingHint>? settingHints = null, Func<string, string?>? readFile = null,
+    Func<IReadOnlyList<BlockNode>, IReadOnlyList<string>, IReadOnlyList<Ample.Language.Diagnostic>>? preflight = null,
+    Func<string, (IReadOnlyList<ComponentDefinition> Components,
+    IReadOnlyList<Ample.Language.Diagnostic> Issues)>? components = null, Func<ConfigLayerInput?>? observationSession = null,
+    Func<ConfigLayerInput?>? observationProject = null, Func<IReadOnlyDictionary<string, string>?>? projectCapabilities = null,
+    Func<IReadOnlyList<string>>? projectFiles = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
     private readonly Dictionary<string, Doc> docs = [];
@@ -46,7 +52,9 @@ public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnl
                     }
                     catch (JsonException)
                     {
-                        await SendAsync(new { jsonrpc = "2.0", id = (object?)null, error = new { code = -32700, message = "Parse error" } }, cancellationToken).ConfigureAwait(false);
+                        // JSON-RPC requires "id": null here; the serializer would leave a null out, so the envelope is written by hand
+                        await channel.WriteAsync("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Parse error\"}}", cancellationToken)
+                            .ConfigureAwait(false);
                         continue;
                     }
 
@@ -141,7 +149,7 @@ public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnl
                 return;
             }
 
-            await SendAsync(new { jsonrpc = "2.0", id = id.DeepClone(), result }, ct).ConfigureAwait(false);
+            await channel.WriteAsync(Response(id, result), ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -155,6 +163,14 @@ public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnl
     private ValueTask ErrorAsync(JsonNode id, int code, string message, CancellationToken ct) => SendAsync(new { jsonrpc = "2.0", id = id.DeepClone(), error = new { code, message } }, ct);
 
     private ValueTask SendAsync(object message, CancellationToken ct) => channel.WriteAsync(JsonSerializer.Serialize(message, Json), ct);
+
+    /// <summary>
+    /// A success response. JSON-RPC requires the "result" member, also when it is null (a hover with nothing to show); the serializer leaves
+    /// nulls out, so the envelope is written here and only the result goes through it. Visual Studio closes the connection on a response
+    /// without "result" (and restarts the server); VS Code tolerated it.
+    /// </summary>
+    internal static string Response(JsonNode id, object? result) =>
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id.ToJsonString() + ",\"result\":" + (result is null ? "null" : JsonSerializer.Serialize(result, Json)) + "}";
 
     private ValueTask NotifyAsync(string method, object parameters, CancellationToken ct) => SendAsync(new { jsonrpc = "2.0", method, @params = parameters }, ct);
 
@@ -423,7 +439,7 @@ public sealed class LspServer(SpecData spec, string helpBase = "/help", IReadOnl
         }
 
         (int line, int col) = Pos(p);
-        IReadOnlyList<Ample.Language.CompletionItem> items = Queries.CompletionAt(d.Parse(spec), spec, line, col, settingHints);
+        IReadOnlyList<Ample.Language.CompletionItem> items = Queries.CompletionAt(d.Parse(spec), spec, line, col, settingHints, projectFiles?.Invoke());
         return new { isIncomplete = false, items = items.Select(Item).ToArray() };
     }
 

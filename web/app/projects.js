@@ -244,7 +244,10 @@ async function settings(body) {
   if (hasProject && hasServer) afterClear = 'After clearing, the server-wide key will be used.';
   else if (hasProject) afterClear = 'After clearing, no Brave key will be active; DuckDuckGo remains available.';
   row('remove saved key', el('label', {}, [clearBraveKey, ' Clear project key']), afterClear);
+  const webFree = el('input', { id: 'ps-web-free', type: 'checkbox', checked: s.ai?.webWithoutApproval === true });
+  row('web without asking', el('label', {}, [webFree, ' let the assistant and Koda search the web and download links without asking each time']), 'Off by default. When on, a web search (DuckDuckGo or Brave) and a download of a link (ample_fetch_url) run at once, without an approval card; the limits stay: at most 10 results, public addresses only, no cookies or logins, Brave at most 10 calls per task. Pages are read without JavaScript. Turn it on only for a project where you accept that the assistant sends its search words to a search provider and downloads what it finds.');
   saveBar('ps-save-search', 'Save web search', () => api.post('/api/project/settings', {
+    webWithoutApproval: webFree.checked,
     braveSearchApiKey: braveKey.value.trim(),
     clearBraveSearchApiKey: clearBraveKey.checked && !braveKey.value.trim(),
   }));

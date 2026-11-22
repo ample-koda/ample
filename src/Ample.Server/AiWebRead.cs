@@ -15,7 +15,7 @@ internal sealed partial class AiService
         if (!Uri.TryCreate(clean, UriKind.Absolute, out Uri? uri) || uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo))
             throw new AmpleException("AMP5458", "Only an http or https page address without credentials can be read.");
         bool userProvided = task.Request.Prompt.Contains(clean, StringComparison.OrdinalIgnoreCase) || task.Log.Any(item => item.Kind == "user" && item.Text.Contains(clean, StringComparison.OrdinalIgnoreCase));
-        if (!userProvided && !task.WebSearchResultUrls.ContainsKey(uri.ToString()))
+        if (!userProvided && !task.WebWithoutApproval && !task.WebSearchResultUrls.ContainsKey(uri.ToString()))
             return new JsonObject { ["allowed"] = false, ["note"] = "This no-extra-approval reader is limited to a page URL the user supplied or a URL returned by an approved web search in this task. Search for the page first or use ample_fetch_url for its separate approval flow." };
 
         try

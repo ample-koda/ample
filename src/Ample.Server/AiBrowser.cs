@@ -50,6 +50,9 @@ internal static class BrowserSafety
 
     internal static bool IsWebUrl(string value) => Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) && uri.Scheme is "http" or "https" && string.IsNullOrEmpty(uri.UserInfo);
 
+    internal static bool CanShowBrowser(bool linux, string? display, string? wayland) =>
+        !linux || !string.IsNullOrWhiteSpace(display) || !string.IsNullOrWhiteSpace(wayland);
+
 
 
 
@@ -133,9 +136,26 @@ internal sealed partial class AiService
             await page.GotoAsync(uri.ToString(), new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 45000 }).ConfigureAwait(false);
             string humanReason = await BrowserSafety.HumanInputReasonAsync(page).ConfigureAwait(false);
             bool humanInput = humanReason.Length > 0;
-            if (humanInput && !browserHeaded) page = await SetBrowserVisibilityAsync(task, page.Url, true, ct).ConfigureAwait(false);
+            bool canShow = BrowserSafety.CanShowBrowser(OperatingSystem.IsLinux(),
+                Environment.GetEnvironmentVariable("DISPLAY"), Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
+            if (humanInput && !browserHeaded && canShow) page = await SetBrowserVisibilityAsync(task, page.Url, true, ct).ConfigureAwait(false);
             else if (!humanInput && browserHeaded) page = await SetBrowserVisibilityAsync(task, page.Url, false, ct).ConfigureAwait(false);
-            return new JsonObject { ["allowed"] = true, ["url"] = page.Url, ["title"] = await page.TitleAsync().ConfigureAwait(false), ["humanInputRequired"] = humanInput, ["humanInputReason"] = humanReason, ["note"] = humanInput ? "The page appears to need manual sign-in or human verification. AMPLE opened the persistent session in a visible window; please complete that step yourself, then ask Codex to continue. The window is a real Chromium window on the computer that runs AMPLE: a person who works remotely cannot see or click it. If the person says they do not see it, do not say again that it is visible and do not reopen it: say plainly that the page needs a human check that cannot be done from here, and go on with another source or ask for the file (score, MIDI, audio) instead." : "The page is open in AMPLE's headless browser. No sign-in or CAPTCHA was detected; if the page looks incomplete, ask to show the browser so you can intervene." };
+            string note = !humanInput ? "The page is open in AMPLE's headless browser. No sign-in or CAPTCHA was detected; "
+                + "if the page looks incomplete, ask to show the browser so you can intervene."
+                : browserHeaded ? "The page appears to need manual sign-in or human verification. AMPLE opened the persistent session "
+                    + "in a visible window; please complete that step yourself, then ask Codex to continue. The window is on the computer "
+                    + "that runs AMPLE; a remote person may not be able to see it."
+                : "The page needs manual sign-in or human verification, but this server has no graphical display. "
+                    + "Use another source or ask the user for the file; do not bypass the check.";
+            return new JsonObject
+            {
+                ["allowed"] = true,
+                ["url"] = page.Url,
+                ["title"] = await page.TitleAsync().ConfigureAwait(false),
+                ["humanInputRequired"] = humanInput,
+                ["humanInputReason"] = humanReason,
+                ["note"] = note
+            };
         }
         catch (Exception ex) when (ex is PlaywrightException or TimeoutException or InvalidOperationException)
         {
@@ -147,6 +167,8 @@ internal sealed partial class AiService
     public async Task<JsonObject> BrowserShowAsync(string token, string reason, CancellationToken ct)
     {
         AiTask task = await RequireBrowserAccessAsync(token, reason, ct).ConfigureAwait(false);
+        if (!BrowserSafety.CanShowBrowser(OperatingSystem.IsLinux(), Environment.GetEnvironmentVariable("DISPLAY"), Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
+            return new JsonObject { ["shown"] = false, ["note"] = "This server has no graphical display for a visible browser." };
         await browserActionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -422,7 +444,9 @@ internal sealed partial class AiService
             browserContext = null;
             browserHeaded = visible;
             task.BrowserPage = null;
-            IPage page = await BrowserPageLockedAsync(task, ct).ConfigureAwait(false);
+            IPage page;
+            try { page = await BrowserPageLockedAsync(task, ct).ConfigureAwait(false); }
+            catch { browserHeaded = false; throw; }
             if (Uri.TryCreate(url, UriKind.Absolute, out Uri? target) && BrowserSafety.IsWebUrl(url))
                 await page.GotoAsync(target.ToString(), new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 45000 }).ConfigureAwait(false);
             if (visible) await page.BringToFrontAsync().ConfigureAwait(false);

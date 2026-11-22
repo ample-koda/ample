@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Net;
+using System.Text.RegularExpressions;
 using Ample.Core.Abstractions;
 
 namespace Ample.Server;
@@ -106,6 +108,50 @@ internal static class AiWebSearchSafety
 
 internal sealed partial class AiService
 {
+    /// <summary>The normal way of searching, without a key (only when the project allows web access without asking): the public HTML results page of DuckDuckGo, read like a person would, bounded and from public addresses only. Null when it gives no results (the caller falls back to the Instant Answer API).</summary>
+    private static async Task<JsonObject?> WebPageSearchAsync(AiTask task, string query, int limit, CancellationToken ct)
+    {
+        try
+        {
+            using SocketsHttpHandler handler = new() { AllowAutoRedirect = false, ConnectCallback = ConnectPublicOnlyAsync, ConnectTimeout = TimeSpan.FromSeconds(15) };
+            using HttpClient http = new(handler) { Timeout = TimeSpan.FromSeconds(20) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; AMPLE/1.0; +AI assistant web search)");
+            using HttpResponseMessage response = await http.GetAsync("https://html.duckduckgo.com/html/?q=" + Uri.EscapeDataString(query), ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return null;
+            string html = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            if (html.Length > 1_500_000) html = html[..1_500_000];
+            JsonArray results = [];
+            string[] blocks = html.Split("class=\"result__a\"");
+            for (int i = 1; i < blocks.Length && results.Count < limit; i++)
+            {
+                string block = blocks[i];
+                Match href = Regex.Match(block, "href=\"([^\"]+)\"", RegexOptions.None, TimeSpan.FromSeconds(1));
+                if (!href.Success) continue;
+                string link = WebUtility.HtmlDecode(href.Groups[1].Value);
+                Match target = Regex.Match(link, @"[?&]uddg=([^&]+)", RegexOptions.None, TimeSpan.FromSeconds(1));
+                if (target.Success) link = Uri.UnescapeDataString(target.Groups[1].Value);
+                if (link.StartsWith("//", StringComparison.Ordinal)) link = "https:" + link;
+                if (!Uri.TryCreate(link, UriKind.Absolute, out Uri? uri) || uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo) || uri.Host.EndsWith("duckduckgo.com", StringComparison.OrdinalIgnoreCase)) continue;
+                int open = block.IndexOf('>', StringComparison.Ordinal);
+                int close = open < 0 ? -1 : block.IndexOf("</a>", open, StringComparison.OrdinalIgnoreCase);
+                if (open < 0 || close < 0) continue;
+                string title = ExtractText(block[(open + 1)..close]);
+                Match snippet = Regex.Match(block, "result__snippet[^>]*>(.*?)</a>", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
+                string text = snippet.Success ? ExtractText(snippet.Groups[1].Value) : string.Empty;
+                if (title.Length == 0) continue;
+                results.Add(new JsonObject { ["title"] = title[..Math.Min(title.Length, 300)], ["url"] = uri.ToString(), ["snippet"] = text[..Math.Min(text.Length, 1200)] });
+            }
+
+            if (results.Count == 0) return null;
+            AiWebSearchSafety.RememberResultUrls(task, results);
+            return new JsonObject { ["allowed"] = true, ["provider"] = "DuckDuckGo results page (read like a person would, no key)", ["query"] = query, ["results"] = results, ["note"] = "Read from the public results page of DuckDuckGo without a key, because this project allows web access without asking. Read a result with ample_web_read, or download a file with ample_fetch_url." };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or RegexMatchTimeoutException)
+        {
+            return null;
+        }
+    }
+
     private static readonly SemaphoreSlim BraveSearchGate = new(1, 1);
     private static DateTimeOffset? LastBraveSearchAt;
     private const int EstimatedBraveMonthlyLimit = 1000;
@@ -139,8 +185,8 @@ internal sealed partial class AiService
         if (clean.Length is < 2 or > 300) throw new AmpleException("AMP5458", "A web search query must contain 2 to 300 characters.");
         int limit = int.TryParse(limitText, out int parsed) ? Math.Clamp(parsed, 1, 10) : 5;
         int offset = int.TryParse(offsetText, out int parsedOffset) ? Math.Clamp(parsedOffset, 0, 9) : 0;
-        string provider = providerText.Equals("brave", StringComparison.OrdinalIgnoreCase) ? "brave" : "duckduckgo";
-        if (!task.WebSearchAllowed && task.Mode != "unsafe")
+        string provider = providerText.Equals("brave", StringComparison.OrdinalIgnoreCase) ? "brave" : task.WebWithoutApproval && !providerText.Equals("instant", StringComparison.OrdinalIgnoreCase) ? "web" : "duckduckgo";
+        if (!task.WebSearchAllowed && !task.WebWithoutApproval && task.Mode != "unsafe")
         {
             AiApproval ask = new() { Kind = "webSearch", Summary = $"{provider}: {clean}", Detail = provider == "brave" ? "AMPLE will send this query to Brave Search API and return up to 10 titles, snippets and links. It will not open result pages. Provider use requires a key; the free credit is limited, and no paid fallback is used." : "AMPLE will send this query to DuckDuckGo's free Instant Answer API. It may return no result; this is not a full web-results API. It will not open result pages or fall back to scraping." };
             task.Approvals[ask.Id] = ask;
@@ -155,6 +201,13 @@ internal sealed partial class AiService
             if (decision is not ("accept" or "acceptForSession")) return new JsonObject { ["allowed"] = false, ["note"] = "Web search was not approved." };
             task.WebSearchAllowed = decision == "acceptForSession";
         }
+        if (provider == "web")
+        {
+            JsonObject? pageResults = await WebPageSearchAsync(task, clean, limit, ct).ConfigureAwait(false);
+            if (pageResults is not null) return pageResults;
+            provider = "duckduckgo";
+        }
+
         if (provider == "duckduckgo")
         {
             using HttpClient ddgHttp = new() { Timeout = TimeSpan.FromSeconds(15) };

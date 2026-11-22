@@ -253,6 +253,9 @@ internal sealed class AiTask
 
     public bool WebSearchAllowed { get; set; }
 
+    /// <summary>The project allows web searches and downloads without an approval card for each one (Project settings, off by default).</summary>
+    public bool WebWithoutApproval { get; set; }
+
     public System.Collections.Concurrent.ConcurrentDictionary<string, byte> WebSearchResultUrls { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public int BraveSearchCount;
@@ -892,7 +895,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         }
 
         bool given = task.Request.Prompt.Contains(url.Trim(), StringComparison.OrdinalIgnoreCase) || task.Log.Any(l => l.Kind == "user" && l.Text.Contains(url.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (!given && task.Mode != "unsafe")
+        if (!given && !task.WebWithoutApproval && task.Mode != "unsafe")
         {
             AiApproval ask = new() { Kind = "download", Summary = uri.ToString() };
             task.Approvals[ask.Id] = ask;
@@ -1734,7 +1737,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         string key = request.Kind == "koda" && KodaLinked ? KodaHome : ai.Assistant == "codex-device" ? DeviceHome : "server-account";
-        AiTask task = new() { Request = request, ProjectId = s.Manifest.Id, SessionId = sessionId, Identity = ai.Assistant, Mode = ai.Mode, BaseUrl = baseUrl, Key = key, Status = "queued" };
+        AiTask task = new() { Request = request, ProjectId = s.Manifest.Id, SessionId = sessionId, Identity = ai.Assistant, Mode = ai.Mode, WebWithoutApproval = ai.WebWithoutApproval, BaseUrl = baseUrl, Key = key, Status = "queued" };
         task.LogAdded = AppendTaskLog;
         tasks[task.Id] = task;
         Live[task.Id] = task;

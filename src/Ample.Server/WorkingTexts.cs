@@ -1,3 +1,4 @@
+using Ample.Core.Abstractions;
 using System.Collections.Concurrent;
 using Ample.Audio.IO;
 using Ample.Engine.Modules;
@@ -78,7 +79,20 @@ internal sealed class WorkingTexts
     internal (string Text, string Saved, long Version, bool Dirty) Get(string path)
     {
         Entry entry = Open(path);
-        lock (entry) return (entry.Text, entry.Saved, entry.Version, entry.Dirty);
+        string full = ProjectPath.Resolve(session.Root, Key(path));
+        string? disk = File.Exists(full) ? File.ReadAllText(full) : null;
+        lock (entry)
+        {
+            // another program (Visual Studio, an editor) changed the file: a copy without changes follows it, a draft keeps its text and base
+            if (disk is not null && !entry.Dirty && !string.Equals(disk, entry.Saved, StringComparison.Ordinal))
+            {
+                entry.Saved = disk;
+                entry.Text = disk;
+                entry.Version++;
+            }
+
+            return (entry.Text, entry.Saved, entry.Version, entry.Dirty);
+        }
     }
 
     /// <summary>Writes the working text to the file through the command bus and makes it the saved text.</summary>
@@ -86,7 +100,21 @@ internal sealed class WorkingTexts
     {
         Entry entry = Open(path);
         string text;
-        lock (entry) text = entry.Text;
+        string saved;
+        lock (entry) { text = entry.Text; saved = entry.Saved; }
+        string full = ProjectPath.Resolve(session.Root, Key(path));
+        if (File.Exists(full))
+        {
+            // the file changed on disk since this draft started (saved from Visual Studio, say): merge when the changes are in different places, never overwrite
+            string disk = await File.ReadAllTextAsync(full, cancellationToken).ConfigureAwait(false);
+            if (!string.Equals(disk, saved, StringComparison.Ordinal) && !string.Equals(disk, text, StringComparison.Ordinal))
+            {
+                text = AiDiff.Merge(saved, text, disk, out _)
+                    ?? throw new AmpleException("AMP5307", $"{Key(path)} changed on disk while you were editing it; revert to take the file, or copy your text first.");
+                lock (entry) entry.Text = text;
+            }
+        }
+
         await session.Bus.ExecuteAsync(new WriteFileCommand(Key(path), text), cancellationToken).ConfigureAwait(false);
         lock (entry) { entry.Saved = text; entry.Version++; }
     }

@@ -8,6 +8,17 @@ namespace Ample.Server.Tests;
 
 public sealed class AiBrowserTests
 {
+    [Theory]
+    [InlineData(true, null, null, false)]
+    [InlineData(true, "", "", false)]
+    [InlineData(true, ":0", null, true)]
+    [InlineData(true, null, "wayland-0", true)]
+    [InlineData(false, null, null, true)]
+    public void Visible_browser_requires_a_display_on_linux(bool linux, string? display, string? wayland, bool expected)
+    {
+        Assert.Equal(expected, BrowserSafety.CanShowBrowser(linux, display, wayland));
+    }
+
     [Fact]
     public async Task Browser_reader_falls_back_to_accessible_controls_missing_from_dom_heuristics()
     {

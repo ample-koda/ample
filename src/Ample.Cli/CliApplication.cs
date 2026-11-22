@@ -30,7 +30,16 @@ public static class CliApplication
         });
         rootCommand.Subcommands.Add(DocsCommands.CreateDocs(output));
         rootCommand.Subcommands.Add(DocsCommands.CreateHelp(output));
-        foreach (Command command in CheckCommands.Create(output).Concat(ProjectCommands.Create(output)).Concat(AddCommands.Create(output)).Concat(TakeCommands.Create(output)).Concat(BlackboxCommands.Create(output)).Concat(HistoryCliCommands.Create(output)).Concat(BuildCommands.Create(output)).Concat(ControlCommands.Create(output)).Concat(PluginCommands.Create(output)).Concat(ServeCommands.Create(output)).Append(OpenCommands.Create(output)).Append(PackCommands.Create(output)).Concat(LspCommands.Create()).Concat(McpCommands.Create()).Concat(LibraryCommands.Create(output)).Concat(BackupCommands.Create(output)).Concat(SecurityCommands.Create(output)).Concat(ModuleCommands.Create(output)).Concat(ComponentCommands.Create(output)).Append(MidiCommands.Create(output)).Concat(QualityCreditsCommands.Create(output)).Concat(AnalyzeCommands.Create(output)).Append(InstanceCommands.Create(output)).Append(StorageCommands.Create(output)).Concat(NoteBakeCommands.Create(output)).Concat(ReleaseCommands.Create(output)))
+        foreach (Command command in CheckCommands.Create(output).Concat(ProjectCommands.Create(output))
+            .Concat(AddCommands.Create(output)).Concat(TakeCommands.Create(output)).Concat(BlackboxCommands.Create(output))
+            .Concat(HistoryCliCommands.Create(output)).Concat(BuildCommands.Create(output)).Concat(ControlCommands.Create(output))
+            .Concat(PluginCommands.Create(output)).Concat(ServeCommands.Create(output)).Append(OpenCommands.Create(output))
+            .Append(PackCommands.Create(output)).Concat(LspCommands.Create()).Append(VsCommands.Create(output)).Append(DapCommands.Create())
+            .Concat(McpCommands.Create()).Concat(LibraryCommands.Create(output)).Concat(BackupCommands.Create(output))
+            .Concat(SecurityCommands.Create(output)).Concat(ModuleCommands.Create(output)).Concat(ComponentCommands.Create(output))
+            .Append(MidiCommands.Create(output)).Concat(QualityCreditsCommands.Create(output)).Concat(AnalyzeCommands.Create(output))
+            .Append(InstanceCommands.Create(output)).Append(StorageCommands.Create(output)).Concat(NoteBakeCommands.Create(output))
+            .Concat(ReleaseCommands.Create(output)))
         {
             rootCommand.Subcommands.Add(command);
         }
