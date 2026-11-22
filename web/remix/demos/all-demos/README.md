@@ -54,3 +54,7 @@ song.amplet (Welcome to AMPLE) is the song that opens. Every other demo is in it
 - backroom-groove/song.amplet: Backroom Groove (Genres, Intermediate)
 - speech-hello/song.amplet: Hello speech (Instruments, Beginner)
 - funk-it-up/song.amplet: Funk It Up (Genres, Advanced)
+- sailor-retro/song.amplet: Drunken Sailor — Retro (Genres, Advanced)
+- sailor-humanico/song.amplet: Drunken Sailor — Humanico (Genres, Advanced)
+- sailor-flite/song.amplet: Drunken Sailor — Flite (Genres, Advanced)
+- sailor-three-voices/song.amplet: Drunken Sailor — Three Voices (Genres, Advanced)

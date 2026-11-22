@@ -12,6 +12,11 @@
   <ItemGroup>
     <None Include="Fixtures\flite-data-digests.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\flite-cg-data-digests.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-cg-digest-*.tsv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-cg-sentences.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-cg-math-digests.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-cg-file-*.tsv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\flite-cg-words*" CopyToOutputDirectory="PreserveNewest" />
     <!-- the converted clustergen voices are not embedded in the assembly (their recordings have no confirmed licence): the tests read them from the source folder -->
     <None Include="..\..\src\Ample.Speech\Flite\Cg\Data\*.bin" Link="Fixtures\cg\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\flite-m6-*.*" CopyToOutputDirectory="PreserveNewest" />

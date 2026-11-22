@@ -11,6 +11,8 @@
     <EmbeddedResource Include="Data\humanico-calibration.json" />
     <!-- the Flite data converted by tools/flite-data (plan/speech/flite/PLAN.md) -->
     <EmbeddedResource Include="Flite\Data\*.bin" LogicalName="Ample.Speech.Flite.Data.%(Filename)%(Extension)" />
+    <!-- the clustergen voices slt, rms and awb (licence: LICENSES/cmu-arctic.txt, LICENSES/flite.txt) -->
+    <EmbeddedResource Include="Flite\Cg\Data\*.bin" LogicalName="Ample.Speech.Flite.Cg.Data.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Ample.Speech.Tests" />

@@ -12,15 +12,26 @@ internal sealed class FliteDefaultPipeline : IFlitePipeline
     public FliteRender Run(string text, FliteSettings settings, CancellationToken cancellationToken)
     {
         FliteOptions options = OptionsOf(settings);
+        return Speak(text, settings, FliteEngine.Default.SampleRate, options.MaxSamples, spoken => FliteEngine.Default.RenderText(spoken, options, cancellationToken));
+    }
+
+    /// <summary>Speaks a text with an engine of the Flite family and places the words (in the waveform and in the text) and the pauses of the markup: what both voices have in common.</summary>
+    /// <param name="text">The text, with its markup if it has any.</param>
+    /// <param name="settings">The settings.</param>
+    /// <param name="sampleRate">The sample rate of the voice.</param>
+    /// <param name="maxSamples">The most samples the render may make.</param>
+    /// <param name="renderSpoken">Speaks the plain text (with the new line of a file at its end) and gives the samples, the words and the segments.</param>
+    internal static FliteRender Speak(string text, FliteSettings settings, int sampleRate, int maxSamples, Func<string, FliteRenderResult> renderSpoken)
+    {
         FliteMarkup? markup = settings.Markup;
         string spoken = markup is null ? text : markup.Plain;   // the tags are not spoken
-        RefuseTextBeyondTheLimit(Encoding.UTF8.GetByteCount(spoken), options.MaxSamples);
+        RefuseTextBeyondTheLimit(Encoding.UTF8.GetByteCount(spoken), maxSamples, sampleRate);
         FliteRenderResult made;
         try
         {
             // The text is spoken a sentence at a time, as Flite speaks a file. Flite drops the last token of a text when that token starts a new sentence and the text ends right
             // after it (a file normally ends with a new line, which is why that is not seen there), so the text gets the new line that a file has: no word is lost, and nothing is spoken for it.
-            made = FliteEngine.Default.RenderText(spoken + "\n", options, cancellationToken);
+            made = renderSpoken(spoken + "\n");
         }
         catch (FliteRenderException error)
         {
@@ -34,7 +45,7 @@ internal sealed class FliteDefaultPipeline : IFlitePipeline
         foreach (MarkupBreak mark in markup.Breaks)
         {
             int next = words.FindIndex(w => w.TextFrom >= mark.PlainIndex);
-            breaks.Add(new FliteBreak(next < 0 ? words.Count : next, mark.Milliseconds * FliteEngine.Default.SampleRate / 1000));
+            breaks.Add(new FliteBreak(next < 0 ? words.Count : next, mark.Milliseconds * sampleRate / 1000));
         }
 
         List<FliteSpokenWord> inSource = [.. words.Select(w => w with { TextFrom = markup.SourceStart(w.TextFrom), TextTo = markup.SourceEnd(w.TextTo) })];
@@ -66,9 +77,9 @@ internal sealed class FliteDefaultPipeline : IFlitePipeline
     /// Refuses a text that cannot fit in the waveform that the limit allows, before the text analysis walks through it
     /// (a text of a megabyte takes tens of seconds to analyse and would be refused at the end otherwise).
     /// </summary>
-    private static void RefuseTextBeyondTheLimit(int textBytes, int maxSamples)
+    private static void RefuseTextBeyondTheLimit(int textBytes, int maxSamples, int sampleRate)
     {
-        long allowed = (long)maxSamples / FliteEngine.Default.SampleRate * MaxBytesPerSecond + 1024;
+        long allowed = (long)maxSamples / sampleRate * MaxBytesPerSecond + 1024;
         if (textBytes > allowed)
         {
             throw new SpeechResourceLimitException($"The text has {textBytes} bytes; the speech that is allowed holds at most {allowed} bytes of text.");

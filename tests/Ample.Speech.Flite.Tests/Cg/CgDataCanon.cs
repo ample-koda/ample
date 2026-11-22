@@ -79,6 +79,14 @@ internal static class CgDataCanon
         all[p + "mceptrees.txt"] = Trees(data.McepTrees, data.Types);
         all[p + "durcart.txt"] = Trees([data.DurationCart], ["dur"]);
         all[p + "durstats.txt"] = Latin1(string.Concat(data.DurationStats.Select(stat => $"{stat.Phone} {Hex(stat.Mean)} {Hex(stat.Stddev)}\n")));
+        if (data.Spamf0)
+        {
+            all[p + "spamf0.dims.txt"] = Latin1($"{Num(data.Spamf0AccentVectors![0].Length)} {Num(data.Spamf0AccentVectors.Count)}\n");
+            all[p + "spamf0.accent.txt"] = Trees([data.Spamf0AccentTree!], ["accent"]);
+            all[p + "spamf0.phrase.txt"] = Trees([data.Spamf0PhraseTree!], ["phrase"]);
+            all[p + "spamf0.vectors.bin"] = FloatBits([.. data.Spamf0AccentVectors.SelectMany(row => row)]);
+        }
+
         all[p + "states.txt"] = Latin1(string.Concat(data.PhoneStates.Select(states => string.Join('\t', states) + "\n")));
         return all;
     }

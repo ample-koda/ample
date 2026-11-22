@@ -181,9 +181,10 @@ public static partial class LitePolicy
         double rate = double.TryParse(WrittenText(block, "rate"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsed) ? parsed : 1;
         string engine = WrittenText(block, "engine") is { Length: > 0 } named ? named.ToLowerInvariant() : "humanico";
         bool words = string.Equals(WrittenText(block, "mode"), "words", StringComparison.OrdinalIgnoreCase);
+        string voice = WrittenText(block, "voice") is { Length: > 0 } namedVoice ? namedVoice.ToLowerInvariant() : FliteSpeechEngine.VoiceName;
         const int fullRate = 44_100;   // the rate of a build
         long span = (long)Math.Ceiling(seconds * fullRate);
-        return SpeechMemory.EstimateBlockBytes(span, WrittenText(block, "text"), WrittenText(block, "phonemes"), rate, engine, words, fullRate);
+        return SpeechMemory.EstimateBlockBytes(span, WrittenText(block, "text"), WrittenText(block, "phonemes"), rate, engine, words, fullRate, voice);
     }
 
     private static string? WrittenText(BlockNode block, string name)

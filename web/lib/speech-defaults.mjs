@@ -14,7 +14,24 @@ export const LEVEL_DEFAULT = 'matched';
 /** The pitch of the flite voice when the block does not write one. */
 export const FLITE_PITCH_DEFAULT = '95 Hz';
 
-/** The defaults to show for an engine; the written parameters win over them. */
-export function speechShown(params, engine) {
-  return { ...SPEECH_DEFAULTS, ...(engine === 'flite' ? { pitch_hz: FLITE_PITCH_DEFAULT } : {}), ...params };
+/** The clustergen voices of the flite engine: they speak text only (no phonemes, no words mode). */
+export const FLITE_CG_VOICES = ['slt', 'rms', 'awb'];
+
+/** The pitch and the pitch range of each voice of the flite engine when the block does not write them: the mean and the standard deviation of the F0 of its recording
+ * (a C# test compares these numbers with the data of the voices). */
+export const FLITE_VOICE_DEFAULTS = {
+  kal16: { pitch_hz: '95 Hz', pitch_range: '11 Hz' },
+  slt: { pitch_hz: '172 Hz', pitch_range: '27 Hz' },
+  rms: { pitch_hz: '98 Hz', pitch_range: '24 Hz' },
+  awb: { pitch_hz: '132 Hz', pitch_range: '25 Hz' },
+};
+
+/** The pitch range in Hz that words mode sings with each voice of the flite engine (measured, plan/speech/flite/x1a-pitch-range.md and cg-words.md; a C# test compares these numbers
+ * with the engine): a note outside it is sung the same note an octave or more away. */
+export const FLITE_WORDS_RANGE = { kal16: [50, 480], slt: [74, 650], rms: [55, 450], awb: [114, 486] };
+
+/** The defaults to show for an engine (and, for flite, its voice); the written parameters win over them. */
+export function speechShown(params, engine, voice = 'kal16') {
+  const own = engine === 'flite' ? FLITE_VOICE_DEFAULTS[voice] ?? FLITE_VOICE_DEFAULTS.kal16 : {};
+  return { ...SPEECH_DEFAULTS, ...own, ...params };
 }

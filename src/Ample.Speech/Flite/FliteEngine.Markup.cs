@@ -9,7 +9,7 @@ public sealed partial class FliteEngine
 {
     /// <summary>Where every token of the utterance starts in the text, in bytes: the tokens come in order, each one as prepunctuation, name and punctuation after it,
     /// with white space between.</summary>
-    private static Dictionary<Item, int> TokenStarts(Utterance u, string byteText, int cursorStart, out int cursorEnd)
+    internal static Dictionary<Item, int> TokenStarts(Utterance u, string byteText, int cursorStart, out int cursorEnd)
     {
         Dictionary<Item, int> starts = new(ReferenceEqualityComparer.Instance);
         int cursor = cursorStart;

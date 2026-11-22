@@ -8,11 +8,15 @@ import { control } from './helpers.js';
 import { selector } from '../selector.js';
 import { quoteLiteral, unquoteLiteral } from '../../../lib/string-literal.mjs';
 import { FLITE_PHONEMES, fliteProblem } from '../../../lib/flite-phones.mjs';
-import { FLITE_PITCH_DEFAULT, LEVEL_DEFAULT, speechShown } from '../../../lib/speech-defaults.mjs';
+import { FLITE_CG_VOICES, FLITE_PITCH_DEFAULT, FLITE_WORDS_RANGE, LEVEL_DEFAULT, speechShown } from '../../../lib/speech-defaults.mjs';
 
 const MODES = [['text', 'Text (a sentence)'], ['words', 'Words (one word per note)']];
 const POLICIES = [['natural', 'Natural length'], ['gate', 'Cut at the note length'], ['fit', 'Speed up to fit']];
-const ENGINES = [['humanico', 'Humanico (default)'], ['retro', 'Retro'], ['flite', 'Flite kal16']];
+// the voice choice is the engine and, for flite, its voice: flite is kal16, flite:slt (US female), flite:rms (US male) and flite:awb (Scottish male); the last three have no phonemes
+const ENGINES = [
+  ['humanico', 'Humanico (default)'], ['retro', 'Retro'], ['flite', 'Flite kal16'],
+  ['flite:slt', 'Flite slt (US female)'], ['flite:rms', 'Flite rms (US male)'], ['flite:awb', 'Flite awb (Scottish male)'],
+];
 // the pitch and the pitch range that the flite engine uses when the block does not write them
 const FLITE_PITCH = FLITE_PITCH_DEFAULT;
 // the shaping of the flite voice (lead_trim, pause_scale, brightness) and the loudness choice for every engine
@@ -35,11 +39,14 @@ export function speechPanel(context) {
     mode: plain(params.mode, 'text'),
     policy: plain(params.duration_policy, 'natural'),
     engine: plain(params.engine, 'humanico'),
+    voice: plain(params.voice, 'kal16'),
     leadTrim: plain(params.lead_trim, 'off'),
     level: plain(params.level, LEVEL_DEFAULT),
     text: plain(params.text, ''),
     phonemes: plain(params.phonemes, ''),
   };
+  state.voiceKey = state.engine === 'flite' && FLITE_CG_VOICES.includes(state.voice) ? `flite:${state.voice}` : state.engine;
+  const clustergen = () => state.engine === 'flite' && FLITE_CG_VOICES.includes(state.voice);
   const kept = drafts.get(context.block) || {};
   if (state.text === '' && kept.text) state.text = kept.text;
   if (state.phonemes === '' && kept.phonemes) state.phonemes = kept.phonemes;
@@ -51,12 +58,34 @@ export function speechPanel(context) {
     label, value: state[key], disabled: context.readOnly, choices: items.map(([value, text]) => ({ value, label: text })),
     onCommit: (value) => {
       state[key] = value;
-      const items = [{ name, value: quoteLiteral(value) }];
+      const [pickedEngine, pickedVoice = 'kal16'] = name === 'voice' ? value.split(':') : [value];
+      if (name === 'voice') { state.engine = pickedEngine; state.voice = pickedVoice; }
+      const items = [{ name: name === 'voice' ? 'engine' : name, value: quoteLiteral(name === 'voice' ? pickedEngine : value) }];
       const written = Number.parseFloat(String(params.pitch_hz ?? ''));
-      // the pitch that goes with the voice: flite sits lower than the other engines
-      if (name === 'engine' && value === 'flite' && (!Number.isFinite(written) || written === 105)) items.push({ name: 'pitch_hz', value: FLITE_PITCH });
-      if (name === 'engine' && value !== 'flite' && written === 95) items.push({ name: 'pitch_hz', value: '105 Hz' });
-      if (name === 'engine' && value !== 'flite') {
+      const writtenRange = Number.parseFloat(String(params.pitch_range ?? ''));
+      const picked = name === 'voice' ? pickedEngine : name === 'engine' ? value : null;
+      const toClustergen = picked === 'flite' && FLITE_CG_VOICES.includes(pickedVoice);
+      if (name === 'voice' && picked === 'flite') {
+        // the voice line: kal16 is what a block without one has
+        if (toClustergen) items.push({ name: 'voice', value: quoteLiteral(pickedVoice) }); else if (params.voice !== undefined) items.push({ name: 'voice', remove: true });
+      }
+      // a clustergen voice has the pitch and the range of its recording: the lines that only said the pitch of another voice go
+      if (toClustergen) {
+        if (Number.isFinite(written) && (written === 95 || written === 105)) items.push({ name: 'pitch_hz', remove: true });
+        if (Number.isFinite(writtenRange) && writtenRange === 11) items.push({ name: 'pitch_range', remove: true });
+        // they speak text and sing words, but have no phonemes: the phonemes go (the text draft comes back)
+        if (state.usePhonemes) {
+          keep();
+          state.usePhonemes = false;
+          items.push({ name: 'phonemes', remove: true });
+          if (state.text !== '') items.push({ name: 'text', value: quoteLiteral(state.text) });
+        }
+      }
+      // the pitch that goes with the voice: kal16 sits lower than the other engines
+      if (picked === 'flite' && !toClustergen && (!Number.isFinite(written) || written === 105)) items.push({ name: 'pitch_hz', value: FLITE_PITCH });
+      if (picked !== null && picked !== 'flite' && written === 95) items.push({ name: 'pitch_hz', value: '105 Hz' });
+      if (picked !== null && picked !== 'flite') {
+        state.voice = 'kal16';
         // voice and pitch_range belong to flite: the renderer refuses them next to another engine
         if (params.voice !== undefined) items.push({ name: 'voice', remove: true });
         if (params.pitch_range !== undefined) items.push({ name: 'pitch_range', remove: true });
@@ -109,7 +138,7 @@ export function speechPanel(context) {
     }));
   }
   const checkPhones = () => {
-    const flitePhones = state.engine === 'flite' && state.usePhonemes;
+    const flitePhones = state.engine === 'flite' && !clustergen() && state.usePhonemes;
     const found = flitePhones ? fliteProblem(area.value) : null;
     area.setAttribute('aria-invalid', found ? 'true' : 'false');
     phoneNote.hidden = !found;
@@ -159,7 +188,7 @@ export function speechPanel(context) {
   const render = () => {
     const fit = state.mode === 'words' && state.policy === 'fit';
     const flite = state.engine === 'flite';
-    const shown = speechShown(params, state.engine);   // an unwritten parameter shows what the block does, not the bottom of its knob
+    const shown = speechShown(params, state.engine, state.voice);   // an unwritten parameter shows what the block does, not the bottom of its knob
     modeSlot.replaceChildren(choice('Mode', 'mode', MODES, 'mode'));
     const items = [];
     if (state.mode === 'words') {
@@ -170,9 +199,10 @@ export function speechPanel(context) {
       items.push(control(context, shown, 'reference_hz', 'Reference pitch', 45, 700, 'Hz', 'log', 70));
       // the voice sings one steady pitch of 50 to 480 Hz per word; a note beyond that is sung an octave or more away (the take says so)
       if (flite) {
+        const [low, high] = FLITE_WORDS_RANGE[state.voice] ?? FLITE_WORDS_RANGE.kal16;
         items.push(el('p', {
           className: 'note speech-hint speech-flite-range',
-          textContent: 'Flite sings a pitch from 50 to 480 Hz: a note outside that range is sung an octave or more away. Every word is sung at one steady pitch.',
+          textContent: `Flite sings a pitch from ${low} to ${high} Hz: a note outside that range is sung an octave or more away. Every word is sung at one steady pitch.`,
         }));
       }
     } else {
@@ -186,14 +216,22 @@ export function speechPanel(context) {
         const shaping = [control(context, shown, 'pause_scale', 'Pause length', 0, 4, '', 'linear', 70), control(context, shown, 'brightness', 'Brightness', 0, 12, 'dB', 'linear', 70)];
         items.push(el('div', { className: 'speech-knob-row' }, shaping));
       }
-      if (flite) items.push(el('p', { className: 'note speech-hint', textContent: 'Flite (kal16) is a classic diphone voice for plain English text.' }));
+      if (flite) {
+        const hints = {
+          kal16: 'Flite (kal16) is a classic diphone voice for plain English text.',
+          slt: 'Flite slt is a statistical US English voice (female) for plain English text; it also sings words.',
+          rms: 'Flite rms is a statistical US English voice (male) for plain English text; it also sings words.',
+          awb: 'Flite awb is a statistical Scottish English voice (male) for plain English text; it also sings words.',
+        };
+        items.push(el('p', { className: 'note speech-hint', textContent: hints[state.voice] ?? hints.kal16 }));
+      }
     }
     // the rate and the gain: the rate is already next to the pitch in the text mode of the engines that have no pitch range
     const rateAbove = state.mode === 'text' && !flite;
     const rateKnob = rateAbove ? [] : [control(context, shown, 'rate', 'Rate', 0.1, 2, '', 'linear', 70)];
     items.push(el('div', { className: 'speech-knob-row' }, [...rateKnob, control(context, shown, 'gain', 'Gain', -60, 12, 'dB', 'linear', 70)]));
 
-    phonemeRow.hidden = state.mode === 'words';
+    phonemeRow.hidden = state.mode === 'words' || (clustergen() && !state.usePhonemes);   // a voice that speaks text only offers no phonemes (a block that has them can still turn them off)
     phonemeBox.checked = state.usePhonemes;
     dynamic.replaceChildren(...items);
   };
@@ -206,7 +244,7 @@ export function speechPanel(context) {
     phoneNote,
     palette,
     phonemeRow,
-    el('div', { className: 'speech-select-row' }, [choice('Voice', 'engine', ENGINES, 'engine'), modeSlot]),
+    el('div', { className: 'speech-select-row' }, [choice('Voice', 'voice', ENGINES, 'voiceKey'), modeSlot]),
     dynamic,
     choice('Loudness', 'level', LEVELS, 'level'),
   );

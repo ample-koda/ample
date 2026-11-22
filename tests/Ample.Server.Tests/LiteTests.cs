@@ -35,6 +35,20 @@ public sealed class LiteTests : IAsyncLifetime, IDisposable
     private const string SpeechHeader = "composition \"t\" { ample 1 tempo 120 master-seed 1 }\n";
 
     [Fact]
+    public async Task Slow_song_with_six_speech_blocks_builds_with_default_limits()
+    {
+        string[] engines = ["retro", "humanico", "flite", "retro", "humanico", "flite"];
+        string song = "composition \"slow\" { ample 1 tempo 60 master-seed 1 }\n"
+            + "midi-clip melody at 1 for 8 {\n notes \"1:0:1:60:100\"\n bars 8\n}\n"
+            + string.Concat(engines.Select((engine, i) => $"speech s{i} at 1 for 8 {{\n engine {engine}\n mode words\n text \"hello\"\n from melody.notes -> notes\n}}\n"))
+            + "mixer mix {\n" + string.Concat(engines.Select((_, i) => $" from s{i}.audio -> audio{i + 1}\n"))
+            + "}\nmaster out {\n from mix.audio -> audio\n}\n";
+        LiteBuildResult result = await LiteBuilder.BuildAsync(spec, home, "song.amplet", [Text("song.amplet", song)],
+            Limits, new LiteOutputs(), CancellationToken.None);
+        Assert.True(result.Ok, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
     public void Remix_speech_spans_are_counted_in_seconds_per_block_and_per_build()
     {
         // tempo 120, 4/4: one bar is two seconds
@@ -42,19 +56,19 @@ public sealed class LiteTests : IAsyncLifetime, IDisposable
         Assert.Equal("AMPL924", block.Code);
         Assert.Contains("62 seconds", block.Message, StringComparison.Ordinal);
 
-        string three = SpeechHeader + string.Concat(Enumerable.Range(0, 3).Select(i => $"speech s{i} at {1 + i * 21} for 21 {{\n text \"hello\"\n}}\n"));
+        string three = SpeechHeader + string.Concat(Enumerable.Range(0, 5).Select(i => $"speech s{i} at {1 + i * 25} for 25 {{\n text \"hello\"\n}}\n"));
         LiteRejectedException build = SpeechRefused(three);
         Assert.Equal("AMPL924", build.Code);
-        Assert.Contains("126 seconds", build.Message, StringComparison.Ordinal);
+        Assert.Contains("250 seconds", build.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void An_unplaced_speech_block_counts_as_long_as_the_build_makes_it()
     {
         // tempo 120, 4/4: bar = 2 s. A words-mode block without a placement is given 8 bars by the build (the Notes decide, not the text),
-        // so 8 blocks are 128 s, over the 120 s of a build
-        string eight = SpeechHeader + string.Concat(Enumerable.Range(0, 8).Select(i => $"speech s{i} {{\n mode \"words\"\n text \"hello\"\n}}\n"));
-        Assert.Contains("128 seconds", SpeechRefused(eight).Message, StringComparison.Ordinal);
+        // so 16 blocks are 256 s, over the 240 s of a build
+        string eight = SpeechHeader + string.Concat(Enumerable.Range(0, 16).Select(i => $"speech s{i} {{\n mode \"words\"\n text \"hello\"\n}}\n"));
+        Assert.Contains("256 seconds", SpeechRefused(eight).Message, StringComparison.Ordinal);
 
         // a bars parameter sets the length of an unplaced block (40 bars = 80 s, over the 60 s of one block)
         Assert.Contains("80 seconds", SpeechRefused(SpeechHeader + "speech a {\n bars 40\n text \"hello\"\n}\n").Message, StringComparison.Ordinal);
@@ -144,13 +158,13 @@ public sealed class LiteTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task The_real_remix_build_route_refuses_an_unplaced_speech_overrun()
     {
-        string song = SpeechHeader + string.Concat(Enumerable.Range(0, 8).Select(i => $"speech s{i} {{\n mode \"words\"\n text \"hello\"\n}}\n"))
+        string song = SpeechHeader + string.Concat(Enumerable.Range(0, 16).Select(i => $"speech s{i} {{\n mode \"words\"\n text \"hello\"\n}}\n"))
             + "master out {\n  from s0.audio -> audio\n}\n";
         LiteRejectedException error = await Assert.ThrowsAsync<LiteRejectedException>(() => LiteBuilder.BuildAsync(spec, home, "song.amplet",
             [Text("song.amplet", song)], Limits, new LiteOutputs(), CancellationToken.None));
 
         Assert.Equal("AMPL924", error.Code);
-        Assert.Contains("128 seconds", error.Message, StringComparison.Ordinal);
+        Assert.Contains("256 seconds", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -189,6 +203,21 @@ public sealed class LiteTests : IAsyncLifetime, IDisposable
 
         Assert.Equal("AMPL924", error.Code);
         Assert.Equal(413, error.Status);
+    }
+
+    [Fact]
+    public void Remix_default_accepts_sixteen_speech_blocks_and_rejects_seventeen()
+    {
+        string SongWith(int count) => SpeechHeader + string.Concat(Enumerable.Range(0, count)
+            .Select(i => $"speech s{i} at 1 for 1 {{\n text \"hello\"\n}}\n"));
+        string sixteen = SongWith(16);
+        LitePolicy.CheckSong(new Dictionary<string, string> { ["song.amplet"] = sixteen },
+            Parser.Parse(sixteen, spec), spec, LiteLimits.Default);
+        string seventeen = SongWith(17);
+        LiteRejectedException error = Assert.Throws<LiteRejectedException>(() => LitePolicy.CheckSong(
+            new Dictionary<string, string> { ["song.amplet"] = seventeen }, Parser.Parse(seventeen, spec), spec, LiteLimits.Default));
+        Assert.Equal("AMPL924", error.Code);
+        Assert.Contains("16 speech blocks", error.Message, StringComparison.Ordinal);
     }
 
     private static readonly LiteLimits Limits = LiteLimits.Default;

@@ -69,8 +69,27 @@ public static class FliteSpeechEngine
     /// <summary>Gets the duration stretch at which the rate of a block is 1 (Flite <c>duration_stretch</c> of the voice).</summary>
     public const double ReferenceStretch = 1.1;
 
-    /// <summary>Gets the only voice.</summary>
+    /// <summary>Gets the voice that a block has when it does not name one (a diphone voice).</summary>
     public const string VoiceName = "kal16";
+
+    /// <summary>Gets the voices of the engine: <c>kal16</c> (diphone) and the clustergen voices <c>slt</c> (US female), <c>rms</c> (US male) and <c>awb</c> (Scottish male).</summary>
+    public static IReadOnlyList<string> Voices { get; } = ["kal16", "slt", "rms", "awb"];
+
+    /// <summary>Gets a value indicating whether the voice is one of the clustergen voices (speaks text and the markup, but no phonemes and no words mode).</summary>
+    /// <param name="voice">The name of the voice.</param>
+    public static bool IsClustergen(string voice) => voice is "slt" or "rms" or "awb";
+
+    /// <summary>Gets the identity of the takes that a voice makes: the Flite source, the converted data and the version of the translation.</summary>
+    /// <param name="voice">The name of the voice.</param>
+    public static string IdentityOf(string voice) => IsClustergen(voice) ? Flite.Cg.FliteCgVoiceData.IdentityOf(voice) + "/cs1" : Identity;
+
+    /// <summary>Gets the pitch (the mean of the F0 in Hz) that a voice has when a block does not say: 95 Hz for kal16, the mean of the recording for a clustergen voice.</summary>
+    /// <param name="voice">The name of the voice.</param>
+    public static double DefaultPitchHzOf(string voice) => IsClustergen(voice) ? Flite.Cg.FliteCgVoiceData.Embedded(voice).F0Mean : DefaultPitchHz;
+
+    /// <summary>Gets the pitch range (the standard deviation of the F0 in Hz) that a voice has when a block does not say: 11 Hz for kal16, the value of the recording for a clustergen voice.</summary>
+    /// <param name="voice">The name of the voice.</param>
+    public static double DefaultPitchRangeHzOf(string voice) => IsClustergen(voice) ? Flite.Cg.FliteCgVoiceData.Embedded(voice).F0Stddev : DefaultPitchRangeHz;
 
     /// <summary>Gets the identity of takes made by this engine: the Flite source, the converted data and the version of the translation. A change invalidates cached takes.</summary>
     public const string Identity = FliteDataIdentity.Value + "/cs4";
@@ -81,11 +100,31 @@ public static class FliteSpeechEngine
     /// <summary>Gets the highest pitch in Hz that words mode sings: below it every measured word is clean (<see cref="FliteEngine.SafeMaxF0Hz"/>, plan/speech/flite/x1a-pitch-range.md).</summary>
     public const double WordsMaxPitchHz = FliteEngine.SafeMaxF0Hz;
 
+    /// <summary>Gets the lowest pitch in Hz that words mode sings with a voice: kal16 from 50 Hz, the clustergen voices from the pitch below which the vocoder of the voice
+    /// wraps around in measured words (slt 74, awb 114) or from the lowest measured pitch (rms 55); see plan/speech/flite/x1a-pitch-range.md and cg-words.md.</summary>
+    /// <param name="voice">The voice.</param>
+    public static double WordsMinPitchHzOf(string voice) => voice switch { "slt" => 74, "rms" => 55, "awb" => 114, _ => WordsMinPitchHz };
+
+    /// <summary>Gets the highest pitch in Hz that words mode sings with a voice: kal16 up to 480 Hz, the clustergen voices up to the pitch at which every measured word is still followed
+    /// within 50 cents (slt 650, rms 450, awb 486).</summary>
+    /// <param name="voice">The voice.</param>
+    public static double WordsMaxPitchHzOf(string voice) => voice switch { "slt" => 650, "rms" => 450, "awb" => 486, _ => WordsMaxPitchHz };
+
+    internal static Flite.Cg.FliteCgEngine CgEngineOf(string voice) => ((FliteCgPipeline)PipelineOf(voice)).Engine;
+
     private const int WordFadeInSamples = 32;
     private const int WordFadeOutSamples = 64;
 
     private static readonly Lazy<IFlitePipeline> Shared = new(() => new FliteDefaultPipeline(), LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<IFlitePipeline>> CgShared = new(StringComparer.Ordinal);
     private static readonly FliteRenderCache Cache = new(capacity: 4, maxSamples: 2_000_000);
+
+    private static IFlitePipeline PipelineOf(string voice)
+    {
+        if (voice == VoiceName) return Shared.Value;
+        if (!IsClustergen(voice)) throw new ArgumentOutOfRangeException(nameof(voice), "The voices of the flite engine are kal16, slt, rms and awb.");
+        return CgShared.GetOrAdd(voice, name => new Lazy<IFlitePipeline>(() => new FliteCgPipeline(name), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+    }
 
     /// <summary>Speaks the text of the request.</summary>
     /// <param name="request">The request; <see cref="SpeechRequest.Engine"/> must be <c>flite</c>.</param>
@@ -94,7 +133,7 @@ public static class FliteSpeechEngine
     /// <exception cref="ArgumentException">The request is not valid for this engine.</exception>
     /// <exception cref="SpeechResourceLimitException">The speech needs more than the request allows.</exception>
     public static SpeechResult Render(SpeechRequest request, CancellationToken cancellationToken = default) =>
-        Render(request, Shared.Value, useCache: true, cancellationToken);
+        Render(request, PipelineOf(request.Voice), useCache: true, cancellationToken);
 
     /// <summary>Plans a request for its length: the render itself, or the memo of a render that was made a moment ago.</summary>
     /// <param name="request">The request.</param>
@@ -127,12 +166,13 @@ public static class FliteSpeechEngine
     /// </summary>
     /// <param name="pitchHz">The pitch the note asks for, in Hz (above 0).</param>
     /// <returns>The pitch to sing, and whether it was moved.</returns>
-    public static (double Hz, bool Folded) FoldPitch(double pitchHz)
+    /// <param name="voice">The voice; each has its own range (<see cref="WordsMinPitchHzOf"/>, <see cref="WordsMaxPitchHzOf"/>).</param>
+    public static (double Hz, bool Folded) FoldPitch(double pitchHz, string voice = VoiceName)
     {
         if (!double.IsFinite(pitchHz) || pitchHz <= 0) throw new ArgumentOutOfRangeException(nameof(pitchHz), "The pitch must be a number above 0 Hz.");
-        double hz = pitchHz;
-        while (hz > WordsMaxPitchHz) hz /= 2;
-        while (hz < WordsMinPitchHz) hz *= 2;
+        double min = WordsMinPitchHzOf(voice), max = WordsMaxPitchHzOf(voice), hz = pitchHz;
+        while (hz > max) hz /= 2;
+        while (hz < min) hz *= 2;
         return (hz, hz != pitchHz);
     }
 
@@ -159,30 +199,54 @@ public static class FliteSpeechEngine
     /// <param name="userLexicon">The words of the block that have their own phones or are spelled, or null.</param>
     /// <param name="cancellationToken">Cancels the render between steps.</param>
     /// <returns>The samples at 16 kHz; empty when the word has no sound.</returns>
-    public static short[] RenderWord(string word, double pitchHz, double rate, long maxSamples, Flite.Lexicon.FliteUserLexicon? userLexicon, CancellationToken cancellationToken = default)
+    public static short[] RenderWord(string word, double pitchHz, double rate, long maxSamples, Flite.Lexicon.FliteUserLexicon? userLexicon, CancellationToken cancellationToken = default) =>
+        RenderWord(word, pitchHz, rate, maxSamples, userLexicon, VoiceName, cancellationToken);
+
+    /// <summary>Speaks one word on one pitch with a voice (kal16 or a clustergen voice), with the words of the block that have their own phones or are spelled.</summary>
+    /// <param name="word">The word, as written in the text of the block.</param>
+    /// <param name="pitchHz">The pitch in Hz, from <see cref="WordsMinPitchHzOf"/> to <see cref="WordsMaxPitchHzOf"/> of the voice.</param>
+    /// <param name="rate">The speaking rate, from 0.1 to 2.</param>
+    /// <param name="maxSamples">The most samples at 16 kHz the word may take; 0 is no limit.</param>
+    /// <param name="userLexicon">The words of the block that have their own phones or are spelled, or null.</param>
+    /// <param name="voice">The voice: kal16 or a clustergen voice (slt, rms, awb).</param>
+    /// <param name="cancellationToken">Cancels the render between steps.</param>
+    /// <returns>The samples at 16 kHz; empty when the word has no sound.</returns>
+    public static short[] RenderWord(string word, double pitchHz, double rate, long maxSamples, Flite.Lexicon.FliteUserLexicon? userLexicon, string voice,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(word);
-        if (!double.IsFinite(pitchHz) || pitchHz < WordsMinPitchHz || pitchHz > WordsMaxPitchHz)
-            throw new ArgumentOutOfRangeException(nameof(pitchHz), $"The pitch of a word must be from {WordsMinPitchHz} to {WordsMaxPitchHz} Hz.");
+        double minHz = WordsMinPitchHzOf(voice), maxHz = WordsMaxPitchHzOf(voice);
+        if (!double.IsFinite(pitchHz) || pitchHz < minHz || pitchHz > maxHz)
+            throw new ArgumentOutOfRangeException(nameof(pitchHz), $"The pitch of a word must be from {minHz} to {maxHz} Hz.");
         if (!double.IsFinite(rate) || rate is < 0.1 or > 2) throw new ArgumentOutOfRangeException(nameof(rate), "The rate must be from 0.1 to 2.");
         cancellationToken.ThrowIfCancellationRequested();
         string token = string.Concat(word.Where(c => !char.IsWhiteSpace(c)));
         if (token.Length == 0) return [];
         int limit = maxSamples is <= 0 or > int.MaxValue ? FliteOptions.DefaultMaxSamples : (int)maxSamples;
-        FliteWordResult made;
+        short[] all;
+        int wordStart, wordEnd;
         try
         {
-            made = FliteEngine.Default.RenderWord(token, (float)pitchHz, (float)(ReferenceStretch / rate), limit, userLexicon, cancellationToken);
+            if (IsClustergen(voice))
+            {
+                Flite.Cg.FliteCgWordResult cg = CgEngineOf(voice).RenderWord(token, (float)pitchHz, (float)(1.0 / rate), limit, userLexicon, cancellationToken);
+                (all, wordStart, wordEnd) = (cg.Samples, cg.WordStartSample, cg.WordEndSample);
+            }
+            else
+            {
+                FliteWordResult made = FliteEngine.Default.RenderWord(token, (float)pitchHz, (float)(ReferenceStretch / rate), limit, userLexicon, cancellationToken);
+                (all, wordStart, wordEnd) = (made.Samples, made.WordStartSample, made.WordEndSample);
+            }
         }
         catch (FliteRenderException)
         {
             return [];   // a token without anything to say (only punctuation)
         }
 
-        if (made.Samples.Length == 0) return [];
-        int from = Math.Clamp(made.WordStartSample, 0, made.Samples.Length);
-        int to = Math.Clamp(made.WordEndSample, from, made.Samples.Length);
-        short[] sound = made.Samples[from..to];
+        if (all.Length == 0) return [];
+        int from = Math.Clamp(wordStart, 0, all.Length);
+        int to = Math.Clamp(wordEnd, from, all.Length);
+        short[] sound = all[from..to];
         FadeEnds(sound);
         return sound;
     }
@@ -212,14 +276,33 @@ public static class FliteSpeechEngine
     /// <param name="cancellationToken">Cancels the render between steps.</param>
     /// <returns>The samples at 16 kHz.</returns>
     public static short[] RenderSungWord(string word, double requestedHz, double rate, long maxSamples, Flite.Lexicon.FliteUserLexicon? userLexicon, out double sungHz,
+        CancellationToken cancellationToken = default) =>
+        RenderSungWord(word, requestedHz, rate, maxSamples, userLexicon, VoiceName, out sungHz, cancellationToken);
+
+    /// <summary>Sings a word on a note with a voice (kal16 or a clustergen voice): the pitch is folded into the range of the voice, and a word that wraps around is sung an octave away.</summary>
+    /// <param name="word">The word, as written in the text of the block.</param>
+    /// <param name="requestedHz">The pitch of the note in Hz (above 0).</param>
+    /// <param name="rate">The speaking rate, from 0.1 to 2.</param>
+    /// <param name="maxSamples">The most samples at 16 kHz the word may take; 0 is no limit.</param>
+    /// <param name="userLexicon">The words of the block that have their own phones or are spelled, or null.</param>
+    /// <param name="voice">The voice: kal16 or a clustergen voice (slt, rms, awb).</param>
+    /// <param name="sungHz">The pitch that was sung: the note, or the note moved by whole octaves.</param>
+    /// <param name="cancellationToken">Cancels the render between steps.</param>
+    /// <returns>The samples at 16 kHz.</returns>
+    public static short[] RenderSungWord(string word, double requestedHz, double rate, long maxSamples, Flite.Lexicon.FliteUserLexicon? userLexicon, string voice, out double sungHz,
         CancellationToken cancellationToken = default)
     {
-        (double hz, _) = FoldPitch(requestedHz);
-        short[] sound = RenderWord(word, hz, rate, maxSamples, userLexicon, cancellationToken);
-        while (HasWrapAround(sound) && hz / 2 >= WordsMinPitchHz)
+        (double hz, _) = FoldPitch(requestedHz, voice);
+        short[] sound = RenderWord(word, hz, rate, maxSamples, userLexicon, voice, cancellationToken);
+        // a word that wraps around is sung an octave away, towards the safe side first: kal16 wraps at the top of its range (down), the clustergen voices at the bottom (up)
+        double min = WordsMinPitchHzOf(voice), max = WordsMaxPitchHzOf(voice);
+        foreach (double step in IsClustergen(voice) ? new[] { 2.0, 0.5 } : new[] { 0.5, 2.0 })
         {
-            hz /= 2;
-            sound = RenderWord(word, hz, rate, maxSamples, userLexicon, cancellationToken);
+            while (HasWrapAround(sound) && hz * step >= min && hz * step <= max)
+            {
+                hz *= step;
+                sound = RenderWord(word, hz, rate, maxSamples, userLexicon, voice, cancellationToken);
+            }
         }
 
         sungHz = hz;
@@ -258,7 +341,7 @@ public static class FliteSpeechEngine
         FliteSettings settings = SettingsOf(request);
         FliteRender render;
         string phones = request.Phonemes is { Length: > 0 } ? FlitePhoneTable.Translate(request.Phonemes) : string.Empty;
-        string key = string.Join('\u0001', phones.Length > 0 ? "phones:" + phones : request.Text, settings.User?.Canonical ?? string.Empty,
+        string key = string.Join('\u0001', request.Voice, phones.Length > 0 ? "phones:" + phones : request.Text, settings.User?.Canonical ?? string.Empty,
             settings.DurationStretch.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
             settings.F0Mean.ToString("R", System.Globalization.CultureInfo.InvariantCulture), settings.F0Stddev.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
         if (!useCache || !Cache.TryGet(key, settings.MaxSamples, out render))
@@ -272,7 +355,7 @@ public static class FliteSpeechEngine
         cancellationToken.ThrowIfCancellationRequested();
         render = FliteShaping.Shape(render, request.LeadTrim, request.PauseScale);   // after the cache and after the exact render: never inside the pipeline
         render = FliteShaping.InsertBreaks(render);   // the pauses of the markup are exactly as long as written: after the lead and the pause scale
-        if (render.Samples.Length == 0) return new([], request.SampleRate, [], Identity) { Spans = [] };
+        if (render.Samples.Length == 0) return new([], request.SampleRate, [], IdentityOf(request.Voice)) { Spans = [] };
         long outputSamples = ((long)render.Samples.Length * request.SampleRate + InternalRate / 2) / InternalRate;
         if (outputSamples > int.MaxValue || request.MaxOutputSamples > 0 && outputSamples > request.MaxOutputSamples)
             throw new SpeechResourceLimitException($"Speech output needs {outputSamples} samples, exceeding the configured limit.");
@@ -287,12 +370,12 @@ public static class FliteSpeechEngine
             spans.Add(new(word.Name, word.TextFrom, word.TextTo));
         }
 
-        return new(output, request.SampleRate, timings, Identity) { Spans = spans };
+        return new(output, request.SampleRate, timings, IdentityOf(request.Voice)) { Spans = spans };
     }
 
     internal static FliteSettings SettingsOf(SpeechRequest request)
     {
-        double stretch = ReferenceStretch / request.Rate;
+        double stretch = (IsClustergen(request.Voice) ? 1.0 : ReferenceStretch) / request.Rate;   // 1.1 is the speed of kal16, 1 the speed of a clustergen voice
         long max = 0;
         // the working budget of a request counts samples at 10 kHz (Humanico); the same number of seconds is allowed here
         if (request.MaxWorkingSamples > 0) max = (long)request.MaxWorkingSamples * InternalRate / 10_000;
@@ -310,7 +393,9 @@ public static class FliteSpeechEngine
     private static void Validate(SpeechRequest request)
     {
         if (request.Engine != "flite") throw new ArgumentException("The engine of the request is not flite.", nameof(request));
-        if (request.Voice != VoiceName) throw new ArgumentOutOfRangeException(nameof(request), "The only voice of the flite engine is kal16.");
+        if (!Voices.Contains(request.Voice)) throw new ArgumentOutOfRangeException(nameof(request), "The voices of the flite engine are kal16, slt, rms and awb.");
+        if (IsClustergen(request.Voice) && request.Phonemes is { Length: > 0 })
+            throw new ArgumentException($"The voice {request.Voice} speaks text: phonemes belong to the voice kal16.", nameof(request));
         if (request.Phonemes is { Length: > 0 } && request.Text.Length > 0) throw new ArgumentException("Give text or phonemes, never both.", nameof(request));
         if (request.Phonemes is { Length: > 0 } && (!string.IsNullOrWhiteSpace(request.Lexicon) || !string.IsNullOrWhiteSpace(request.Spell)))
             throw new ArgumentException("The lexicon and spell work on a text, not on phonemes.", nameof(request));

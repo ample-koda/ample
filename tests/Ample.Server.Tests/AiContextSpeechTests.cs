@@ -33,7 +33,7 @@ public sealed class AiContextSpeechTests
     {
         string text = SpeechHowTo("local speech");
 
-        foreach (string expected in new[] { "text OR phonemes", "never empty", "AMP5351", "AMPL924", "mode \"words\"", "duration_policy", "at most 4", "8 speech blocks", "60 seconds", "4096 characters" })
+        foreach (string expected in new[] { "text OR phonemes", "never empty", "AMP5351", "AMPL924", "mode \"words\"", "duration_policy", "at most 4", "16 speech blocks", "60 seconds", "4096 characters" })
             Assert.Contains(expected, text, StringComparison.Ordinal);
         Assert.DoesNotContain("xtts", text, StringComparison.OrdinalIgnoreCase);   // the non-commercial model is never suggested here
     }

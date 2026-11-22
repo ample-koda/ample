@@ -450,11 +450,14 @@ public sealed class SpeechRendererTests : IDisposable
 
         Assert.Contains("retro/formant-2", renderer.ToolprintJson);
         Assert.Contains("splitmix64-formant-glottal-linear-resample", renderer.ToolprintJson);
-        Assert.Contains("\"algorithmVersion\":8", renderer.ToolprintJson);
+        Assert.Contains("\"algorithmVersion\":9", renderer.ToolprintJson);
         Assert.Contains("SplitMix64/ample-2", renderer.ToolprintJson);
         Assert.Contains("\"wordsMixVoiceHeadroom\":4", renderer.ToolprintJson);
         Assert.Contains("\"speechLevels\":{\"retro\":5,\"humanico\":0,\"flite\":-3}", renderer.ToolprintJson);   // a change of an offset changes the toolprint, so matched takes are made again
-        Assert.Equal("1.8", renderer.Version);
+        Assert.Equal("1.9", renderer.Version);
+        // the voices of the engine and the hash of the data of each clustergen voice are part of what a take stands on
+        Assert.Contains("\"fliteVoices\":[\"kal16\",\"slt\",\"rms\",\"awb\"]", renderer.ToolprintJson);
+        Assert.Contains(Ample.Speech.Flite.Cg.FliteCgDataIdentity.Sha256["slt"], renderer.ToolprintJson);
         Assert.Contains(HumanicoReferenceManifest.PinnedFixture.DictionarySha256, renderer.ToolprintJson);
         Assert.Contains(HumanicoReferenceManifest.PinnedFixture.UpstreamRevision, renderer.ToolprintJson);
     }
@@ -1137,4 +1140,82 @@ public sealed class SpeechRendererTests : IDisposable
         Assert.Contains("text mode", error.Message, StringComparison.Ordinal);
     }
 
+
+    [Theory]
+    [InlineData("slt")]
+    [InlineData("rms")]
+    [InlineData("awb")]
+    public async Task A_clustergen_voice_speaks_text_with_its_own_identity_and_the_pitch_of_its_recording(string voice)
+    {
+        IReadOnlyList<RenderOutput> made = await RenderTextBlockAsync("flite", ("voice", $"\"{voice}\""), ("text", "\"Hello world, 12 monkeys.\""));
+        IReadOnlyList<RenderOutput> kal = await RenderTextBlockAsync("flite");
+
+        Assert.NotEqual(kal[0].Data, made[0].Data);
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(made[0].MetadataJson!);
+        System.Text.Json.JsonElement speech = document.RootElement.GetProperty("speech");
+        Assert.Contains("cmu_us_" + voice, speech.GetProperty("engine").GetString(), StringComparison.Ordinal);
+        Assert.Equal("flite-clustergen-mlsa-linear-resample", speech.GetProperty("algorithm").GetString());
+        Assert.Equal(voice, speech.GetProperty("fliteVoice").GetString());
+        Assert.Equal(Ample.Speech.Flite.Cg.FliteCgDataIdentity.Sha256[voice], speech.GetProperty("fliteVoiceDataSha256").GetString());
+        Assert.Equal(WordPlaces(kal[0]).Length, WordPlaces(made[0]).Length);   // the same words are spoken, whatever the voice
+        // a block that writes the pitch and the range of the recording is the same take as one that writes none (nothing is set on the utterance in either case)
+        IReadOnlyList<RenderOutput> written = await RenderTextBlockAsync("flite", ("voice", $"\"{voice}\""), ("text", "\"Hello world, 12 monkeys.\""),
+            ("pitch_hz", Ample.Speech.FliteSpeechEngine.DefaultPitchHzOf(voice).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("pitch_range", Ample.Speech.FliteSpeechEngine.DefaultPitchRangeHzOf(voice).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal(made[0].Data, written[0].Data);
+    }
+
+    [Theory]
+    [InlineData("\"nobody\"", "must be kal16, slt, rms or awb")]
+    [InlineData("\"awb\" phonemes", "belong to the voice kal16")]
+    public async Task The_voices_of_the_flite_engine_are_checked(string spec, string message)
+    {
+        string[] parts = spec.Split(' ');
+        BlockNode block = new() { Type = "speech", Name = "voice" };
+        block.Parameters.Add(new Parameter("engine", "\"flite\"", 0));
+        block.Parameters.Add(new Parameter("voice", parts[0], 0));
+        if (parts.Length == 1) block.Parameters.Add(new Parameter("text", "\"hello\"", 0));
+        else block.Parameters.Add(new Parameter("phonemes", "\"HH AH0 L OW1\"", 0));
+        RenderRequest request = new(block, EngineRig.Spec.Templates["speech"], 22_050, 88_200, 1, 1, new HashSet<int> { 1 }, new Dictionary<string, byte[]>(), 17, folder);
+        AmpleException error = await Assert.ThrowsAsync<AmpleException>(async () =>
+            await BuiltInRenderers.All.Single(renderer => renderer.BlockType == "speech").RenderAsync(request, CancellationToken.None));
+
+        Assert.Equal("AMP5351", error.DiagnosticCode);
+        Assert.Contains(message, error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("slt")]
+    [InlineData("rms")]
+    [InlineData("awb")]
+    public async Task A_clustergen_voice_sings_one_word_on_each_note_and_the_take_says_what_it_moved(string voice)
+    {
+        // 220 Hz at note 57 (the block default reference is 105 Hz at note 60: the notes ask for 88.5, 105, 132 Hz and for note 100 about 958 Hz and note 12 about 3 Hz)
+        string notes = NoteJson([(0, 1, 60), (1, 1, 64), (2, 1, 67), (3, 1, 100), (4, 1, 12)]);
+        IReadOnlyList<RenderOutput> made = await RenderWordsAsync("one two three high low", notes, "natural", 22_050, "flite", samplesPerBar: 44_100 * 3, extra: [("voice", $"\"{voice}\"")]);
+
+        short[] samples = Wav.Decode(made.Single().Data).Samples;
+        Assert.True(samples.Any(sample => Math.Abs(sample) > 1000), "the voice is audible");
+        using System.Text.Json.JsonDocument json = System.Text.Json.JsonDocument.Parse(made.Single().MetadataJson!);
+        System.Text.Json.JsonElement speech = json.RootElement.GetProperty("speech");
+        Assert.Contains("cmu_us_" + voice, speech.GetProperty("engine").GetString(), StringComparison.Ordinal);
+        Assert.Equal(5, speech.GetProperty("words").GetArrayLength());
+        int[] folded = [.. speech.GetProperty("warnings").EnumerateArray().Where(w => w.GetProperty("Kind").GetString() == "pitch-folded").Select(w => w.GetProperty("WordIndex").GetInt32())];
+        Assert.Contains(3, folded);   // about 958 Hz is above the range of every voice
+        Assert.Contains(4, folded);   // about 3 Hz is below it
+    }
+
+    [Fact]
+    public async Task The_memory_estimate_is_above_what_a_clustergen_voice_allocates()
+    {
+        string text = string.Concat(Enumerable.Repeat("The quick brown fox jumps over the lazy dog. ", 8));
+        _ = await RenderTextBlockAsync("flite", ("voice", "\"slt\""), ("text", "\"warm up the caches.\""));
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        short[] samples = Wav.Decode((await RenderTextBlockAsync("flite", ("voice", "\"slt\""), ("text", $"\"{text}\"")))[0].Data).Samples;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        long estimate = Ample.Speech.SpeechMemory.EstimateBlockBytes(samples.Length, text, null, 1, "flite", wordsMode: false, 22_050, "slt");
+
+        Assert.True(allocated <= estimate, $"slt allocated {allocated} bytes, the estimate says {estimate}");
+        Assert.True(estimate > Ample.Speech.SpeechMemory.EstimateBlockBytes(samples.Length, text, null, 1, "flite", wordsMode: false, 22_050), "a clustergen voice costs more than kal16");
+    }
 }

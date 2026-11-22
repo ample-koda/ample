@@ -1,0 +1,341 @@
+hello
+world
+music
+rhythm
+melody
+harmony
+tempo
+bass
+drums
+guitar
+piano
+chorus
+verse
+bridge
+synthesizer
+computer
+speech
+voice
+sound
+silence
+quick
+brown
+fox
+jumps
+over
+lazy
+dog
+about
+through
+thought
+enough
+knight
+island
+colonel
+choir
+psalm
+quay
+yacht
+queue
+receipt
+wednesday
+february
+library
+vegetable
+comfortable
+chocolate
+beautiful
+different
+Hello.
+Yes!
+No?
+Xylophonist
+Kwazimodo
+Nguyen
+Myskelin
+Tirnel
+Koda
+Zxqvt
+Bleeblorp
+Quuxify
+Splorchington
+Przybylski
+Szczepanski
+Worcestershire
+Llanfairpwllgwyngyll
+Hyperdimensional
+Antidisestablishmentarianism
+Floccinaucinihilipilification
+Thermonuclear
+Cryptozoological
+Gnocchi
+Beethoven
+Tchaikovsky
+Rachmaninoff
+Stravinsky
+Dvorak
+Mussorgsky
+Shostakovich
+Pythagorean
+Mnemonic
+Pterodactyl
+Zeitgeist
+Schadenfreude
+Quetzalcoatl
+Xanthippe
+Yggdrasil
+blorpified
+unglorbable
+ample-koda
+dev-ops
+re-render
+sub-bass
+half-time
+kick-snare
+0
+1
+2
+7
+10
+11
+12
+13
+19
+20
+21
+30
+42
+99
+100
+101
+110
+999
+1000
+1,000
+1,234,567
+10000
+2026
+1999
+2000
+1984
+1900
+3.14
+0.5
+-5
++7
+1/2
+3/4
+1st
+2nd
+3rd
+4th
+11th
+21st
+100th
+555-1234
+$4.50
+$1,000
+5%
+50%
+100%
+12:30
+5 p.m.
+10/11/2026
+1.2.3
+123456789012
+007
+I counted 1 2 3 4 5 6 7 8 9 10.
+The year 2026 has 365 days.
+Call 555 0199 now.
+The score was 3 to 2.
+It costs $19.99 plus 6% tax.
+Bar 4 at 120 bpm in 4/4 time.
+May 3rd, 2026
+Friday, November 20th
+The meeting is on 20 Nov 2026 at 6:30 p.m.
+Born on 1 January 1970.
+In the 1990s and the 2000s.
+From 9 to 5, Monday to Friday.
+Version 0.1.25 was released on 2026-11-18.
+Q3 2026
+Chapter 12, page 345.
+Track 07 of 14.
+Dr. Smith met Mr. Jones on St. James Street.
+Mrs. Brown lives at 5 Oak Ave.
+The U.S.A. and the U.K.
+NASA and the FBI.
+CPU, GPU and RAM.
+AMPLE is written in C#.
+Use e.g. a chord, i.e. three notes.
+Prof. Lee, Ph.D., works at M.I.T.
+The USB port is on the left.
+He lives in Washington, D.C.
+Approx. 5 km, i.e. about 3 mi.
+etc.
+Inc. and Ltd.
+Sgt. Pepper
+The CD, the DVD and the LP.
+MIDI and OSC.
+FM and AM radio.
+Mt. Everest
+vs.
+No. 5
+Is this a question?
+This is an exclamation!
+Wait... what?
+Yes, no, maybe, perhaps.
+First: one; second: two.
+He said, "Hello there."
+(This is in parentheses.)
+A well-known, long-standing rule.
+Hello -- goodbye.
+Up/down and left/right.
+Really?!
+"Quoted."
+'Single quoted.'
+Cats & dogs.
+One + one = two.
+A_b_c
+Tom's book and the dogs' bones.
+Don't, won't, can't, shouldn't.
+It's 5 o'clock.
+Rock'n'roll
+Hello, World!
+end.
+...
+!
+?
+,
+a, b, c, d, e.
+Comma, then, many, commas, here.
+The quick brown fox jumps over the lazy dog.
+She sells sea shells by the sea shore.
+How much wood would a woodchuck chuck if a woodchuck could chuck wood?
+Peter Piper picked a peck of pickled peppers.
+To be, or not to be, that is the question.
+All that glitters is not gold.
+A stitch in time saves nine.
+Music is the universal language of mankind.
+The melody rises slowly and falls again.
+Please turn the volume down a little.
+The kick drum enters on the first beat of the second bar.
+Sing a song of sixpence, a pocket full of rye.
+AMPLE writes music as code, builds it, and lets you hear it.
+Open the file, change the tempo, and build the song again.
+The bass plays a low C sharp while the strings hold a chord.
+Listen to the reverb tail fade into silence.
+What time is it in London right now?
+I read the book, and then I read it again.
+They were there, and their coats were over there.
+Read the red book that I read yesterday.
+The wind will wind around the bend.
+I will live where the live music is.
+He will lead the band with a lead pipe.
+Close the door; it is too close.
+There is a record player to record the record.
+A bass on the bass line caught a bass.
+The dove dove into the bushes.
+Tear the paper and wipe the tear.
+Do you object to this object?
+She wound the bandage around the wound.
+I saw the saw and the sawyer.
+Content with the content of the box.
+Once upon a time, in a small village at the edge of a great forest, there lived a musician who could play every instrument that was ever made, and who spent her evenings teaching the children of the village how to listen.
+The history of electronic music begins long before the first synthesizer, with experiments in tape, tuning forks and wires, and it continues today in every laptop, every phone and every small room where someone is making a sound for the first time.
+When you build a song, the engine reads the text, resolves every block, renders each one to audio, mixes them together according to the arrangement, and writes the result to a file that you can play, share or load into another program.
+In the beginning there was silence, and then a single note, and then another, and slowly, over many bars, the notes found each other and became a melody that nobody had planned and everybody recognised.
+It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife; however little known the feelings or views of such a man may be on his first entering a neighbourhood.
+Four score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal.
+The tempo of the song is one hundred and twenty beats per minute, the time signature is four four, and the key is A minor, so the first chord of the verse is A minor followed by F major, C major and G major.
+If you hold the key down for a long time the note will sustain, but if you release it quickly the sound will stop at once, which is why the envelope of the instrument matters as much as its waveform.
+A voice made from a diphone database is built by cutting recorded speech into pieces that run from the middle of one sound to the middle of the next, and then joining those pieces in the order the text asks for.
+The weather today is mostly sunny with a light breeze from the west, a high of twenty two degrees, and a small chance of rain in the late evening, so you may want to bring a coat, just in case.
+One, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen, twenty, and then the count begins all over again.
+Please speak clearly. Please speak slowly. Please repeat the number once more. Thank you. That is correct. Goodbye.
+Is it a bird? Is it a plane? No! It is a very small robot with a very large voice, and it wants to sing.
+He opened the door, looked left, looked right, shrugged, closed the door, and went back to bed, and nobody ever found out what he had seen.
+The committee, having considered the proposal, the amendments, the objections and the supporting evidence, decided, by a narrow majority, to postpone the vote until the next meeting.
+Colourless green ideas sleep furiously, while the quick brown fox, who had been sleeping all along, jumps over the lazy dog and runs away into the cold grey morning.
+Zero point one two three, four five six, seven eight nine; and then ten, a hundred, a thousand, a million, and a billion.
+In 2026 the project reached version 0.1.25 with 3923 files, 5 languages, 79 blocks and, as of 20 November, a speech block that can read plain text aloud in a classic synthetic voice.
+Words, words, words, words, words, words, words, words, words, words, words, words, words, words, words, words, words, words, words, words.
+Peter, Paul and Mary walked from Paris to Prague, passing Pisa, Prato and Padua on the way, and picked up Pablo in Porto, but Percy and Penelope preferred to take the plane.
+
+   
+.
+a
+I
+A
+x
+"
+'
+-
+--
+&
+@
+#
+%
+*
+~
+(
+)
+[]
+{}
+<>
+/
+\
+|
+1
+a b
+aa bb cc
+AAA
+aaa
+Aaa
+ALL CAPS HERE
+mIxEd CaSe
+tab	separated	words
+two  spaces   here
+trailing spaces   
+   leading spaces
+http://example.com/path?x=1
+me@example.org
+C:\Users\name
+x = y + 2
+3 < 5 > 2
+a.b.c.d
+A.B.C.
+U N I X
+1 2 3
+café
+naïve
+über
+señor
+“quotes”
+dash – here
+€5
+£5
+© 2026
+中文
+🎵
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+the the the the the the the the the the
+a;b;c
+a:b:c
+a,b,c
+1,2,3
+Mr. Mrs. Dr. St. Jr.
+wow
+hmm
+uh
+um
+ah
+oh
+okay
+OK
+ok
+yeah
+nope
+shh
+psst
+brr
+ugh
