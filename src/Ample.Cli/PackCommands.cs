@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.Diagnostics;
 using Ample.Audio.IO;
 
 namespace Ample.Cli;
@@ -142,9 +141,7 @@ internal static class PackCommands
         {
             if (OperatingSystem.IsWindows())
             {
-                using Process junction = Process.Start(new ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true, ArgumentList = { "/d", "/c", "mklink", "/J", destination, source } })!;
-                junction.WaitForExit();
-                if (junction.ExitCode != 0) throw new IOException("Windows could not create the pack junction.");
+                if (!Junction.TryCreate(destination, source)) throw new IOException("Windows could not create the pack junction (a folder name with a quote or a percent sign cannot be linked).");
             }
             else
             {
