@@ -532,6 +532,11 @@ internal sealed partial class AiService
             bool benchmarking = bytes[0] == 198 && bytes[1] is 18 or 19;
             return bytes[0] is not (0 or 10 or 127) && !(bytes[0] == 169 && bytes[1] == 254) && !(bytes[0] == 172 && bytes[1] is >= 16 and <= 31) && !(bytes[0] == 192 && bytes[1] == 168) && !(bytes[0] == 100 && bytes[1] is >= 64 and <= 127) && !documentation && !benchmarking && bytes[0] < 224;
         }
-        return (bytes[0] & 0xe0) == 0x20 && !(bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0d && bytes[3] == 0xb8);
+        // global unicast only (2000::/3), without the documentation range, and without 6to4 (2002::/16) and Teredo (2001::/32): they carry an IPv4 address inside, so a
+        // name could lead to 127.0.0.1 or a private address through a gateway; NAT64 (64:ff9b::/96) is outside 2000::/3 already
+        bool documentation6 = bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0d && bytes[3] == 0xb8;
+        bool sixToFour = bytes[0] == 0x20 && bytes[1] == 0x02;
+        bool teredo = bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x00 && bytes[3] == 0x00;
+        return (bytes[0] & 0xe0) == 0x20 && !documentation6 && !sixToFour && !teredo;
     }
 }

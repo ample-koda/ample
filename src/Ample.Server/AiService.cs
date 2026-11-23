@@ -1104,26 +1104,8 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         }
     }
 
-    internal static bool IsPublic(System.Net.IPAddress ip)
-    {
-        if (ip.IsIPv4MappedToIPv6)
-        {
-            ip = ip.MapToIPv4();
-        }
-
-        if (System.Net.IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast || ip.Equals(System.Net.IPAddress.Any) || ip.Equals(System.Net.IPAddress.IPv6Any))
-        {
-            return false;
-        }
-
-        byte[] b = ip.GetAddressBytes();
-        if (b.Length == 4)
-        {
-            return !(b[0] == 10 || b[0] == 127 || (b[0] == 172 && b[1] is >= 16 and <= 31) || (b[0] == 192 && b[1] == 168) || (b[0] == 169 && b[1] == 254) || (b[0] == 100 && b[1] is >= 64 and <= 127) || b[0] >= 224 || b[0] == 0);
-        }
-
-        return (b[0] & 0xFE) != 0xFC;   // fc00::/7 is the unique local range
-    }
+    /// <summary>The address of a download for the assistant must be public: one rule for the downloads and for the browser (<see cref="IsPublicAddress"/>).</summary>
+    internal static bool IsPublic(System.Net.IPAddress ip) => IsPublicAddress(ip);
 
     /// <summary>The Codex home of the project identity: machine local, outside the project, keyed by the identity of the project.</summary>
     private string DeviceHome => Path.Combine(AmpleHome.DefaultPath(), "codex-homes", s.Manifest.Id.ToString("D"));

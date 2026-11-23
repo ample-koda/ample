@@ -259,8 +259,20 @@ public sealed class AiBrowserTests
     [InlineData("fc00::1", false)]
     [InlineData("2001:db8::1", false)]
     [InlineData("2001:4860:4860::8888", true)]
-    public void Browser_navigation_rejects_private_and_loopback_addresses(string address, bool expected) =>
-        Assert.Equal(expected, AiService.IsPublicAddress(IPAddress.Parse(address)));
+    [InlineData("64:ff9b::7f00:1", false)]
+    [InlineData("2002:7f00:1::1", false)]
+    [InlineData("2002:0a00:1::1", false)]
+    [InlineData("2001:0:4136:e378:8000:63bf:3fff:fdd2", false)]
+    [InlineData("::", false)]
+    [InlineData("::1", false)]
+    [InlineData("fe80::1", false)]
+    [InlineData("ff02::1", false)]
+    public void Browser_navigation_rejects_private_and_loopback_addresses(string address, bool expected)
+    {
+        IPAddress parsed = IPAddress.Parse(address);
+        Assert.Equal(expected, AiService.IsPublicAddress(parsed));
+        Assert.Equal(expected, AiService.IsPublic(parsed));   // the downloads of the assistant follow the same rule
+    }
 
     [Theory]
     [InlineData("https://example.org", true)]
