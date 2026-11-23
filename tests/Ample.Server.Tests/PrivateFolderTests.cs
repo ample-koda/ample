@@ -41,7 +41,8 @@ public sealed class PrivateFolderTests
 
             string poc = path.Replace("project.json", "poc-" + Guid.NewGuid().ToString("N")[..6] + ".txt", StringComparison.Ordinal);
             string json = "{\"path\":" + System.Text.Json.JsonSerializer.Serialize(poc) + ",\"text\":\"x\"}";
-            using HttpResponseMessage put = await client.SendAsync(root => new HttpRequestMessage(HttpMethod.Put, root + "/api/file") { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+            HttpRequestMessage Put(string root) => new(HttpMethod.Put, root + "/api/file") { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+            using HttpResponseMessage put = await client.SendAsync(Put);
             string write = ((int)put.StatusCode).ToString(System.Globalization.CultureInfo.InvariantCulture);
             string created = string.Join(",", Directory.GetFiles(Path.Combine(server, ".ample"), "poc-*", SearchOption.AllDirectories));
             Assert.True(created.Length == 0, "written into the private folder via '" + poc + "' (" + write + "): " + created);
