@@ -48,6 +48,8 @@ namespace Ample.Setup
         internal static string Run(
             Fix fix, string ample, string home, Action<int, string> report, CancellationToken cancel = default(CancellationToken))
         {
+            string refused = FixPolicy.CheckFix(fix.Kind, fix.Id, fix.Scope);
+            if (refused != null) return refused;
             try
             {
                 if (fix.Kind == "pack") return RunPack(fix, ample, home, report, cancel);
@@ -189,7 +191,12 @@ namespace Ample.Setup
         /// <summary>The elevated copy: runs one fix and writes its progress to the file the parent follows.</summary>
         internal static int RunChild(string key, string progressFile, string ample, string home)
         {
+            // this copy runs with administrator rights: it takes only the shapes the wizard makes (see FixPolicy), never the program or the files named on the command line
             Fix fix = Fix.FromKey(key);
+            string trustedAmple = FixPolicy.TrustedAmple(AppDomain.CurrentDomain.BaseDirectory);
+            if (FixPolicy.CheckFix(fix.Kind, fix.Id, fix.Scope) != null || trustedAmple == null || !FixPolicy.IsPlainHome(home)
+                || !FixPolicy.IsOwnProgressFile(progressFile, Path.GetTempPath())) return 3;
+            ample = trustedAmple;
             Action<int, string> write = (percent, text) =>
             {
                 try { File.AppendAllText(progressFile, "progress " + percent + " " + text.Replace('\r', ' ').Replace('\n', ' ') + "\n", Encoding.UTF8); }
