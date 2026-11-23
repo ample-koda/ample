@@ -19,7 +19,9 @@ public sealed class RemoteHardeningTests
             if (path == "/api/login") return Task.FromResult(Text("{\"token\":\"t\"}"));
             if (path == "/api/project/files")
             {
-                string list = string.Join(",", files.Select(f => "{\"path\":" + System.Text.Json.JsonSerializer.Serialize(f.Key) + ",\"size\":" + f.Value.Length + ",\"sha256\":\"" + Hash(f.Value) + "\"}"));
+                static string Entry(KeyValuePair<string, byte[]> f) =>
+                    "{\"path\":" + System.Text.Json.JsonSerializer.Serialize(f.Key) + ",\"size\":" + f.Value.Length + ",\"sha256\":\"" + Hash(f.Value) + "\"}";
+                string list = string.Join(",", files.Select(Entry));
                 return Task.FromResult(Text("[" + list + "]"));
             }
 
