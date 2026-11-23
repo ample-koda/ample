@@ -192,7 +192,7 @@ internal static class AmpleCommands
 
     private static void RunInit(string folder)
     {
-        System.Diagnostics.ProcessStartInfo start = new(AmpleCli.For(null), "vs init \"" + folder + "\"")
+        System.Diagnostics.ProcessStartInfo start = new(AmpleCli.For(null), "vs init " + AmpleProjectWizard.Quote(folder))
         {
             CreateNoWindow = true,
             UseShellExecute = false,

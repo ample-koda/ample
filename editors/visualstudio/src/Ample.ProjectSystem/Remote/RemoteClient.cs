@@ -61,7 +61,7 @@ public sealed class RemoteClient : System.IDisposable
     public RemoteClient(RemoteOptions options, HttpMessageHandler? handler = null)
     {
         this.options = options;
-        http = handler is null ? new HttpClient { Timeout = System.TimeSpan.FromMinutes(5) } : new HttpClient(handler, disposeHandler: false);
+        http = handler is null ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = System.TimeSpan.FromMinutes(5) } : new HttpClient(handler, disposeHandler: false);
     }
 
     /// <summary>Raised with a short human sentence about what the client is doing or what went wrong (a lost connection, a wrong password).</summary>
@@ -189,7 +189,7 @@ public sealed class RemoteClient : System.IDisposable
                 }
                 else
                 {
-                    baseUrl = options.Url.TrimEnd('/');
+                    baseUrl = DirectAddress(options.Url);
                 }
             }
 
@@ -211,6 +211,23 @@ public sealed class RemoteClient : System.IDisposable
         {
             gate.Release();
         }
+    }
+
+    /// <summary>
+    /// The address for a direct connection. The password and the session token travel to it, so it must be https; plain http is only accepted for this
+    /// machine (127.0.0.1, ::1, localhost), for example a tunnel that was made by hand.
+    /// </summary>
+    private static string DirectAddress(string url)
+    {
+        if (!System.Uri.TryCreate(url, System.UriKind.Absolute, out System.Uri? uri)) throw new RemoteAuthException("The address \"" + url + "\" is not a web address.");
+        bool secure = uri.Scheme == System.Uri.UriSchemeHttps;
+        bool local = uri.Scheme == System.Uri.UriSchemeHttp && uri.IsLoopback;
+        if (!secure && !local)
+        {
+            throw new RemoteAuthException(
+                "A direct connection must use https (the password and the session would travel in the clear); use an SSH tunnel for a server without https.");
+        }
+        return url.TrimEnd('/');
     }
 
     private static string? ReadToken(string body)
