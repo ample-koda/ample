@@ -123,7 +123,11 @@ internal sealed class TrayApp : ApplicationContext
             {
                 if (Confirm("Shut down", otherName)) Do("Shutting down " + otherName, t => main.ShutDownOtherAsync(other.Record, t));
             });
-            Add(sub.DropDownItems, "Open the folder", () => Process.Start(new ProcessStartInfo(other.Record.Folder) { UseShellExecute = true })?.Dispose());
+            Add(sub.DropDownItems, "Open the folder", () =>
+            {
+                // the folder comes from a record file that any program of this person can write: only an existing folder is opened, never a program
+                if (LaunchPolicy.IsFolder(other.Record.Folder)) Process.Start(new ProcessStartInfo(other.Record.Folder) { UseShellExecute = true })?.Dispose();
+            });
             menu.Items.Add(sub);
         }
 
