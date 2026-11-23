@@ -6,6 +6,8 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <!-- the browser tests need a driver: they get their own (the server and the program carry none) -->
     <PackageReference Include="Microsoft.Playwright" />
+    <!-- the connection layer of the Visual Studio extension (plain classes, no Visual Studio types) is tested here, compiled from its sources -->
+    <Compile Include="../../editors/visualstudio/src/Ample.ProjectSystem/Remote/*.cs" LinkBase="VsRemote" />
     <ProjectReference Include="../../src/Ample.Server/Ample.Server.csproj" />
     <ProjectReference Include="../../src/Ample.Engine/Ample.Engine.csproj" />
   </ItemGroup>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="Ample.VisualStudio.ProjectSystem" Version="0.1.29" Language="en-US" Publisher="AMPLE" />
+    <DisplayName>AMPLE for Visual Studio</DisplayName>
+    <Description xml:space="preserve">AMPLE project system for Visual Studio 2022.</Description>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,18.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,18.0)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+  <Dependencies />
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="File" Path="Ample.ProjectSystem.dll" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" d:Source="File" Path="Ample.ProjectSystem.dll" />
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="File" Path="Ample.ProjectSystem.pkgdef" />
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="File" Path="Grammars.pkgdef" />
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="File" Path="DebugAdapter.pkgdef" />
+    <Asset Type="Microsoft.VisualStudio.ProjectTemplate" d:Source="File" Path="ProjectTemplates" />
+  </Assets>
+</PackageManifest>

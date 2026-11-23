@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <Commands package="guidAmplePackage">
+    <Groups>
+      <Group guid="guidAmpleCmdSet" id="AmpleToolsGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+      <Group guid="guidAmpleCmdSet" id="AmpleEditorGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+    </Groups>
+    <Buttons>
+      <Button guid="guidAmpleCmdSet" id="BuildCurrent" priority="0x0100" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Build current AMPLET</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="BuildPlayCurrent" priority="0x0101" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Build and play current AMPLET</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="OpenAsProject" priority="0x0110" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Open AMPLE folder as project</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="ToggleDebugMode" priority="0x0111" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Toggle F5 between play and debug build</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="ConnectFolder" priority="0x0112" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Connect this folder to an AMPLE project</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="TogglePalette" priority="0x0113" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Toggle colours between AMPLE palette and Visual Studio</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="RemoteConnect" priority="0x0120" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Connect to a server</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="RemotePull" priority="0x0121" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Pull from server</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="RemotePush" priority="0x0122" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Push to server</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="BuildCurrentCtx" priority="0x0100" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleEditorGroup" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <Strings><ButtonText>AMPLE: Build current AMPLET</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="BuildPlayCurrentCtx" priority="0x0101" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleEditorGroup" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <Strings><ButtonText>AMPLE: Build and play current AMPLET</ButtonText></Strings>
+      </Button>
+      <Button guid="guidAmpleCmdSet" id="WindowShot" priority="0x0123" type="Button">
+        <Parent guid="guidAmpleCmdSet" id="AmpleToolsGroup" />
+        <Strings><ButtonText>AMPLE: Save a picture of this window</ButtonText></Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+  <Symbols>
+    <GuidSymbol name="guidAmplePackage" value="{EC0B786C-D9A2-47AE-BAC2-ED5C00E09EE1}" />
+    <GuidSymbol name="guidAmpleCmdSet" value="{5C0C3F0E-7B1B-4B7C-9D5B-3A1E4C6E2A10}">
+      <IDSymbol name="AmpleToolsGroup" value="0x1000" />
+      <IDSymbol name="AmpleEditorGroup" value="0x1001" />
+      <IDSymbol name="BuildCurrent" value="0x0100" />
+      <IDSymbol name="BuildPlayCurrent" value="0x0101" />
+      <IDSymbol name="OpenAsProject" value="0x0104" />
+      <IDSymbol name="ToggleDebugMode" value="0x0105" />
+      <IDSymbol name="ConnectFolder" value="0x0106" />
+      <IDSymbol name="RemoteConnect" value="0x0108" />
+      <IDSymbol name="RemotePull" value="0x0109" />
+      <IDSymbol name="RemotePush" value="0x010A" />
+      <IDSymbol name="WindowShot" value="0x010B" />
+      <IDSymbol name="TogglePalette" value="0x0107" />
+      <IDSymbol name="BuildCurrentCtx" value="0x0102" />
+      <IDSymbol name="BuildPlayCurrentCtx" value="0x0103" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

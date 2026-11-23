@@ -9,7 +9,16 @@
     <AmpleOutputFile Condition="'$(AmpleOutputFile)' == ''">$(MSBuildProjectDirectory)\obj\Ample\$(MSBuildProjectName).wav</AmpleOutputFile>
     <AmpleBuildInstanceArguments Condition="'$(AmpleInstanceSelection)' != '' and '$(AmpleInstanceSelection)' != 'managed'">--require-instance --instance-project-id &quot;$(AmpleInstanceSelection)&quot;</AmpleBuildInstanceArguments>
   </PropertyGroup>
-  <Target Name="AmpleBuild" BeforeTargets="Build">
+  <!-- a project on a server (a cache folder with .amplerm\remote.txt) is built there by F5 and the Build current AMPLET commands, not by this local build -->
+  <Target Name="AmpleBuild" BeforeTargets="Build" Condition="!Exists('$(MSBuildProjectDirectory)\.amplerm\remote.txt')">
+    <!-- an older AMPLE (for instance the installed one) does not know the options used below: say so, instead of its help text and error MSB3073 -->
+    <Exec Command="&quot;$(AmpleExecutable)&quot; build --help" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" ItemName="AmpleBuildHelp" />
+    </Exec>
+    <PropertyGroup>
+      <AmpleBuildHelpText>@(AmpleBuildHelp)</AmpleBuildHelpText>
+    </PropertyGroup>
+    <Error Condition="!$(AmpleBuildHelpText.Contains('--through-instance'))" Text="The AMPLE command line &apos;$(AmpleExecutable)&apos; is too old for Visual Studio (it has no build --through-instance). Install a newer AMPLE, or set AmpleExecutable (project or .user file) or the AMPLE_CLI environment variable to a newer ample.exe." />
     <Exec Command="&quot;$(AmpleExecutable)&quot; build &quot;$(AmpleSongPath)&quot; --project &quot;$(MSBuildProjectDirectory)&quot; --through-instance $(AmpleBuildInstanceArguments) --out &quot;$(AmpleOutputFile)&quot;" />
     <ItemGroup>
       <FileWrites Include="$(AmpleOutputFile)" />

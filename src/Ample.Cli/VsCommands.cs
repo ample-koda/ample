@@ -18,11 +18,18 @@ internal static class VsCommands
         Argument<string> folder = new("folder") { Description = "The AMPLE project folder." };
         Option<string?> name = new("--name") { Description = "The project file name without extension (default: the folder name)." };
         Option<string?> song = new("--song") { Description = "The song F5 plays (default: the first .amplet in the folder)." };
-        Command init = new("init", "Writes a Visual Studio project (.ampleproj) into an existing AMPLE folder.") { folder, name, song };
-        init.SetAction(parse =>
+        Option<bool> createProject = new("--create-project") { Description = "Also make the folder an AMPLE project when it is none yet (for the local copy of a project on a server)." };
+        Command init = new("init", "Writes a Visual Studio project (.ampleproj) into an existing AMPLE folder.") { folder, name, song, createProject };
+        init.SetAction(async (parse, token) =>
         {
             string root = Path.GetFullPath(parse.GetValue(folder)!);
             if (!Directory.Exists(root)) { output.WriteLine($"No such folder: {root}"); return 1; }
+            if (parse.GetValue(createProject) && !File.Exists(Path.Combine(root, ".ample", "project.json")))
+            {
+                using OpenProject created = await ProjectStore.CreateAsync(new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), root, new DirectoryInfo(root).Name, null, token);
+                output.WriteLine("made the folder an AMPLE project (.ample)");
+            }
+
             string baseName = parse.GetValue(name) ?? new DirectoryInfo(root).Name;
             string startup = parse.GetValue(song) ?? FirstSong(root) ?? "song.amplet";
             foreach (string file in Files)

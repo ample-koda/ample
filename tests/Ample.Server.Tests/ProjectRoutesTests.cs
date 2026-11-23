@@ -1401,6 +1401,44 @@ public sealed class ProjectRoutesTests : IAsyncLifetime, IDisposable
         Assert.Equal(1, stats.RootElement.GetProperty("builds").GetInt32());
     }
 
+    [Fact]
+    public async Task The_project_file_list_has_size_modified_time_and_on_request_the_sha256_of_each_file()
+    {
+        byte[] bytes = [1, 2, 3, 250, 251];
+        Directory.CreateDirectory(Path.Combine(folder, "samples"));
+        await File.WriteAllBytesAsync(Path.Combine(folder, "samples", "kick.wav"), bytes);
+
+        using JsonDocument plain = JsonDocument.Parse(await Text("/api/project/files"));
+        JsonElement entry = plain.RootElement.EnumerateArray().Single(e => e.GetProperty("path").GetString() == "samples/kick.wav");
+        Assert.Equal(5, entry.GetProperty("size").GetInt64());
+        Assert.True(entry.GetProperty("modified").GetDateTime() > DateTime.UtcNow.AddMinutes(-5));
+        Assert.Equal(JsonValueKind.Null, entry.GetProperty("sha256").ValueKind);
+
+        using JsonDocument hashed = JsonDocument.Parse(await Text("/api/project/files?hashes=1"));
+        string sha = hashed.RootElement.EnumerateArray().Single(e => e.GetProperty("path").GetString() == "samples/kick.wav").GetProperty("sha256").GetString()!;
+        Assert.Equal(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)), sha);
+        Assert.DoesNotContain(hashed.RootElement.EnumerateArray(), e => e.GetProperty("path").GetString()!.StartsWith(".ample", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task An_upload_with_ifMatch_only_writes_when_the_file_is_still_the_one_the_client_saw()
+    {
+        async Task<HttpResponseMessage> Send(string text, string ifMatch) =>
+            await http.PostAsync("/api/project/upload?name=guard.txt&onConflict=overwrite&ifMatch=" + ifMatch, new ByteArrayContent(Encoding.UTF8.GetBytes(text)), CancellationToken.None);
+
+        string target = Path.Combine(folder, "guard.txt");
+        Assert.Equal(HttpStatusCode.OK, (await Send("one", "none")).StatusCode);                         // new file, the client saw none
+        Assert.Equal(HttpStatusCode.Conflict, (await Send("two", "none")).StatusCode);                  // it exists now
+        Assert.Equal("one", await File.ReadAllTextAsync(target));
+        Assert.Equal(HttpStatusCode.Conflict, (await Send("two", new string('0', 64))).StatusCode);     // another version than the one it saw
+        Assert.Equal("one", await File.ReadAllTextAsync(target));
+        string sha = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes("one")));
+        Assert.Equal(HttpStatusCode.OK, (await Send("two", sha)).StatusCode);                          // the version it saw
+        Assert.Equal("two", await File.ReadAllTextAsync(target));
+        string shaTwo = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes("two")));
+        Assert.Contains(shaTwo, await (await Send("three", "none")).Content.ReadAsStringAsync(), StringComparison.Ordinal);   // a refusal says what is there now
+    }
+
     private async Task<string> Text(string path) => await http.GetStringAsync(path, CancellationToken.None);
 
     private async Task<HttpResponseMessage> Post(string path, object body) => await http.PostAsync(path, Json(body), CancellationToken.None);
