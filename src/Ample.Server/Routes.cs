@@ -851,7 +851,20 @@ public static class Routes
 
             return Ok(new { files = found.ToArray() });
         });
-        add("GET", "/api/project/files", "project", "The files of the project (without .ample), for the file tree.", false, s is null ? null : () => Ok(Directory.EnumerateFiles(s.Root, "*", SearchOption.AllDirectories).Where(f => !Path.GetRelativePath(s.Root, f).StartsWith(".ample", StringComparison.Ordinal)).Select(f => new { path = Path.GetRelativePath(s.Root, f).Replace('\\', '/'), size = new FileInfo(f).Length }).OrderBy(f => f.path, StringComparer.Ordinal)));
+        add("GET", "/api/project/files", "project", "The files of the project (without .ample): path, size, modified (UTC) and, with hashes=1, sha256.", false, s is null ? null : (HttpContext c) =>
+        {
+            bool hashes = c.Request.Query["hashes"].ToString() == "1";
+            return Ok(Directory.EnumerateFiles(s.Root, "*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetRelativePath(s.Root, f).StartsWith(".ample", StringComparison.Ordinal))
+                .Select(f => new
+                {
+                    path = Path.GetRelativePath(s.Root, f).Replace('\\', '/'),
+                    size = new FileInfo(f).Length,
+                    modified = File.GetLastWriteTimeUtc(f),
+                    sha256 = hashes ? Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(f))) : null,
+                })
+                .OrderBy(f => f.path, StringComparer.Ordinal));
+        });
         add("GET", "/api/project/export", "project", "Downloads an original project file without converting it.", false, s is null ? null : (HttpContext c) =>
         {
             string file = ProjectExports.Source(s.Root, c.Request.Query["path"].ToString());
@@ -1020,6 +1033,15 @@ public static class Routes
             try
             {
                 string? existing = s.Fs.DirectoryExists(parent) ? s.Fs.GetFiles(parent).FirstOrDefault(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase)) : null;
+                // ifMatch: only write when the file is still the one the client saw (its SHA-256), or "none" when the client saw no such file; else 409 with what is there now
+                string ifMatch = c.Request.Query["ifMatch"].ToString();
+                if (ifMatch.Length > 0)
+                {
+                    string? current = existing is null ? null : Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(existing)));
+                    bool same = ifMatch == "none" ? existing is null : string.Equals(ifMatch, current, StringComparison.OrdinalIgnoreCase);
+                    if (!same) return Results.Conflict(new { error = "The file changed since you read it.", sha256 = current, ifMatch });
+                }
+
                 if (existing is not null && conflict == "refuse") return Results.Conflict(new { sizeBytes = new FileInfo(existing).Length, modified = File.GetLastWriteTimeUtc(existing) });
                 if (existing is not null && conflict == "rename")
                 {

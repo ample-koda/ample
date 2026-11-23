@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <VsixVersion>0.1.19</VsixVersion>
+    <AssemblyName>Ample.ProjectSystem</AssemblyName>
+    <AssemblyVersion>0.1.23.0</AssemblyVersion>
+    <RootNamespace>Ample.VisualStudio</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>Ample.VisualStudio.snk</AssemblyOriginatorKeyFile>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <OutDir>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\</OutDir>
+    <IntermediateOutputPath>$(MSBuildProjectDirectory)\obj\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+    <IntermediateVsixManifest>$(IntermediateOutputPath)extension.ample.v$(VsixVersion).vsixmanifest</IntermediateVsixManifest>
+    <TargetVsixContainer>$(OutDir)$(AssemblyName).vsix</TargetVsixContainer>
+    <CreatePkgDefAssemblyToProcess>$(OutDir)$(AssemblyName).dll</CreatePkgDefAssemblyToProcess>
+    <GeneratePkgDefFile>true</GeneratePkgDefFile>
+    <IncludePkgdefInVSIXContainer>true</IncludePkgdefInVSIXContainer>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Drawing" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.VisualStudio.ProjectSystem.SDK" />
+    <PackageReference Include="Microsoft.VisualStudio.LanguageServer.Client" />
+    <PackageReference Include="Microsoft.VisualStudio.Shell.Framework" />
+    <PackageReference Include="Microsoft.VisualStudio.Shell.15.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Text.UI.Wpf" />
+    <PackageReference Include="Microsoft.VisualStudio.TemplateWizardInterface" PrivateAssets="All" />
+    <SourceVsixManifest Include="$(MSBuildProjectDirectory)\..\..\source.extension.vsixmanifest" />
+    <VSCTCompile Include="Ample.vsct"><ResourceName>Menus.ctmenu</ResourceName></VSCTCompile>
+    <!-- the player F5 starts (one WAV, Stop ends it) -->
+    <ProjectReference Include="..\Ample.Player\Ample.Player.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <Content Include="..\Ample.Player\bin\$(Configuration)\net472\Ample.Echo.exe">
+      <Link>Ample.Echo.exe</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <!-- syntax colouring: the TextMate grammar of the VS Code extension (one source), registered by Grammars.pkgdef -->
+    <Content Include="..\..\..\vscode\syntaxes\amplet.tmLanguage.json">
+      <Link>Grammars\amplet.tmLanguage.json</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <VSIXSubPath>Grammars</VSIXSubPath>
+    </Content>
+    <Content Include="DebugAdapter.pkgdef">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="Grammars.pkgdef">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="$(IntermediateOutputPath)AmpleProjectTemplate.zip">
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <VSIXSubPath>ProjectTemplates\Ample</VSIXSubPath>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" />
+  <Target Name="GenerateAmpleProjectTemplateZip" BeforeTargets="Build">
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <ZipDirectory SourceDirectory="$(MSBuildProjectDirectory)\..\..\Templates\Projects\Ample" DestinationFile="$(IntermediateOutputPath)AmpleProjectTemplate.zip" Overwrite="true" />
+  </Target>
+  <Target Name="BuildVsixAfterBuild" AfterTargets="Build" DependsOnTargets="GeneratePkgDef;DetokenizeVsixManifestFile;CreateVsixContainer" />
+</Project>

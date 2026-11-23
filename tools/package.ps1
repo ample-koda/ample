@@ -2,11 +2,13 @@
 #   ample-<version>-<rid>.zip   self-contained single-file program (win-x64, linux-x64) with web/, spec/, docs/, plugins/ next to it
 #   Ample.Cli.<version>.nupkg   the dotnet tool ("dotnet tool install --global Ample.Cli")
 #   ample-vscode-<version>.vsix the VS Code extension (needs npm; skipped with -SkipVsix)
+#   ample-visualstudio-<version>.vsix the Visual Studio 2022 extension (alpha; Windows only, built when the sources are there; skipped with -SkipVisualStudio)
 #   SHA256SUMS.txt              hashes of all of the above (and a .sig next to each file when -Sign is given and a signing key exists)
 # It does not run the tests: run tools/check-all.ps1 first (the release workflow does).
 param(
   [string[]] $Runtimes = @('win-x64', 'linux-x64'),
   [switch] $SkipVsix,
+  [switch] $SkipVisualStudio,
   [switch] $Sign
 )
 $ErrorActionPreference = 'Stop'
@@ -142,6 +144,21 @@ if (-not $SkipVsix) {
       npx --yes @vscode/vsce package --allow-missing-repository --skip-license -o (Join-Path $dist "ample-vscode-$version.vsix")
     }
   } finally { Pop-Location }
+}
+
+# The Visual Studio extension is a separate Windows-only file: it goes into dist/ only, never into a zip for Linux, a .deb or an install script.
+$vsProject = Join-Path $ample 'editorsisualstudiosrcAmple.ProjectSystemAmple.ProjectSystem.csproj'
+if (-not $SkipVisualStudio -and $IsWindows -and (Test-Path -LiteralPath $vsProject)) {
+  Step 'visual studio extension' {
+    $manifest = Join-Path $ample 'editorsisualstudiosource.extension.vsixmanifest'
+    $vsixVersion = ([xml](Get-Content -LiteralPath $manifest -Raw)).PackageManifest.Metadata.Identity.Version
+    if ($vsixVersion -ne $version) { throw "The Visual Studio extension is version $vsixVersion but the release is $version: make them the same in source.extension.vsixmanifest." }
+    dotnet build $vsProject -c Release --nologo -v q
+    if ($LASTEXITCODE -ne 0) { return }
+    $built = Join-Path (Split-Path -Parent $vsProject) 'binRelease
+et472Ample.ProjectSystem.vsix'
+    Copy-Item -LiteralPath $built -Destination (Join-Path $dist "ample-visualstudio-$version.vsix")
+  }
 }
 
 if ($Sign) {

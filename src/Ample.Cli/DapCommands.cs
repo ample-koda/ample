@@ -51,10 +51,20 @@ internal static class DapCommands
             {
                 JsonNode? message = await ReadAsync(token);
                 if (message is null) return 0;
+                Trace("<- " + message.ToJsonString());
                 if (!Handle(message)) return 0;
             }
 
             return 0;
+        }
+
+        /// <summary>With AMPLE_DAP_LOG set to a file name, every message to and from the editor is appended there (to see what an editor really sends).</summary>
+        private static void Trace(string line)
+        {
+            string? file = Environment.GetEnvironmentVariable("AMPLE_DAP_LOG");
+            if (string.IsNullOrEmpty(file)) return;
+            try { File.AppendAllText(file, DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture) + " " + line + Environment.NewLine); }
+            catch (IOException) { }
         }
 
         private bool Handle(JsonNode request)
@@ -284,6 +294,7 @@ internal static class DapCommands
             lock (writeLock)
             {
                 message["seq"] = ++seq;
+                Trace("-> " + message.ToJsonString());
                 byte[] payload = Encoding.UTF8.GetBytes(message.ToJsonString());
                 byte[] header = Encoding.ASCII.GetBytes("Content-Length: " + payload.Length + "\r\n\r\n");
                 output.Write(header);

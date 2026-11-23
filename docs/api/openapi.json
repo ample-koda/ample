@@ -6981,7 +6981,7 @@
         "tags": [
           "project"
         ],
-        "summary": "The files of the project (without .ample), for the file tree.",
+        "summary": "The files of the project (without .ample): path, size, modified (UTC) and, with hashes=1, sha256.",
         "description": "Read only.",
         "security": [
           {
