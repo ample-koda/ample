@@ -147,16 +147,15 @@ if (-not $SkipVsix) {
 }
 
 # The Visual Studio extension is a separate Windows-only file: it goes into dist/ only, never into a zip for Linux, a .deb or an install script.
-$vsProject = Join-Path $ample 'editorsisualstudiosrcAmple.ProjectSystemAmple.ProjectSystem.csproj'
+$vsProject = Join-Path $ample 'editors\visualstudio\src\Ample.ProjectSystem\Ample.ProjectSystem.csproj'
 if (-not $SkipVisualStudio -and $IsWindows -and (Test-Path -LiteralPath $vsProject)) {
   Step 'visual studio extension' {
-    $manifest = Join-Path $ample 'editorsisualstudiosource.extension.vsixmanifest'
+    $manifest = Join-Path $ample 'editors\visualstudio\source.extension.vsixmanifest'
     $vsixVersion = ([xml](Get-Content -LiteralPath $manifest -Raw)).PackageManifest.Metadata.Identity.Version
-    if ($vsixVersion -ne $version) { throw "The Visual Studio extension is version $vsixVersion but the release is $version: make them the same in source.extension.vsixmanifest." }
+    if ($vsixVersion -ne $version) { throw "The Visual Studio extension is version $vsixVersion but the release is ${version}: make them the same in source.extension.vsixmanifest." }
     dotnet build $vsProject -c Release --nologo -v q
     if ($LASTEXITCODE -ne 0) { return }
-    $built = Join-Path (Split-Path -Parent $vsProject) 'binRelease
-et472Ample.ProjectSystem.vsix'
+    $built = Join-Path (Split-Path -Parent $vsProject) 'bin\Release\net472\Ample.ProjectSystem.vsix'
     Copy-Item -LiteralPath $built -Destination (Join-Path $dist "ample-visualstudio-$version.vsix")
   }
 }

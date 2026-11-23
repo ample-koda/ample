@@ -125,7 +125,7 @@ public sealed class RemoteClient : System.IDisposable
     {
         using HttpResponseMessage response = await SendAsync(b => new HttpRequestMessage(HttpMethod.Get, b + path), cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode) throw new RemoteRequestException((int)response.StatusCode, await ReadAsync(response.Content, cancellationToken).ConfigureAwait(false));
-        #if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
 #else
         return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
