@@ -923,7 +923,7 @@ internal static class AiContext
         }
 
         string full = ProjectPath.Resolve(s.Root, path);
-        if (!TextExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase) || path.StartsWith(".ample", StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+        if (!TextExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase) || ProjectPath.IsPrivate(path) || !File.Exists(full))
         {
             throw new AmpleException("AMP5458", $"{path} is not a text file of the project that can be read.");
         }

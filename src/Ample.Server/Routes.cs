@@ -796,7 +796,10 @@ public static class Routes
         add("GET", "/api/redux/edit-history", "redux", "Read-only exact-hash lookup of saved song or module states in AMPLE Redux, without exposing journal contents.", false, s is null ? null : async (HttpContext c) =>
         {
             string path = c.Request.Query["path"].ToString();
-            if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..", StringComparer.Ordinal) || path.Replace('\\', '/').StartsWith(".ample", StringComparison.Ordinal) || !(path.EndsWith(".amplet", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".module", StringComparison.OrdinalIgnoreCase))) throw new AmpleException("AMP5285", "Edit history is available for project song and module files only.");
+            bool songOrModule = path.EndsWith(".amplet", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".module", StringComparison.OrdinalIgnoreCase);
+            bool escapes = Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..", StringComparer.Ordinal);
+            if (string.IsNullOrWhiteSpace(path) || escapes || ProjectPath.IsPrivate(path) || !songOrModule)
+                throw new AmpleException("AMP5285", "Edit history is available for project song and module files only.");
             HashSet<string> wanted = new(StringComparer.Ordinal);
             foreach (string? value in c.Request.Query["hash"])
             {
@@ -855,7 +858,7 @@ public static class Routes
         {
             bool hashes = c.Request.Query["hashes"].ToString() == "1";
             return Ok(Directory.EnumerateFiles(s.Root, "*", SearchOption.AllDirectories)
-                .Where(f => !Path.GetRelativePath(s.Root, f).StartsWith(".ample", StringComparison.Ordinal))
+                .Where(f => !ProjectPath.IsPrivate(Path.GetRelativePath(s.Root, f)))
                 .Select(f => new
                 {
                     path = Path.GetRelativePath(s.Root, f).Replace('\\', '/'),
@@ -4027,7 +4030,7 @@ public static class Routes
         return Ok(new { path = rel, settings = pairs.Count });
     }
 
-    private static bool TextFile(string rel) => !rel.Replace('\\', '/').StartsWith(".ample", StringComparison.Ordinal) && TextExtensions.Contains(Path.GetExtension(rel).ToLowerInvariant());
+    private static bool TextFile(string rel) => !ProjectPath.IsPrivate(rel) && TextExtensions.Contains(Path.GetExtension(rel).ToLowerInvariant());
 
     private static string? ReduxRecordPath(JournalRecord record)
     {

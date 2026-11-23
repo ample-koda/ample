@@ -762,7 +762,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         string confirm = body.TryGetProperty("confirm", out JsonElement confirmValue) && confirmValue.GetString() == "ask" ? "ask" : "propose";
         string reason = body.TryGetProperty("reason", out JsonElement reasonValue) ? (reasonValue.GetString() ?? string.Empty).Trim() : string.Empty;
         if (from.Length == 0 || to.Length == 0 || from == to) throw new AmpleException("AMP5458", "A move needs a source and a different destination, both project-relative.");
-        if (from.StartsWith(ProjectLayout.AmpleFolder, StringComparison.OrdinalIgnoreCase) || to.StartsWith(ProjectLayout.AmpleFolder, StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "Internal project files cannot be moved.");
+        if (ProjectPath.IsPrivate(from) || ProjectPath.IsPrivate(to)) throw new AmpleException("AMP5458", "Internal project files cannot be moved.");
         string fullFrom = ProjectPath.Resolve(s.Root, from), fullTo = ProjectPath.Resolve(s.Root, to);
         bool isDir = Directory.Exists(fullFrom);
         if (!isDir && !File.Exists(fullFrom)) throw new AmpleException("AMP5458", $"{from} does not exist in the project.");
@@ -3135,7 +3135,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         string[] extensions = [".amplet", ".seq", ".ampleseq", ".lyr", ".lrc", ".amplelrc", ".chords", ".module", ".amplec", ".txt", ".md", ".csv", ".json"];
         if (!extensions.Contains(Path.GetExtension(source), StringComparer.OrdinalIgnoreCase) || !extensions.Contains(Path.GetExtension(destination), StringComparer.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "Only proposal text files can be moved.");
         if (workspaceSource && source != Path.GetFileName(source)) throw new AmpleException("AMP5458", "Workspace recovery accepts only a text file at the workspace root.");
-        if (source.StartsWith(".ample", StringComparison.OrdinalIgnoreCase) || destination.StartsWith(".ample", StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "Internal project files cannot be moved.");
+        if (ProjectPath.IsPrivate(source) || ProjectPath.IsPrivate(destination)) throw new AmpleException("AMP5458", "Internal project files cannot be moved.");
         string from = ProjectPath.Resolve(workspaceSource ? task.Workspace : task.ProjectDir, source);
         string to = ProjectPath.Resolve(task.ProjectDir, destination);
         if (!File.Exists(from) || File.Exists(to)) throw new AmpleException("AMP5458", "Source must exist and destination must not exist; no overwrite is allowed.");
@@ -3189,7 +3189,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         string name = workspaceSource ? source[10..] : AiContext.Norm(source);
         if (name.Length == 0) throw new AmpleException("AMP5458", "Give source: an audio file of the project, or workspace/<path> for a fetched preview.");
         if (!SampleSourceExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "The source must be an audio file (wav, mp3, flac, ogg, aiff or m4a).");
-        if (name.StartsWith(".ample", StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "Internal project files cannot be analysed.");
+        if (ProjectPath.IsPrivate(name)) throw new AmpleException("AMP5458", "Internal project files cannot be analysed.");
         string from = ProjectPath.Resolve(workspaceSource ? task.Workspace : task.ProjectDir, name);
         if (!workspaceSource && !File.Exists(from) && liveRoot is not null)
         {
@@ -3265,7 +3265,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         source = workspaceSource ? source[10..] : AiContext.Norm(source);
         if (!SampleSourceExtensions.Contains(Path.GetExtension(source), StringComparer.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "The source must be an audio file (wav, mp3, flac, ogg, aiff or m4a).");
         if (!string.Equals(Path.GetExtension(destination), ".wav", StringComparison.OrdinalIgnoreCase) || !destination.Contains('/', StringComparison.Ordinal)) throw new AmpleException("AMP5458", "The destination must be a .wav inside a folder of the project, for example samples/campfire/c4.wav (the folder is the sample set).");
-        if (source.StartsWith(".ample", StringComparison.OrdinalIgnoreCase) || destination.StartsWith(".ample", StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "Internal project files cannot be used.");
+        if (ProjectPath.IsPrivate(source) || ProjectPath.IsPrivate(destination)) throw new AmpleException("AMP5458", "Internal project files cannot be used.");
         string from = ProjectPath.Resolve(workspaceSource ? task.Workspace : task.ProjectDir, source);
         if (!workspaceSource && !File.Exists(from) && liveRoot is not null)
         {
@@ -3311,7 +3311,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         source = workspaceSource ? source[10..] : AiContext.Norm(source);
         string[] extensions = workspaceSource ? CopyableAssetExtensions : CopyableTextExtensions;
         if (!extensions.Contains(Path.GetExtension(source), StringComparer.OrdinalIgnoreCase) || !extensions.Contains(Path.GetExtension(destination), StringComparer.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", workspaceSource ? "Only an image, PDF, text file, MIDI or MusicXML score or MP3 audio preview fetched by AMPLE can be staged this way. A fetched score is staged into the project (for example scores/<name>.mid) and then read with ample_import_score." : "Only proposal text files can be copied.");
-        if (source.StartsWith(".ample", StringComparison.OrdinalIgnoreCase) || destination.StartsWith(".ample", StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP5458", "Internal project files cannot be copied.");
+        if (ProjectPath.IsPrivate(source) || ProjectPath.IsPrivate(destination)) throw new AmpleException("AMP5458", "Internal project files cannot be copied.");
         string from = ProjectPath.Resolve(workspaceSource ? task.Workspace : task.ProjectDir, source);
         // a file the task did not stage (a linked sequence of a scope-file task) is copied from the project as it is now
         if (!workspaceSource && !File.Exists(from) && liveRoot is not null)
@@ -3707,7 +3707,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         foreach (string f in Directory.Exists(task.ProjectDir) ? Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories) : [])
         {
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace(Path.DirectorySeparatorChar, '/');
-            if (rel.StartsWith("samples/offered/", StringComparison.Ordinal) || rel.StartsWith(".ample/", StringComparison.Ordinal))
+            if (rel.StartsWith("samples/offered/", StringComparison.Ordinal) || ProjectPath.IsPrivate(rel))
             {
                 continue;
             }
@@ -3744,7 +3744,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         foreach (string f in Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
-            if (rel.StartsWith(".ample/", StringComparison.Ordinal) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel) || File.Exists(ProjectPath.Resolve(s.Root, rel))) continue;
+            if (ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel) || File.Exists(ProjectPath.Resolve(s.Root, rel))) continue;
             FileInfo info = new(f);
             bool binary = info.Length > 2_000_000;
             if (!binary && info.Length > 0)
@@ -5009,7 +5009,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         foreach (string f in Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
-            if (rel.StartsWith(".ample/", StringComparison.Ordinal) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || rel.Split('/').Any(p => p is ".." or ""))
+            if (ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || rel.Split('/').Any(p => p is ".." or ""))
             {
                 continue;
             }
