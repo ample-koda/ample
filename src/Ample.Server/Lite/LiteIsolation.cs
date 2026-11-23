@@ -21,6 +21,20 @@ internal sealed class LiteIsolation(string workerPath, string ampleRoot)
         return current is not null && Path.GetFileNameWithoutExtension(current).Equals("Ample.Cli", StringComparison.OrdinalIgnoreCase) ? current : null;
     }
 
+    /// <summary>
+    /// Takes the secrets out of the environment the worker gets (it would inherit the whole environment of the server: the admin key of Remix, API keys). The worker runs what a visitor
+    /// uploaded and starts ffmpeg on uploaded audio; whatever goes wrong in either, the secrets of the server are not in its environment.
+    /// </summary>
+    internal static void RemoveSecrets(IDictionary<string, string?> environment)
+    {
+        foreach (string name in environment.Keys.ToArray())
+        {
+            if (SecretWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase))) environment.Remove(name);
+        }
+    }
+
+    private static readonly string[] SecretWords = ["KEY", "TOKEN", "SECRET", "PASSWORD", "PASSPHRASE", "CREDENTIAL"];
+
     /// <summary>Builds in a worker process.</summary>
     /// <param name="libraryHome">The AMPLE library home (the private folders live in it).</param>
     /// <param name="entry">The song.</param>
@@ -49,6 +63,7 @@ internal sealed class LiteIsolation(string workerPath, string ampleRoot)
         info.Environment["DOTNET_GCHeapHardLimit"] = "0x" + (limits.MaxBuildMemoryMegabytes * 1024L * 1024).ToString("x", System.Globalization.CultureInfo.InvariantCulture);
         info.Environment["DOTNET_gcServer"] = "0";
         info.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        RemoveSecrets(info.Environment);
         using Process process = new() { StartInfo = info };
         using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         limit.CancelAfter(TimeSpan.FromSeconds(limits.BuildSeconds + 25));
