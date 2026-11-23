@@ -690,7 +690,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         AiTask task = ContextTokens.TryGetValue(token, out AiTask? t) ? t : throw new AmpleException("AMP5458", "This task is no longer running.");
         string rel = AiContext.Norm(path);
         string full = ProjectPath.Resolve(s.Root, rel);
-        if (rel.StartsWith(ProjectLayout.AmpleFolder, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+        if (ProjectPath.IsPrivate(rel) || !File.Exists(full))
         {
             throw new AmpleException("AMP5458", $"{rel} is not a file of the project that can be shared.");
         }
@@ -3088,7 +3088,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         string root = Path.GetFullPath(Path.Combine(task.Workspace, "project")) + Path.DirectorySeparatorChar;
         string file = Path.GetFullPath(Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar)));
-        if (!file.StartsWith(root, StringComparison.OrdinalIgnoreCase) || rel.StartsWith(ProjectLayout.AmpleFolder, StringComparison.OrdinalIgnoreCase))
+        if (!file.StartsWith(root, StringComparison.OrdinalIgnoreCase) || ProjectPath.IsPrivate(rel))
         {
             throw new AmpleException("AMP5458", $"{rel} is not a file of the proposal that can be edited.");
         }

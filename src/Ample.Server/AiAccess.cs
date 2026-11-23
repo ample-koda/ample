@@ -282,7 +282,7 @@ internal sealed partial class AiService
 
         string root = Path.GetFullPath(Path.Combine(task.Workspace, "project")) + Path.DirectorySeparatorChar;
         string target = Path.GetFullPath(Path.Combine(root, outRel.Replace('/', Path.DirectorySeparatorChar)));
-        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase) || outRel.StartsWith(ProjectLayout.AmpleFolder, StringComparison.OrdinalIgnoreCase))
+        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase) || ProjectPath.IsPrivate(outRel))
         {
             throw new AmpleException("AMP5458", $"{outRel} is not a place in the proposal for a sequence.");
         }
