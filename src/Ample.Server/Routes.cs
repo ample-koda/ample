@@ -832,7 +832,7 @@ public static class Routes
         add("GET", "/api/ai/context/redux-search", "ai", "For an AI task: read-only search of the task's AMPLE Redux archive; scope=project expands to this project's journal.", false, s is null ? null : async (HttpContext c) => Ok(await ReduxSearchView(s, c, ReduxQuery(c, "task"), true).ConfigureAwait(false)));
         add("GET", "/api/plugins", "plugins", "The plugins that are found and any problems with them.", false, s is null ? null : () =>
         {
-            (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> plugins, IReadOnlyList<string> problems) = Ample.Plugins.PluginHost.Discover([Path.Combine(s.AmpleRoot, "plugins"), Path.Combine(s.Root, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")]);
+            (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> plugins, IReadOnlyList<string> problems) = Ample.Plugins.PluginHost.Discover(InstalledPluginFolders(s.AmpleRoot));
             return Ok(new { plugins = plugins.Select(p => new { p.Manifest.Id, p.Manifest.Title, p.Manifest.Version, p.Manifest.Kind, p.Manifest.Determinism, p.Manifest.Blocks, analyses = p.Manifest.Analyses, p.Manifest.Needs, settingsSchema = JsonDocument.Parse(p.Manifest.SettingsSchemaJson).RootElement }), problems });
         });
         add("GET", "/api/packs/files", "project", "The WAV files of the installed audio packs as pack:<pack>/<name> values for a file field.", false, s is null ? null : () =>
@@ -1538,7 +1538,7 @@ public static class Routes
             DiscoveredPlugin? plugin = null;
             if (!remote)
             {
-                (IReadOnlyList<DiscoveredPlugin> plugins, _) = PluginHost.Discover([Path.Combine(s.AmpleRoot, "plugins"), Path.Combine(s.Root, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")]);
+                (IReadOnlyList<DiscoveredPlugin> plugins, _) = PluginHost.Discover(InstalledPluginFolders(s.AmpleRoot));
                 plugin = plugins.FirstOrDefault(item => item.Manifest.Id == pluginId && item.Manifest.Kind == "analysis" && item.Manifest.Analyses?.Contains("transcription", StringComparer.Ordinal) == true)
                     ?? throw new AmpleException("AMP5344", "There is no local analysis plugin offering transcription.");
                 if (plugin.Manifest.Needs.Network) throw new AmpleException("AMP5340", "Audio transcription plugins that need network access are not allowed.");
@@ -4029,6 +4029,13 @@ public static class Routes
         await s.Bus.ExecuteAsync(new WriteFileCommand(rel, text2), ct);
         return Ok(new { path = rel, settings = pairs.Count });
     }
+
+    /// <summary>
+    /// The folders plugins are started from: the ones that come with AMPLE and the ones the person installed. Never a folder inside the project: a plugin
+    /// names the program to run, and a project can hold any file (it can be written through the text-file API or arrive with a project someone else made).
+    /// </summary>
+    private static string[] InstalledPluginFolders(string ampleRoot) =>
+        [Path.Combine(ampleRoot, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")];
 
     private static bool TextFile(string rel) => !ProjectPath.IsPrivate(rel) && TextExtensions.Contains(Path.GetExtension(rel).ToLowerInvariant());
 
