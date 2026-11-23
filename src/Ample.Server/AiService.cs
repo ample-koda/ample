@@ -1065,7 +1065,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
             }
 
             string extracted = Path.Combine(staging, "extracted");
-            System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, extracted);
+            Ample.Audio.IO.SafeZip.ExtractAll(zipPath, extracted, maxTotalBytes: 1L << 30, maxEntries: 20_000);
             string? packFolder = FindPackFolder(extracted);
             if (packFolder is null)
             {

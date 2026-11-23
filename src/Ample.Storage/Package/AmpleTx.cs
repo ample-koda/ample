@@ -552,7 +552,7 @@ public sealed class TxPackage
         System.IO.Compression.ZipArchiveEntry inner = zip.Entries.FirstOrDefault(e => e.Name.EndsWith(".ampletx", StringComparison.OrdinalIgnoreCase)) ?? throw new AmpleException("AMP5421", "The zip does not contain an .ampletx file.");
         Directory.CreateDirectory(folder);
         string target = Path.Combine(folder, inner.Name);
-        System.IO.Compression.ZipFileExtensions.ExtractToFile(inner, target, true);
+        Ample.Audio.IO.SafeZip.ExtractEntry(inner, target, 8L << 30);
         return target;
     }
 
