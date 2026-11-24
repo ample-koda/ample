@@ -149,7 +149,14 @@ internal static class ProjectExports
     private static async Task ConvertAsync(Job job)
     {
         ProcessStartInfo info = new(Environment.GetEnvironmentVariable("AMPLE_FFMPEG") is { Length: > 0 } exe ? exe : "ffmpeg") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string arg in new[] { "-v", "error", "-nostats", "-progress", "pipe:1", "-y", "-i", job.Source, "-map", "0:a:0", "-vn", "-c:a", job.Format switch { "mp3" => "libmp3lame", "flac" => "flac", _ => "pcm_s24le" }, job.Output }) info.ArgumentList.Add(arg);
+        string codec = job.Format switch { "mp3" => "libmp3lame", "flac" => "flac", _ => "pcm_s24le" };
+        string[] convertArguments =
+        [
+            "-v", "error", "-nostats", "-progress", "pipe:1", "-y",
+            "-protocol_whitelist", "file", "-i", job.Source,
+            "-map", "0:a:0", "-vn", "-c:a", codec, job.Output,
+        ];
+        foreach (string arg in convertArguments) info.ArgumentList.Add(arg);
         using Process process = Process.Start(info) ?? throw new InvalidOperationException("ffmpeg could not start.");
         using CancellationTokenRegistration stop = job.Cancel.Token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { /* already exited */ } });
         Task<string> errors = process.StandardError.ReadToEndAsync();

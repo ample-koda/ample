@@ -131,7 +131,7 @@ public static class AudioFile
         try
         {
             ProcessStartInfo start = new("ffmpeg") { RedirectStandardError = true, RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
-            foreach (string argument in new[] { "-v", "error", "-nostdin", "-y", "-i", path, "-vn", "-c:a", "pcm_s16le", "-f", "wav", temp })
+            foreach (string argument in new[] { "-v", "error", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", path, "-vn", "-c:a", "pcm_s16le", "-f", "wav", temp })
             {
                 start.ArgumentList.Add(argument);
             }
@@ -166,8 +166,8 @@ public static class AudioFile
     /// <summary>The ffmpeg arguments that encode a WAV into the format named by the extension of <paramref name="target"/> (mp3 or flac), or null when it is not one of those.</summary>
     public static string[]? EncodeArguments(string wavPath, string target) => Path.GetExtension(target).ToLowerInvariant() switch
     {
-        ".mp3" => ["-v", "error", "-nostdin", "-y", "-i", wavPath, "-vn", "-c:a", "libmp3lame", "-q:a", "2", target],
-        ".flac" => ["-v", "error", "-nostdin", "-y", "-i", wavPath, "-vn", "-c:a", "flac", target],
+        ".mp3" => ["-v", "error", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", wavPath, "-vn", "-c:a", "libmp3lame", "-q:a", "2", target],
+        ".flac" => ["-v", "error", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", wavPath, "-vn", "-c:a", "flac", target],
         _ => null,
     };
 
