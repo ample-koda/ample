@@ -108,33 +108,55 @@ public static class LiteSharesApi
             return Results.Json(Shape(found.Value.Share, found.Value.State), Json);
         });
 
-        app.MapGet("/api/remix/shares/{id}/files/{hash}", (string id, string hash) =>
+        app.MapGet("/api/remix/shares/{id}/files/{hash}", (string id, string hash, HttpContext context) =>
         {
+            if (SpendRead(governor, context, "sharefile", 120, 1200) is { } refused) return refused;
             // a file that the share lists (its own, or one of a built-in demo: the server has those) of a share that is available
             (ShareRecord Share, string State)? found = shares.Find(id);
             if (!LiteBlobs.IsHash(hash) || found is not { State: "available" } || !found.Value.Share.Files.Any(f => f.Sha256 == hash) || !blobs.TryGet(hash, out byte[] data)) return Problem("AMPL948", 404, "This file is not available.");
             return Results.File(data, "application/octet-stream");
         });
 
-        app.MapGet("/api/remix/shares/{id}/archive", (string id) =>
+        app.MapGet("/api/remix/shares/{id}/archive", (string id, HttpContext context) =>
         {
+            // like every other route of the Remix the archive is counted for the visitor
+            if (SpendRead(governor, context, "sharearchive", 30, 300) is { } refused) return refused;
             // every file of an available share in ONE answer (stored, not compressed): the page opens a share with one request instead of one per file (a proxy in front limits how many requests a visitor may make at once)
             (ShareRecord Share, string State)? found = shares.Find(id);
             if (found is null) return Problem("AMPL948", 404, "This share does not exist.");
             if (found.Value.State != "available") return Problem("AMPL948", 410, "This share is no longer available.");
-            using MemoryStream output = new();
-            using (ZipArchive zip = new(output, ZipArchiveMode.Create, true))
+            // the files are taken first (they are already in the store: these are the same arrays, not copies), so a missing one is a 404 before the first byte is sent
+            List<(string Path, byte[] Data)> parts = [];
+            foreach (ShareFile file in found.Value.Share.Files)
             {
-                foreach (ShareFile file in found.Value.Share.Files)
-                {
-                    if (!blobs.TryGet(file.Sha256, out byte[] data)) return Problem("AMPL948", 404, $"The share is missing \"{file.Path}\".");
-                    ZipArchiveEntry entry = zip.CreateEntry(file.Path, CompressionLevel.NoCompression);
-                    using Stream stream = entry.Open();
-                    stream.Write(data, 0, data.Length);
-                }
+                if (!blobs.TryGet(file.Sha256, out byte[] data)) return Problem("AMPL948", 404, $"The share is missing \"{file.Path}\".");
+                parts.Add((file.Path, data));
             }
 
-            return Results.File(output.ToArray(), "application/zip");
+            // only a few archives are written at the same time: a slot is taken here and given back when the last byte has gone
+            context.Features.Get<IHttpBodyControlFeature>()!.AllowSynchronousIO = true;   // a zip writes to its stream in the synchronous form
+            if (!ArchiveSlots.Wait(0)) return Problem("AMPL949", 503, "Many archives are being made at this moment: try again in a few seconds.", 5, context);
+            return Results.Stream(
+                body =>
+                {
+                    try
+                    {
+                        using ZipArchive zip = new(body, ZipArchiveMode.Create, true);
+                        foreach ((string path, byte[] data) in parts)
+                        {
+                            ZipArchiveEntry entry = zip.CreateEntry(path, CompressionLevel.NoCompression);
+                            using Stream stream = entry.Open();
+                            stream.Write(data, 0, data.Length);
+                        }
+                    }
+                    finally
+                    {
+                        ArchiveSlots.Release();
+                    }
+
+                    return Task.CompletedTask;
+                },
+                "application/zip");
         });
 
         app.MapPost("/api/remix/shares/{id}/manage", async (string id, HttpContext context) =>
@@ -240,6 +262,25 @@ public static class LiteSharesApi
         bool fromProxy = context.Connection.RemoteIpAddress is { } remote && System.Net.IPAddress.IsLoopback(remote);
         string first = (forwarded ?? string.Empty).Split(',')[0].Trim();
         return fromProxy && first.Length > 0 ? first : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    /// <summary>How many share archives may be written to visitors at the same moment (each holds its connection while a slow visitor reads it).</summary>
+    internal const int MaxArchivesAtOnce = 8;
+
+    internal static readonly SemaphoreSlim ArchiveSlots = new(MaxArchivesAtOnce, MaxArchivesAtOnce);
+
+    /// <summary>Counts one read of a share for the visitor; the answer to give when the visitor has used up the minute or the hour, else null.</summary>
+    private static IResult? SpendRead(LiteGovernor governor, HttpContext context, string kind, int perMinute, int perHour)
+    {
+        try
+        {
+            governor.Spend(kind, LiteClient.Keys(context), perMinute, perHour);
+            return null;
+        }
+        catch (LiteRejectedException rejected)
+        {
+            return Problem(rejected.Code, rejected.Status, rejected.Message, rejected.RetryAfterSeconds, context);
+        }
     }
 
     private static IResult Problem(string code, int status, string message, int retryAfter = 0, HttpContext? context = null)

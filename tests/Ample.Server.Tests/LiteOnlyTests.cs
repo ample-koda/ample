@@ -193,6 +193,97 @@ public sealed class LiteOnlyTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task The_share_archive_is_counted_for_the_visitor_like_every_other_route_and_is_refused_over_the_limit()
+    {
+        // security finding 50: the archive is built in memory and was the one route of the Remix that nothing counted
+        for (int i = 0; i < 30; i++)
+        {
+            using HttpResponseMessage unknown = await http.GetAsync("/api/remix/shares/abcd1234/archive");
+            Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        }
+
+        using HttpResponseMessage refused = await http.GetAsync("/api/remix/shares/abcd1234/archive");
+        Assert.Equal((HttpStatusCode)429, refused.StatusCode);
+        Assert.InRange(int.Parse(refused.Headers.GetValues("Retry-After").Single(), System.Globalization.CultureInfo.InvariantCulture), 1, 60);
+    }
+
+    private async Task<string> MakeShareAsync(params (string Path, string Text)[] files)
+    {
+        byte[][] data = [.. files.Select(f => Encoding.UTF8.GetBytes(f.Text))];
+        string manifest = JsonSerializer.Serialize(new
+        {
+            title = "t",
+            author = "a",
+            description = string.Empty,
+            expires = "1h",
+            rights = true,
+            entry = files[0].Path,
+            files = files.Select((f, i) => new { path = f.Path, sha256 = LiteBlobs.Hash(data[i]) }),
+        });
+        using MultipartFormDataContent form = new() { { new StringContent(manifest), "manifest" } };
+        for (int i = 0; i < data.Length; i++)
+        {
+            form.Add(new ByteArrayContent(data[i]), $"f{i}", "file" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        using HttpResponseMessage made = await http.PostAsync("/api/remix/shares", form);
+        Assert.Equal(HttpStatusCode.OK, made.StatusCode);
+        return JsonDocument.Parse(await made.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString()!;
+    }
+
+    [Fact]
+    public async Task The_share_archive_is_streamed_as_a_zip_with_every_file_of_the_share()
+    {
+        string id = await MakeShareAsync(("song.amplet", Song), ("notes/readme.txt", "hello"));
+        using HttpResponseMessage response = await http.GetAsync($"/api/remix/shares/{id}/archive");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/zip", response.Content.Headers.ContentType?.MediaType);
+        using System.IO.Compression.ZipArchive zip = new(await response.Content.ReadAsStreamAsync());
+        Assert.Equal(["notes/readme.txt", "song.amplet"], zip.Entries.Select(e => e.FullName).Order().ToArray());
+        using StreamReader reader = new(zip.GetEntry("song.amplet")!.Open());
+        Assert.Equal(Song, await reader.ReadToEndAsync());
+    }
+
+    [Fact]
+    public async Task When_the_archive_slots_are_all_taken_the_answer_is_a_503_with_a_retry_time_and_the_slot_comes_back()
+    {
+        // security finding 50: at most a few archives are written at the same moment
+        string id = await MakeShareAsync(("song.amplet", Song));
+        int taken = 0;
+        while (LiteSharesApi.ArchiveSlots.Wait(0)) taken++;
+        try
+        {
+            using HttpResponseMessage busy = await http.GetAsync($"/api/remix/shares/{id}/archive");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, busy.StatusCode);
+            Assert.True(busy.Headers.Contains("Retry-After"));
+        }
+        finally
+        {
+            LiteSharesApi.ArchiveSlots.Release(taken);
+        }
+
+        for (int i = 0; i < LiteSharesApi.MaxArchivesAtOnce + 2; i++)
+        {
+            using HttpResponseMessage ok = await http.GetAsync($"/api/remix/shares/{id}/archive");
+            Assert.Equal(HttpStatusCode.OK, ok.StatusCode);   // every answer gave its slot back
+        }
+    }
+
+    [Fact]
+    public async Task A_share_file_is_counted_for_the_visitor_and_is_refused_over_the_limit()
+    {
+        string hash = new('a', 64);
+        for (int i = 0; i < 120; i++)
+        {
+            using HttpResponseMessage unknown = await http.GetAsync($"/api/remix/shares/abcd1234/files/{hash}");
+            Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        }
+
+        using HttpResponseMessage refused = await http.GetAsync($"/api/remix/shares/abcd1234/files/{hash}");
+        Assert.Equal((HttpStatusCode)429, refused.StatusCode);
+    }
+
+    [Fact]
     public async Task The_build_over_the_limit_in_a_minute_is_refused_and_says_how_long_to_wait()
     {
         for (int i = 0; i < LiteLimits.Public.BuildsPerMinute; i++)
