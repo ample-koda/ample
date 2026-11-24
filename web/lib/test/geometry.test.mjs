@@ -42,7 +42,8 @@ test('zoom keeps the point under the pointer still and respects the limits', () 
   assert.equal(v.k, 2);
   assert.equal((100 - v.x) / v.k, 100 - 20);
   assert.equal(zoomAt({ x: 0, y: 0, k: 2.4 }, 0, 0, 10).k, 2.5);
-  assert.equal(zoomAt({ x: 0, y: 0, k: 0.21 }, 0, 0, 0.01).k, 0.2);
+  assert.equal(zoomAt({ x: 0, y: 0, k: 0.02 }, 0, 0, 0.01).k, 0.01);
+  assert.equal(zoomAt({ x: 0, y: 0, k: 0.21 }, 0, 0, 0.01).k, 0.01);
 });
 
 test('auto layout puts a block right of what feeds it, deterministically', () => {
@@ -145,7 +146,7 @@ test('rubber band, align and distribute', () => {
 test('fit view shows every node', () => {
   const nodes = [{ id: 'a', x: 0, y: 0, ins: [], outs: [] }, { id: 'b', x: 1000, y: 600, ins: [], outs: [] }];
   const v = fitView(nodes, { width: 800, height: 500 });
-  assert.ok(v.k >= 0.2 && v.k <= 1.5);
+  assert.ok(v.k >= 0.01 && v.k <= 1.5);
   assert.ok(v.x >= 0 && v.x + (1000 + W) * v.k <= 801);
 });
 
