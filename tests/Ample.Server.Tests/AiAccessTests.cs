@@ -178,6 +178,20 @@ public sealed class AiAccessTests : IAsyncLifetime
         Assert.Equal("untrusted", strict["approvalPolicy"]!.GetValue<string>());
     }
 
+    [Theory]
+    [InlineData("../outside.musicxml")]
+    [InlineData("a/../../outside.musicxml")]
+    [InlineData("project/../../outside.musicxml")]
+    public void A_score_outside_the_proposal_and_the_project_is_never_imported(string path)
+    {
+        AiTask task = NewTask();
+        File.Copy(Path.Combine(folder, "tune.musicxml"), Path.Combine(task.Workspace, "outside.musicxml"), true);
+        JsonElement body = JsonSerializer.SerializeToElement(new { path, @out = "sequences/outside.ampleseq" });
+        // refused as leaving the project (AMP5201), never read
+        Assert.Equal("AMP5201", Assert.Throws<AmpleException>(() => session.Ai.ImportScore(task.ContextToken, body)).DiagnosticCode);
+        Assert.False(File.Exists(Path.Combine(task.Workspace, "project", "sequences", "outside.ampleseq")));
+    }
+
     [Fact]
     public void A_musicxml_score_becomes_a_sequence_with_the_notes_tempo_and_a_playlist()
     {
