@@ -7,7 +7,7 @@ internal sealed class TremoloRenderer : ExtraEffect
 {
     public override string BlockType => "tremolo";
 
-    public override string Version => "1";
+    public override string Version => "2";
 
     protected override IReadOnlyList<RenderOutput> Process(RenderRequest r, CancellationToken cancellationToken)
     {
@@ -26,7 +26,11 @@ internal sealed class TremoloRenderer : ExtraEffect
         string shape = Text(r, "shape");
         string pattern = shape == "gate" ? Text(r, "pattern") : string.Empty;
         double stepLength = r.SamplesPerBar / (4.0 * r.BeatsPerBar);
-        if (shape == "gate" && sync.Contains('/', StringComparison.Ordinal) && int.TryParse(sync.Split('/')[1], NumberStyles.None, CultureInfo.InvariantCulture, out int stepDivision) && stepDivision > 0) stepLength = r.SamplesPerBar / (double)stepDivision;
+        int stepDivision = 0;
+        bool synced = sync.Contains('/', StringComparison.Ordinal)
+            && int.TryParse(sync.Split('/')[1], NumberStyles.None, CultureInfo.InvariantCulture, out stepDivision) && stepDivision > 0;
+        // a gate step of 1/8 is an eighth note in any meter (tremolo 2; it used to be an eighth of the bar)
+        if (shape == "gate" && synced) stepLength = r.SamplesPerBar * 4.0 / r.BeatsPerBar / stepDivision;
         long origin = (long)(r.FirstBar - 1) * r.SamplesPerBar;
         int n = left.Length;
         short[] l = new short[n];
@@ -39,7 +43,7 @@ internal sealed class TremoloRenderer : ExtraEffect
             {
                 "triangle" => 1 - (4 * Math.Abs(frac - 0.5)) + 0,   // -1..1, starts at its low
                 "square" => frac < 0.5 ? 1 : -1,
-                _ => Math.Sin(2 * Math.PI * frac),
+                _ => EngineMath.Sin(2 * Math.PI * frac),
             };
             if (shape == "triangle")
             {

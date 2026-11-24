@@ -1,6 +1,6 @@
 import { getToken } from '../../api.js';
 import { filterLaw, cutoffHz } from '../../../lib/live-filter-law.mjs';
-import { serverInt } from '../../../lib/server-int.mjs';
+import { serverInt, serverRoundedDb } from '../../../lib/server-int.mjs';
 import { gainQ15Wide, volumeCurve } from '../../../lib/volume-auto.mjs';
 import { panPoints, panCurve } from '../../../lib/live-pan-auto.mjs';
 import { gateLevel } from '../../../lib/trance-gate.mjs';
@@ -19,6 +19,8 @@ const FILTER_CYCLES = { '1/1': 1, '1/2': 2, '1/4': 4, '1/8': 8, '1/16': 16, '1/3
 const playerClock = () => { const state = window.AMPLE_PLAYER?.state?.() || {}; return { position: state.time || 0, duration: state.duration || 0, playing: Boolean(state.playing) }; };
 
 const CHORUS_BASE_MS = 20;   // same fixed base delay as the server's ModDelay(x, rate, 20, depth, period, 0, mix)
+// a level the effect uses in whole decibels (eq bands, compressor threshold and makeup, duck depth): rounded, as the server reads it
+const level = (params, name, fallback) => serverRoundedDb(params?.[name], fallback);
 const number = (params, name, fallback) => {
   if (/^\s*(auto|lfo|env|fadein|fadeout)\(/.test(String(params[name] ?? ''))) return fallback;   // an expression is not a number: stripping its letters made auto(0s:0, 238s:0) read as 2380 (+48 dB)
   const value = Number.parseFloat(String(params[name] ?? '').replace(/[^+\-\d.e]/gi, ''));
@@ -137,9 +139,9 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     const low = node(context.createBiquadFilter()), mid = node(context.createBiquadFilter()), high = node(context.createBiquadFilter());
     low.type = 'lowshelf'; mid.type = 'peaking'; mid.Q.value = .8; high.type = 'highshelf'; input.connect(low).connect(mid).connect(high).connect(wet);
     updateEffect = (params) => {
-      const lowHz = number(params, 'low_hz', 250), highHz = number(params, 'high_hz', 3000);
+      const [lowHz, highHz] = [number(params, 'low_hz', 250), number(params, 'high_hz', 3000)].sort((x, y) => x - y);   // in order, as the server (eq 3)
       set(low.frequency, lowHz); set(high.frequency, highHz); set(mid.frequency, Math.sqrt(lowHz * highHz));
-      set(low.gain, number(params, 'low', 0)); set(mid.gain, number(params, 'mid', 0)); set(high.gain, number(params, 'high', 0));
+      set(low.gain, level(params, 'low', 0)); set(mid.gain, level(params, 'mid', 0)); set(high.gain, level(params, 'high', 0));
     };
   } else if (type === 'peq') {
     const stages = Array.from({ length: 6 }, () => node(context.createBiquadFilter()));
@@ -159,7 +161,7 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     if (pair) lfo.out.connect(pair, 0, 1);
     updateEffect = (params) => {
       const law = filterLaw(params), { kind, passes, scale, q } = law;   // the server's pair of one-poles or state-variable filter (live-filter-law.mjs)
-      const cycles = FILTER_CYCLES[params.lfo_rate ?? params.lfo_sync] || 0, depth = cycles ? clamp(number(params, 'lfo_depth', 0), 0, 8) : 0;
+      const cycles = (FILTER_CYCLES[params.lfo_rate ?? params.lfo_sync] || 0) * barBeats() / 4, depth = cycles ? clamp(number(params, 'lfo_depth', 0), 0, 8) : 0;
       const shape = params.lfo_shape === 'saw' ? 'saw' : ['triangle', 'square'].includes(params.lfo_shape) ? params.lfo_shape : 'sine', bpm = Math.max(1, Number(tempo) || 120), barSamples = Math.floor(barBeats() * 60 * context.sampleRate / bpm);
       lfo.set({ hz: Math.max(.01, cycles * bpm / (barBeats() * 60)), type: shape === 'saw' ? 'sawtooth' : shape, key: `filter:${shape}:${cycles}:${barSamples}`, wave: () => filterWave(shape, cycles, barSamples) });
       set(lfoGain.gain, depth * 600);
@@ -179,8 +181,8 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   } else if (type === 'compressor') {
     const compressor = node(context.createDynamicsCompressor()), makeup = node(context.createGain()); input.connect(compressor).connect(makeup).connect(wet);
     updateEffect = (params) => {
-      set(compressor.threshold, number(params, 'threshold', -18)); set(compressor.ratio, clamp(number(params, 'ratio', 4), 1, 20));
-      set(compressor.attack, number(params, 'attack', 10) / 1000); set(compressor.release, number(params, 'release', 120) / 1000); set(makeup.gain, 10 ** (number(params, 'makeup', 0) / 20));
+      set(compressor.threshold, level(params, 'threshold', -18)); set(compressor.ratio, clamp(number(params, 'ratio', 4), 1, 20));
+      set(compressor.attack, number(params, 'attack', 10) / 1000); set(compressor.release, number(params, 'release', 120) / 1000); set(makeup.gain, 10 ** (level(params, 'makeup', 0) / 20));
     };
   } else if (type === 'duck') {
     // the dips are queued on the audio clock a few hundred ms ahead (live-clock-gate.mjs), so the pumping does not jitter when the page is busy
@@ -188,7 +190,7 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     let params = initial;
     const gate = createClockGate(context, gain.gain, {
       clock: playerClock, stepSeconds: () => 60 / Math.max(1, Number(tempo) || 120) / 4, map: tempoMap([{ beat: 0, bpm: Math.max(1, Number(tempo) || 120) }]), stepBeats: .25,
-      stepEvents: (k, step) => duckStepEvents(params.pattern, k, step, number(params, 'depth', 10), number(params, 'release', 160) / 1000),
+      stepEvents: (k, step) => duckStepEvents(params.pattern, k, step, level(params, 'depth', 10), number(params, 'release', 160) / 1000),
     });
     updateEffect = (values) => { params = values; gate.reset(); gate.tick(); };
     disposers.push(gate.dispose);
@@ -201,14 +203,14 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
     let params = initial;
     const gate = createClockGate(context, gateGain.gain, {
       clock: () => (params.shape === 'gate' ? playerClock() : { playing: false }),
-      stepSeconds: () => 60 / Math.max(1, Number(tempo) || 120) * barBeats() / liveStepDivision(params),
-      map: tempoMap([{ beat: 0, bpm: Math.max(1, Number(tempo) || 120) }]), stepBeats: () => barBeats() / liveStepDivision(params),
+      stepSeconds: () => 60 / Math.max(1, Number(tempo) || 120) * 4 / liveStepDivision(params),   // a step of 1/8 is an eighth note in any meter
+      map: tempoMap([{ beat: 0, bpm: Math.max(1, Number(tempo) || 120) }]), stepBeats: () => 4 / liveStepDivision(params),
       stepEvents: (k, step) => gateStepEvents(params.pattern, k, step, clamp(number(params, 'depth', 50), 0, 100) / 100),
     });
     updateEffect = (values) => {
       params = values;
       const isGate = values.shape === 'gate', depth = clamp(number(values, 'depth', 50), 0, 100) / 100, division = liveStepDivision(values);
-      const hz = values.sync && values.sync !== 'off' ? division * Math.max(1, Number(tempo) || 120) / (barBeats() * 60) : clamp(number(values, 'rate', 4), .05, 40);
+      const hz = values.sync && values.sync !== 'off' ? division * Math.max(1, Number(tempo) || 120) / (4 * 60) : clamp(number(values, 'rate', 4), .05, 40);
       const shape = values.shape === 'square' ? 'square' : values.shape === 'triangle' ? 'triangle' : 'sine', phase = number(values, 'phase', 0);
       lfo.set({ hz, type: shape, key: `trem:${shape}:${hz}:${phase}`, wave: () => tremoloWave(shape, hz, context.sampleRate, phase) });
       set(lfoGain.gain, isGate ? 0 : depth / 2);
@@ -432,7 +434,7 @@ export function liveEffectGraph(context, source, output, type, initial, tempo, i
   return { update, replaceImpulse, suspends: Boolean(suspendHook), keyInput, setKey, loudness, get latency() { return latency; }, dispose };
 }
 
-/** Steps (or cycles) per bar of the tremolo: the sync value (1/8 is 8), 16 when sync is off (a gate step is a sixteenth then). */
+/** Steps (or cycles) per whole note (four beats) of the tremolo, in any meter: the sync value (1/8 is 8), 16 when sync is off (a gate step is a sixteenth then). */
 export function liveStepDivision(params) {
   const division = Number.parseInt(String(params.sync || '').split('/')[1], 10);
   return Number.isFinite(division) && division > 0 ? division : 16;
@@ -531,9 +533,10 @@ export function effectGraph(context, source, output, type, params, tempo, durati
   if (type === 'volume') { liveEffectGraph(context, source, output, type, params, tempo); return; }
   if (type === 'eq') {
     const low = context.createBiquadFilter(), mid = context.createBiquadFilter(), high = context.createBiquadFilter();
-    low.type = 'lowshelf'; low.frequency.value = number(params, 'low_hz', 250); low.gain.value = number(params, 'low', 0);
-    mid.type = 'peaking'; mid.frequency.value = Math.sqrt(number(params, 'low_hz', 250) * number(params, 'high_hz', 3000)); mid.Q.value = .8; mid.gain.value = number(params, 'mid', 0);
-    high.type = 'highshelf'; high.frequency.value = number(params, 'high_hz', 3000); high.gain.value = number(params, 'high', 0);
+    const [lowHz, highHz] = [number(params, 'low_hz', 250), number(params, 'high_hz', 3000)].sort((x, y) => x - y);   // in order, as the server (eq 3)
+    low.type = 'lowshelf'; low.frequency.value = lowHz; low.gain.value = level(params, 'low', 0);
+    mid.type = 'peaking'; mid.frequency.value = Math.sqrt(lowHz * highHz); mid.Q.value = .8; mid.gain.value = level(params, 'mid', 0);
+    high.type = 'highshelf'; high.frequency.value = highHz; high.gain.value = level(params, 'high', 0);
     source.connect(low).connect(mid).connect(high).connect(output); return;
   }
   if (type === 'peq') {
@@ -556,13 +559,13 @@ export function effectGraph(context, source, output, type, params, tempo, durati
   }
   if (type === 'compressor') {
     const compressor = context.createDynamicsCompressor(), makeup = context.createGain();
-    compressor.threshold.value = number(params, 'threshold', -18); compressor.ratio.value = clamp(number(params, 'ratio', 4), 1, 20);
+    compressor.threshold.value = level(params, 'threshold', -18); compressor.ratio.value = clamp(number(params, 'ratio', 4), 1, 20);
     compressor.attack.value = number(params, 'attack', 10) / 1000; compressor.release.value = number(params, 'release', 120) / 1000;
-    makeup.gain.value = 10 ** (number(params, 'makeup', 0) / 20); source.connect(compressor).connect(makeup).connect(output); return;
+    makeup.gain.value = 10 ** (level(params, 'makeup', 0) / 20); source.connect(compressor).connect(makeup).connect(output); return;
   }
   if (type === 'duck') {
     const gain = context.createGain(); source.connect(gain).connect(output);
-    for (const event of duckAutomationEvents(params.pattern, number(params, 'depth', 10), number(params, 'release', 160), duration, tempo)) {
+    for (const event of duckAutomationEvents(params.pattern, level(params, 'depth', 10), number(params, 'release', 160), duration, tempo)) {
       gain.gain.setValueAtTime(event.floor, event.start); gain.gain.linearRampToValueAtTime(1, event.end);
     }
     return;

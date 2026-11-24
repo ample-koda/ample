@@ -263,3 +263,13 @@ test('text that is not plain note entries gives no items and never throws', () =
   assert.equal(itemsFromText('"1:0:500:60:96"', PPQ).length, 1);
   assert.equal(clipboardText([], PPQ), '');
 });
+
+test('Ctrl+Q on a note that snaps onto the next bar line moves it into that bar and keeps its length (bug 5)', async () => {
+  const { parse, format } = await import('../notes-model.mjs');
+  const gestures = await import('../lite-gestures.mjs');
+  const ppq = 1_000_000;
+  const model = parse('1:0:1:64:100 1:3.875:0.125:60:100', ppq);
+  const once = gestures.quantizeRows(model, gestures.mergedRows(model), 0.25 * ppq, 8 * ppq);
+  assert.equal(format(once), '1:0:1:64:100 2:0:0.125:60:100');
+  assert.equal(format(gestures.quantizeRows(once, gestures.mergedRows(once), 0.25 * ppq, 8 * ppq)), format(once));   // twice is the same as once
+});

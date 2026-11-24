@@ -39,3 +39,11 @@ test('a section tag is a row of its own without a bar, is kept in order and does
   assert.equal(timedRows(r.rows).length, 2);
   assert.ok(!lyricChecks(sortByTime(r.rows), node({ parts: [{ at: 1, length: 8, name: 'x' }] }), 120).some((c) => c.sev === 'error'));
 });
+
+test('an .lrc time stamp is rounded before it is split into minutes and seconds (bug 15)', async () => {
+  const { lrcTime } = await import('../../app/lyrics-model.js');
+  assert.equal(lrcTime(59.996), '01:00.00');
+  assert.equal(lrcTime(59.994), '00:59.99');
+  assert.equal(lrcTime(0), '00:00.00');
+  assert.equal(lrcTime(125.5), '02:05.50');
+});

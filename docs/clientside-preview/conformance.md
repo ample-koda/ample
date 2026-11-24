@@ -6,23 +6,36 @@ Distance in dB below the server render (more negative is closer; at or below -60
 
 | Block | Offline JS vs server | Live vs server |
 |---|---|---|
-| chorus | -20.7 dB (approximate) | -11.2 dB (differs) |
-| compressor | -31.9 dB (approximate) | -31.9 dB (approximate) |
+| chorus | -80.2 dB (exact) | -58.3 dB (close) |
+| chorus~deep | -77.4 dB (exact) | -59.7 dB (close) |
+| compressor | -74.0 dB (exact) | -74.0 dB (exact) |
 | deesser | -56.9 dB (close) | -56.9 dB (close) |
-| delay | -87.7 dB (exact) | -57.8 dB (close) |
+| delay | -87.7 dB (exact) | -61.7 dB (exact) |
+| delay~odd | -83.0 dB (exact) | -58.2 dB (close) |
 | distortion | -77.4 dB (exact) | -77.4 dB (exact) |
-| eq | -61.1 dB (exact) | -18.4 dB (approximate) |
-| filter | -61.5 dB (exact) | 4.9 dB (differs) |
-| flanger | -20.1 dB (approximate) | 0.9 dB (differs) |
+| eq | -61.1 dB (exact) | -61.1 dB (exact) |
+| filter | -61.5 dB (exact) | -61.5 dB (exact) |
+| filter~highpass | -57.3 dB (close) | -57.3 dB (close) |
+| filter~resonant | -89.4 dB (exact) | -89.4 dB (exact) |
+| filter~slope24 | -89.1 dB (exact) | -89.1 dB (exact) |
+| filter~sweep | -69.9 dB (exact) | -69.9 dB (exact) |
+| flanger | -73.2 dB (exact) | -55.2 dB (close) |
 | gate | -232.9 dB (exact) | -232.9 dB (exact) |
-| limiter | -29.3 dB (approximate) | -29.2 dB (approximate) |
-| pan | -84.5 dB (exact) | -71.9 dB (exact) |
-| peq | -92.7 dB (exact) | -6.6 dB (differs) |
-| phaser | -69.0 dB (exact) | -10.2 dB (differs) |
+| limiter | -81.8 dB (exact) | -81.8 dB (exact) |
+| pan | -84.5 dB (exact) | -84.5 dB (exact) |
+| pan~auto | -81.6 dB (exact) | -81.6 dB (exact) |
+| pan~lfo | -82.0 dB (exact) | -82.0 dB (exact) |
+| peq | -92.7 dB (exact) | -92.7 dB (exact) |
+| phaser | -69.0 dB (exact) | -65.9 dB (exact) |
 | reverb | -81.1 dB (exact) | -81.1 dB (exact) |
-| tremolo | -87.3 dB (exact) | -59.8 dB (close) |
-| volume | -77.4 dB (exact) | -52.5 dB (close) |
-| width | -83.4 dB (exact) | -61.2 dB (exact) |
+| tremolo | -87.3 dB (exact) | -87.3 dB (exact) |
+| volume | -77.1 dB (exact) | -77.1 dB (exact) |
+| volume~auto | -78.3 dB (exact) | -78.3 dB (exact) |
+| volume~fadein | -78.5 dB (exact) | -78.5 dB (exact) |
+| volume~fadeout | -81.8 dB (exact) | -81.8 dB (exact) |
+| volume~fractional | -71.1 dB (exact) | -71.1 dB (exact) |
+| volume~lfo | -73.6 dB (exact) | -73.6 dB (exact) |
+| width | -83.4 dB (exact) | -83.4 dB (exact) |
 | drums (built-in, 3 songs) | exact (sample for sample, drum-hits.test.mjs) | exact (the same hits, triggered on the audio clock) |
 
 ## Measured on a real song (2026-11-12)

@@ -14,6 +14,7 @@ import { gmProgramName, parseGmProgram } from '../lib/gm-programs.mjs';
 import { afterRestore, afterSavedWrite, afterStagedWrite, mayWrite, needsRestore, playPlan } from '../lib/seq-writes.mjs';
 import { S, applyText, build, edit, flat, readOnly, refreshInputs, subscribe } from './store.js';
 import { takeFromReport } from '../lib/build-report-take.mjs';
+import { barBeats, stepsPerBar } from '../lib/meter.mjs';
 import { embedFile, extractToFile, readEmbedded, withEmbedded } from '../lib/embedded-seq.mjs';
 import { lostAnything, lossText, restoreLost, sequenceLoss } from '../lib/seq-loss.mjs';
 import { V, registerView, setView } from './views.js';
@@ -31,7 +32,8 @@ import { createAuditionGuard } from '../lib/audition-guard.mjs';
 import { rangeFromFields } from '../lib/range-edit.mjs';
 import { scopeText, versionState } from '../lib/seq-scope.mjs';
 import {
-  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, check, deletePattern, deletePatternImpact, flattenVariations, isolatePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
+  TYPES, addChannel, addClip, addMarker, addPattern, addSection, addVariation, barsOfRow, stepClass, check, deletePattern, deletePatternImpact,
+  flattenVariations, isolatePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseLanesRaw, parseSeq, toggleLaneChannel,
   movePattern, removeChannel, removeClip, removeMarker, removeSection, renameChannel, renamePattern, rowsOf, setChannel, setLoop, setPattern, setRow, songBars, toggleStep, trackCount, updateClip, updateMarker, updateSection,
 } from '../lib/seq-model.mjs';
 
@@ -130,7 +132,11 @@ export function initSequencer() {
     if ((event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y')) {
       event.preventDefault(); event.stopPropagation();
       if (key === 'y' || event.shiftKey) redoEdit(); else undoEdit();
-    } else if (!event.ctrlKey && !event.metaKey && (key === 'delete' || key === 'backspace') && Q.clip >= 0 && Q.clip < Q.seq.clips.length && !locked) {
+    } else if (!event.ctrlKey && !event.metaKey && (key === 'delete' || key === 'backspace') && !locked) {
+      // the clip that has the focus is the one to delete (Tab moves the focus, not the chosen clip); else the chosen one (bug 7)
+      const focused = Number(target?.closest?.('.sqclip[data-clip]')?.dataset.clip);
+      if (Number.isInteger(focused) && focused >= 0 && focused < Q.seq.clips.length) Q.clip = focused;
+      if (Q.clip < 0 || Q.clip >= Q.seq.clips.length) return;
       event.preventDefault(); event.stopPropagation();
       deleteChosenClip();
     }
@@ -303,6 +309,28 @@ function fitIfTooWide() {
 let bottomWasOpen = null;
 function foldBottom() { const bottom = document.querySelector('#bottom'); if (!bottom) return; if (bottomWasOpen === null) bottomWasOpen = !bottom.classList.contains('min'); bottom.classList.add('min'); const toggle = document.querySelector('#b-min'); if (toggle) toggle.textContent = '▴'; }
 function unfoldBottom() { if (bottomWasOpen === null) return; const bottom = document.querySelector('#bottom'); if (bottom && bottomWasOpen) { bottom.classList.remove('min'); const toggle = document.querySelector('#b-min'); if (toggle) toggle.textContent = '▾'; } bottomWasOpen = null; }
+/**
+ * Before another song opens: the sequencer belongs to the song it was opened in, so its changes go into that song (or its file) first and the
+ * workspace closes. Else it stayed open over the next song, and Apply or Play wrote this sequence into a block of the same name there.
+ * Returns false when the person wants to keep editing (the sequence has an error and cannot be written).
+ */
+export async function closeSequencerForSongSwitch() {
+  if (V.mode !== 'seq' || !Q.seq) return true;
+  if (dirty() && !isLocked()) {
+    if (Q.error) {
+      const choices = [{ label: 'Keep editing', value: false }, { label: 'Throw away and switch', value: true, primary: true }];
+      if (!(await ask('Switch song', `The sequence cannot be written: ${Q.error}`, choices))) return false;
+    } else {
+      try { await writeFile(); } catch (error) { toast(error.message); return false; }
+    }
+  }
+  stopNow();
+  Q.seq = null; Q.snapshot = ''; Q.original = ''; Q.blockId = null;
+  unfoldBottom();
+  setView('blocks');
+  return true;
+}
+
 async function leave(applyIt) {
   if (applyIt && Q.error) { toast('Fix the file first: ' + Q.error); return; }
   const undoChoices = [{ label: 'Keep editing', value: false }, { label: 'Undo and back', value: true, primary: true }];
@@ -896,12 +924,13 @@ function paintPatterns(host, locked) {
       return;
     }
     if (c.type === 'drum') {
-      barsOfRow(text, current.bars).forEach((steps, bar) => {
+      barsOfRow(text, current.bars, stepsPerBar()).forEach((steps, bar) => {
         const group = el('span', { className: 'sqbar' });
         [...steps].forEach((ch, s) => {
-          const cell = el('button', { className: `seqc ${s % 4 === 0 ? 'beat' : s % 2 === 0 ? 'eighth' : 'sixteenth'} v${ch === '.' ? 'rest' : ch}`, textContent: ch === '.' ? '' : ch, disabled: locked, title: `bar ${bar + 1}, step ${s + 1}` });
+          const look = `seqc ${stepClass(s, steps.length, barBeats())} v${ch === '.' ? 'rest' : ch}`;
+          const cell = el('button', { className: look, textContent: ch === '.' ? '' : ch, disabled: locked, title: `bar ${bar + 1}, step ${s + 1}` });
           cell.dataset.bar = String(bar); cell.dataset.step = String(s); cell.dataset.value = ch;
-          cell.onclick = () => commit(toggleStep(Q.seq, current.name, c.name, bar, s));
+          cell.onclick = () => commit(toggleStep(Q.seq, current.name, c.name, bar, s, stepsPerBar()));
           group.append(cell);
         });
         row.append(group);

@@ -1,6 +1,7 @@
 import { limiterAudio } from './clientside-limiter.mjs';
 import { pause } from './yield-slice.mjs';
-import { audibleLanes, wholeNumber } from './live-mixer.mjs';
+import { serverRoundedDb } from './server-int.mjs';
+import { audibleLanes, balanceGains, panValue, roundedDb } from './live-mixer.mjs';
 import { barBeats } from './meter.mjs';
 
 const gain = (text, fallback) => {
@@ -19,16 +20,19 @@ export async function mixAudioBuffers(inputs, options, signal) {
   const sampleRate = inputs[0].audio.sampleRate;
   if (inputs.some((item) => item.audio.sampleRate !== sampleRate)) throw new Error('Connected audio inputs use different sample rates and cannot be mixed locally yet.');
   const length = Math.max(...inputs.map((item) => item.audio.channels[0].length));
-  const stereo = options.channels === 'stereo' || options.channels !== 'mono' && inputs.some((item) => item.audio.channels.length > 1);
-  const count = stereo ? 2 : 1, channels = Array.from({ length: count }, () => new Float32Array(length));
   const levels = String(options.gains ?? '').trim().split(/[\s,]+/).filter(Boolean);
   const pans = String(options.pan ?? '').trim().split(/[\s,]+/).filter(Boolean);
+  // stereo as on the server: channels stereo, a stereo input, or a lane that is not in the centre
+  const placed = pans.some((token) => panValue(token) !== 0);
+  const stereo = options.channels === 'stereo' || options.channels !== 'mono' && (placed || inputs.some((item) => item.audio.channels.length > 1));
+  const count = stereo ? 2 : 1, channels = Array.from({ length: count }, () => new Float32Array(length));
   const audible = audibleLanes(options, 16);   // mutes and solos of a mixer (a bus has none): silent inputs add nothing, as on the server
   for (let lane = 0; lane < inputs.length; lane++) {
     const { audio, index } = inputs[lane];
     if (audible[index] === false) continue;
-    const amount = linear(Math.max(-60, Math.min(48, wholeNumber(levels[index]) ?? 0)));   // the server reads a lane gain with int.TryParse: -12.041 is not a number there, the lane stays at 0 dB
-    const pan = pans[index] === 'l' ? -1 : pans[index] === 'r' ? 1 : 0;
+    // the server rounds a lane gain to whole decibels (ReadRoundedDb: -10.44 is -10, 6dB is 6) and pans with its table (l, left, r, right, c or -32..32)
+    const amount = linear(Math.max(-60, Math.min(48, roundedDb(levels[index]) ?? 0)));
+    const { left: leftScale, right: rightScale } = balanceGains(panValue(pans[index]));
     for (let start = 0; start < length; start += 65536) {
       signal?.throwIfAborted();
       const end = Math.min(length, start + 65536);
@@ -36,8 +40,8 @@ export async function mixAudioBuffers(inputs, options, signal) {
         const left = audio.channels[0][i] || 0;
         const right = audio.channels[1]?.[i] ?? left;
         if (stereo) {
-          channels[0][i] += left * amount * (pan > 0 ? 1 - pan : 1);
-          channels[1][i] += right * amount * (pan < 0 ? 1 + pan : 1);
+          channels[0][i] += left * amount * leftScale;
+          channels[1][i] += right * amount * rightScale;
         } else channels[0][i] += (left + right) * 0.5 * amount;
       }
       await pause();
@@ -67,7 +71,7 @@ export async function sendAudioBuffers(inputs, options, signal) {
 /** Limits before slicing, like the server master; target is a loudness reference only. */
 export async function masterAudioBuffer(audio, options, tempo, signal) {
   if (options.enabled === 'off') return audio;
-  const limited = await limiterAudio(audio, { ceiling: Math.max(-12, gain(options.limiter, -1)), release: 100, lookahead: 5 }, signal);
+  const limited = await limiterAudio(audio, { ceiling: Math.max(-12, Math.min(0, serverRoundedDb(options.limiter, -1))), release: 100, lookahead: 5 }, signal);
   let first = Math.max(1, Number.parseInt(options.slice_from, 10) || 1);
   let end = Number.parseInt(options.slice_to, 10) || Math.ceil(audio.channels[0].length / (audio.sampleRate * (barBeats() * 60) / tempo));
   if (end < first) throw new Error('The master slice ends before it starts.');

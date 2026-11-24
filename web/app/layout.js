@@ -41,6 +41,9 @@ export function initLayout() {
   const fit = () => { const room = Math.max(120, Math.round(innerHeight - $('#work').getBoundingClientRect().top - 200)); bottom.style.setProperty('--bmax', `${room}px`); return room; };
   window.addEventListener('resize', fit);
   const flip = (k) => { saved[k] = !saved[k]; store(saved); apply(); resized(); };
+  // a tab of the bottom panel opened by the code (a failed block, Project files): the panel is open in the saved state too, else the next ▾ only flipped it back
+  // to open and did nothing, and a reload showed it folded (bug 24)
+  document.addEventListener('ample:bottom-open', () => { if (saved.min) { saved.min = false; store(saved); apply(); resized(); } });
   // on a narrow screen the sidebars are not columns: the same buttons open them as a drawer over the canvas (not remembered)
   const narrow = matchMedia('(max-width:900px)');
   const back = document.createElement('div');

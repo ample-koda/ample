@@ -307,22 +307,46 @@ export function setRow(seq, pattern, channel, text) {
   return out;
 }
 
-/** The steps of a drum row as one string per bar (16 steps each); a missing bar repeats from the first one. */
-export function barsOfRow(row, bars) {
+/** The bars of a drum row as written, whitespace removed; a missing bar repeats from the first one, as the server reads them. */
+const writtenBars = (row, bars) => {
   const groups = String(row ?? '').split('|').map((g) => g.replace(/\s+/g, ''));
-  return Array.from({ length: bars }, (_, i) => { const g = groups[i % groups.length] || ''; return Array.from({ length: 16 }, (_, s) => g[s % (g.length || 1)] ?? '.').join(''); });
+  return Array.from({ length: bars }, (_, i) => groups[i % groups.length] || '');
+};
+
+/** How many steps the server plays for a bar as written: 12, 24 or 32 characters are that many steps (triplets, thirty-seconds), any other bar has the steps of the meter. */
+export const stepsOfBar = (written, sixteenths = 16) => (written.length === 12 || written.length === 24 || written.length === 32 ? written.length : Math.max(1, sixteenths));
+
+/**
+ * The steps of a drum row as one string per bar, each as long as the server plays it (Sequencer.cs: `stepsOfBar`, a shorter bar repeats); a missing bar
+ * repeats from the first one. `sixteenths` is the number of sixteenths in a bar of the song (16 in 4/4, 12 in 3/4, 20 in 5/4: meter.mjs stepsPerBar).
+ */
+export function barsOfRow(row, bars, sixteenths = 16) {
+  return writtenBars(row, bars).map((g) => Array.from({ length: stepsOfBar(g, sixteenths) }, (_, s) => g[s % (g.length || 1)] ?? '.').join(''));
+}
+
+/** The look of a step cell: 'beat' on a beat, 'eighth' half way between beats, else 'sixteenth'; for any number of steps in a bar (12 triplets, 32nds, 3/4). */
+export function stepClass(step, steps, beats = 4) {
+  const perBeat = steps / Math.max(1, beats);
+  const near = (value) => Math.abs(value - Math.round(value)) < 1e-9;
+  if (near(step / perBeat)) return 'beat';
+  return near((step * 2) / perBeat) ? 'eighth' : 'sixteenth';
 }
 
 export const formatBars = (bars) => bars.join('|');
 
 export const cycleStep = (c) => DRUM_CYCLE[(DRUM_CYCLE.indexOf(c) + 1) % DRUM_CYCLE.length] ?? 'x';
 
-/** Clicks a step of a drum row of a pattern: writes the whole row back. */
-export function toggleStep(seq, pattern, channel, bar, step) {
+/**
+ * Clicks a step of a drum row of a pattern. Only the clicked bar is written out as its steps; every other bar keeps its text as it was written
+ * (else one click turned a triplet or a thirty-second row into sixteen straight steps in every bar). An inherited row is the starting point of the variation's own row.
+ */
+export function toggleStep(seq, pattern, channel, bar, step, sixteenths = 16) {
   const p = seq.patterns.find((x) => x.name === pattern);
   if (!p) return seq;
-  const rows = barsOfRow(rowsOf(seq, p)[channel], p.bars);   // an inherited row is the starting point of the variation's own row
-  const chars = [...rows[bar]];
+  const written = writtenBars(rowsOf(seq, p)[channel], p.bars);
+  const rows = written.map((g) => g || '.'.repeat(Math.max(1, sixteenths)));
+  const chars = [...barsOfRow(written[bar], 1, sixteenths)[0]];
+  if (step < 0 || step >= chars.length) return seq;
   chars[step] = cycleStep(chars[step]);
   rows[bar] = chars.join('');
   return setRow(seq, pattern, channel, formatBars(rows));

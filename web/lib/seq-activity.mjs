@@ -13,7 +13,7 @@ export function activeChannels(seq, position, beatsPerBar = 4) {
     const text = rows[channel.name] ?? '';
     if (!text.trim() || text.trim() === '-') continue;
     if (channel.type === 'drum') {
-      const steps = barsOfRow(text, pattern.bars)[barIndex] ?? '';
+      const steps = barsOfRow(text, pattern.bars, Math.max(1, Math.round(4 * beatsPerBar)))[barIndex] ?? '';
       const step = steps[Math.min(steps.length - 1, Math.floor(inBar * steps.length))] ?? '.';
       if (step !== '.' && step !== '-') on.add(channel.name);
     } else if (channel.type === 'loop' || channel.type === 'guitar') on.add(channel.name);   // a loop or a strum plays through the pattern

@@ -5,7 +5,7 @@ internal static class ResonantFilter
 {
     /// <summary>Gets the linear Q of a resonance in percent: 0 is 1, 100 is a peak of about 18 dB at the cutoff.</summary>
     /// <param name="percent">Resonance, 0 to 100.</param>
-    internal static double QOf(double percent) => Math.Pow(10, Math.Clamp(percent, 0, 100) * 0.18 / 20);
+    internal static double QOf(double percent) => EngineMath.Pow(10, Math.Clamp(percent, 0, 100) * 0.18 / 20);
 
     /// <summary>Filters one channel.</summary>
     /// <param name="x">The samples.</param>
@@ -73,7 +73,7 @@ internal static class ResonantFilter
         for (int i = 0; i < x.Length; i++)
         {
             if (resonances is not null) k = 1 / QOf(resonances[i]);
-            double g = Math.Tan(Math.PI * Math.Min(cutoffs[i], rate * 0.45) / rate);
+            double g = EngineMath.Tan(Math.PI * Math.Min(cutoffs[i], rate * 0.45) / rate);
             double a1 = 1 / (1 + (g * (g + k))), a2 = g * a1, a3 = g * a2;
             double v3 = x[i] - ic2, v1 = (a1 * ic1) + (a2 * v3), v2 = ic2 + (a2 * ic1) + (a3 * v3);
             ic1 = (2 * v1) - ic1;

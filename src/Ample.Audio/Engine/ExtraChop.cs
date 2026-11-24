@@ -66,8 +66,8 @@ public static class Chop
         }
 
         double peak = Math.Max(1e-9, mono.Max(Math.Abs));
-        double threshold = peak * (0.30 * Math.Pow(0.01 / 0.30, Math.Clamp(sensitivity, 0, 100) / 100));
-        double smooth = 1 - Math.Exp(-1 / (rate * 0.008)), level = 0;
+        double threshold = peak * (0.30 * EngineMath.Pow(0.01 / 0.30, Math.Clamp(sensitivity, 0, 100) / 100));
+        double smooth = 1 - EngineMath.Exp(-1 / (rate * 0.008)), level = 0;
         int gap = Math.Max(1, (int)(gapMs * rate / 1000)), lead = (int)(0.006 * rate);
         List<int> starts = [];
         int quiet = gap + 1;
@@ -138,7 +138,7 @@ public static class Chop
                 {
                     int begin = ((round * pattern.Count) + step) * stepLength + (k * part);
                     // the speed: 1 is natural; fit moves it towards the speed that makes the slice exactly as long as its part
-                    double speed = Math.Pow(Math.Clamp(natural / (double)part, 0.5, 2), Math.Clamp(s.Fit, 0, 1));
+                    double speed = EngineMath.Pow(Math.Clamp(natural / (double)part, 0.5, 2), Math.Clamp(s.Fit, 0, 1));
                     for (int i = 0; i < sounding && begin + i < result.Length; i++)
                     {
                         double position = from + (i * speed);
@@ -165,7 +165,7 @@ internal sealed class ChopRenderer : ExtraEffect
 {
     public override string BlockType => "chop";
 
-    public override string Version => "1";
+    public override string Version => "2";   // 2: EngineMath (the same bits on every machine)
 
     protected override IReadOnlyList<RenderOutput> Process(RenderRequest r, CancellationToken cancellationToken)
     {

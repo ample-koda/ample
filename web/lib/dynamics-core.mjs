@@ -2,7 +2,7 @@
 // AudioWorklet (dynamics-worklet.mjs) both run these classes, so the sound you hear while a knob moves is the sound of the render, sample for sample (the pattern of the
 // Delay Llama). process(ins, outs, from, to) reads ins[channel][i] and writes outs[channel][i] for i in [from, to); all channels are linked (one detector).
 import { cutoffAlpha } from './one-pole.mjs';
-import { serverInt } from './server-int.mjs';
+import { serverInt, serverRoundedDb } from './server-int.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 /** A number from a parameter text such as "-50 dB" or "5 ms" (any unit words are ignored). */
@@ -25,7 +25,7 @@ export class GateCore {
 
   configure(params) {
     const rate = this.rate;
-    this.threshold = 10 ** (clamp(readNumber(params.threshold, -50), -80, 0) / 20);
+    this.threshold = 10 ** (clamp(serverRoundedDb(params.threshold, -50), -80, 0) / 20);   // whole decibels, rounded (gate 2)
     this.attack = Math.max(1, Math.trunc(clamp(readNumber(params.attack, 5), 1, 200) * rate / 1000));
     this.hold = Math.trunc(clamp(readNumber(params.hold, 80), 0, 1000) * rate / 1000);
     this.release = Math.max(1, Math.trunc(clamp(readNumber(params.release, 150), 5, 2000) * rate / 1000));
@@ -56,7 +56,7 @@ export class DeesserCore {
     const rate = this.rate;
     const hz = clamp(Number.parseFloat(String(params.frequency ?? '6000').replace('Hz', '')) || 6000, 2000, rate / 2 - 100);
     this.coefficient = cutoffAlpha(hz, rate);   // as on the server (de-esser version 2)
-    this.threshold = 10 ** (clamp(readNumber(params.threshold, -30, /dBFS|dB/gi), -60, 0) / 20);
+    this.threshold = 10 ** (clamp(serverRoundedDb(params.threshold, -30), -60, 0) / 20);   // whole decibels, rounded (de-esser 3)
     this.ratio = clamp(Number.parseFloat(params.ratio) || 4, 1, 20);
     this.attack = Math.max(1, Math.floor(rate / 2000)); this.release = Math.max(1, Math.floor(rate / 50));
   }
@@ -92,7 +92,7 @@ export class LimiterCore {
 
   configure(params) {
     const rate = this.rate;
-    const ceilingDb = clamp(serverInt(params.ceiling, -1), -24, 0);
+    const ceilingDb = clamp(serverRoundedDb(params.ceiling, -1), -24, 0);   // whole decibels, rounded (limiter 2)
     this.ceiling = Math.floor(gainQ15(ceilingDb) * 32767 / 32768) / 32768;   // the ceiling in whole 16-bit steps, as a fraction of full scale
     this.release = Math.max(1, Math.trunc(clamp(serverInt(params.release, 100), 10, 1000) * rate / 1000));
     const look = Math.max(1, Math.trunc(clamp(serverInt(params.lookahead, 5), 1, 20) * rate / 1000));
@@ -150,11 +150,11 @@ export class CompressorCore {
 
   configure(params) {
     const rate = this.rate;
-    this.threshold = 10 ** (clamp(readNumber(params.threshold, -18, /db|ms|hz/gi), -60, 0) / 20);
+    this.threshold = 10 ** (clamp(serverRoundedDb(params.threshold, -18), -60, 0) / 20);   // whole decibels, rounded (compressor 7)
     this.ratio = clamp(readNumber(params.ratio, 4, /db|ms|hz/gi), 1, 20);
     this.attack = Math.max(1, Math.trunc(clamp(readNumber(params.attack, 10, /db|ms|hz/gi), 1, 500) * rate / 1000));
     this.release = Math.max(1, Math.trunc(clamp(readNumber(params.release, 120, /db|ms|hz/gi), 5, 2000) * rate / 1000));
-    this.makeup = 10 ** (clamp(readNumber(params.makeup, 0, /db|ms|hz/gi), 0, 12) / 20);
+    this.makeup = 10 ** (clamp(serverRoundedDb(params.makeup, 0), 0, 12) / 20);
     this.keyHz = clamp(readNumber(params.keyFilter, 0, /db|ms|hz/gi), 0, 8000);
     this.alpha = cutoffAlpha(this.keyHz, this.keyRate);
   }

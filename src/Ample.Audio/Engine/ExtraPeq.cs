@@ -7,7 +7,7 @@ internal sealed class PeqRenderer : ExtraEffect
 
     public override string BlockType => "peq";
 
-    public override string Version => "1";
+    public override string Version => "2";   // 2: coefficients from EngineMath (the same bits on every machine)
 
     /// <summary>Gets the normalised biquad coefficients (b0, b1, b2, a1, a2) of one band.</summary>
     /// <param name="type">peak, lowshelf, highshelf, notch, lowcut (12 dB per octave high-pass) or highcut (12 dB per octave low-pass).</param>
@@ -17,8 +17,8 @@ internal sealed class PeqRenderer : ExtraEffect
     /// <param name="rate">The sample rate.</param>
     internal static (double B0, double B1, double B2, double A1, double A2) Coefficients(string type, double hz, double gainDb, double q, int rate)
     {
-        double w0 = 2 * Math.PI * Math.Clamp(hz, 20, rate * 0.45) / rate, cw = Math.Cos(w0), sw = Math.Sin(w0);
-        double alpha = sw / (2 * Math.Max(0.1, q)), a = Math.Pow(10, gainDb / 40);
+        double w0 = 2 * Math.PI * Math.Clamp(hz, 20, rate * 0.45) / rate, cw = EngineMath.Cos(w0), sw = EngineMath.Sin(w0);
+        double alpha = sw / (2 * Math.Max(0.1, q)), a = EngineMath.Pow(10, gainDb / 40);
         double b0, b1, b2, a0, a1, a2;
         switch (type)
         {

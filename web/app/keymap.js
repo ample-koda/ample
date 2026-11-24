@@ -52,7 +52,14 @@ registerCommand({ id: 'view.jam', group: 'Views', label: 'AMPLE Jam of the selec
   const button = [...document.querySelectorAll('#right button')].find((b) => /AMPLE Jam/.test(b.textContent));
   if (button) button.click(); else toast('Select a MIDI clip first.');
 } });
-registerCommand({ id: 'view.browser', group: 'Views', label: 'Block library: search', keys: ['F8', '/'], run: () => { const box = document.querySelector('#lib-q'); if (box) { box.focus(); box.select?.(); } } });
+// the search of the library that is shown: the Components tab has its own (#clib-q); the block library's search is hidden then and took the key for nothing (bug 19)
+const visibleLibrarySearch = () => {
+  const components = document.querySelector('#pane-clib');
+  const shown = components && components.style.display !== 'none' && components.offsetParent !== null ? document.querySelector('#clib-q') : null;
+  return shown || document.querySelector('#lib-q');
+};
+const focusLibrarySearch = () => { const box = visibleLibrarySearch(); if (box) { box.focus(); box.select?.(); } };
+registerCommand({ id: 'view.browser', group: 'Views', label: 'Block library: search', keys: ['F8', '/'], run: focusLibrarySearch });
 registerCommand({ id: 'view.mixer', group: 'Views', label: 'Mixer', keys: ['F9'], run: () => clickTab('mixer') });
 registerCommand({ id: 'build', group: 'Song', label: 'Build the song', keys: [], run: () => document.querySelector('#btn-build')?.click() });
 

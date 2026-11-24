@@ -1056,7 +1056,7 @@ public static partial class BuiltInRenderers
 
         public string Id => "builtin.master";
 
-        public string Version => "4";
+        public string Version => "5";
 
         public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest r, CancellationToken cancellationToken)
         {
@@ -1067,7 +1067,7 @@ public static partial class BuiltInRenderers
 
             // the limiter parameter is the ceiling: peaks above it are pulled down (look-ahead, no clipping); quieter music passes untouched
             string text = r.Block.Parameters.FirstOrDefault(p => p.Name == "limiter")?.Value.Trim().Trim('"') is { Length: > 0 } v ? v : r.Template.Parameters.GetValueOrDefault("limiter") ?? "-1 dB";
-            byte[] limited = AudioEffects.LimitAudio(data, Math.Clamp(AudioEffects.Read(text, -1), -12, 0));
+            byte[] limited = AudioEffects.LimitAudio(data, Math.Clamp(AudioEffects.ReadRoundedDb(text, -1), -12, 0));   // whole decibels, rounded (AudioEffects.IsWholeDb)
             return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("master", Slice(r, limited))]);
         }
 

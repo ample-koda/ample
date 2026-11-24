@@ -78,7 +78,7 @@ internal sealed class SequencerRenderer : IBlockRenderer
     public string BlockType => "sequencer";
     public string Id => "builtin.sequencer";
     // the version of the GM renderer is part of it: a sequencer plays its gm channels with that renderer, so a new GM sound must build the sequencer again
-    public string Version => "3/gm" + new SampledInstruments.Gm().Version;
+    public string Version => "4/gm" + new SampledInstruments.Gm().Version;   // 4: the llama voice uses EngineMath (the same bits on every machine)
 
     public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest r, CancellationToken cancellationToken)
     {

@@ -5,7 +5,7 @@
     "line": 1,
     "col": 1,
     "endCol": 25,
-    "message": "Expected: composition \"name\" { tempo N  master-seed N }"
+    "message": "Expected: composition \"name\" { ample 1  tempo N  meter N/N  master-seed N } (the settings in any order; ample and meter may be left out, each one only once)"
   },
   {
     "code": "AMP1001",

@@ -7,10 +7,13 @@ export async function tremoloAudio(audio, params, tempo, firstBar, signal) {
   if (params.enabled === 'off') return audio;
   const rate = audio.sampleRate, samplesPerBar = Math.floor(rate * (barBeats() * 60) / tempo), division = Number.parseInt(String(params.sync || '').split('/')[1], 10);
   let hz = Math.max(0.05, Math.min(40, Number.parseFloat(params.rate) || 4));
-  if (params.sync && params.sync !== 'off' && Number.isFinite(division) && division > 0) hz = rate / (samplesPerBar / division);
+  // a note value is a part of a whole note (four beats) in any meter, as the server: 1/8 is an eighth note in 3/4 too (tremolo 2 for the gate steps)
+  const wholeNote = samplesPerBar * 4 / barBeats();
+  if (params.sync && params.sync !== 'off' && Number.isFinite(division) && division > 0) hz = rate / (wholeNote / division);
   const depth = Math.max(0, Math.min(100, Number.parseFloat(params.depth) || 0)) / 100, phase = (Number.parseFloat(params.phase) || 0) / 360, pan = params.mode === 'autopan', shape = params.shape || 'sine';
   if (!['sine', 'triangle', 'square', 'gate'].includes(shape)) throw new Error(`Unsupported tremolo shape “${shape}”.`);
-  const pattern = shape === 'gate' ? String(params.pattern ?? 'x.x.x.x.x.x.x.x.').replace(/^"|"$/g, '') : '', stepLength = samplesPerBar / (Number.isFinite(division) && division > 0 ? division : 16), gateRamp = Math.min(Math.floor(rate * 0.002), stepLength / 2);
+  const pattern = shape === 'gate' ? String(params.pattern ?? 'x.x.x.x.x.x.x.x.').replace(/^"|"$/g, '') : '';
+  const stepLength = wholeNote / (Number.isFinite(division) && division > 0 ? division : 16), gateRamp = Math.min(Math.floor(rate * 0.002), stepLength / 2);
   const stereo = audio.channels.length > 1, count = stereo || pan ? 2 : 1, channels = Array.from({ length: count }, () => new Float32Array(audio.channels[0].length)), origin = (firstBar - 1) * samplesPerBar;
   for (let start = 0; start < channels[0].length; start += 65536) {
     signal?.throwIfAborted();

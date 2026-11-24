@@ -1,5 +1,5 @@
 import { infoNote, infoToggle } from './info.js';
-import { clamp, compressorOutput, duckGain, releaseInSteps } from '../../../lib/studio-math.js';
+import { clamp, compressorOutput, duckGain, releaseInSteps, wholeDb } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
 import { registerStudioPanel } from './registry.js';
@@ -11,7 +11,9 @@ const ns = 'http://www.w3.org/2000/svg';
 const valueOf = (params, key, fallback) => { const value = Number.parseFloat(String(params[key] ?? '').replace(/[a-z ]/gi, '')); return Number.isFinite(value) ? value : fallback; };
 // a knob draws its own name and its value is a button: inside a label every click on the knob would also click that button (issue 188)
 const control = (label, widget) => el(widget.classList?.contains('studio-knob') ? 'div' : 'label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), widget]);
-const write = (context, name, value, unit = '') => context.commit(name, `${typeof value === 'number' ? Number(value.toFixed(unit === 'dB' ? 1 : 0)) : value}${unit ? ` ${unit}` : ''}`);
+// a level the effect uses in whole decibels is written rounded, as shown (wholeDb)
+const places = (context, name, unit) => (unit === 'dB' && !wholeDb(context.type, name) ? 1 : 0);
+const write = (context, name, value, unit = '') => context.commit(name, `${typeof value === 'number' ? Number(value.toFixed(places(context, name, unit))) : value}${unit ? ` ${unit}` : ''}`);
 const svg = (tag, attributes) => { const node = document.createElementNS(ns, tag); Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, String(value))); return node; };
 
 function compressorPanel(context) {
@@ -48,12 +50,14 @@ function compressorPanel(context) {
   ratioHandle.onpointerup = () => { if (ratioDrag) { ratioDrag = false; ratioHandle.setAttribute('aria-valuenow', String(nextRatio)); write(context, 'ratio', nextRatio); } };
   thresholdHandle.onkeydown = (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
-    event.preventDefault(); nextThreshold = clamp(threshold + (event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : -1), -60, 0);
+    // from the value now, not the one of the last draw
+    event.preventDefault(); nextThreshold = clamp(Math.round(liveThreshold) + (event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : -1), -60, 0);
     liveThreshold = nextThreshold; thresholdHandle.setAttribute('cx', String(x(nextThreshold))); thresholdHandle.setAttribute('cy', String(y(nextThreshold))); ratioHandle.setAttribute('cy', String(y(compressorOutput(0, liveThreshold, liveRatio)))); drawResponse(); write(context, 'threshold', nextThreshold, 'dB');
   };
   ratioHandle.onkeydown = (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
-    event.preventDefault(); nextRatio = clamp(ratio + (event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 0.5 : -0.5), 1, 20);
+    // the server reads the ratio as a whole number: a step of 1, from the value now (a step of 0.5 wrote 3.5 as 4 and the ratio never went down, bug 22)
+    event.preventDefault(); nextRatio = clamp(Math.round(liveRatio) + (event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : -1), 1, 20);
     liveRatio = nextRatio; ratioHandle.setAttribute('cy', String(y(compressorOutput(0, liveThreshold, liveRatio)))); drawResponse(); write(context, 'ratio', nextRatio);
   };
   graph.append(thresholdHandle, ratioHandle);

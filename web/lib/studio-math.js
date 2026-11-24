@@ -147,11 +147,20 @@ export function peqResponse(frequency, params) {
 }
 
 /**
+ * The levels that the effects use in whole decibels (one table with src/Ample.Language/WholeDecibels.cs): a knob writes them rounded, as it shows them,
+ * so the knob, the song and the build say the same number.
+ */
+export const wholeDb = (type, name) => ({ eq: ['low', 'mid', 'high'], compressor: ['threshold', 'makeup'], limiter: ['ceiling'], gate: ['threshold'], deesser: ['threshold'], duck: ['depth'], master: ['limiter'] })[type]?.includes(name) ?? false;
+
+/**
  * How a knob moves and is written, from its unit and its smallest value: decibels in tenths, whole numbers otherwise, and
  * hundredths where the smallest value is between 0 and 1 (a knob from 0.1 ms must be able to say 0.5 ms). `step` is undefined for a continuous knob.
  */
-export function knobPrecision(unit, min) {
-  if (unit === 'dB') return { step: undefined, commit: 1, display: 0 };
+export function knobPrecision(unit, min, whole = false, templateStep = undefined) {
+  if (unit === 'dB') return { step: undefined, commit: whole ? 0 : 1, display: 0 };
+  // a template that moves in a fraction (speech pause_scale: step 0.05) is written with as many decimals as its step (bug 21: 0.4 was written as 0)
+  const fraction = Number(templateStep);
+  if (fraction > 0 && fraction < 1) { const decimals = Math.min(4, (String(fraction).split('.')[1] || '').length); return { step: fraction, commit: decimals, display: decimals }; }
   if (unit === 'oct') return { step: undefined, commit: 1, display: 1 };   // an LFO depth in octaves moves in tenths
   // a knob that starts below one says fractions; from a sixteenth (a beat step of 0.0625) four decimals, otherwise two
   if (Number(min) > 0 && Number(min) < 1) { const decimals = Number(min) < 0.1 ? 4 : 2; return { step: undefined, commit: decimals, display: decimals }; }

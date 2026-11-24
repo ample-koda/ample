@@ -12,16 +12,21 @@ public static class AudioEffects
         new CutRenderer(),
         new ShiftRenderer(),
         new JoinRenderer(),
-        new Effect("eq", Eq, null, "2"),
+        new Effect("eq", Eq, null, "3"),
         new Effect("distortion", Distortion, null, "2"),
-        new Effect("delay", Delay),
-        new Effect("reverb", (p, x, rate) => Reverb(p, x, rate, false), (p, rate, l, rt) => (Reverb(p, l, rate, false), Reverb(p, rt, rate, true)), "5"),
-        new Effect("compressor", (p, x, rate) => Compress(p, rate, null, null, x)[0], (p, rate, l, rt) => { int[][] both = Compress(p, rate, null, null, l, rt); return (both[0], both[1]); }, "6", (p, rate, key, thresholds, channels) => Compress(p, rate, key, thresholds, channels)),
-        new Effect("filter", Filter, null, "4"),
-        new Effect("limiter", (p, x, rate) => Limit(p, rate, x)[0], (p, rate, l, rt) => { int[][] both = Limit(p, rate, l, rt); return (both[0], both[1]); }),
-        new Effect("gate", (p, x, rate) => Gate(p, rate, x)[0], (p, rate, l, rt) => { int[][] both = Gate(p, rate, l, rt); return (both[0], both[1]); }),
-        new Effect("deesser", (p, x, rate) => DeEss(p, rate, x)[0], (p, rate, l, rt) => { int[][] both = DeEss(p, rate, l, rt); return (both[0], both[1]); }, "2"),
-        new Effect("chorus", (p, x, rate) => Chorus(p, x, rate, 0), (p, rate, l, rt) => (Chorus(p, l, rate, 0), Chorus(p, rt, rate, 1)), "2"),
+        new Effect("delay", Delay, null, "2"),
+        new Effect("reverb", (p, x, rate) => Reverb(p, x, rate, false), (p, rate, l, rt) => (Reverb(p, l, rate, false), Reverb(p, rt, rate, true)), "6"),
+        new Effect(
+            "compressor",
+            (p, x, rate) => Compress(p, rate, null, null, x)[0],
+            (p, rate, l, rt) => { int[][] both = Compress(p, rate, null, null, l, rt); return (both[0], both[1]); },
+            "7",
+            (p, rate, key, thresholds, channels) => Compress(p, rate, key, thresholds, channels)),
+        new Effect("filter", Filter, null, "5"),
+        new Effect("limiter", (p, x, rate) => Limit(p, rate, x)[0], (p, rate, l, rt) => { int[][] both = Limit(p, rate, l, rt); return (both[0], both[1]); }, "2"),
+        new Effect("gate", (p, x, rate) => Gate(p, rate, x)[0], (p, rate, l, rt) => { int[][] both = Gate(p, rate, l, rt); return (both[0], both[1]); }, "2"),
+        new Effect("deesser", (p, x, rate) => DeEss(p, rate, x)[0], (p, rate, l, rt) => { int[][] both = DeEss(p, rate, l, rt); return (both[0], both[1]); }, "3"),
+        new Effect("chorus", (p, x, rate) => Chorus(p, x, rate, 0), (p, rate, l, rt) => (Chorus(p, l, rate, 0), Chorus(p, rt, rate, 1)), "3"),
         new Effect("flanger", (p, x, rate) => ModDelay(x, rate, 3, Math.Clamp(p("depth", 2), 1, 3), Math.Clamp(p("period", 2000), 100, 10000), Math.Clamp(p("feedback", 50), 0, 90), Math.Clamp(p("mix", 50), 0, 100))),
         new Effect("phaser", Phase),
         new Effect("bitcrusher", Crush),
@@ -95,9 +100,23 @@ public static class AudioEffects
             bool thresholdAutomated = blockType == "compressor" && Automation.Is(Text("threshold"));
             // the pitch is given in semitones with a decimal point (1.5 is a semitone and a half) and used in hundredths
             // a delay locked to the tempo (sync 1/8): the time is a whole number of samples of the bar, so the echoes sit on the grid at any tempo (time is then not read)
-            int SyncSamples() => FilterLfoCycles(Text("sync")) is > 0 and double cycles ? Math.Max(1, (int)Math.Round(r.SamplesPerBar / cycles)) : 0;
-            int Number(string name, int fallback) => name == "time_samples" && blockType == "delay" ? SyncSamples() : name == "semitones" && blockType == "pitch" ? (double.TryParse(Text(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double semitones) ? (int)Math.Round(semitones * 100) : 0) : name == "method" && blockType == "pitch" ? Text(name) switch { "granular" => TimeStretch.MethodGranular, "voice" => TimeStretch.MethodVoice, _ => TimeStretch.MethodWsola } : name == "threshold" && thresholdAutomated ? -18 : name == "mix" && mixAutomated ? 100 : Text(name) is "hard" or "highpass" ? 1 : Text(name) is "soft" or "lowpass" ? 0 : Read(Text(name), fallback);
-            double lfoCycles = FilterLfoCycles(Text("lfo_rate"));
+            // a note value is a part of a whole note (four beats), whatever the meter: 1/8 is an eighth note in 3/4 too (delay 2, filter 5; it used to be a part of the bar)
+            double PerBar(double perWholeNote) => perWholeNote * r.BeatsPerBar / 4.0;
+            int SyncSamples() => FilterLfoCycles(Text("sync")) is > 0 and double cycles ? Math.Max(1, (int)Math.Round(r.SamplesPerBar / PerBar(cycles))) : 0;
+            int Semitones() => double.TryParse(Text("semitones"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double semitones)
+                ? (int)Math.Round(semitones * 100)
+                : 0;
+            int Method() => Text("method") switch { "granular" => TimeStretch.MethodGranular, "voice" => TimeStretch.MethodVoice, _ => TimeStretch.MethodWsola };
+            int Number(string name, int fallback) => name == "time_samples" && blockType == "delay" ? SyncSamples()
+                : name == "semitones" && blockType == "pitch" ? Semitones()
+                : name == "method" && blockType == "pitch" ? Method()
+                : name == "threshold" && thresholdAutomated ? -18
+                : name == "mix" && mixAutomated ? 100
+                : Text(name) is "hard" or "highpass" ? 1
+                : Text(name) is "soft" or "lowpass" ? 0
+                : IsWholeDb(blockType, name) ? ReadRoundedDb(Text(name), fallback)
+                : Read(Text(name), fallback);
+            double lfoCycles = PerBar(FilterLfoCycles(Text("lfo_rate")));
             int lfoDepth = Math.Clamp(Read(Text("lfo_depth"), 0), 0, 8);
             bool lfoOn = blockType == "filter" && lfoCycles > 0 && lfoDepth > 0;
             bool resonanceAutomated = blockType == "filter" && Automation.Is(Text("resonance"));
@@ -125,9 +144,9 @@ public static class AudioEffects
                             "triangle" => cycle < 0.5 ? cycle * 2 : 2 - (cycle * 2),
                             "saw" => cycle,
                             "square" => cycle < 0.5 ? 0 : 1,
-                            _ => 0.5 - (0.5 * Math.Cos(2 * Math.PI * cycle)),
+                            _ => 0.5 - (0.5 * EngineMath.Cos(2 * Math.PI * cycle)),
                         };
-                        cutoffs[i] = (int)Math.Clamp(cutoffs[i] * Math.Pow(2, lfoDepth * wave), 20, 20000);
+                        cutoffs[i] = (int)Math.Clamp(cutoffs[i] * EngineMath.Pow(2, lfoDepth * wave), 20, 20000);
                     }
                 }
 
@@ -184,7 +203,10 @@ public static class AudioEffects
                 return ValueTask.FromResult<IReadOnlyList<RenderOutput>>([new RenderOutput("out", Wav.Encode([.. keyedMono[0].Select(v => FixedAudio.Clip(v))], r.SampleRate, cancellationToken))]);
             }
 
-            if (stereo)
+            // a reverb and a chorus give a mono source a stereo result: the right channel of the reverb is a little longer and the chorus voices are a quarter period apart
+            // (reverb 6, chorus 3; a mono source used to stay mono, so the room had no width)
+            bool widensMono = input is not null && stereoProcess is not null && blockType is "reverb" or "chorus";
+            if (stereo || (widensMono && Text("enabled") != "off"))
             {
                 // bypass: the very same bytes go through
                 if (Text("enabled") == "off")
@@ -349,7 +371,7 @@ public static class AudioEffects
 
         public string Id => "builtin.duck";
 
-        public string Version => "3";
+        public string Version => "4";
 
         public ValueTask<IReadOnlyList<RenderOutput>> RenderAsync(RenderRequest r, CancellationToken cancellationToken)
         {
@@ -400,7 +422,7 @@ public static class AudioEffects
 
         private static int[] Curve(RenderRequest r, Func<string, string> text, int length)
         {
-            int depth = Math.Clamp(Read(text("depth"), 10), 0, 40);
+            int depth = Math.Clamp(ReadRoundedDb(text("depth"), 10), 0, 40);   // whole decibels, a decimal part rounded (it was cut off)
             int release = Math.Max(1, Math.Clamp(Read(text("release"), 160), 10, 2000) * r.SampleRate / 1000);
             string pattern = text("pattern").Replace("|", string.Empty, StringComparison.Ordinal).Replace(" ", string.Empty, StringComparison.Ordinal);
             if (pattern.Length == 0)
@@ -464,6 +486,9 @@ public static class AudioEffects
             ? (int)Math.Round(v, MidpointRounding.AwayFromZero)
             : fallback;
     }
+
+    /// <summary>The levels the effects use as whole decibels, rounded (one table: <see cref="Ample.Language.WholeDecibels"/>).</summary>
+    internal static bool IsWholeDb(string blockType, string name) => Ample.Language.WholeDecibels.Is(blockType, name);
 
     /// <summary>Reads the leading whole number of a value like <c>-3 dB</c> or <c>40%</c>.</summary>
     internal static int Read(string text, int fallback)
@@ -551,8 +576,12 @@ public static class AudioEffects
         int low = Db(p, "low", 0, -12, 12);
         int mid = Db(p, "mid", 0, -12, 12);
         int high = Db(p, "high", 0, -12, 12);
-        int[] a = LowPassAt(x, Math.Clamp(p("low_hz", 250), 40, 2000), rate);
-        int[] b = LowPassAt(x, Math.Clamp(p("high_hz", 3000), 1000, 12000), rate);
+        int lowHz = Math.Clamp(p("low_hz", 250), 40, 2000);
+        int highHz = Math.Clamp(p("high_hz", 3000), 1000, 12000);
+        // the two corners may be written the wrong way round (their ranges overlap): the lower one is the low corner, else the mid band is negative and a boost cuts (eq 3)
+        if (lowHz > highHz) (lowHz, highHz) = (highHz, lowHz);
+        int[] a = LowPassAt(x, lowHz, rate);
+        int[] b = LowPassAt(x, highHz, rate);
         int[] y = new int[x.Length];
         for (int i = 0; i < x.Length; i++)
         {
@@ -1058,6 +1087,7 @@ public static class AudioEffects
 
     /// <summary>The filter with a cutoff (Hz) per sample: two cascaded one-pole low-pass stages, or the input minus them for a high-pass.</summary>
     /// <summary>Cycles of the filter oscillator in one bar (4/4): 1/4 is four a bar, 1/8 eight, a t after it is a triplet; 0 is off.</summary>
+    /// <summary>How many of a note value fit in a whole note (four beats): 1/8 is 8, 1/8t is 12. Times the beats of a bar over four, it is the number per bar.</summary>
     private static double FilterLfoCycles(string rate) => rate switch
     {
         "1/1" => 1,

@@ -19,3 +19,8 @@ test('a chorus depth of 5.5 ms is the depth 5 of the server in the offline port 
   const b = await chorusAudio({ sampleRate: 44100, channels: input.channels.map((c) => c.slice()) }, { depth: '5', period: '1800', mix: '27' });
   assert.deepEqual(a.channels[0], b.channels[0]);
 });
+
+test('a level in whole decibels is rounded as the server reads it, and the previews of the effects use it (bug 23)', async () => {
+  const { serverRoundedDb } = await import('../server-int.mjs');
+  assert.deepEqual(['-2.8 dB', '-0.7', '0.5', '-18.5 dB', '"-3 dB"', '.5', 'x', ''].map((text) => serverRoundedDb(text, 99)), [-3, -1, 1, -19, -3, 99, 99, 99]);
+});

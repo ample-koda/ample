@@ -61,7 +61,7 @@ public static class DelayLlama
             double cents = spread * s.DetuneCents;
             double pan = spread * Math.Clamp(s.Spread, 0, 1);
             double[] one = Voice(ordered, s, rate, length, seed + ((ulong)v * 7919), cents, vowel, voice, mouth, bend, cancellationToken);
-            double gl = Math.Cos((pan + 1) * Math.PI / 4), gr = Math.Sin((pan + 1) * Math.PI / 4);
+            double gl = EngineMath.Cos((pan + 1) * Math.PI / 4), gr = EngineMath.Sin((pan + 1) * Math.PI / 4);
             double share = 1 / Math.Sqrt(voices);
             for (int i = 0; i < length; i++)
             {
@@ -75,10 +75,10 @@ public static class DelayLlama
             Echo(left, right, rate, Math.Clamp(s.Echo, 0, 1));
         }
 
-        double gain = Math.Pow(10, Math.Clamp(s.GainDb, -48, 12) / 20);
+        double gain = EngineMath.Pow(10, Math.Clamp(s.GainDb, -48, 12) / 20);
         // the leveler: what gets louder than about -10 dBFS is pulled back, slowly (it follows the loudness over 10 ms up and 250 ms down), so a low note, an open mouth
         // or three llamas in unison do not jump out; it only turns down, never up. leveler 0 is off, 1 holds everything to that level.
-        double envelope = 0, attackCoefficient = 1 - Math.Exp(-1 / (rate * 0.01)), releaseCoefficient = 1 - Math.Exp(-1 / (rate * 0.25)), level = Math.Clamp(s.Leveler, 0, 1);
+        double envelope = 0, attackCoefficient = 1 - EngineMath.Exp(-1 / (rate * 0.01)), releaseCoefficient = 1 - EngineMath.Exp(-1 / (rate * 0.25)), level = Math.Clamp(s.Leveler, 0, 1);
         for (int i = 0; i < length; i++)
         {
             double l = left[i] * gain, r = right[i] * gain, peak = Math.Max(Math.Abs(l), Math.Abs(r));
@@ -93,7 +93,7 @@ public static class DelayLlama
     }
 
     // a gentle limit near full scale, so a loud unison never clips hard
-    private static double Soft(double x) => Math.Abs(x) < 0.8 ? x : Math.Sign(x) * (0.8 + (0.2 * Math.Tanh((Math.Abs(x) - 0.8) / 0.2)));
+    private static double Soft(double x) => Math.Abs(x) < 0.8 ? x : Math.Sign(x) * (0.8 + (0.2 * EngineMath.Tanh((Math.Abs(x) - 0.8) / 0.2)));
 
     // the classic stereo echo: two taps (about 310 and 398 ms), each feeding back into itself, added to the dry sound
     private static void Echo(double[] left, double[] right, int rate, double amount)
@@ -124,8 +124,11 @@ public static class DelayLlama
         double period1 = rate * 0.000202, period2 = rate * 0.000263;
         for (int i = 0; i < grainLength; i++)
         {
-            window[i] = i < attack ? 0.5 * (1 - Math.Cos(Math.PI * i / attack)) : i >= releaseStart ? 0.5 * (1 - Math.Cos(Math.PI * (releaseLength + i - releaseStart) / releaseLength)) : 1;
-            breath[i] = (Math.Sin(2 * Math.PI * i / period1) * Math.Exp(-50 * Math.PI * 3 * i / rate)) + (Math.Sin(2 * Math.PI * i / period2) * Math.Exp(-50 * Math.PI * 3.5 * i / rate));
+            window[i] = i < attack ? 0.5 * (1 - EngineMath.Cos(Math.PI * i / attack))
+                : i >= releaseStart ? 0.5 * (1 - EngineMath.Cos(Math.PI * (releaseLength + i - releaseStart) / releaseLength))
+                : 1;
+            breath[i] = (EngineMath.Sin(2 * Math.PI * i / period1) * EngineMath.Exp(-50 * Math.PI * 3 * i / rate))
+                + (EngineMath.Sin(2 * Math.PI * i / period2) * EngineMath.Exp(-50 * Math.PI * 3.5 * i / rate));
         }
 
         // the note that sounds at every moment: the last one that started and has not ended (a monophonic singer)
@@ -232,7 +235,7 @@ public static class DelayLlama
 
             vibratoPhase += 2 * Math.PI * s.VibratoHz * jitter / rate;
             double onset = Math.Min(1, (i - noteSince) / (rate * 0.3));
-            double vibrato = ((0.04 + (s.Vibrato * 0.6)) * onset) * Math.Sin(vibratoPhase);
+            double vibrato = ((0.04 + (s.Vibrato * 0.6)) * onset) * EngineMath.Sin(vibratoPhase);
             if (stage == 0)
             {
                 sinceGrain = double.MaxValue;
@@ -242,7 +245,7 @@ public static class DelayLlama
             double sung = pitch + (cents / 100) + vibrato + (bend is null ? 0 : bend[i]);
             // the pitch in steps of 1/32 semitone, as the original: part of its character
             double quantised = Math.Floor((sung - 12) * 32) / 32 + 12;
-            double frequency = 440 * Math.Pow(2, (quantised - 69) / 12);
+            double frequency = 440 * EngineMath.Pow(2, (quantised - 69) / 12);
             double periodSamples = Math.Max(1, rate / frequency);
             sinceGrain++;
             if (sinceGrain < periodSamples)
@@ -264,9 +267,9 @@ public static class DelayLlama
             for (int k = 0; k < grainLength && i + k < length; k++)
             {
                 double t = (k + overshoot) / rate;   // sample i lies overshoot after the true start of the grain
-                double sample = (Math.Sin(2 * Math.PI * f1 * t) * Math.Exp(-Math.PI * Bandwidths[0] * t))
-                    + (Math.Sin(2 * Math.PI * f2 * t) * Math.Exp(-Math.PI * Bandwidths[1] * t) * (0.6 + (0.4 * open)))
-                    + (Math.Sin(2 * Math.PI * f3 * t) * Math.Exp(-Math.PI * Bandwidths[2] * t) * 0.8)
+                double sample = (EngineMath.Sin(2 * Math.PI * f1 * t) * EngineMath.Exp(-Math.PI * Bandwidths[0] * t))
+                    + (EngineMath.Sin(2 * Math.PI * f2 * t) * EngineMath.Exp(-Math.PI * Bandwidths[1] * t) * (0.6 + (0.4 * open)))
+                    + (EngineMath.Sin(2 * Math.PI * f3 * t) * EngineMath.Exp(-Math.PI * Bandwidths[2] * t) * 0.8)
                     + (breath[k] * breathAmount);
                 output[i + k] += sample * window[k] * amplitude;
             }
@@ -363,7 +366,7 @@ internal sealed class DelayLlamaRenderer : IBlockRenderer
 
     public string Id => "builtin.delay-llama";
 
-    public string Version => "3";   // 2: the vowels follow the axis a e i o u; 3: the leveler
+    public string Version => "4";   // 2: the vowels follow the axis a e i o u; 3: the leveler; 4: EngineMath (the same bits on every machine)
 
     public string Determinism => "machine-exact";
 

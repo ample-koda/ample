@@ -155,6 +155,10 @@ export function createLiteStore(kv, { now = () => Date.now(), uuid = () => crypt
     async renameFileUnlocked(id, from, to) {
       cleanPath(to, limits);
       if (await kv.get(FILE(id, to))) throw new LiteStoreError('exists', `"${to}" exists already.`);
+      // the server counts names without case (LitePolicy, AMPL903): another file that differs only in case would be "in the project twice" and stop every build;
+      // a rename of the file itself to another case stays allowed (bug 14)
+      const twin = (await kv.keys(FILE(id, ''))).find((key) => key.toLowerCase() === FILE(id, to).toLowerCase() && key !== FILE(id, from));
+      if (twin) throw new LiteStoreError('exists', `"${to}" exists already (with other capitals: "${twin.slice(FILE(id, '').length)}").`);
       const found = await kv.get(FILE(id, from));
       if (!found) throw new LiteStoreError('missing', `"${from}" does not exist.`);
       checkFile(to, found.size, limits);

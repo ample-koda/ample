@@ -1,8 +1,15 @@
 // The live mixer of a mixer or bus block: one gain and one balance per input lane, a sum, and (bus) one gain, a mute and the song-wide solo. Persistent Web Audio nodes: a fader
-// only sets AudioParams, so it is heard while it moves. The numbers are those of the server (Renderers.cs Mixer, PanTable): gains in whole dB, pan l/c/r or -32..32 per input.
+// only sets AudioParams, so it is heard while it moves. The numbers are those of the server (Renderers.cs Mixer, PanTable): gains rounded to whole dB, pan l/c/r or -32..32 per input.
+import { panGains } from './mix-laws.mjs';
+import { serverRoundedDb } from './server-int.mjs';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 /** A whole number as the server reads it (int.TryParse): an optional sign and digits only. "-12.041", "6dB" or "x" are not numbers there, and the lane then gets 0. */
 export const wholeNumber = (token) => (/^\s*[+-]?\d{1,9}\s*$/.test(String(token ?? '')) ? Number.parseInt(token, 10) : null);
+/**
+ * One level of the gains list of a mixer or bus as the server reads it (Effects.cs ReadRoundedDb, mixer v4): the leading number, with a decimal part rounded to the
+ * nearest whole decibel (halves away from zero), so "-4.5" is -5, "-10.44" is -10 and "6dB" is 6; text that does not start with a number is null (the lane gets 0).
+ */
+export const roundedDb = (token) => serverRoundedDb(token, null);
 const words = (value, fallback) => String(value ?? fallback).replace(/^"|"$/g, '').trim().split(/\s+/).filter(Boolean);
 
 /** The pan of one lane as -32..32: l and left are -32, r and right 32, c, centre and center 0, or a number. */
@@ -14,10 +21,13 @@ export function panValue(token) {
   return number === null ? 0 : clamp(number, -32, 32);
 }
 
-/** Left and right scale of a lane for a pan, like the offline balance: the far side gets quieter, the near side is left alone (equal power around the centre). */
+/**
+ * Left and right scale of a lane for a pan, like the server's mixer (Renderers.cs, PanTable): the gain of the pan table divided by its centre gain and capped at 1,
+ * so the far side gets quieter by the square-root law and the near side is left alone; the centre is exactly 1 on both sides.
+ */
 export function balanceGains(pan) {
-  const position = (clamp(pan, -32, 32) + 32) / 64;
-  return { left: pan > 0 ? Math.cos(position * Math.PI / 2) / Math.cos(Math.PI / 4) : 1, right: pan < 0 ? Math.sin(position * Math.PI / 2) / Math.sin(Math.PI / 4) : 1 };
+  if (!pan) return { left: 1, right: 1 };
+  return panGains(pan, true);
 }
 
 /** Which inputs of a mixer are heard, from its `mutes` and `solos` (one on/off per input, as the server: a mute wins over a solo, any solo silences the inputs without one). */
@@ -31,7 +41,7 @@ export function audibleLanes(params, lanes) {
 /** The lane settings of a mixer block's parameters: [{ gainDb, pan, audible }] for `lanes` lanes. */
 export function laneSettings(params, lanes) {
   const gains = words(params.gains, '0'), pans = words(params.pan, 'c'), audible = audibleLanes(params, lanes);
-  return Array.from({ length: lanes }, (_, k) => ({ gainDb: clamp(wholeNumber(gains[k]) ?? 0, -60, 48), pan: panValue(pans[k]), audible: audible[k] }));
+  return Array.from({ length: lanes }, (_, k) => ({ gainDb: clamp(roundedDb(gains[k]) ?? 0, -60, 48), pan: panValue(pans[k]), audible: audible[k] }));
 }
 
 /** Whether a bus is silent: its own mute, or another bus has solo and this one has not. */
