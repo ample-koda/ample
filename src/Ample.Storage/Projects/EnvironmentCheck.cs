@@ -8,7 +8,8 @@ namespace Ample.Storage.Projects;
 /// <param name="Ok">Whether it is fine.</param>
 /// <param name="Detail">What was found.</param>
 /// <param name="Hint">How to put it right (when it is not fine).</param>
-public sealed record EnvironmentFinding(string Name, bool Ok, string Detail, string Hint);
+/// <param name="NoFix">That AMPLE has nothing to install for it: the thing is there, but not where AMPLE looks.</param>
+public sealed record EnvironmentFinding(string Name, bool Ok, string Detail, string Hint, bool NoFix = false);
 
 /// <summary>The kind of machine, so that a tip names the command that belongs to it.</summary>
 public enum InstallEnvironment
@@ -157,6 +158,19 @@ public static class EnvironmentCheck
             python = new EnvironmentFinding(python.Name, false, python.Detail, "The python on the PATH is version 2. Install Python 3.10 or newer, or set the interpreter of the engine in the plugin settings.\n" + PythonCommands(env));
         }
 
+        if (!python.Ok && FindPython3Elsewhere() is { } elsewhere)
+        {
+            // Python 3 is installed, but `python` on the PATH is something else (an old Python 2 that comes first, for example): installing it again changes nothing,
+            // so the finding names it and says what to do, and offers no install (it used to offer one for ever and stay red)
+            python = new EnvironmentFinding(
+                python.Name,
+                false,
+                $"{python.Detail}; Python {elsewhere.Major}.{elsewhere.Minor} is installed at {elsewhere.Exe}",
+                $"The command python is not Python 3.10 or newer, but Python {elsewhere.Major}.{elsewhere.Minor} is installed at {elsewhere.Exe}. " +
+                "For the voice worker set the interpreter of the engine in the plugin settings to that file, or put its folder in front of the other python in the PATH.",
+                NoFix: true);
+        }
+
         list.Add(python);
 
         // 4. the General MIDI sound font
@@ -281,6 +295,73 @@ public static class EnvironmentCheck
         {
             return null;
         }
+    }
+
+    /// <summary>The first Python of 3.10 or newer that is installed but is not the one the command python runs: through the launcher (py -3) and the folders of the usual installers.</summary>
+    private static (int Major, int Minor, string Exe)? FindPython3Elsewhere()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        List<(string Program, string Argument)> candidates = [("py", "-3 -c \"import sys;print(sys.version_info[0],sys.version_info[1],sys.executable)\"")];
+        foreach (string? root in new[] { Environment.GetEnvironmentVariable("LOCALAPPDATA"), Environment.GetEnvironmentVariable("ProgramFiles") })
+        {
+            if (string.IsNullOrEmpty(root))
+            {
+                continue;
+            }
+
+            foreach (string folder in new[] { Path.Combine(root, "Programs", "Python"), Path.Combine(root, "Python"), root })
+            {
+                try
+                {
+                    foreach (string dir in Directory.Exists(folder) ? Directory.GetDirectories(folder, "Python3*").Concat(Directory.GetDirectories(folder, "pythoncore-3*")) : [])
+                    {
+                        string exe = Path.Combine(dir, "python.exe");
+                        if (File.Exists(exe))
+                        {
+                            candidates.Add((exe, "-c \"import sys;print(sys.version_info[0],sys.version_info[1],sys.executable)\""));
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // a folder that cannot be listed has no Python for us
+                }
+            }
+        }
+
+        foreach ((string program, string argument) in candidates)
+        {
+            EnvironmentFinding answer = Probe("python", program, argument, string.Empty);
+            if (answer.Ok && TryParsePython(answer.Detail, out int major, out int minor, out string exe) && (major > 3 || (major == 3 && minor >= 10)))
+            {
+                return (major, minor, exe);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Reads the line that a Python prints for <c>print(major, minor, executable)</c>.</summary>
+    internal static bool TryParsePython(string line, out int major, out int minor, out string exe)
+    {
+        major = 0;
+        minor = 0;
+        exe = string.Empty;
+        string[] parts = line.Trim().Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        System.Globalization.CultureInfo invariant = System.Globalization.CultureInfo.InvariantCulture;
+        if (parts.Length < 3
+            || !int.TryParse(parts[0], System.Globalization.NumberStyles.None, invariant, out major)
+            || !int.TryParse(parts[1], System.Globalization.NumberStyles.None, invariant, out minor))
+        {
+            return false;
+        }
+
+        exe = parts[2];
+        return true;
     }
 
     private static EnvironmentFinding Probe(string name, string program, string argument, string hint)
