@@ -15,7 +15,7 @@
 <p>Every row is a <a class="term" href="glossary.html#block" data-term="block">block</a>, and the coloured bar in it shows during which bars the block plays. Click the ruler and drag to choose some bars; the header then offers to play just those.</p>
 <h2 id="placing-a-block-in-time">Placing a block in time<a class="anchor" href="#placing-a-block-in-time" aria-label="Link to this section">#</a></h2>
 <p>In the text, a block is placed with <code>at</code> and <code>for</code>:</p>
-<pre class="code"><code>bass bass stable@1.1 at 1 for 8 {</code></pre>
+<pre class="code"><code>bass bass at 1 for 8 {</code></pre>
 <p>This reads: start <strong>at bar 1</strong> and last <strong>for 8 bars</strong>. A block that has no <code>at</code> simply takes the whole song. The first bar is bar 1, and bar 5 begins right after bar 4 ends.</p>
 <p>You can give a block several places, and name them:</p>
 <pre class="code"><code>piano piano pinned@2.0 at 1 for 8 as verse, 9 for 8 as chorus {</code></pre>

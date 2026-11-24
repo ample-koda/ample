@@ -1326,7 +1326,22 @@ public static partial class Parser
             }
 
             parameters.RemoveAll(p => p.Name == name);
-            parameters.Add(new Parameter(name, pm.Groups[2].Value.Trim(), i));
+            string value = pm.Groups[2].Value.Trim();
+            // a comment after the notes of a clip (notes 1:0:1:60:100 # first note) is not part of them; a # in another value can be a colour
+            parameters.Add(new Parameter(name, name == "notes" ? WithoutTrailingComment(value) : value, i));
+        }
+
+        /// <summary>The text without a trailing comment: a # outside a string that does not follow a letter or a digit starts it (as everywhere in the language).</summary>
+        private static string WithoutTrailingComment(string text)
+        {
+            bool inString = false;
+            for (int k = 0; k < text.Length; k++)
+            {
+                if (text[k] == '"') inString = !inString;
+                else if (!inString && text[k] == '#' && !(k > 0 && char.IsLetterOrDigit(text[k - 1]))) return text[..k].TrimEnd();
+            }
+
+            return text;
         }
 
         private static bool NotesExpressionStart(string raw, out int column)

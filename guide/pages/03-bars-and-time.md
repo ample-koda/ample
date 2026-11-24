@@ -34,7 +34,7 @@ Every row is a block, and the coloured bar in it shows during which bars the blo
 In the text, a block is placed with `at` and `for`:
 
 ```
-bass bass stable@1.1 at 1 for 8 {
+bass bass at 1 for 8 {
 ```
 
 This reads: start **at bar 1** and last **for 8 bars**. A block that has no `at` simply takes the whole song. The first bar is bar 1, and bar 5 begins right after bar 4 ends.

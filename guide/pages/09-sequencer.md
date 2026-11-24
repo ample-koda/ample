@@ -36,7 +36,7 @@ Click a chip to put a channel in a lane or take it out. Back in the graph, conne
 The sounds and notes live in a file of the project, `sequences/<name>.seq`, and the block names it:
 
 ```
-sequencer sq stable@1.0 at 1 for 8 {
+sequencer sq at 1 for 8 {
   file sequences/groove.seq
   lanes lane1=kick lane2=snare+hat lane3=bass+lead lane4=pad
 }

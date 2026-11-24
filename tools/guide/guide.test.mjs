@@ -88,3 +88,13 @@ test('the real guide builds without errors: every screenshot exists, every link 
   const { problems } = buildGuide(sources);
   assert.deepEqual(problems.filter((p) => p.level === 'error'), []);
 });
+
+test('the code of the guide uses the v1 block header: no stable@ or live@ tag (a beginner pasted the first song and got L011)', () => {
+  const sources = loadSources();
+  const old = [];
+  for (const page of sources.pages) {
+    const text = page.markdown ?? page.body ?? page.source ?? JSON.stringify(page);
+    for (const m of String(text).matchAll(/\b(?:stable|live)@\d+(?:\.\d+)*/g)) old.push(`${page.slug ?? page.file ?? '?'}: ${m[0]}`);
+  }
+  assert.deepEqual(old, []);
+});

@@ -19,7 +19,7 @@ export function fuzzyScore(query, text) {
     if (at >= nameStart) score += 1;
     ti = at + 1;
   }
-  return score * 10 - t.length * 0.1;
+  return Math.max(0, score * 10 - t.length * 0.1);   // a match is never below 0: -1 only means "no match" (a very long path used to score below 0)
 }
 
 /** The paths that match, best first; with an empty query the recent files come first (in the order given), then the rest alphabetically. */
@@ -32,8 +32,9 @@ export function rankFiles(paths, query, recent = [], limit = 30) {
     return [...head, ...rest].slice(0, limit);
   }
   return paths
-    .map((p) => ({ p, score: fuzzyScore(q, p) + (recent.includes(p) ? 5 : 0) }))
-    .filter((x) => x.score >= 0 || fuzzyScore(q, x.p) >= 0)
+    .map((p) => ({ p, base: fuzzyScore(q, p) }))
+    .filter((x) => x.base >= 0)   // only a path that matches stays; being recent only moves it up (it used to keep a recent file that did not match: -1 + 5)
+    .map((x) => ({ p: x.p, score: x.base + (recent.includes(x.p) ? 5 : 0) }))
     .sort((a, b) => b.score - a.score || a.p.localeCompare(b.p))
     .slice(0, limit)
     .map((x) => x.p);

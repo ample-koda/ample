@@ -11,23 +11,23 @@
 <p>The same song, as text, looks like this:</p>
 <pre class="code"><code>composition &quot;my first song&quot; { ample 1  tempo 100  master-seed 7 }
 
-midi-clip chords stable@1.0 {
+midi-clip chords {
   chords Am F C G
   bars 8
 }
-drums beat stable@1.2 at 1 for 8 {
+drums beat at 1 for 8 {
 }
-bass bass stable@1.1 at 1 for 8 {
+bass bass at 1 for 8 {
   from chords.notes -&gt; notes
 }
-mixer mix stable@1.1 {
+mixer mix {
   from beat.audio -&gt; in1
   from bass.audio -&gt; in2
 }
-master master live@1.3 {
+master master {
   from mix.mix -&gt; mix
 }</code></pre>
-<p>Each paragraph is a <a class="term" href="glossary.html#block" data-term="block">block</a>: first the kind of block (<code>bass</code>), then its name (<code>bass</code>), then a version tag. The lines inside the curly braces are its settings. A line that starts with <code>from</code> is a cable; it says where the sound or the notes come from.</p>
+<p>Each paragraph is a <a class="term" href="glossary.html#block" data-term="block">block</a>: first the kind of block (<code>bass</code>), then its name (<code>bass</code>). The lines inside the curly braces are its settings. A line that starts with <code>from</code> is a cable; it says where the sound or the notes come from.</p>
 <h2 id="build-it">Build it<a class="anchor" href="#build-it" aria-label="Link to this section">#</a></h2>
 <p>Press <strong><a class="term" href="glossary.html#build" data-term="build">Build</a></strong> in the header. AMPLE makes the sound of every block, from the start of the line to the end. When it is done, every block shows a small waveform, and the word &quot;built&quot;.</p>
 <figure><a href="img/first-song-after.png"><img src="img/first-song-after.png" alt="After the build: every block has a take with its own waveform." loading="lazy"></a><figcaption>After the build: every block has a take with its own waveform.</figcaption></figure>

@@ -17,7 +17,7 @@
 <p>Click a chip to put a channel in a lane or <a class="term" href="glossary.html#take" data-term="take">take</a> it out. Back in the graph, connect <code>lane2</code> to an effect or a <a class="term" href="glossary.html#mixer" data-term="mixer">mixer</a> input, and only those channels go there.</p>
 <h2 id="what-it-looks-like-in-the-text">What it looks like in the text<a class="anchor" href="#what-it-looks-like-in-the-text" aria-label="Link to this section">#</a></h2>
 <p>The sounds and notes live in a file of the <a class="term" href="glossary.html#project" data-term="project">project</a>, <code>sequences/&lt;name&gt;.seq</code>, and the block names it:</p>
-<pre class="code"><code>sequencer sq stable@1.0 at 1 for 8 {
+<pre class="code"><code>sequencer sq at 1 for 8 {
   file sequences/groove.seq
   lanes lane1=kick lane2=snare+hat lane3=bass+lead lane4=pad
 }</code></pre>

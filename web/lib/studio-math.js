@@ -27,7 +27,8 @@ export function snap(value, step, min, max) {
 }
 
 export function formatValue(value, decimals, unit) {
-  const rounded = Number(value).toFixed(decimals).replace(/\.0+$|(?<=\.[0-9]*)0+$/g, '').replace(/\.$/, '');
+  let rounded = Number(value).toFixed(decimals).replace(/\.0+$|(?<=\.[0-9]*)0+$/g, '').replace(/\.$/, '');
+  if (rounded === '-0') rounded = '0';   // -0.2 with no decimals is "0", not "-0"
   return unit ? `${rounded} ${unit}` : rounded;
 }
 

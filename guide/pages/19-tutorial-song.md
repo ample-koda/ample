@@ -49,7 +49,7 @@ composition "Rooftop Light" { ample 1  tempo 92  master-seed 20261008 }
 Add a **sequencer** block, name it `band`, and in the project panel choose **Add**, **Sequence**. The block points at the file:
 
 ```
-sequencer band stable@1.0 at 1 for 40 {
+sequencer band at 1 for 40 {
   file sequences/band.seq
   lanes lane1=kick lane2=snare+tom lane3=hat+open lane4=bass lane5=gtr
 }
@@ -127,12 +127,12 @@ A voice that stays on the same note while the chords change is what makes a choi
 Both choirs play the same notes but get them through their own **midi-humanize** block. It shifts every note a tiny bit in time and in velocity (the settings are `timing 18` and `velocity 9` for the first voice, 26 and 12 for the second), differently for each. Two voices that are never exactly together are the oldest trick to make one sound into a crowd.
 
 ```
-midi-humanize choir_loose stable@1.0 {
+midi-humanize choir_loose {
   velocity 9
   timing 18
   from choir_notes.notes -> notes
 }
-gm choir_aahs stable@1.0 at 1 for 40 {
+gm choir_aahs at 1 for 40 {
   file pack:musescore-general
   program 52
   gain -2 dB
@@ -181,7 +181,7 @@ The choir has the longest chain, because it must feel like a space. A **mixer** 
 At the end of the chain a **compressor** does something special: it is a **sidechain** compressor. Its `key` input is connected to the kick lane, so every time the kick hits, the compressor presses the choir down a little and lets it come back during the next 220 milliseconds. You will not hear it as an effect; you hear that the kick and the choir share the space.
 
 ```
-compressor choir_duck stable@1.0 {
+compressor choir_duck {
   threshold -34 dB
   ratio 3
   attack 6 ms
@@ -202,7 +202,7 @@ Last, a **fade** block lets the choir swell in over the first four bars.
 The four groups (drums, bass, guitar, choir) go into one mixer. Every input has its level:
 
 ```
-mixer mix stable@1.1 {
+mixer mix {
   from drum_glue.out -> in1
   from bass_even.out -> in2
   from gtr_room.out -> in3
@@ -219,11 +219,11 @@ Then three things make it a finished song:
 - the **master** has a limiter that keeps the peaks under -1 dB.
 
 ```
-volume finale stable@1.0 {
+volume finale {
   from mastercomp.out -> in
   gain fadeout(38, 3, exp)
 }
-master master live@1.3 {
+master master {
   from finale.mixed -> mix
 }
 ```
