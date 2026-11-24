@@ -113,6 +113,7 @@ internal static class Program
         {
             return "The AMPLE server did not start in time. Use the tray menu to start it again.";
         }
+        // security-ok: the address passed LaunchPolicy.IsStudioAddress in MainInstance.LaunchUrl
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
         return null;
     }

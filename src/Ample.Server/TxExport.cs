@@ -165,7 +165,7 @@ internal static class TxExport
             throw new AmpleException("AMP5430", "These files of the project have changes that are not saved: " + string.Join(", ", others.Take(5)) + (others.Length > 5 ? $" and {others.Length - 5} more" : string.Empty) + ". Save them first: a package is made from the saved files only.");
         }
 
-        string onDisk = await File.ReadAllTextAsync(ProjectPath.Resolve(s.Root, request.Path), ct).ConfigureAwait(false);
+        string onDisk = await File.ReadAllTextAsync(ProjectPath.Resolve(s.Fs, s.Root, request.Path), ct).ConfigureAwait(false);
         if (onDisk != d.Saved)
         {
             throw new AmpleException("AMP5430", "The file on disk is not the saved song of this session. Reload the song and save it first.");
@@ -700,7 +700,7 @@ internal static class TxExport
         string songName = System.IO.Path.GetFileNameWithoutExtension(r.Path);
         string name = Safe(string.IsNullOrWhiteSpace(r.Name) ? $"{songName}-{r.Mode}" : r.Name!);
         string relative = (folder.Length == 0 ? name : folder + "/" + name) + ".ampletx";
-        string target = ProjectPath.Resolve(s.Root, relative);
+        string target = ProjectPath.Resolve(s.Fs, s.Root, relative);
         if (File.Exists(target) || File.Exists(target + ".zip"))
         {
             throw new AmpleException("AMP5435", $"There is already a package called {relative}. Choose another name: an existing package is never overwritten.");
@@ -945,7 +945,7 @@ internal static class TxExport
 
         JsonArray plugins = [];
         IEnumerable<string> usedPlugins = p.Graph.All.Where(b => p.Graph.Active.Contains(b.Name) && s.Spec.Templates.TryGetValue(b.Type, out TemplateSpec? t) && t.Plugin is not null).Select(b => s.Spec.Templates[b.Type].Plugin!).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
-        (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> found, _) = Ample.Plugins.PluginHost.Discover([System.IO.Path.Combine(s.AmpleRoot, "plugins"), System.IO.Path.Combine(s.Root, "plugins"), System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")]);
+        (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> found, _) = Ample.Plugins.PluginHost.Discover(Routes.InstalledPluginFolders(s.AmpleRoot));
         foreach (string id in usedPlugins)
         {
             Ample.Plugins.DiscoveredPlugin? plugin = found.FirstOrDefault(x => x.Manifest.Id == id);

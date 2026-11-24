@@ -49,6 +49,14 @@ try {
   node (Join-Path $repositoryRoot 'tools\validate-spec.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+  # the patterns that caused security findings (plan/security-findings.md): a public tree gets the tool with the fixes
+  if (Test-Path (Join-Path $repositoryRoot 'tools\check-security-patterns.mjs')) {
+    node --test @nodeIsolation (Join-Path $repositoryRoot 'tools\check-security-patterns.test.mjs')
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    node (Join-Path $repositoryRoot 'tools\check-security-patterns.mjs')
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  }
+
   node (Join-Path $repositoryRoot 'tools\gen-prng-vectors.mjs') --check
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

@@ -45,6 +45,11 @@ node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/
 node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/issue-sync/sync.test.mjs"
 node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/faer/server.test.mjs" "$repository_root/faer/gpu-manager.test.mjs"
 node "$repository_root/tools/validate-spec.mjs"
+# the patterns that caused security findings (plan/security-findings.md): the tool is in the repository, a public tree gets it with the fixes
+if [[ -f "$repository_root/tools/check-security-patterns.mjs" ]]; then
+  node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/tools/check-security-patterns.test.mjs"
+  node "$repository_root/tools/check-security-patterns.mjs"
+fi
 node "$repository_root/tools/gen-prng-vectors.mjs" --check
 node --test ${node_isolation[@]+"${node_isolation[@]}"} "$repository_root/web/lib/test/stable-rng.test.mjs" "$repository_root/web/lib/test/geometry.test.mjs" "$repository_root/web/lib/test/history.test.mjs" "$repository_root/web/lib/test/lyrics.test.mjs" "$repository_root/web/lib/test/pluginui.test.mjs" "$repository_root/web/lib/test/stepseq.test.mjs" "$repository_root/web/lib/test/numfield.test.mjs"
 

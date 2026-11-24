@@ -1408,6 +1408,7 @@ public static class Routes
             foreach (string dir in Directory.EnumerateDirectories(s.Root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
             {
                 string rel = Path.GetRelativePath(s.Root, dir).Replace('\\', '/');
+                // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
                 if (rel.StartsWith(".ample", StringComparison.Ordinal) || rel.Split('/').Length > 3 || rel.Split('/').Any(p => p.StartsWith('.')))
                 {
                     continue;
@@ -4034,7 +4035,7 @@ public static class Routes
     /// The folders plugins are started from: the ones that come with AMPLE and the ones the person installed. Never a folder inside the project: a plugin
     /// names the program to run, and a project can hold any file (it can be written through the text-file API or arrive with a project someone else made).
     /// </summary>
-    private static string[] InstalledPluginFolders(string ampleRoot) =>
+    internal static string[] InstalledPluginFolders(string ampleRoot) =>
         [Path.Combine(ampleRoot, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")];
 
     private static bool TextFile(string rel) => !ProjectPath.IsPrivate(rel) && TextExtensions.Contains(Path.GetExtension(rel).ToLowerInvariant());

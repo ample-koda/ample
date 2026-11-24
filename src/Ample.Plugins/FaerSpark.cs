@@ -262,6 +262,7 @@ public sealed class FaerSpark : IDisposable
 
             report?.Invoke("Starting the local ACE-Step server");
             StopOwned();
+            // security-ok: the program and the model folder come from the person's own settings (environment or settings.json of the AMPLE folder), never from a project; a visible window is wanted
             owned = Process.Start(new ProcessStartInfo(Exe, $"--models \"{Models}\" --host 127.0.0.1 --port {Port.ToString(CultureInfo.InvariantCulture)}") { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(Exe)! })
                 ?? throw new AmpleException("AMP5381", "The ACE-Step server could not be started.");
             // A host that ends (the command line after its build, or the server being closed) takes the server it started with it, unless another live host still uses it; a lingering timer would not survive it.

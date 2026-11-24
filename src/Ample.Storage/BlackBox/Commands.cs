@@ -183,7 +183,7 @@ public sealed class RestorePreImageCommand(JournalRecord source) : ICommand
         {
             if (operation.GetString() == "folder.create")
             {
-                string folder = ProjectPath.Resolve(context.ProjectRoot, r.GetProperty("path").GetString()!);
+                string folder = ProjectPath.Resolve(context.Fs, context.ProjectRoot, r.GetProperty("path").GetString()!);
                 if (context.Fs.GetFiles(folder).Count != 0 || context.Fs.GetDirectories(folder).Count != 0) throw new AmpleException("AMP5231", "The created folder is no longer empty and cannot be restored safely.");
                 context.Fs.DeleteDirectory(folder, recursive: false);
                 return ValueTask.CompletedTask;
@@ -191,7 +191,7 @@ public sealed class RestorePreImageCommand(JournalRecord source) : ICommand
 
             if (operation.GetString() == "folder.delete")
             {
-                context.Fs.CreateDirectory(ProjectPath.Resolve(context.ProjectRoot, r.GetProperty("path").GetString()!));
+                context.Fs.CreateDirectory(ProjectPath.Resolve(context.Fs, context.ProjectRoot, r.GetProperty("path").GetString()!));
                 return ValueTask.CompletedTask;
             }
 
@@ -203,7 +203,7 @@ public sealed class RestorePreImageCommand(JournalRecord source) : ICommand
 
         if (!r.GetProperty("existed").GetBoolean())
         {
-            context.Fs.DeleteFile(ProjectPath.Resolve(context.ProjectRoot, r.GetProperty("path").GetString()!));
+            context.Fs.DeleteFile(ProjectPath.Resolve(context.Fs, context.ProjectRoot, r.GetProperty("path").GetString()!));
             return ValueTask.CompletedTask;
         }
 

@@ -146,6 +146,7 @@ namespace Ample.Setup
             File.WriteAllText(file, string.Empty);
             ProcessStartInfo start = new ProcessStartInfo(Application.ExecutablePath, "--run-fix \"" + fix.Key + "\" --progress-file \"" + file + "\" --ample \"" + ample + "\" --home \"" + home + "\"")
             {
+                // security-ok: the elevated copy of this wizard itself; FixPolicy checks every argument it accepts
                 UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden,
             };
             Process process;

@@ -238,7 +238,7 @@ public sealed partial class Library
         }
 
         string relative = "assets/" + asset.RelPath;
-        string destination = Ample.Audio.IO.ProjectPath.Resolve(projectRoot, relative);
+        string destination = Ample.Audio.IO.ProjectPath.Resolve(new Ample.Audio.IO.PhysicalFileSystem(), projectRoot, relative);
         if (File.Exists(destination))
         {
             throw new AmpleException("AMP5201", $"'{relative}' already exists in the project.");

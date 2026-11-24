@@ -114,6 +114,7 @@ internal static partial class ComponentLibrary
         foreach (string f in ComponentFiles(root))
         {
             string relative = Path.GetRelativePath(root, f).Replace('\\', '/');
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             if (relative.StartsWith(".ample/", StringComparison.Ordinal)) continue;
             string key = prefix + relative;
             present.Add(key);

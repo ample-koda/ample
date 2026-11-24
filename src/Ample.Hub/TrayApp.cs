@@ -126,6 +126,7 @@ internal sealed class TrayApp : ApplicationContext
             Add(sub.DropDownItems, "Open the folder", () =>
             {
                 // the folder comes from a record file that any program of this person can write: only an existing folder is opened, never a program
+                // security-ok: the folder passed LaunchPolicy.IsFolder just above
                 if (LaunchPolicy.IsFolder(other.Record.Folder)) Process.Start(new ProcessStartInfo(other.Record.Folder) { UseShellExecute = true })?.Dispose();
             });
             menu.Items.Add(sub);
@@ -148,6 +149,7 @@ internal sealed class TrayApp : ApplicationContext
 
     private void Open(HubInstance instance)
     {
+        // security-ok: the address passed LaunchPolicy.IsStudioAddress in MainInstance.LaunchUrl
         if (main.LaunchUrl(instance.Record) is { } url) Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
     }
 

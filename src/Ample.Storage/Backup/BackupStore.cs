@@ -46,7 +46,9 @@ public sealed class BackupStore
         {
             string rel = Path.GetRelativePath(root, full).Replace('\\', '/');
             string name = Path.GetFileName(rel);
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             bool inAmple = rel.StartsWith(".ample/", StringComparison.Ordinal);
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             if (inAmple && (rel.StartsWith(".ample/locks/", StringComparison.Ordinal) || rel.StartsWith(".ample/tmp/", StringComparison.Ordinal) || rel.StartsWith(".ample/backups/", StringComparison.Ordinal) || rel.StartsWith(".ample/vault", StringComparison.Ordinal)))
             {
                 continue;
@@ -57,6 +59,7 @@ public sealed class BackupStore
                 continue;
             }
 
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             if (!includeTakes && inAmple && (rel.StartsWith(".ample/takes/", StringComparison.Ordinal) || rel.StartsWith(".ample/data/", StringComparison.Ordinal)))
             {
                 continue;
@@ -296,7 +299,7 @@ public sealed class BackupStore
         List<string> add = [];
         foreach (BackupEntry e in m.Entries)
         {
-            string path = Ample.Audio.IO.ProjectPath.Resolve(projectRoot, e.Path);
+            string path = Ample.Audio.IO.ProjectPath.Resolve(new Ample.Audio.IO.PhysicalFileSystem(), projectRoot, e.Path);
             if (!File.Exists(path))
             {
                 add.Add(e.Path);
@@ -320,7 +323,7 @@ public sealed class BackupStore
         string trash = Path.Combine(projectRoot, ".ample", "tmp", "restore-trash-" + clock.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
         foreach (string rel in plan.Remove)
         {
-            string from = Ample.Audio.IO.ProjectPath.Resolve(projectRoot, rel);
+            string from = Ample.Audio.IO.ProjectPath.Resolve(new Ample.Audio.IO.PhysicalFileSystem(), projectRoot, rel);
             string to = Path.Combine(trash, rel.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
             File.Move(from, to, true);
@@ -328,7 +331,7 @@ public sealed class BackupStore
 
         foreach (BackupEntry e in m.Entries.Where(e => plan.Replace.Contains(e.Path) || plan.Add.Contains(e.Path)))
         {
-            CopyVerified(e, Ample.Audio.IO.ProjectPath.Resolve(projectRoot, e.Path));
+            CopyVerified(e, Ample.Audio.IO.ProjectPath.Resolve(new Ample.Audio.IO.PhysicalFileSystem(), projectRoot, e.Path));
         }
     }
 
