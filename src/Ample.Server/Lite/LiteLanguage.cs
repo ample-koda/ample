@@ -6,6 +6,7 @@ using Ample.Language;
 using Ample.Lsp;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 
 namespace Ample.Server.Lite;
@@ -64,7 +65,7 @@ public static class LiteLanguage
 
             using IDisposable? held = slot;
             using System.Net.WebSockets.WebSocket socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-            using WebSocketChannel channel = new(socket);
+            using WebSocketChannel channel = new(socket, lim.BytesAccepted + (1L * 1024 * 1024));
             ConcurrentDictionary<string, string> files = new(StringComparer.Ordinal);
             LiteChannel lite = new(channel, files, lim);
             Func<string, string?> read = Reader(files);
@@ -120,6 +121,9 @@ public static class LiteLanguage
 
     private static async Task<(Func<string, string?> Read, JsonElement Body)> Files(HttpContext context, LiteLimits limits)
     {
+        // refuse a long body while it is read, not after it is all in memory (the server default is 30 MB per request)
+        IHttpMaxRequestBodySizeFeature? bodyLimit = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+        if (bodyLimit is { IsReadOnly: false }) bodyLimit.MaxRequestBodySize = limits.BytesAccepted + (1L * 1024 * 1024);
         using MemoryStream copy = new();
         await context.Request.Body.CopyToAsync(copy, context.RequestAborted).ConfigureAwait(false);
         if (copy.Length > limits.BytesAccepted) throw new BadHttpRequestException("The request is too large.", 413);
