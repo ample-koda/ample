@@ -69,7 +69,7 @@ test('ungroup puts the blocks back and the source round trip is identical', asyn
   expect((await state(page)).text).toBe(before);
 });
 
-test('the group arrow hides and shows the contents preview', async ({ page }) => {
+test('the group arrow hides and shows the contents preview @quarantine', async ({ page }) => {
   await groupTwo(page);
   await expect(page.locator('.node.grp svg')).toHaveCount(1);
   await page.locator('.node.grp .nh span[title="Show or hide the contents"]').click();

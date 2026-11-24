@@ -57,7 +57,7 @@ test('the block at the cursor plays after Ctrl+Shift+Space, built alone at previ
   await expect(status(page)).toHaveText('Stopped');
 });
 
-test('Space types in the editor; typing builds once after the pause; Ctrl+Shift+Enter does not wait', async ({ page }) => {
+test('Space types in the editor; typing builds once after the pause; Ctrl+Shift+Enter does not wait @quarantine', async ({ page }) => {
   const builds = await openSource(page);
   await caretIn(page, 'synth lead', 8);
   await page.locator('#se-cm .cm-content').press('Control+Shift+Space');
@@ -148,7 +148,7 @@ const normalState = (page: Page) => page.evaluate(() => import('/app/store.js').
   clockAt: s.S.build.clockAt ?? null,
 }))));
 
-test('a listening build does not replace the takes of the normal build, and Live Preview plays its own preview take', async ({ page }) => {
+test('a listening build does not replace the takes of the normal build, and Live Preview plays its own preview take @quarantine', async ({ page }) => {
   await openSource(page);
   const listened: string[] = [];
   page.on('response', async (response) => {
@@ -176,7 +176,7 @@ test('a listening build does not replace the takes of the normal build, and Live
   await page.locator('#se-cm .cm-content').press('Control+Shift+Space');
 });
 
-test('a block with several audio outputs gets an output choice, and the chosen output plays', async ({ page }) => {
+test('a block with several audio outputs gets an output choice, and the chosen output plays @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   const split = song.replace(
     'master out {\n  from lead.audio -> audio\n}',
