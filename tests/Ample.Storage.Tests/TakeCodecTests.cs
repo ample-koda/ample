@@ -101,4 +101,25 @@ public sealed class TakeCodecTests
             TakeFixtures.Cleanup(root);
         }
     }
+
+    private static MemoryStream Container(long claimedLength, byte[] body)
+    {
+        MemoryStream stream = new();
+        stream.Write("AMPZ"u8);
+        stream.WriteByte(1);
+        stream.Write(BitConverter.GetBytes(claimedLength));
+        stream.Write(body);
+        stream.Position = 0;
+        return stream;
+    }
+
+    [Fact]
+    public void A_container_that_claims_more_than_it_holds_is_refused_without_reserving_the_claim()
+    {
+        // 13 bytes that say "1.5 GiB": refused at once, nothing is reserved
+        Assert.Throws<InvalidDataException>(() => TakeCodec.Decode(Container(3L << 29, [])));
+        // a claim within the limit but a body that is far shorter: refused when the data ends
+        Assert.Throws<InvalidDataException>(() => TakeCodec.Decode(Container(900L << 20, [0x0B, 0x00, 0x80, 0x61, 0x62, 0x03])));
+        Assert.Throws<InvalidDataException>(() => TakeCodec.Decode(Container(-1, [])));
+    }
 }
