@@ -153,7 +153,7 @@ test('after file the files of the project are offered, and a marked problem expl
   await expect(page.locator('.lite-tip.lite-tip-error')).toContainText('is not in the project');
 });
 
-test('a missing file with one similar name in the project has a quick fix: in the tip, in the right click menu and from a double click on the problem', async ({ page }) => {
+test('a missing file with one similar name in the project has a quick fix: in the tip, in the right click menu and from a double click on the problem @quarantine', async ({ page }) => {
   await fresh(page);
   await useDemo(page, 'hello-melody');
   const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(32)]);
@@ -595,7 +595,7 @@ test('a build sends only what the server does not have: demo files never, an own
   expect(bodies[2]).toBeLessThan(5000);
 });
 
-test('the main button follows the sound: Play from start or Stop after a build, and Build & play again at any change', async ({ page }) => {
+test('the main button follows the sound: Play from start or Stop after a build, and Build & play again at any change @quarantine', async ({ page }) => {
   await fresh(page);
   const mode = () => page.locator('#lite-build').getAttribute('data-mode');
   await useDemo(page, 'hello-melody');

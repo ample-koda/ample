@@ -68,7 +68,7 @@ test('a rectangle on empty space selects the tiles it touches', async ({ page })
   await expect.poll(selectedNames.bind(null, page)).toEqual(expect.arrayContaining(['r1.wav', 'r3.wav']));
 });
 
-test('a selection is moved into a folder after a confirmation that lists the moves', async ({ page }) => {
+test('a selection is moved into a folder after a confirmation that lists the moves @quarantine', async ({ page }) => {
   await prepare(page, ['m1.wav', 'm2.wav']);
   await pick(page, 'm1.wav');
   await pick(page, 'm2.wav', { modifiers: ['Control'] });

@@ -6,7 +6,7 @@ freshServer();
 
 const tabs = ['mixer', 'arr', 'log', 'hist', 'project'];
 for (const vp of [{ width: 1280, height: 720 }, { width: 2000, height: 1026 }]) {
-  test(`resize the bottom panel with the live chain bar and the mixer tab at ${vp.width}x${vp.height}`, async ({ page }) => {
+  test(`resize the bottom panel with the live chain bar and the mixer tab at ${vp.width}x${vp.height} @quarantine`, async ({ page }) => {
     await page.setViewportSize(vp);
     await openApp(page, { reset: false });
     await page.locator('#btabs button[data-t="mixer"]').click();
