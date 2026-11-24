@@ -223,7 +223,7 @@ internal sealed partial class AiService
         // the path comes from the assistant: "../x" must not reach a file next to or above the proposal (another project, the task folder, a document of the person)
         string stagedRoot = Path.GetFullPath(Path.Combine(task.Workspace, "project")) + Path.DirectorySeparatorChar;
         string staged = Path.GetFullPath(Path.Combine(stagedRoot, rel.Replace('/', Path.DirectorySeparatorChar)));
-        if (staged.StartsWith(stagedRoot, StringComparison.OrdinalIgnoreCase) && File.Exists(staged))
+        if (staged.StartsWith(stagedRoot, StringComparison.OrdinalIgnoreCase) && File.Exists(staged) && !AiService.HasLink(stagedRoot, staged))
         {
             return staged;
         }

@@ -3301,6 +3301,19 @@ Answer in English, whatever language the question is in, unless the user asks fo
         return result;
     }
 
+    /// <summary>True when the file, or a folder on the way from <paramref name="root"/> to it, is a link (symlink or junction).</summary>
+    internal static bool HasLink(string root, string full)
+    {
+        string current = Path.GetFullPath(root);
+        foreach (string part in Path.GetRelativePath(current, Path.GetFullPath(full)).Split(Path.DirectorySeparatorChar))
+        {
+            current = Path.Combine(current, part);
+            if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return true;
+        }
+
+        return false;
+    }
+
     public static JsonObject CopyFile(string token, JsonElement body, string? liveRoot = null)
     {
         AiTask task = ContextTokens.TryGetValue(token, out AiTask? t) ? t : throw new AmpleException("AMP5458", "This task is no longer running.");
@@ -3322,6 +3335,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         string to = ProjectPath.Resolve(task.ProjectDir, destination);
         if (!File.Exists(from)) throw new AmpleException("AMP5458", $"There is no source file '{source}' in the project to copy (check the path with ample_project).");
+        // the working folder is written by the assistant (its sandbox may make a link there); the server follows a link with the rights of the server, so a link is never copied
+        if (workspaceSource && HasLink(task.Workspace, from)) throw new AmpleException("AMP5458", $"'{source}' is, or lies inside, a link; links are not copied.");
         if (File.Exists(to)) throw new AmpleException("AMP5458", $"The destination '{destination}' already exists in the proposal; no overwrite is allowed. Use it, change it with ample_edit, or give another name.");
         Directory.CreateDirectory(Path.GetDirectoryName(to)!);
         File.Copy(from, to);

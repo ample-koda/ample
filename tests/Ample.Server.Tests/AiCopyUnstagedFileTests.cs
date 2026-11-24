@@ -41,6 +41,28 @@ public sealed class AiCopyUnstagedFileTests : IDisposable
     }
 
     [Fact]
+    public void A_link_in_the_working_folder_is_never_followed_by_a_copy()
+    {
+        AiTask task = NewTask();
+        string outside = Path.Combine(Path.GetTempPath(), "ample-ai-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "not for the assistant");
+        try
+        {
+            string web = Path.Combine(workspace, "assets", "web");
+            Directory.CreateDirectory(web);
+            if (!Ample.Audio.IO.Junction.TryCreate(Path.Combine(web, "jn"), outside)) return;   // no link could be made here: nothing to prove
+            Assert.Throws<Ample.Core.Abstractions.AmpleException>(() => AiService.CopyFile(task.ContextToken, Body("workspace/assets/web/jn/secret.txt", "notes/stolen.txt")));
+            Assert.False(File.Exists(Path.Combine(task.ProjectDir, "notes", "stolen.txt")));
+        }
+        finally
+        {
+            try { Directory.Delete(Path.Combine(workspace, "assets", "web", "jn")); Directory.Delete(outside, true); }
+            catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public void Without_a_live_root_an_unstaged_source_is_still_refused()
     {
         AiTask task = NewTask();
