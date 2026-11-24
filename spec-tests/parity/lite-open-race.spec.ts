@@ -15,7 +15,7 @@ async function fresh(page: Page) {
   await page.waitForSelector('html[data-lite-ready="true"]');
 }
 
-test('a slow answer of an older open does not take the editor from the file that was opened after it @quarantine', async ({ page }) => {
+test('a slow answer of an older open does not take the editor from the file that was opened after it', async ({ page }) => {
   await fresh(page);
   await page.click('#lite-demos-btn');
   await page.locator('#lite-demo-list li[data-demo="pixel-quest"] button').click();
@@ -63,8 +63,12 @@ test('a slow answer of an older open does not take the editor from the file that
   // the next change goes to the file that is shown
   await page.locator('#lite-editor .cm-content').click();
   await page.keyboard.press('Control+End');
-  await page.keyboard.type('\n# typed after the old answer');
-  await page.waitForTimeout(900);   // saved
+  await page.keyboard.insertText('\n# typed after the old answer');   // in one piece: what is checked is the file that gets it, not the typing
+  // saved: the page writes 350 ms after the last key and the write itself takes longer on a busy machine, so the text is waited for, not a fixed time
+  await expect.poll(() => page.evaluate(async () => {
+    const app = (window as any).__remixTest.app;
+    return (await app.store.readFile(app.project.id, 'second.amplet')).text.includes('# typed after the old answer');
+  }), { timeout: 15000 }).toBe(true);
   const saved = await page.evaluate(async () => {
     const app = (window as any).__remixTest.app;
     return { second: (await app.store.readFile(app.project.id, 'second.amplet')).text, song: (await app.store.readFile(app.project.id, 'song.amplet')).text };
