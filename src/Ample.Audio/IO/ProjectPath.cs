@@ -8,6 +8,35 @@ public static class ProjectPath
     private static readonly string[] Reserved = ["CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"];
     private static readonly char[] Invalid = ['<', '>', ':', '"', '|', '?', '*'];
 
+    /// <summary>
+    /// Whether a relative path lies in the private folder (.ample) of a project, however it is written: with "./", with "a/../", in other letter
+    /// case (the file system of Windows and macOS ignores it), or with backslashes. Check this, never a prefix of the raw text.
+    /// </summary>
+    public static bool IsPrivate(string relative)
+    {
+        List<string> segments = [];
+        foreach (string part in relative.Replace('\\', '/').Split('/'))
+        {
+            if (part.Length == 0 || part == ".") continue;
+            if (part == "..")
+            {
+                if (segments.Count > 0) segments.RemoveAt(segments.Count - 1);
+                continue;
+            }
+
+            segments.Add(part);
+        }
+
+        return segments.Count > 0 && (segments[0].TrimEnd(' ', '.').Equals(".ample", StringComparison.OrdinalIgnoreCase) || IsShortAliasOfPrivate(segments[0]));
+    }
+
+    /// <summary>
+    /// True for <c>AMPLE~1</c>, <c>ample~2</c> and so on: the 8.3 short name Windows gives to <c>.ample</c> (the dot is dropped), which opens the same folder.
+    /// A check of the name <c>.ample</c> alone misses it.
+    /// </summary>
+    public static bool IsShortAliasOfPrivate(string segment) =>
+        segment.StartsWith("AMPLE~", StringComparison.OrdinalIgnoreCase) && segment.Length > 6 && segment.AsSpan(6).IndexOfAnyExceptInRange('0', '9') < 0;
+
     /// <summary>Resolves a relative path inside a root. Never touches the disk.</summary>
     /// <exception cref="AmpleException">AMP5201 (escapes or absolute) or AMP5202 (invalid or reserved name).</exception>
     public static string Resolve(string root, string relative)
@@ -51,6 +80,11 @@ public static class ProjectPath
             if (segment.EndsWith('.') || segment.EndsWith(' '))
             {
                 throw new AmpleException("AMP5202", $"The path '{Shown(relative)}' has a name that ends with a dot or a space.");
+            }
+
+            if (IsShortAliasOfPrivate(segment))
+            {
+                throw new AmpleException("AMP5202", $"The path '{Shown(relative)}' uses a short Windows name (AMPLE~1) of the private folder.");
             }
 
             string stem = segment.Split('.')[0].ToUpperInvariant();

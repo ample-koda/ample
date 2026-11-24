@@ -186,7 +186,7 @@ public sealed class ProjectSession : IAsyncDisposable
 
     internal async Task<DocSession> DocAsync(string relative, CancellationToken cancellationToken)
     {
-        string full = ProjectPath.Resolve(Root, relative);
+        string full = ProjectPath.Resolve(Fs, Root, relative);
         if (docs.TryGetValue(relative, out DocSession? existing))
         {
             return existing;
@@ -208,7 +208,7 @@ public sealed class ProjectSession : IAsyncDisposable
     {
         try
         {
-            string full = ProjectPath.Resolve(Root, relative);
+            string full = ProjectPath.Resolve(Fs, Root, relative);
             return File.Exists(full) ? File.ReadAllText(full) : null;
         }
         catch (AmpleException)
@@ -301,7 +301,7 @@ public sealed class ProjectSession : IAsyncDisposable
         if (!relative.StartsWith("modules/", StringComparison.Ordinal) || !relative.EndsWith(Ample.Engine.Modules.ModuleService.Extension, StringComparison.Ordinal) || relative.Split('/').Any(p => p is "" or "." or ".."))
             throw new AmpleException("AMP5320", "Module editing is limited to project modules/*.module files.");
         if (moduleDocs.TryGetValue(relative, out ModuleDocState? cached)) return cached;
-        string full = ProjectPath.Resolve(Root, relative);
+        string full = ProjectPath.Resolve(Fs, Root, relative);
         if (!File.Exists(full)) throw new AmpleException("AMP5320", "The project module is missing.");
         string source = await File.ReadAllTextAsync(full, cancellationToken).ConfigureAwait(false);
         ModuleDefinition definition = ModuleDefinition.Parse(source);
@@ -365,7 +365,7 @@ public sealed class ProjectSession : IAsyncDisposable
     /// <summary>Brings the working copy in line with a change of the file on disk, so a later save cannot silently overwrite it. Only a real conflict is left for the person.</summary>
     internal async Task<DiskSync> SyncDiskAsync(DocSession d, CancellationToken cancellationToken)
     {
-        string full = ProjectPath.Resolve(Root, d.Path);
+        string full = ProjectPath.Resolve(Fs, Root, d.Path);
         if (!File.Exists(full))
         {
             return new DiskSync("gone", null);
@@ -403,7 +403,7 @@ public sealed class ProjectSession : IAsyncDisposable
     /// <summary>The person's answer to a conflict: the file on disk is now the base (as long as it is still the one they saw), the working copy is their composed text, ready to save.</summary>
     internal async Task ResolveDiskAsync(DocSession d, string text, string diskSha, CancellationToken cancellationToken)
     {
-        string full = ProjectPath.Resolve(Root, d.Path);
+        string full = ProjectPath.Resolve(Fs, Root, d.Path);
         string disk = File.Exists(full) ? await File.ReadAllTextAsync(full, cancellationToken).ConfigureAwait(false) : string.Empty;
         if (!string.Equals(DiskSha(disk), diskSha, StringComparison.Ordinal))
         {

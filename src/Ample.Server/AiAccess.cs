@@ -206,7 +206,7 @@ internal sealed partial class AiService
         }
 
         string rel = $"notes/ai-findings/{clean}-{DateTime.UtcNow:yyyyMMdd-HHmm}.md";
-        string full = Path.Combine(s.Root, rel.Replace('/', Path.DirectorySeparatorChar));
+        string full = ProjectPath.Resolve(s.Fs, s.Root, rel);   // also refuses a notes folder that is a link to somewhere else
         if (Encoding.UTF8.GetByteCount(text) > 500_000)
         {
             throw new AmpleException("AMP5610", "At most 500 KB of findings at a time.");
@@ -220,13 +220,15 @@ internal sealed partial class AiService
 
     private string? ProposalOrLive(AiTask task, string rel)
     {
-        string staged = Path.GetFullPath(Path.Combine(task.Workspace, "project", rel.Replace('/', Path.DirectorySeparatorChar)));
-        if (File.Exists(staged))
+        // the path comes from the assistant: "../x" must not reach a file next to or above the proposal (another project, the task folder, a document of the person)
+        string stagedRoot = Path.GetFullPath(Path.Combine(task.Workspace, "project")) + Path.DirectorySeparatorChar;
+        string staged = Path.GetFullPath(Path.Combine(stagedRoot, rel.Replace('/', Path.DirectorySeparatorChar)));
+        if (staged.StartsWith(stagedRoot, StringComparison.OrdinalIgnoreCase) && File.Exists(staged) && !AiService.HasLink(stagedRoot, staged))
         {
             return staged;
         }
 
-        string live = ProjectPath.Resolve(s.Root, rel);
+        string live = ProjectPath.Resolve(s.Fs, s.Root, rel);
         return File.Exists(live) ? live : null;
     }
 
@@ -282,12 +284,12 @@ internal sealed partial class AiService
 
         string root = Path.GetFullPath(Path.Combine(task.Workspace, "project")) + Path.DirectorySeparatorChar;
         string target = Path.GetFullPath(Path.Combine(root, outRel.Replace('/', Path.DirectorySeparatorChar)));
-        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase) || outRel.StartsWith(ProjectLayout.AmpleFolder, StringComparison.OrdinalIgnoreCase))
+        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase) || ProjectPath.IsPrivate(outRel))
         {
             throw new AmpleException("AMP5458", $"{outRel} is not a place in the proposal for a sequence.");
         }
 
-        if (File.Exists(target) || File.Exists(ProjectPath.Resolve(s.Root, outRel)))
+        if (File.Exists(target) || File.Exists(ProjectPath.Resolve(s.Fs, s.Root, outRel)))
         {
             throw new AmpleException("AMP5243", $"{outRel} already exists: give another 'out', or change it with ample_edit.");
         }

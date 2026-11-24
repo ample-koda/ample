@@ -291,6 +291,8 @@ internal static class TxImport
                 wanted = chosen;
             }
 
+            // the path comes from the package (anyone can make one), or from an override: it must stay inside the project and out of its private folder
+            wanted = SafeDestination(targetRoot, wanted, e.Role == AmpleTx.Roles.Settings && wanted == ProjectLayout.AmpleFolder + "/plugin-settings.json");
             item.Destination = wanted;
             item.OldReference = pack ? e.OriginalPath : logical;
             string? installed = pack && !r.PreferEmbedded ? FindPack(s, targetRoot, e.OriginalPath.StartsWith("pack:", StringComparison.Ordinal) ? e.OriginalPath["pack:".Length..] : e.OriginalPath, logical) : null;
@@ -398,7 +400,7 @@ internal static class TxImport
         bool blocked = differences.Any(d => d!["severity"]!.GetValue<string>() == "error");
         JsonArray conversions = new([.. references.Select(c => (JsonNode)new JsonObject { ["kind"] = "reference", ["description"] = $"{c.Old} becomes {c.New} in the song" })]);
         TxEntry? song = p.Entries.First(e => e.Role == AmpleTx.Roles.Song);
-        string songName = r.SongName ?? SongTarget(targetRoot, exists, song.Path, r.Mode == "new-project");
+        string songName = SafeDestination(targetRoot, r.SongName ?? SongTarget(targetRoot, exists, song.Path, r.Mode == "new-project"), false);
         JsonObject o = new()
         {
             ["package"] = Path.GetFileName(p.FilePath),
@@ -437,6 +439,23 @@ internal static class TxImport
             },
         };
         return o;
+    }
+
+    /// <summary>
+    /// A project-relative place for a file of a package, as a clean path with '/', or an exception. A package is made by anyone: its paths may be absolute, climb out with "..", name a
+    /// drive or a stream, or point into the private folder (.ample) of the project; none of that is written. <paramref name="allowPrivate"/> is only for the one file the import makes in
+    /// the private folder itself (the plugin settings).
+    /// </summary>
+    internal static string SafeDestination(string targetRoot, string path, bool allowPrivate)
+    {
+        string normalized = path.Replace('\\', '/');
+        if (!allowPrivate && ProjectPath.IsPrivate(normalized))
+        {
+            throw new AmpleException("AMP5201", $"The package has a file for the private folder of the project ('{path}'); it is not imported.");
+        }
+
+        string full = ProjectPath.Resolve(targetRoot, normalized);
+        return Path.GetRelativePath(Path.GetFullPath(targetRoot), full).Replace('\\', '/');
     }
 
     private static (string Root, bool Exists) Target(ProjectSession s, TxImportRequest r)
@@ -529,7 +548,8 @@ internal static class TxImport
                 continue;
             }
 
-            string target = Path.Combine(targetRoot, item.Destination.Replace('/', Path.DirectorySeparatorChar));
+            bool settingsFile = item.Entry.Role == AmpleTx.Roles.Settings && item.Destination == ProjectLayout.AmpleFolder + "/plugin-settings.json";
+            string target = ProjectPath.Resolve(targetRoot, SafeDestination(targetRoot, item.Destination, settingsFile));
             if (File.Exists(target))
             {
                 throw new AmpleException("AMP5445", $"{item.Destination} already exists and is not the file of the package; nothing was overwritten.");
@@ -583,7 +603,7 @@ internal static class TxImport
             songText = Rewrite(songText, references);
         }
 
-        string songFile = Path.Combine(targetRoot, songTarget.Replace('/', Path.DirectorySeparatorChar));
+        string songFile = ProjectPath.Resolve(targetRoot, SafeDestination(targetRoot, songTarget, false));
         if (File.Exists(songFile))
         {
             throw new AmpleException("AMP5445", $"{songTarget} already exists; nothing was overwritten.");

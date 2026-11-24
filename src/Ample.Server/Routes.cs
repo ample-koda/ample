@@ -796,7 +796,10 @@ public static class Routes
         add("GET", "/api/redux/edit-history", "redux", "Read-only exact-hash lookup of saved song or module states in AMPLE Redux, without exposing journal contents.", false, s is null ? null : async (HttpContext c) =>
         {
             string path = c.Request.Query["path"].ToString();
-            if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..", StringComparer.Ordinal) || path.Replace('\\', '/').StartsWith(".ample", StringComparison.Ordinal) || !(path.EndsWith(".amplet", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".module", StringComparison.OrdinalIgnoreCase))) throw new AmpleException("AMP5285", "Edit history is available for project song and module files only.");
+            bool songOrModule = path.EndsWith(".amplet", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".module", StringComparison.OrdinalIgnoreCase);
+            bool escapes = Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..", StringComparer.Ordinal);
+            if (string.IsNullOrWhiteSpace(path) || escapes || ProjectPath.IsPrivate(path) || !songOrModule)
+                throw new AmpleException("AMP5285", "Edit history is available for project song and module files only.");
             HashSet<string> wanted = new(StringComparer.Ordinal);
             foreach (string? value in c.Request.Query["hash"])
             {
@@ -829,7 +832,7 @@ public static class Routes
         add("GET", "/api/ai/context/redux-search", "ai", "For an AI task: read-only search of the task's AMPLE Redux archive; scope=project expands to this project's journal.", false, s is null ? null : async (HttpContext c) => Ok(await ReduxSearchView(s, c, ReduxQuery(c, "task"), true).ConfigureAwait(false)));
         add("GET", "/api/plugins", "plugins", "The plugins that are found and any problems with them.", false, s is null ? null : () =>
         {
-            (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> plugins, IReadOnlyList<string> problems) = Ample.Plugins.PluginHost.Discover([Path.Combine(s.AmpleRoot, "plugins"), Path.Combine(s.Root, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")]);
+            (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> plugins, IReadOnlyList<string> problems) = Ample.Plugins.PluginHost.Discover(InstalledPluginFolders(s.AmpleRoot));
             return Ok(new { plugins = plugins.Select(p => new { p.Manifest.Id, p.Manifest.Title, p.Manifest.Version, p.Manifest.Kind, p.Manifest.Determinism, p.Manifest.Blocks, analyses = p.Manifest.Analyses, p.Manifest.Needs, settingsSchema = JsonDocument.Parse(p.Manifest.SettingsSchemaJson).RootElement }), problems });
         });
         add("GET", "/api/packs/files", "project", "The WAV files of the installed audio packs as pack:<pack>/<name> values for a file field.", false, s is null ? null : () =>
@@ -855,7 +858,7 @@ public static class Routes
         {
             bool hashes = c.Request.Query["hashes"].ToString() == "1";
             return Ok(Directory.EnumerateFiles(s.Root, "*", SearchOption.AllDirectories)
-                .Where(f => !Path.GetRelativePath(s.Root, f).StartsWith(".ample", StringComparison.Ordinal))
+                .Where(f => !ProjectPath.IsPrivate(Path.GetRelativePath(s.Root, f)))
                 .Select(f => new
                 {
                     path = Path.GetRelativePath(s.Root, f).Replace('\\', '/'),
@@ -1535,7 +1538,7 @@ public static class Routes
             DiscoveredPlugin? plugin = null;
             if (!remote)
             {
-                (IReadOnlyList<DiscoveredPlugin> plugins, _) = PluginHost.Discover([Path.Combine(s.AmpleRoot, "plugins"), Path.Combine(s.Root, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")]);
+                (IReadOnlyList<DiscoveredPlugin> plugins, _) = PluginHost.Discover(InstalledPluginFolders(s.AmpleRoot));
                 plugin = plugins.FirstOrDefault(item => item.Manifest.Id == pluginId && item.Manifest.Kind == "analysis" && item.Manifest.Analyses?.Contains("transcription", StringComparer.Ordinal) == true)
                     ?? throw new AmpleException("AMP5344", "There is no local analysis plugin offering transcription.");
                 if (plugin.Manifest.Needs.Network) throw new AmpleException("AMP5340", "Audio transcription plugins that need network access are not allowed.");
@@ -1715,7 +1718,7 @@ public static class Routes
                 {
                     try
                     {
-                        string full = ProjectPath.Resolve(s.Root, relative);
+                        string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
                         return File.Exists(full) ? File.ReadAllText(full) : null;
                     }
                     catch (AmpleException)
@@ -1739,13 +1742,13 @@ public static class Routes
             string? stage = body.TryGetProperty("stage", out JsonElement stageValue) && stageValue.ValueKind == JsonValueKind.String && stageValue.GetString()!.Length > 0 ? stageValue.GetString() : null;
             string? file = body.TryGetProperty("file", out JsonElement fileValue) && fileValue.ValueKind == JsonValueKind.String && fileValue.GetString()!.Length > 0 ? fileValue.GetString() : null;
             bool detach = body.TryGetProperty("detach", out JsonElement detachValue) && detachValue.ValueKind == JsonValueKind.True;
-            if (file is not null) ProjectPath.Resolve(s.Root, file);
+            if (file is not null) ProjectPath.Resolve(s.Fs, s.Root, file);
             Ample.Engine.Modules.ModuleService midi = new(s.Root, () => s.Library, s.Manifest.Id.ToString("D"));
             string? Read(string relative)
             {
                 try
                 {
-                    string full = ProjectPath.Resolve(s.Root, relative);
+                    string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
                     return File.Exists(full) ? File.ReadAllText(full) : null;
                 }
                 catch (AmpleException)
@@ -1810,7 +1813,7 @@ public static class Routes
             {
                 try
                 {
-                    string full = ProjectPath.Resolve(s.Root, relative);
+                    string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
                     return File.Exists(full) ? File.ReadAllText(full) : null;
                 }
                 catch (AmpleException)
@@ -1919,7 +1922,7 @@ public static class Routes
             JsonElement body = await Body(c);
             string moduleName = Str(body, "name");
             if (moduleName.Length is < 1 or > 64 || moduleName.Any(ch => !(char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_'))) throw new AmpleException("AMP5504", "The MIDI module name is invalid.");
-            string path = ProjectPath.Resolve(s.Root, "modules/" + moduleName + ".module");
+            string path = ProjectPath.Resolve(s.Fs, s.Root, "modules/" + moduleName + ".module");
             FileInfo info = new(path);
             if (!info.Exists || info.Length > 64L * 1024 * 1024) throw new AmpleException("AMP5504", "The generated MIDI module is missing or exceeds its export size limit.");
             ModuleDocState state = await s.ModuleDocAsync("modules/" + moduleName + ".module", c.RequestAborted);
@@ -3186,7 +3189,7 @@ public static class Routes
 
             string folder = Opt(b, "folder") is { Length: > 0 } chosen ? WorkingPath(chosen) : System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;   // a folder the person chose (the first save of a new song), or the folder of the song
             string rel = (folder.Length == 0 ? name : folder + "/" + name) + ".amplet";
-            if (File.Exists(ProjectPath.Resolve(s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
+            if (File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
             await s.Bus.ExecuteAsync(new WriteFileCommand(rel, d.Text), c.RequestAborted);
             events!.Publish("files.changed", new { paths = new[] { rel } });
             return Ok(new { path = rel });
@@ -3203,7 +3206,7 @@ public static class Routes
 
             string folder = System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;
             string rel = (folder.Length == 0 ? name : folder + "/" + name) + ".amplet";
-            if (File.Exists(ProjectPath.Resolve(s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
+            if (File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
             AmpleDocument parsed = s.Parse(d);
             EditResult result = Edits.BakeDynamicHelpers(parsed, s.LastBuildAt.TryGetValue(Str(b, "path"), out DateTime builtAt) ? builtAt : parsed.ParsedAt, Opt(b, "block"));
             if (!result.Ok) throw new AmpleException("AMP5285", result.Error!);
@@ -4001,7 +4004,7 @@ public static class Routes
         }
 
         string rel = name + ".amplet";
-        if (File.Exists(ProjectPath.Resolve(s.Root, rel)))
+        if (File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel)))
         {
             throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
         }
@@ -4027,7 +4030,14 @@ public static class Routes
         return Ok(new { path = rel, settings = pairs.Count });
     }
 
-    private static bool TextFile(string rel) => !rel.Replace('\\', '/').StartsWith(".ample", StringComparison.Ordinal) && TextExtensions.Contains(Path.GetExtension(rel).ToLowerInvariant());
+    /// <summary>
+    /// The folders plugins are started from: the ones that come with AMPLE and the ones the person installed. Never a folder inside the project: a plugin
+    /// names the program to run, and a project can hold any file (it can be written through the text-file API or arrive with a project someone else made).
+    /// </summary>
+    private static string[] InstalledPluginFolders(string ampleRoot) =>
+        [Path.Combine(ampleRoot, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")];
+
+    private static bool TextFile(string rel) => !ProjectPath.IsPrivate(rel) && TextExtensions.Contains(Path.GetExtension(rel).ToLowerInvariant());
 
     private static string? ReduxRecordPath(JournalRecord record)
     {
