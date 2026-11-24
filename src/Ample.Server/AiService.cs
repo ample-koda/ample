@@ -3744,7 +3744,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
         foreach (string f in Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
-            if (ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel) || File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) continue;
+            bool skipped = ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel);
+            if (skipped || File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) continue;
             FileInfo info = new(f);
             bool binary = info.Length > 2_000_000;
             if (!binary && info.Length > 0)
