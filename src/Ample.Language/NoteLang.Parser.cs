@@ -31,6 +31,7 @@ public static partial class NotePipeline
             }
 
             if (p < Tokens.Count) throw new SyntaxError("Unexpected input after the declaration", Tokens[p].Start, Tokens[p].End);
+            CheckTreeDepth(result);
             return result;
         }
 
@@ -163,6 +164,13 @@ public static partial class NotePipeline
 
         private StmtBlock Block()
         {
+            Enter();
+            try { return BlockCore(); }
+            finally { nesting--; }
+        }
+
+        private StmtBlock BlockCore()
+        {
             Tok open = Expect(T.LBrace, "\"{\"");
             List<Node> statements = [];
             Node? previous = null;
@@ -280,6 +288,13 @@ public static partial class NotePipeline
         private Node Binary(int min) => Climb(Unary(), min);
 
         private Node Unary()
+        {
+            Enter();
+            try { return UnaryCore(); }
+            finally { nesting--; }
+        }
+
+        private Node UnaryCore()
         {
             Tok? k = Peek();
             if (k is not null && k.Kind is T.Bang or T.Minus)

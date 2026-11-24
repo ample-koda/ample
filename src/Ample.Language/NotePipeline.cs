@@ -370,17 +370,49 @@ public static partial class NotePipeline
 
     private sealed partial class ExprParser(string text, List<Tok> tokens)
     {
+        /// <summary>
+        /// How many levels of brackets, prefix operators and blocks may be inside each other, and how deep the finished tree may be
+        /// (a long sum or chain is deep without any brackets).
+        /// </summary>
+        private const int MaxNesting = 64, MaxTreeDepth = 200;
+
         private int p;
+        private int nesting;
 
         private string Text => text;
 
         private List<Tok> Tokens => tokens;
+
+        /// <summary>
+        /// One more level of nesting. Text from outside must never be able to make the parser recurse until the stack of the process is gone
+        /// (that ends the whole server and cannot be caught).
+        /// </summary>
+        private void Enter()
+        {
+            if (++nesting <= MaxNesting) return;
+            Tok? at = Peek();
+            throw new SyntaxError($"This is nested too deeply (at most {MaxNesting} levels inside each other)", at?.Start ?? text.Length, at?.End ?? text.Length);
+        }
+
+        /// <summary>Walks the finished tree without recursion and refuses one that is deeper than later passes (which do recurse) can follow.</summary>
+        private static void CheckTreeDepth(Node root)
+        {
+            Stack<(Node Node, int Depth)> pending = new();
+            pending.Push((root, 1));
+            while (pending.Count > 0)
+            {
+                (Node node, int depth) = pending.Pop();
+                if (depth > MaxTreeDepth) throw new SyntaxError($"This is chained or nested too deeply (more than {MaxTreeDepth} levels)", node.Start, node.End);
+                foreach (Node child in Children(node)) pending.Push((child, depth + 1));
+            }
+        }
 
         public Node Parse()
         {
             if (tokens.Count == 0) throw new SyntaxError("The expression is empty", 0, Math.Max(1, text.Length));
             Node n = Pipeline();
             if (p < tokens.Count) throw new SyntaxError("Unexpected input after the expression", tokens[p].Start, tokens[p].End);
+            CheckTreeDepth(n);
             return n;
         }
 
@@ -542,6 +574,13 @@ public static partial class NotePipeline
         }
 
         private Node Atom()
+        {
+            Enter();
+            try { return AtomCore(); }
+            finally { nesting--; }
+        }
+
+        private Node AtomCore()
         {
             Tok? k = Peek();
             if (k is null) throw new SyntaxError("The expression is empty", text.Length, text.Length);
