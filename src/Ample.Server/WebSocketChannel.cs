@@ -5,7 +5,9 @@ using Ample.Lsp;
 namespace Ample.Server;
 
 /// <summary>The WebSocket transport of the language server: every text frame is one JSON-RPC message (no Content-Length headers).</summary>
-internal sealed class WebSocketChannel(WebSocket socket) : ILspChannel, IDisposable
+/// <param name="socket">The socket.</param>
+/// <param name="maxMessageBytes">The largest message that is read; a longer one ends the connection (the public Remix passes its own, much smaller limit).</param>
+internal sealed class WebSocketChannel(WebSocket socket, long maxMessageBytes = 64L * 1024 * 1024) : ILspChannel, IDisposable
 {
     private readonly SemaphoreSlim writeLock = new(1, 1);
 
@@ -35,7 +37,7 @@ internal sealed class WebSocketChannel(WebSocket socket) : ILspChannel, IDisposa
             }
 
             message.Write(buffer, 0, r.Count);
-            if (message.Length > 64 * 1024 * 1024)
+            if (message.Length > maxMessageBytes)
             {
                 return null;
             }
