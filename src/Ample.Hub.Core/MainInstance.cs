@@ -224,5 +224,5 @@ public sealed class MainInstance
         InstanceControl.StopAsync(Registry, instance, Http, TimeSpan.FromSeconds(15), cancellationToken);
 
     /// <summary>Gets the URL that opens an instance in the browser (with its token), or null.</summary>
-    public string? LaunchUrl(InstanceRecord instance) => Registry.ReadLaunchUrl(instance.ProjectId);
+    public string? LaunchUrl(InstanceRecord instance) => Registry.ReadLaunchUrl(instance.ProjectId) is { } url && LaunchPolicy.IsStudioAddress(url) ? url : null;
 }
