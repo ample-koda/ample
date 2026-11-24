@@ -270,6 +270,47 @@ public sealed class LiteOnlyTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task An_archive_that_takes_longer_than_the_time_limit_is_cut_and_gives_its_slot_back()
+    {
+        // the server accepts at most 8 MB of body, so a share is small enough for the network buffers and a slow reader cannot be made in a test:
+        // with a limit of zero the connection is cut before the first byte, which shows that the limit cuts it and that the slot comes back
+        string id = await MakeShareAsync(("song.amplet", Song), ("notes/readme.txt", "hello"));
+        TimeSpan saved = LiteSharesApi.ArchiveTimeLimit;
+        LiteSharesApi.ArchiveTimeLimit = TimeSpan.Zero;
+        try
+        {
+            bool cut = false;
+            try
+            {
+                using HttpResponseMessage response = await http.GetAsync($"/api/remix/shares/{id}/archive");
+                byte[] body = await response.Content.ReadAsByteArrayAsync();
+                using System.IO.Compression.ZipArchive zip = new(new MemoryStream(body));
+                cut = zip.Entries.Count != 2;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
+            {
+                cut = true;
+            }
+
+            Assert.True(cut, "the archive was written in full although the time limit was zero");
+        }
+        finally
+        {
+            LiteSharesApi.ArchiveTimeLimit = saved;
+        }
+
+        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        while (LiteSharesApi.ArchiveSlots.CurrentCount < LiteSharesApi.MaxArchivesAtOnce && clock.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            await Task.Delay(50);
+        }
+
+        Assert.Equal(LiteSharesApi.MaxArchivesAtOnce, LiteSharesApi.ArchiveSlots.CurrentCount);
+        using HttpResponseMessage again = await http.GetAsync($"/api/remix/shares/{id}/archive");
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);   // and the next visitor gets the archive in full
+    }
+
+    [Fact]
     public async Task A_share_file_is_counted_for_the_visitor_and_is_refused_over_the_limit()
     {
         string hash = new('a', 64);
