@@ -2351,7 +2351,10 @@ public static partial class Parser
                 int gridBar = drums.Parameters.FirstOrDefault(p => p.Name == "steps") is { } stepsParameter && int.TryParse(stepsParameter.Value.Trim().Trim('"'), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int own) && own >= 1 ? own : usualBar;
                 foreach (Parameter grids in drums.Parameters.Where(p => p.Name is "pattern" or "patterns"))
                 {
-                    foreach (System.Text.RegularExpressions.Match lane in System.Text.RegularExpressions.Regex.Matches(grids.Value, @"([A-Za-z][\w-]*):([xXo1-9.]+)"))
+                    // NonBacktracking: a start at every letter of one long word made this quadratic (80,000 letters took 4.5 seconds); the lanes found are the same
+                    System.Text.RegularExpressions.MatchCollection lanes = System.Text.RegularExpressions.Regex.Matches(
+                        grids.Value, @"([A-Za-z][\w-]*):([xXo1-9.]+)", System.Text.RegularExpressions.RegexOptions.NonBacktracking);
+                    foreach (System.Text.RegularExpressions.Match lane in lanes)
                     {
                         int steps = lane.Groups[2].Length;
                         if (steps <= gridBar ? gridBar % steps == 0 : steps % gridBar == 0)

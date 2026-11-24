@@ -52,3 +52,16 @@ public sealed class DrumGridTests
         Assert.Contains(Check(pattern, steps), d => d.Code == "AMP2095" && d.Severity == Severity.Warning);
     }
 }
+
+/// <summary>A text from outside (a Remix visitor) must cost time in proportion to its length, not to its square.</summary>
+public sealed class DrumGridTimeTests
+{
+    [Fact]
+    public void One_very_long_word_in_a_drum_pattern_is_read_in_linear_time()
+    {
+        string song = "composition \"x\" { ample 1  tempo 100  master-seed 1 }\n\ndrums beat at 1 for 4 {\n  kit builtin\n  pattern " + new string('a', 200_000) + "\n}\n";
+        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        _ = Parser.Parse(song, Corpus.Spec).Diagnostics;
+        Assert.True(clock.ElapsedMilliseconds < 5_000, $"took {clock.ElapsedMilliseconds} ms");
+    }
+}
