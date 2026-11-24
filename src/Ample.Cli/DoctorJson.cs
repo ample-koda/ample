@@ -37,7 +37,9 @@ internal static class DoctorJson
             InstallEnvironment install = InstallEnvironmentDetector.Detect();
             foreach (EnvironmentFinding c in EnvironmentCheck.Run(AppContext.BaseDirectory, project, install))
             {
-                items.Add(new Item(c.Ok ? "ok" : c.Name.StartsWith("Audiveris", StringComparison.Ordinal) || c.Name.StartsWith("MuseScore", StringComparison.Ordinal) ? "note" : "missing", c.Name, c.Detail, c.Hint.Split('\n')[0], c.Ok ? null : FixFor(c.Name, install)));
+                bool optional = c.NoFix || c.Name.StartsWith("Audiveris", StringComparison.Ordinal) || c.Name.StartsWith("MuseScore", StringComparison.Ordinal);
+                string level = c.Ok ? "ok" : optional ? "note" : "missing";
+                items.Add(new Item(level, c.Name, c.Detail, c.Hint.Split('\n')[0], c.Ok || c.NoFix ? null : FixFor(c.Name, install)));
             }
         }
 
