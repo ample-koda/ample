@@ -13,8 +13,19 @@ test('the wheel zooms about the pointer and the buttons zoom, fit and reset', as
   await expect(page.locator('#z-pct')).toHaveText('100%');
   await page.click('#z-fit');
   const k = (await state(page)).view.k;
-  expect(k).toBeGreaterThanOrEqual(0.2);
+  expect(k).toBeGreaterThanOrEqual(0.01);
   expect(k).toBeLessThanOrEqual(1.5);
+});
+
+test('the wheel zooms out down to 1 percent and no further, and the grid stays a readable size', async ({ page }) => {
+  await page.locator('#cv').hover({ position: { x: 400, y: 300 } });
+  for (let i = 0; i < 60; i++) await page.mouse.wheel(0, 600);
+  await expect.poll(async () => (await state(page)).view.k).toBeCloseTo(0.01, 3);
+  await expect(page.locator('#z-pct')).toHaveText('1%');
+  const grid = await page.locator('#cv').evaluate((node) => parseFloat(getComputedStyle(node).backgroundSize));
+  expect(grid).toBeGreaterThanOrEqual(12);
+  await page.click('#z-100');
+  await expect(page.locator('#z-pct')).toHaveText('100%');
 });
 
 test('canvas context menu exposes Fit under Layout', async ({ page }) => {

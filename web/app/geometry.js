@@ -5,7 +5,7 @@ export const W = 300;
 export const HEAD = 60;
 export const ROW = 20;
 export const GRID = 10;
-export const MIN_ZOOM = 0.2;
+export const MIN_ZOOM = 0.01;   // 1 %: a very large song can be seen whole
 export const MAX_ZOOM = 2.5;
 
 export const snap = (v, grid = GRID) => Math.round(v / grid) * grid;

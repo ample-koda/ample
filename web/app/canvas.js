@@ -72,7 +72,9 @@ export function paintSelection() {
 
 export function applyView() {
   world.style.transform = `translate(${S.view.x}px,${S.view.y}px) scale(${S.view.k})`;
-  const g = 40 * S.view.k;
+  // the grid doubles its spacing while it would be closer than 12 px: at 1 % the dots would be a fraction of a pixel apart (a blur, and slow to paint)
+  let g = 40 * S.view.k;
+  while (g < 12) g *= 2;
   cv.style.backgroundSize = `${g}px ${g}px`;
   cv.style.backgroundPosition = `${S.view.x}px ${S.view.y}px`;
   $('#z-pct').textContent = `${Math.round(S.view.k * 100)}%`;
