@@ -29,6 +29,8 @@ async function useDemo(page: Page, id: string) {
 }
 const rollLayout = async (page: Page) => page.locator('#lite-roll-canvas').evaluate((c) => ({ gutter: Number((c as HTMLCanvasElement).dataset.gutter), row: Number((c as HTMLCanvasElement).dataset.row), pxBeat: Number((c as HTMLCanvasElement).dataset.pxbeat), high: Number((c as HTMLCanvasElement).dataset.high), head: Number((c as HTMLCanvasElement).dataset.head) }));
 const editorText = (page: Page) => page.locator('#lite-editor .cm-content').innerText();
+// in one piece: typed one character at a time on a busy machine the cursor can move between two characters and the text comes out scrambled
+const insertAtEnd = async (page: Page, text: string) => { await page.locator('#lite-editor .cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText(text); };
 const typeAtEnd = async (page: Page, text: string) => { await page.locator('#lite-editor .cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.type(text); };
 
 test('/remix opens behind the token, with the AMPLE demo song already there and the other demos one click away', async ({ page }) => {
@@ -164,7 +166,7 @@ test('a missing file with one similar name in the project has a quick fix: in th
   const block = (name: string, file: string) => `${NL}import-audio ${name} at 1 for 1 {${NL}file "${file}"${NL}}${NL}`;
   const text = page.locator('#lite-editor .cm-content');
   // 1. the tip of the mark has the button
-  await typeAtEnd(page, block('a', 'my-kick.wav'));
+  await insertAtEnd(page, block('a', 'my-kick.wav'));
   const markA = page.locator('#lite-editor .lite-diag-error', { hasText: 'my-kick.wav' }).first();
   await expect(markA).toBeVisible();
   await markA.hover();
@@ -173,12 +175,12 @@ test('a missing file with one similar name in the project has a quick fix: in th
   await fix.click();
   await expect(text).toContainText('file "samples/my kick.wav"');
   // 2. the right mouse button on a mark
-  await typeAtEnd(page, block('b', 'my_kick.wav'));
+  await insertAtEnd(page, block('b', 'my_kick.wav'));
   await page.locator('#lite-editor .lite-diag-error', { hasText: 'my_kick.wav' }).first().click({ button: 'right' });
   await page.locator('.lite-fixmenu button', { hasText: 'samples/my kick.wav' }).click();
   await expect(text).not.toContainText('my_kick.wav');
   // 3. a double click on the problem in the list puts it in focus with its tip open
-  await typeAtEnd(page, block('c', 'mykick.wav'));
+  await insertAtEnd(page, block('c', 'mykick.wav'));
   const problem = page.locator('#lite-problems li.error', { hasText: 'mykick.wav' }).first();
   await expect(problem).toBeVisible();
   await problem.dblclick();
@@ -186,7 +188,7 @@ test('a missing file with one similar name in the project has a quick fix: in th
   await page.locator('.lite-tip .lite-tip-fix').click();
   await expect(text).not.toContainText('mykick.wav');
   // a name that is near no file has no quick fix
-  await typeAtEnd(page, block('d', 'bestaat.niet.wav'));
+  await insertAtEnd(page, block('d', 'bestaat.niet.wav'));
   await page.locator('#lite-editor .lite-diag-error', { hasText: 'bestaat.niet.wav' }).first().hover();
   await expect(page.locator('.lite-tip.lite-tip-error')).toContainText('is not in the project');
   await expect(page.locator('.lite-tip .lite-tip-fix')).toHaveCount(0);

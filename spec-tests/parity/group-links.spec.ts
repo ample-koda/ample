@@ -85,7 +85,7 @@ test('a group says built when its blocks are built, and its waveform is drawn', 
   // the tests of this file share one server: an earlier test may have built one of the two blocks, then the group says "1 of 2 built" instead of "not built"
   const fully = (title: string) => { const part = /^(\d+) of (\d+) built/.exec(title); return !/^not built/.test(title) && !(part && part[1] !== part[2]); };   // "1 of 2 built" is not all of it
   const statusOf = async () => (await group.locator('.node-status').getAttribute('title')) ?? '';
-  await expect.poll(async () => fully(await statusOf())).toBe(false);   // not all of it is built yet
+  // no check that it is not built yet: an earlier test of this file may have built both blocks already, and then the group is built from the start
   await expect(async () => {   // the context menu can close before its item is chosen: ask again while the group still says it is not built
     if (!fully(await statusOf())) {
       await group.click({ button: 'right', position: { x: 20, y: 36 } });
