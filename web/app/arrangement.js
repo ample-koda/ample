@@ -88,11 +88,34 @@ function playlistEntry() {
   });
 }
 
+/** What has the keyboard focus inside the arrangement, as a key that still finds it after the arrangement is drawn again. */
+function focusKeyOf(node) {
+  if (node.matches?.('.bar[data-block]')) return `bar:${node.dataset.block}:${node.dataset.part}`;
+  if (node.matches?.('.arr-slice-edge')) return `edge:${node.classList.contains('left') ? 'left' : 'right'}`;
+  if (node.matches?.('.ruler')) return 'ruler';
+  if (node.id) return `id:${node.id}`;
+  return null;
+}
+
+function focusByKey(box, key) {
+  const [kind, first, second] = key.split(':');
+  const found = kind === 'bar' ? box.querySelector(`.bar[data-block="${CSS.escape(first)}"][data-part="${CSS.escape(second)}"]`)
+    : kind === 'edge' ? box.querySelector(`.arr-slice-edge.${first}`)
+      : kind === 'ruler' ? box.querySelector('.ruler')
+        : box.querySelector(`#${CSS.escape(first)}`);
+  found?.focus({ preventScroll: true });
+}
+
+const BAR_KEYS = 'Arrow keys move it, Shift with the arrows changes its length, Enter sets the exact timing, Ctrl+Enter opens its player.';
+const barLabel = (title, kind, at, length) => `${title}${kind ? `, ${kind}` : ''}, bar ${at}, ${length} bars. ${BAR_KEYS}`;
+
 export function renderArrangement() {
   const box = $('#b-arr');
   if (!box) return;
   const scrollBars = ($('#arr')?.scrollLeft || 0) / Number($('#arr')?.dataset.barWidth || bw);
   const scrollTop = $('#arr')?.scrollTop || 0;
+  // the arrangement is drawn again after every change: what had the keyboard focus (a clip that was just moved with the arrow keys) gets it back
+  const focusKey = box.contains(document.activeElement) ? focusKeyOf(document.activeElement) : null;
   labelsObserver?.disconnect();
   box.innerHTML = '';
   const nodes = flat().nodes;
@@ -102,10 +125,14 @@ export function renderArrangement() {
   ctl.append(playlistEntry());
   ctl.append(el('button', { textContent: '−', title: 'Narrower bars', 'aria-label': 'Narrower bars', onclick: () => { bw = Math.max(16, bw - 8); renderArrangement(); } }), el('span', { id: 'arr-bw', textContent: `${bw} px/bar` }), el('button', { textContent: '+', title: 'Wider bars', 'aria-label': 'Wider bars', onclick: () => { bw = Math.min(96, bw + 8); renderArrangement(); } }));
   const clearRange = () => { S.range = null; renderArrangement(); notify(); };   // the header button of the range goes too (issue 104)
+  // said aloud when the selected bars change (they can be chosen with the keyboard on the ruler)
+  const status = el('span', { id: 'arr-range-status', className: 'sr-only', role: 'status', 'aria-live': 'polite' });
+  ctl.append(status);
   if (S.range) {
     const last = S.range.firstBar + S.range.bars - 1;
+    status.textContent = S.range.bars === 1 ? `Bar ${S.range.firstBar} selected` : `Bars ${S.range.firstBar} to ${last} selected`;
     ctl.append(el('button', { id: 'arr-preview', className: 'primary', textContent: `▶ preview bars ${S.range.firstBar}-${last}`, onclick: () => previewSong(S.range) }),
-      el('button', { textContent: 'clear', onclick: clearRange }));
+      el('button', { textContent: 'clear', 'aria-label': 'Clear the selected bars', onclick: clearRange }));
   }
   // the master slice: the part of the song that comes out of the master (the last master block of the song)
   const master = nodes.filter((n) => n.tpl === 'master').at(-1);
@@ -129,7 +156,10 @@ export function renderArrangement() {
   playBtn.onclick = () => take && toggle(take).catch((e) => toast(e.message));
   const loop = el('input', { type: 'checkbox', id: 'tp-loop', style: 'width:auto', checked: playerState().loop });
   loop.onchange = () => setLoop(loop.checked);
-  const wave = el('div', { className: 'arr-wave', id: 'tp-wave' });
+  // the waveform is also the position slider of the built song: the arrow keys move by 2 seconds (Shift: 10), Home and End go to the ends
+  const wave = el('div', { className: 'arr-wave', id: 'tp-wave', tabIndex: take ? 0 : -1, role: 'slider', 'aria-label': 'Position in the built song' });
+  for (const [name, value] of [['aria-valuemin', '0'], ['aria-valuemax', '100'], ['aria-valuenow', '0'], ['aria-valuetext', 'Not playing']]) wave.setAttribute(name, value);
+  if (!take) wave.setAttribute('aria-disabled', 'true');
   wave.dataset.secondsPerBar = String(barBeats() * 60 / tempo);
   wave.dataset.firstBar = '1';
   const cvs = el('canvas', { width: 800, height: 44, style: 'position:absolute;height:100%;display:block' });
@@ -142,7 +172,18 @@ export function renderArrangement() {
     if (playerState().take === take) seek(); else play(take).then(seek).catch((x) => { if (!x.toasted) toast(x.message); });
   };
   wave.onpointerdown = (e) => { wave.setPointerCapture(e.pointerId); scrub(e); wave.onpointermove = scrub; wave.onpointerup = () => { wave.onpointermove = null; wave.onpointerup = null; }; };
+  wave.onkeydown = (event) => {
+    if (!take) return;
+    const step = event.shiftKey ? 10 : 2, state = playerState(), now = state.take === take ? state.time : 0;
+    const target = { ArrowRight: now + step, ArrowUp: now + step, ArrowLeft: now - step, ArrowDown: now - step, Home: 0, End: Infinity }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    const seek = () => { const duration = playerState().duration; if (duration) seekFraction(Math.max(0, Math.min(1, target / duration))); };
+    if (state.take === take) seek(); else play(take).then(seek).catch((x) => { if (!x.toasted) toast(x.message); });
+  };
   const more = el('button', { textContent: '▾', title: take ? 'Stop or download this built audio' : 'Build first', disabled: !take });
+  more.setAttribute('aria-label', 'Stop or download the built song');
+  more.setAttribute('aria-haspopup', 'menu');
   more.onclick = (e) => { const r = more.getBoundingClientRect(); showMenu(r.left, r.bottom, [{ label: 'Stop', fn: stop }, { label: 'Download WAV', fn: () => download(take, 'wav') }, { label: 'Download MP3', fn: () => download(take, 'mp3') }]); e.stopPropagation(); };
   tr.append(playBtn, more, el('span', { id: 'tp-time', className: 'note', style: 'min-width:90px;margin:0', textContent: '0:00 / 0:00' }), el('label', {}, [loop, ' loop']));
   ctl.append(tr);
@@ -188,7 +229,7 @@ export function renderArrangement() {
   arr.append(wave);
   const ruler = el('div', { className: 'ruler', style: `width:${W}px;cursor:col-resize;background-size:${bw}px 100%` });
   for (let i = 0; i < bars; i += bw < 28 ? 4 : 2) ruler.append(Object.assign(el('span', { textContent: `bar ${i + 1} | ${Math.round((i * barBeats() * 60) / tempo)}s` }), { style: `left:${i * bw}px;width:${2 * bw}px` }));
-  const strip = el('div', { className: 'arr-sections', 'aria-label': 'Sections of the song' });
+  const strip = el('div', { className: 'arr-sections', role: 'group', 'aria-label': 'Sections of the song' });
   drawSections(strip, bw);
   ruler.append(strip);
   ruler.oncontextmenu = (e) => { e.preventDefault(); const bar = Math.floor((e.clientX - ruler.getBoundingClientRect().left) / bw) + 1; sectionMenu(e, bar, sectionAt(sectionsOf(), bar)); };
@@ -202,6 +243,21 @@ export function renderArrangement() {
     band.style.left = `${(slice.from - 1) * bw}px`; band.style.width = `${(endBar - slice.from + 1) * bw}px`;
     const edge = (side) => {
       const handle = el('span', { className: `arr-slice-edge ${side}`, title: side === 'left' ? 'First bar of the slice' : 'Last bar of the slice' });
+      // the edge is a slider for the keyboard: Left and Right move it by one bar
+      handle.tabIndex = 0;
+      handle.setAttribute('role', 'slider');
+      handle.setAttribute('aria-label', side === 'left' ? 'First bar of the master slice' : 'Last bar of the master slice');
+      handle.setAttribute('aria-valuemin', '1');
+      handle.setAttribute('aria-valuemax', String(bars));
+      handle.setAttribute('aria-valuenow', String(side === 'left' ? slice.from : endBar));
+      handle.onkeydown = (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const step = event.key === 'ArrowRight' ? 1 : -1;
+        let from = slice.from, to = endBar;
+        if (side === 'left') from = Math.max(1, Math.min(to, from + step)); else to = Math.max(from, Math.min(bars, to + step));
+        writeSlice(from, to >= bars && !slice.to ? null : to);
+      };
       handle.onpointerdown = (event) => {
         if (event.button !== 0) return;
         event.stopPropagation(); event.preventDefault();
@@ -217,6 +273,24 @@ export function renderArrangement() {
     band.append(edge('left'), edge('right'));
     ruler.append(band);
   }
+  // the bars to preview can be chosen from the keyboard as well: focus the ruler, then the arrow keys move the selection and Shift changes its length
+  ruler.tabIndex = 0;
+  ruler.setAttribute('role', 'group');
+  ruler.setAttribute('aria-label', 'Bar ruler. Right and Left arrows select and move bars, Shift with the arrows changes the length, Enter previews the selected bars, Escape clears them.');
+  ruler.onkeydown = (event) => {
+    if (event.target !== ruler) return;
+    if (event.key === 'Escape' && S.range) { event.preventDefault(); clearRange(); return; }
+    if (event.key === 'Enter' && S.range) { event.preventDefault(); previewSong(S.range); return; }
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const step = event.key === 'ArrowRight' ? 1 : -1;
+    let { firstBar, bars: length } = S.range || { firstBar: 1, bars: 1 };
+    if (S.range && event.shiftKey) length = Math.max(1, Math.min(bars - firstBar + 1, length + step));
+    else if (S.range) firstBar = Math.max(1, Math.min(bars - length + 1, firstBar + step));
+    S.range = { firstBar, bars: length };
+    renderArrangement();
+    notify();
+  };
   ruler.onpointerdown = (e) => {
     const r = ruler.getBoundingClientRect();
     const at = (ev) => Math.max(0, Math.min(bars - 1, Math.floor((ev.clientX - r.left) / bw)));
@@ -236,7 +310,14 @@ export function renderArrangement() {
     labelContent.append(lab);
     trackLabels.push([lab, t]);
     parts.forEach((p) => {
-      const b = el('div', { className: `bar${n.dyn ? ' dyn' : ''}${isMidi ? ' midi' : ''}${isText ? ' txt' : ''}`, title: `${n.title}: bar ${p.at} for ${p.length}${p.name ? ` (${p.name})` : ''}`, tabIndex: 0, role: 'group', 'aria-label': `${n.title}, bar ${p.at}, ${p.length} bars. Drag to move, drag edges to resize, Enter to set timing.` });
+      const kindWord = isMidi ? 'MIDI' : isText ? 'text' : n.dyn ? 'dynamic' : '';   // a clip is told apart by colour; the name says it too
+      const b = el('div', {
+        className: `bar${n.dyn ? ' dyn' : ''}${isMidi ? ' midi' : ''}${isText ? ' txt' : ''}`,
+        title: `${n.title}: bar ${p.at} for ${p.length}${p.name ? ` (${p.name})` : ''}`,
+        tabIndex: 0,
+        role: 'group',
+        'aria-label': barLabel(n.title, kindWord, p.at, p.length),
+      });
       b.dataset.block = n.id;
       b.dataset.part = String(parts.indexOf(p));
       b.style.left = `${(p.at - 1) * bw}px`;
@@ -253,6 +334,13 @@ export function renderArrangement() {
         ]);
       };
       b.onkeydown = async (event) => {
+        // Ctrl+Enter opens or closes the player of the block, as Ctrl+click does (it only plays: it is allowed in a read-only view too)
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && event.target === b) {
+          event.preventDefault();
+          b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
+          return;
+        }
+
         if (readOnly()) return;
         // Enter opens the same dialog as a double click: an exact start and length
         if (event.key === 'Enter') { event.preventDefault(); editPartTiming(n, parts, Number(b.dataset.part)); return; }
@@ -331,6 +419,7 @@ export function renderArrangement() {
   arr.scrollTop = scrollTop;
   alignLabels();
   updateTransport(playerState());
+  if (focusKey) focusByKey(box, focusKey);
 }
 
 // Ctrl+click on a bar opens or closes it: a play/stop button and the waveform of the block's own take, which can be scrubbed.
@@ -342,7 +431,15 @@ function attachExpand(bar, track, node) {
   const head = el('div', { className: 'bar-head' });
   wv.append(cvs, head);
   ex.append(btn, wv);
-  for (const type of ['pointerdown', 'click', 'dblclick']) ex.addEventListener(type, (event) => event.stopPropagation());
+  // keydown too: Enter or an arrow key on the player must not reach the clip around it (that opened its timing dialog and moved the clip)
+  for (const type of ['pointerdown', 'click', 'dblclick', 'keydown']) ex.addEventListener(type, (event) => event.stopPropagation());
+  // the waveform of the block is its position slider: the arrow keys move by 2 seconds (Shift: 10), Home and End go to the ends
+  wv.tabIndex = 0;
+  wv.setAttribute('role', 'slider');
+  wv.setAttribute('aria-label', `Position in ${node.title}`);
+  wv.setAttribute('aria-valuemin', '0');
+  wv.setAttribute('aria-valuemax', '100');
+  wv.setAttribute('aria-valuenow', '0');
   const takeId = () => (S.build.takes || {})[node.id];
   let drawn = null;
   const ensure = () => {
@@ -379,6 +476,16 @@ function attachExpand(bar, track, node) {
     wv.onpointermove = scrub;
     wv.onpointerup = () => { wv.onpointermove = null; wv.onpointerup = null; };
   };
+  wv.onkeydown = (event) => {
+    const take = takeId();
+    if (!take) return;
+    const step = event.shiftKey ? 10 : 2, state = playerState(), now = state.take === take ? state.time : 0;
+    const target = { ArrowRight: now + step, ArrowUp: now + step, ArrowLeft: now - step, ArrowDown: now - step, Home: 0, End: Infinity }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    const seek = () => { const duration = playerState().duration; if (duration) seekFraction(Math.max(0, Math.min(1, target / duration))); };
+    if (state.take === take) seek(); else play(take).then(seek).catch((x) => { if (!x.toasted) toast(x.message); });
+  };
   ex.dataset.block = node.id;
   bar.append(ex);
 }
@@ -393,6 +500,11 @@ export function updateTransport(st) {
   if (head) head.style.left = take && st.take === take && wave ? `${((Number(wave.dataset.firstBar) - 1) + st.time / Number(wave.dataset.secondsPerBar)) * bw}px` : '0';
   const time = $('#tp-time');
   if (time) time.textContent = take && st.take === take ? `${fmt(st.time)} / ${fmt(st.duration)}` : '0:00 / 0:00';
+  if (wave) {
+    const here = take && st.take === take && st.duration;
+    wave.setAttribute('aria-valuenow', String(here ? Math.round(st.time / st.duration * 100) : 0));
+    wave.setAttribute('aria-valuetext', here ? `${fmt(st.time)} of ${fmt(st.duration)}` : 'Not playing');
+  }
   const pb = $('#tp-play');
   if (pb) { const on = take && st.take === take && st.playing; pb.textContent = on ? '⏸' : '▶'; if (take) { pb.title = on ? 'Pause the song' : 'Play the built song'; pb.setAttribute('aria-label', on ? 'Pause the song' : 'Play the song'); } }
   document.querySelectorAll('.bar-ex').forEach((ex) => {
@@ -400,6 +512,10 @@ export function updateTransport(st) {
     const mine = take && st.take === take;
     const exb = ex.querySelector('button'); exb.textContent = mine && st.playing ? '⏸' : '▶'; exb.title = mine && st.playing ? 'Pause this block' : 'Play this block'; exb.setAttribute('aria-label', exb.title);
     ex.querySelector('.bar-head').style.left = mine && st.duration ? `${st.time / st.duration * 100}%` : '0';
+    const exSlider = ex.querySelector('.bar-wv');
+    const exPercent = mine && st.duration ? Math.round(st.time / st.duration * 100) : 0;
+    exSlider?.setAttribute('aria-valuenow', String(exPercent));
+    exSlider?.setAttribute('aria-valuetext', mine ? `${fmt(st.time)} of ${fmt(st.duration)}` : 'Not playing');
   });
   document.querySelectorAll('.node .player').forEach((pl) => {
     const mine = pl.dataset.take === st.take;
