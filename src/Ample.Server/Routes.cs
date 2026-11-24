@@ -1423,7 +1423,7 @@ public static class Routes
         add("GET", "/api/file", "project", "Reads a text file of the project (lyrics, chords, notes, data); other files are refused.", false, s is null ? null : (HttpContext c) =>
         {
             string rel = c.Request.Query["path"].ToString();
-            string full = ProjectPath.Resolve(s.Root, rel);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, rel);
             bool allowed = TextFile(rel) || Path.GetFileName(rel) == "ample.lock";
             if (allowed && !File.Exists(full) && c.Request.Query["optional"] == "1")
             {
