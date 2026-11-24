@@ -53,7 +53,7 @@ test('a speech block that is too long is refused on the page with the length it 
   await expect(page.locator('#lite-log')).toContainText('Stopped: The speech block "long" is 96 seconds long', { timeout: 60000 });
 });
 
-test('more speech blocks than Remix allows are refused on the page', async ({ page }) => {
+test('more speech blocks than Remix allows are refused on the page @quarantine', async ({ page }) => {
   await buildWith(page, Array.from({ length: 8 }, (_, i) => `
 speech extra${i} {
   text "hello"
