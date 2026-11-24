@@ -741,6 +741,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
             string extension = Path.GetExtension(file);
             if (!extension.Equals(".amplet", StringComparison.OrdinalIgnoreCase) && !extension.Equals(".module", StringComparison.OrdinalIgnoreCase)) continue;
             string relative = Path.GetRelativePath(s.Root, file).Replace('\\', '/');
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             if (relative.StartsWith(ProjectLayout.AmpleFolder + "/", StringComparison.OrdinalIgnoreCase)) continue;
             sources.Add((relative, songPath is not null && songText is not null && relative == songPath ? songText : File.ReadAllText(file)));
         }
@@ -2135,6 +2136,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             foreach (string f in Directory.EnumerateFiles(s.Root, "*", SearchOption.AllDirectories))
             {
                 string rel = Rel(f);
+                // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
                 if (!rel.StartsWith(".ample/", StringComparison.Ordinal) && !rel.StartsWith("out/", StringComparison.Ordinal) && !rel.StartsWith("exports/", StringComparison.Ordinal))
                 {
                     Add(rel);
@@ -2963,6 +2965,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             foreach (string f in Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories))
             {
                 string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
+                // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
                 if (!rel.StartsWith(".ample/", StringComparison.Ordinal) && (!task.Baseline.TryGetValue(rel, out string? was) || was != SafeRead(f)))
                 {
                     files.Add(rel);
@@ -3175,7 +3178,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         string from = ProjectPath.Resolve(workspaceSource ? task.Workspace : task.ProjectDir, name);
         if (!workspaceSource && !File.Exists(from) && liveRoot is not null)
         {
-            string live = ProjectPath.Resolve(liveRoot, name);
+            string live = ProjectPath.Resolve(new PhysicalFileSystem(), liveRoot, name);
             if (File.Exists(live)) from = live;
         }
 
@@ -3218,6 +3221,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         {
             string? changed = Directory.EnumerateFiles(task.ProjectDir, "*.amplet", SearchOption.AllDirectories)
                 .Select(f => Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/'))
+                // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
                 .FirstOrDefault(f => !f.StartsWith(".ample/", StringComparison.Ordinal) && (!task.Baseline.TryGetValue(f, out string? was) || was != SafeRead(Path.Combine(task.ProjectDir, f))));
             rel = changed ?? throw new AmpleException("AMP5458", "Give path: the song (.amplet) to look at.");
         }
@@ -3251,7 +3255,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         string from = ProjectPath.Resolve(workspaceSource ? task.Workspace : task.ProjectDir, source);
         if (!workspaceSource && !File.Exists(from) && liveRoot is not null)
         {
-            string live = ProjectPath.Resolve(liveRoot, source);
+            string live = ProjectPath.Resolve(new PhysicalFileSystem(), liveRoot, source);
             if (File.Exists(live)) from = live;
         }
 
@@ -3268,7 +3272,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
         {
             string folder = destination[..destination.LastIndexOf('/')];
             string settingsPath = ProjectPath.Resolve(task.ProjectDir, folder + "/" + SampleSet.SettingsFile);
-            string existing = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : liveRoot is not null && File.Exists(ProjectPath.Resolve(liveRoot, folder + "/" + SampleSet.SettingsFile)) ? File.ReadAllText(ProjectPath.Resolve(liveRoot, folder + "/" + SampleSet.SettingsFile)) : string.Empty;
+            string? liveSettings = liveRoot is null ? null : ProjectPath.Resolve(new PhysicalFileSystem(), liveRoot, folder + "/" + SampleSet.SettingsFile);
+            string existing = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : liveSettings is not null && File.Exists(liveSettings) ? File.ReadAllText(liveSettings) : string.Empty;
             LoopPoints? loop = wantLoop ? SampleSetTools.FindLoop(wav) : null;
             string baseName = SampleName.Parse(Path.GetFileNameWithoutExtension(destination).ToLowerInvariant()).Base;
             File.WriteAllText(settingsPath, SampleSetTools.MergeSettings(existing, baseName, loop, envelope));
@@ -3311,7 +3316,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         // a file the task did not stage (a linked sequence of a scope-file task) is copied from the project as it is now
         if (!workspaceSource && !File.Exists(from) && liveRoot is not null)
         {
-            string live = ProjectPath.Resolve(liveRoot, source);
+            string live = ProjectPath.Resolve(new PhysicalFileSystem(), liveRoot, source);
             if (File.Exists(live)) from = live;
         }
 
@@ -4113,6 +4118,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             {
                 string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
                 byte[] bytes = await File.ReadAllBytesAsync(f, ct).ConfigureAwait(false);
+                // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
                 if (!rel.StartsWith(".ample/", StringComparison.Ordinal) && bytes.Length <= 2_000_000 && Array.IndexOf(bytes, (byte)0) < 0)
                 {
                     proposed[rel] = new UTF8Encoding(false).GetString(bytes);

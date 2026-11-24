@@ -129,6 +129,7 @@ internal static class ServeCommands
                 {
                     try
                     {
+                        // security-ok: the address is the one of the server this program has just started
                         Process.Start(new ProcessStartInfo(server.LaunchUrl) { UseShellExecute = true });
                     }
                     catch (System.ComponentModel.Win32Exception)

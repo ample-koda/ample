@@ -382,6 +382,7 @@ internal static class OpenCommands
 
         try
         {
+            // security-ok: the address is the one of the server this program has just started
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             output.WriteLine("Opened the project in the default browser.");
             return 0;

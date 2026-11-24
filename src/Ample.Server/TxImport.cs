@@ -47,7 +47,7 @@ internal static class TxImport
     /// <summary>Opens a package (a plain <c>.ampletx</c> or one in a zip) without changing it.</summary>
     public static TxPackage Open(ProjectSession s, string path)
     {
-        string full = Path.IsPathRooted(path) ? Path.GetFullPath(path) : ProjectPath.Resolve(s.Root, path);
+        string full = Path.IsPathRooted(path) ? Path.GetFullPath(path) : ProjectPath.Resolve(s.Fs, s.Root, path);
         if (!File.Exists(full))
         {
             throw new AmpleException("AMP5441", $"There is no package at {path}.");
@@ -178,7 +178,7 @@ internal static class TxImport
 
         if (m["dependencies"]?["plugins"] is JsonArray plugins && plugins.Count > 0)
         {
-            (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> found, _) = Ample.Plugins.PluginHost.Discover([Path.Combine(s.AmpleRoot, "plugins"), Path.Combine(s.Root, "plugins"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ample", "plugins")]);
+            (IReadOnlyList<Ample.Plugins.DiscoveredPlugin> found, _) = Ample.Plugins.PluginHost.Discover(Routes.InstalledPluginFolders(s.AmpleRoot));
             foreach (JsonNode? pl in plugins)
             {
                 string id = pl!["id"]!.GetValue<string>(), version = pl["version"]?.GetValue<string>() ?? string.Empty;
@@ -200,6 +200,7 @@ internal static class TxImport
             list.Add(Diff("sample-rate", "warning", "settings", $"The package was rendered at {rate} Hz; this AMPLE renders at 44100 Hz.", "Timing and pitch of resampled material can differ slightly."));
         }
 
+        // security-ok: the destination was checked by SafeDestination (planning) before it comes here
         string targetSettings = Path.Combine(targetRoot, ProjectLayout.AmpleFolder, ProjectLayout.ProjectFile);
         if (File.Exists(targetSettings))
         {
@@ -257,6 +258,7 @@ internal static class TxImport
             foreach (string file in Directory.EnumerateFiles(targetRoot, "*", SearchOption.AllDirectories))
             {
                 string relative = Path.GetRelativePath(targetRoot, file).Replace('\\', '/');
+                // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
                 if (relative.StartsWith(ProjectLayout.AmpleFolder + "/", StringComparison.OrdinalIgnoreCase) || relative.StartsWith("out/", StringComparison.OrdinalIgnoreCase) || relative.StartsWith("exports/", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -296,6 +298,7 @@ internal static class TxImport
             item.Destination = wanted;
             item.OldReference = pack ? e.OriginalPath : logical;
             string? installed = pack && !r.PreferEmbedded ? FindPack(s, targetRoot, e.OriginalPath.StartsWith("pack:", StringComparison.Ordinal) ? e.OriginalPath["pack:".Length..] : e.OriginalPath, logical) : null;
+            // security-ok: the destination was checked by SafeDestination (planning) before it comes here
             string full = targetExists ? Path.Combine(targetRoot, wanted.Replace('/', Path.DirectorySeparatorChar)) : Path.Combine(targetRoot, "x", wanted);
             if (installed is not null && HashOf(installed) == (e.Info?["subsetOf"]?.GetValue<string>() ?? logicalSha))
             {
@@ -454,7 +457,7 @@ internal static class TxImport
             throw new AmpleException("AMP5201", $"The package has a file for the private folder of the project ('{path}'); it is not imported.");
         }
 
-        string full = ProjectPath.Resolve(targetRoot, normalized);
+        string full = ProjectPath.Resolve(new PhysicalFileSystem(), targetRoot, normalized);
         return Path.GetRelativePath(Path.GetFullPath(targetRoot), full).Replace('\\', '/');
     }
 
@@ -543,13 +546,14 @@ internal static class TxImport
                 continue;
             }
 
+            // security-ok: the destination was checked by SafeDestination (planning) before it comes here
             if (item.Entry.Role == AmpleTx.Roles.Settings && exists && File.Exists(Path.Combine(targetRoot, item.Destination)))
             {
                 continue;
             }
 
             bool settingsFile = item.Entry.Role == AmpleTx.Roles.Settings && item.Destination == ProjectLayout.AmpleFolder + "/plugin-settings.json";
-            string target = ProjectPath.Resolve(targetRoot, SafeDestination(targetRoot, item.Destination, settingsFile));
+            string target = ProjectPath.Resolve(new PhysicalFileSystem(), targetRoot, SafeDestination(targetRoot, item.Destination, settingsFile));
             if (File.Exists(target))
             {
                 throw new AmpleException("AMP5445", $"{item.Destination} already exists and is not the file of the package; nothing was overwritten.");
@@ -603,7 +607,7 @@ internal static class TxImport
             songText = Rewrite(songText, references);
         }
 
-        string songFile = ProjectPath.Resolve(targetRoot, SafeDestination(targetRoot, songTarget, false));
+        string songFile = ProjectPath.Resolve(new PhysicalFileSystem(), targetRoot, SafeDestination(targetRoot, songTarget, false));
         if (File.Exists(songFile))
         {
             throw new AmpleException("AMP5445", $"{songTarget} already exists; nothing was overwritten.");
@@ -627,6 +631,7 @@ internal static class TxImport
             ["referenceChanges"] = new JsonArray([.. references.Select(c => (JsonNode)new JsonObject { ["from"] = c.Old, ["to"] = c.New })]),
             ["derivedNote"] = p.Kind == "derived" ? "The graph before the audio inputs was baked when the package was made; it is not in this project." : null,
         };
+        // security-ok: the destination was checked by SafeDestination (planning) before it comes here
         string recordFolder = Path.Combine(targetRoot, ProjectLayout.AmpleFolder, "imports");
         Directory.CreateDirectory(recordFolder);
         string recordFile = Path.Combine(recordFolder, $"{stamp}-{Path.GetFileNameWithoutExtension(songTarget)}.json");

@@ -35,7 +35,7 @@ public sealed class OpenProject : IDisposable
     public string InAmple(params string[] parts) => Path.Combine([AmplePath, .. parts]);
 
     /// <summary>Resolves a user path inside the project, refusing escapes.</summary>
-    public string Resolve(string relative) => ProjectPath.Resolve(Root, relative);
+    public string Resolve(string relative) => ProjectPath.Resolve(new PhysicalFileSystem(), Root, relative);
 
     /// <summary>Writes a fresh heartbeat (writers only).</summary>
     public ValueTask TouchAsync(CancellationToken cancellationToken = default) => writerLock?.TouchAsync(cancellationToken) ?? ValueTask.CompletedTask;

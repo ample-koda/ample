@@ -58,7 +58,7 @@ internal sealed class WorkingTexts
         string key = Key(path);
         return entries.GetOrAdd(key, _ =>
         {
-            string full = ProjectPath.Resolve(session.Root, key);
+            string full = ProjectPath.Resolve(session.Fs, session.Root, key);
             return new Entry(File.Exists(full) ? File.ReadAllText(full) : string.Empty);
         });
     }
@@ -79,7 +79,7 @@ internal sealed class WorkingTexts
     internal (string Text, string Saved, long Version, bool Dirty) Get(string path)
     {
         Entry entry = Open(path);
-        string full = ProjectPath.Resolve(session.Root, Key(path));
+        string full = ProjectPath.Resolve(session.Fs, session.Root, Key(path));
         string? disk = File.Exists(full) ? File.ReadAllText(full) : null;
         lock (entry)
         {
@@ -102,7 +102,7 @@ internal sealed class WorkingTexts
         string text;
         string saved;
         lock (entry) { text = entry.Text; saved = entry.Saved; }
-        string full = ProjectPath.Resolve(session.Root, Key(path));
+        string full = ProjectPath.Resolve(session.Fs, session.Root, Key(path));
         if (File.Exists(full))
         {
             // the file changed on disk since this draft started (saved from Visual Studio, say): merge when the changes are in different places, never overwrite
@@ -123,7 +123,7 @@ internal sealed class WorkingTexts
     internal (string Text, long Version) Revert(string path)
     {
         Entry entry = Open(path);
-        string full = ProjectPath.Resolve(session.Root, Key(path));
+        string full = ProjectPath.Resolve(session.Fs, session.Root, Key(path));
         lock (entry)
         {
             entry.Saved = File.Exists(full) ? File.ReadAllText(full) : string.Empty;

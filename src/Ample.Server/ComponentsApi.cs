@@ -197,6 +197,7 @@ internal static class ComponentsApi
         foreach (string f in Directory.EnumerateFiles(s.Root, "*" + ModuleService.ComponentExtension, SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
             string relative = Path.GetRelativePath(s.Root, f).Replace('\\', '/');
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             if (relative.StartsWith(".ample/", StringComparison.Ordinal)) continue;
             found.Add(new { file = relative, name = Path.GetFileName(f), components = ComponentReader.Read(ReadLines(f), new Dictionary<int, DocComment>(), relative).Definitions.Select(d => new { d.Name, version = d.Version.ToString() }) });
         }

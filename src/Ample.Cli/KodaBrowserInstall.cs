@@ -222,7 +222,7 @@ internal static class KodaBrowserInstall
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                entry.ExtractToFile(target, overwrite: false);
+                Ample.Audio.IO.SafeZip.ExtractEntry(entry, target, MaxUnpackedBytes);
             }
 
             if (!OperatingSystem.IsWindows())

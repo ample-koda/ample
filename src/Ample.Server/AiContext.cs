@@ -136,6 +136,7 @@ internal static class AiContext
         foreach (string f in Directory.EnumerateFiles(s.Root, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(s.Root, f).Replace('\\', '/');
+            // security-ok: a relative path that comes from listing a folder or a package, already canonical (no text from a caller)
             if (rel.StartsWith(".ample/", StringComparison.Ordinal) || rel.StartsWith("out/", StringComparison.Ordinal) || rel.StartsWith("exports/", StringComparison.Ordinal))
             {
                 continue;

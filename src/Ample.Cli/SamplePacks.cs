@@ -240,7 +240,7 @@ internal static class SamplePacks
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            entry.ExtractToFile(target, overwrite: false);
+            Ample.Audio.IO.SafeZip.ExtractEntry(entry, target, MaxUnpackedBytes);
         }
 
         return Directory.Exists(Path.Combine(stage, id)) ? null : "the zip is empty.";
