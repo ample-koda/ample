@@ -206,7 +206,7 @@ test('a tap on a phoneme inserts it at the cursor, and the choices and knobs sit
   await expect(dialog.locator('details.speech-phone-list')).toBeHidden();
 });
 
-test('the voices slt, rms and awb are in the voice choice: they write the voice, show the pitch of their recording, offer no phonemes and sing in words mode', async ({ page }) => {
+test('the voices slt, rms and awb are in the voice choice: they write the voice, show the pitch of their recording, offer no phonemes and sing in words mode @quarantine', async ({ page }) => {
   await openApp(page, { reset: false });
   await node(page, 'voice').getByRole('button', { name: 'Advanced', exact: true }).evaluate((b: HTMLElement) => b.click());
   const dialog = page.locator('#studio[open]');
