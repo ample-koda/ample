@@ -51,7 +51,26 @@ public sealed class AuthService
         byte[] salt = RandomNumberGenerator.GetBytes(16);
         byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, 32);
         Directory.CreateDirectory(home);
-        File.WriteAllText(FilePath(home), JsonSerializer.Serialize(new { user = user.Trim(), salt = Convert.ToBase64String(salt), hash = Convert.ToBase64String(hash), iterations = Iterations }));
+        string json = JsonSerializer.Serialize(new { user = user.Trim(), salt = Convert.ToBase64String(salt), hash = Convert.ToBase64String(hash), iterations = Iterations });
+        // the hash can be guessed against offline by anyone who can read it: on Unix the file is made readable for its owner only (a new file, then moved over the old one);
+        // on Windows the folder of the user profile already belongs to the user and the administrators
+        string temp = FilePath(home) + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        try
+        {
+            FileStreamOptions options = new() { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
+            if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            using (FileStream stream = new(temp, options))
+            using (StreamWriter writer = new(stream, new UTF8Encoding(false)))
+            {
+                writer.Write(json);
+            }
+
+            File.Move(temp, FilePath(home), true);
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
     }
 
     /// <summary>Loads the stored credentials; null when none were set yet.</summary>
