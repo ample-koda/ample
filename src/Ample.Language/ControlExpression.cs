@@ -137,6 +137,7 @@ public sealed partial class ControlExpression
                 SkipSpace();
                 if (AtEnd || text[Position] is not ('+' or '-')) return left;
                 char op = text[Position++];
+                CountOperator();
                 left = new Binary(op, left, ParseTerm());
             }
         }
@@ -149,11 +150,33 @@ public sealed partial class ControlExpression
                 SkipSpace();
                 if (AtEnd || text[Position] != '*') return left;
                 Position++;
+                CountOperator();
                 left = new Binary('*', left, ParseFactor());
             }
         }
 
+        /// <summary>
+        /// The text comes from a song: brackets and minus signs inside each other, and a long chain of operators (the tree is walked by recursion),
+        /// are limited so that no text can end the process by its depth.
+        /// </summary>
+        private const int MaxNesting = 64, MaxOperators = 200;
+
+        private int nesting;
+        private int operators;
+
+        private void CountOperator()
+        {
+            if (++operators > MaxOperators) throw new FormatException($"the expression has more than {MaxOperators} operators");
+        }
+
         private Node ParseFactor()
+        {
+            if (++nesting > MaxNesting) throw new FormatException($"brackets or minus signs are nested more than {MaxNesting} deep");
+            try { return ParseFactorCore(); }
+            finally { nesting--; }
+        }
+
+        private Node ParseFactorCore()
         {
             SkipSpace();
             if (AtEnd) throw new FormatException("the expression ends too soon");
