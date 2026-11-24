@@ -407,6 +407,12 @@ public sealed class TxPackage
                 Info = o["info"] as JsonObject,
                 BodyOffset = position,
             };
+            // the size is what the file says about itself: a negative one jumps back and the same head is read again for ever, a long one jumps past the end
+            if (entry.BodyBytes < 0 || entry.BodyBytes > stream.Length - position)
+            {
+                throw new AmpleException("AMP5421", $"The entry {entry.Path} says its body has a length that does not fit in the file: the package is damaged.");
+            }
+
             stream.Seek(entry.BodyBytes, SeekOrigin.Current);
             position += entry.BodyBytes;
             if (Read() != "#end")

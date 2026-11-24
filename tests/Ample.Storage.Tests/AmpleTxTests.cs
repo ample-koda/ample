@@ -20,6 +20,37 @@ public sealed class AmpleTxTests : IDisposable
         return path;
     }
 
+    /// <summary>A package whose second entry says its body is "minus N bytes": the reader jumped back to the "#end" of the first one and read the second head again, for ever.</summary>
+    private static string LoopingPackage(string bodyBytes)
+    {
+        string Head(string size) => "#entry {\"path\":\"b\",\"role\":\"source\",\"encoding\":\"binary\",\"sha256\":\"x\",\"size\":0,\"bodyBytes\":" + size + "}\n";
+        int back = 0;
+        for (int i = 0; i < 10 && bodyBytes.Length == 0; i++)
+        {
+            int next = Head("-" + back.ToString(System.Globalization.CultureInfo.InvariantCulture)).Length + "#end\n".Length;
+            if (next == back) break;
+            back = next;
+        }
+
+        string size = bodyBytes.Length > 0 ? bodyBytes : "-" + back.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string first = "#entry {\"path\":\"a\",\"role\":\"source\",\"encoding\":\"binary\",\"sha256\":\"x\",\"size\":0,\"bodyBytes\":0}\n";
+        return "#AMPLETX 1\n#kind full\n#manifest {}\n" + first + "#end\n" + Head(size) + "#end\n#endpackage\n";
+    }
+
+    [Theory]
+    [InlineData("")]            // jumps back to the "#end" of the first entry: an endless loop before the fix
+    [InlineData("-1")]          // any jump back
+    [InlineData("9999999999")]  // far past the end of the file
+    public async Task An_entry_that_says_its_body_is_before_the_start_or_past_the_end_is_refused_at_once(string bodyBytes)
+    {
+        string path = Path.Combine(folder, "loop.ampletx");
+        File.WriteAllText(path, LoopingPackage(bodyBytes));
+        Task<AmpleException> open = Task.Run(() => Assert.Throws<AmpleException>(() => TxPackage.Open(path)));
+        Task finished = await Task.WhenAny(open, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.True(finished == open, "the package reader does not end");
+        Assert.Equal("AMP5421", (await open).DiagnosticCode);
+    }
+
     [Fact]
     public void Text_and_binary_files_come_back_exactly_and_the_head_says_what_it_is()
     {
