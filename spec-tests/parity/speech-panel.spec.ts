@@ -218,7 +218,8 @@ test('the voices slt, rms and awb are in the voice choice: they write the voice,
   await voice.selectOption('flite:slt');
   await expect.poll(docText).toContain('voice "slt"');
   // the pitch of the other voice is not carried over: the voice keeps the pitch and the range of its own recording
-  expect(await docText()).not.toMatch(/pitch_hz/);
+  // the voice and the removal of the pitch are two edits: the second is waited for
+  await expect.poll(docText).not.toMatch(/pitch_hz/);
   await expect(readout('Voice pitch')).toHaveText('172 Hz');
   await expect(readout('Pitch range')).toHaveText('27 Hz');
   await expect(dialog.getByText('Flite slt is a statistical US English voice')).toBeVisible();
