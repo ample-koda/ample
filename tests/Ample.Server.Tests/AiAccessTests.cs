@@ -178,6 +178,25 @@ public sealed class AiAccessTests : IAsyncLifetime
         Assert.Equal("untrusted", strict["approvalPolicy"]!.GetValue<string>());
     }
 
+    [Fact]
+    public void A_link_in_the_proposal_is_not_a_staged_file_that_accept_would_copy()
+    {
+        AiTask task = NewTask();
+        File.WriteAllBytes(Path.Combine(outside, "loop.bin"), [0, 1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(task.Workspace, "project", "real.bin"), [0, 9, 9]);
+        if (!Junction.TryCreate(Path.Combine(task.Workspace, "project", "jn"), outside)) return;   // no link could be made here: nothing to prove
+        try
+        {
+            List<string> staged = session.Ai.StagedBinaries(task);
+            Assert.Contains("real.bin", staged);
+            Assert.DoesNotContain("jn/loop.bin", staged);
+        }
+        finally
+        {
+            Directory.Delete(Path.Combine(task.Workspace, "project", "jn"));
+        }
+    }
+
     [Theory]
     [InlineData("../outside.musicxml")]
     [InlineData("a/../../outside.musicxml")]

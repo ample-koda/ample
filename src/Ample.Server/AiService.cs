@@ -3747,7 +3747,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     }
 
     /// <summary>The binary files the proposal added to the working copy, such as the samples of a sample set. Only text files are part of the changes, so the temporary projects and Accept carry these separately; a file the real project already has is not one of them.</summary>
-    private List<string> StagedBinaries(AiTask task)
+    internal List<string> StagedBinaries(AiTask task)
     {
         HashSet<string> offered = new(task.Offered.Select(o => o.ProjectPath), StringComparer.Ordinal);
         List<string> found = [];
@@ -3761,6 +3761,8 @@ Answer in English, whatever language the question is in, unless the user asks fo
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
             bool skipped = ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel);
             if (skipped || File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) continue;
+            // the assistant writes in this folder: a link in it (to a file or a folder elsewhere) is not a file of the proposal, Accept would copy what it points at into the project
+            if (HasLink(task.ProjectDir, f)) continue;
             FileInfo info = new(f);
             bool binary = info.Length > 2_000_000;
             if (!binary && info.Length > 0)
