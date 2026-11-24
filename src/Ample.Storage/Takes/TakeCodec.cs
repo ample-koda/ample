@@ -14,6 +14,9 @@ public static class TakeCodec
     private const int HeaderLength = 4 + 1 + 8;
     private const byte Version = 1;
 
+    /// <summary>The longest take that is read back: a 1 GiB take is about 95 minutes of 24-bit stereo at 48 kHz.</summary>
+    private const long MaxLength = 1L << 30;
+
     /// <summary>The smallest blob that is worth compressing.</summary>
     public const int MinimumLength = 64 * 1024;
 
@@ -60,15 +63,31 @@ public static class TakeCodec
         }
 
         long length = BinaryPrimitives.ReadInt64LittleEndian(header[5..]);
-        if (length < 0 || length > int.MaxValue)
+        if (length < 0 || length > MaxLength)
         {
             throw new InvalidDataException("The take container names an impossible length.");
         }
 
-        byte[] shuffled = new byte[length];
+        // the length is what the file says about itself: memory grows with what really comes out of the decompression, never in one step with the claim
+        byte[] shuffled;
         using (BrotliStream brotli = new(container, CompressionMode.Decompress, leaveOpen: true))
+        using (MemoryStream collected = new())
         {
-            brotli.ReadExactly(shuffled);
+            byte[] chunk = new byte[1 << 20];
+            long left = length;
+            while (left > 0)
+            {
+                int read = brotli.Read(chunk, 0, (int)Math.Min(chunk.Length, left));
+                if (read == 0)
+                {
+                    throw new InvalidDataException("The take container ends before the length it names.");
+                }
+
+                collected.Write(chunk, 0, read);
+                left -= read;
+            }
+
+            shuffled = collected.ToArray();
         }
 
         byte[] plain = new byte[length];
