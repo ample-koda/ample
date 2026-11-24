@@ -119,7 +119,10 @@ public sealed class SpeechCancellationTests(ITestOutputHelper output) : IDisposa
         }
 
         Assert.Contains(measured, value => value >= 0);   // at least one run was really cancelled in flight
-        Assert.All(measured, value => Assert.True(value < 250, $"stop took {value:0} ms"));
+        // 250 ms on a quiet machine; a CI runner shares its two cores with the other test projects (700 to 800 ms was seen there), and what the test guards is that a stop
+        // does not wait for the whole stage (several seconds), so the runner gets a wider limit
+        double limit = string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase) ? 2000 : 250;
+        Assert.All(measured, value => Assert.True(value < limit, $"stop took {value:0} ms (limit {limit:0})"));
     }
 
     [Fact]
