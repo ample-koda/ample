@@ -195,7 +195,10 @@ export function targetAt(x, y) {
     const tab = e.closest?.('#tabbar .tab[data-path], #tabs-popup .tabs-row[data-path]');   // a tab of the tab row, or a row of its list
     if (tab) return { kind: 'tab', path: tab.dataset.path, selector: `${tab.classList.contains('tab') ? '#tabbar .tab' : '#tabs-popup .tabs-row'}[data-path="${esc(tab.dataset.path)}"]` };
     const file = e.closest?.(FILE_ROW);
-    if (file) return { kind: 'file', path: file.dataset.path, isDir: file.classList.contains('file-list-folder'), selector: `[data-path="${esc(file.dataset.path)}"]` };
+    if (file) {
+      const rowType = FILE_ROW.split(', ').find((s) => file.matches(s));   // a tab has a data-path too: the selector names the type of row
+      return { kind: 'file', path: file.dataset.path, isDir: file.classList.contains('file-list-folder'), selector: `${rowType}[data-path="${esc(file.dataset.path)}"]` };
+    }
     const part = partAt(e);
     if (part) return part;
     if (e.closest?.('.sewrap')) {
@@ -308,7 +311,8 @@ export function lookAt(target, add = false) {
     else if (target.kind === 'arrangement') subject = arrangementSubject(target);
     else return null;
     const selected = S.sel;   // choosing another block ends the look at a field, a library block, a template or a file
-    valid = add ? () => true : () => S.sel === selected; point = (from) => elementPoint(target.selector, from);
+    // a look at a tab stays while the tabs are switched (that is what is done with a tab); the others end when another block is chosen
+    valid = add || target.kind === 'tab' ? () => true : () => S.sel === selected; point = (from) => elementPoint(target.selector, from);
   }
   if (add) {
     if (liveLooks().length >= MAX_LOOKS) return null;

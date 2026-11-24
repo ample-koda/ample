@@ -203,9 +203,25 @@ function optionalBadge() {
  * The neon button that starts a patch of several changes. It has its own look on purpose and takes nothing from the theme: dark, a rim that turns through the colours of the logo, the teal note of the logo, an
  * equalizer and notes that rise on hover. onHover(on) is for the audio that may play on hover.
  */
+/** How long the button stays busy when nothing closes the bubble: then the patch was refused or failed, and the button works again. */
+const BUSY_MS = 8000;
+
+/** Marks the button busy while its click is being handled; busy ends when the handler fails or ends, or when the bubble is still there after BUSY_MS. */
+function working(button, onClick) {
+  const clear = () => { button.classList.remove('busy'); button.removeAttribute('aria-busy'); };
+  button.classList.add('busy');
+  button.setAttribute('aria-busy', 'true');
+  setTimeout(() => { if (button.isConnected) clear(); }, BUSY_MS);
+  try {
+    Promise.resolve(onClick()).catch(clear);
+  } catch {
+    clear();
+  }
+}
+
 function letsGo(summary, groups, onClick, onHover) {
   const note = (x, d, c) => el('span', { className: 'pt', style: `--x:${x}px;--d:${d}s`, 'aria-hidden': 'true', textContent: c });
-  const button = el('button', { type: 'button', className: 'letsgo', onclick: (e) => { e.stopPropagation(); button.classList.add('busy'); button.setAttribute('aria-busy', 'true'); onClick(); } }, [
+  const button = el('button', { type: 'button', className: 'letsgo', onclick: (e) => { e.stopPropagation(); working(button, onClick); } }, [
     el('span', { className: 'n', 'aria-hidden': 'true', textContent: '♪' }),
     el('span', { className: 'l' }, [tx('draft.go'), el('small', { textContent: tx('draft.goSub', { n: summary.length, m: groups.length }) })]),
     el('span', { className: 'eq', 'aria-hidden': 'true' }, [1, 2, 3, 4, 5].map(() => el('i'))),
