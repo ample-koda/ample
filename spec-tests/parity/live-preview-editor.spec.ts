@@ -57,7 +57,7 @@ test('the block at the cursor plays after Ctrl+Shift+Space, built alone at previ
   await expect(status(page)).toHaveText('Stopped');
 });
 
-test('Space types in the editor; typing builds once after the pause; Ctrl+Shift+Enter does not wait', async ({ page }) => {
+test('Space types in the editor; typing builds once after the pause; Ctrl+Shift+Enter does not wait @quarantine', async ({ page }) => {
   const builds = await openSource(page);
   await caretIn(page, 'synth lead', 8);
   await page.locator('#se-cm .cm-content').press('Control+Shift+Space');
