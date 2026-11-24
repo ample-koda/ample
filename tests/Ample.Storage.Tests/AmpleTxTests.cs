@@ -82,4 +82,17 @@ public sealed class AmpleTxTests : IDisposable
         Assert.Equal("AMP5421", Assert.Throws<AmpleException>(() => TxPackage.Open(Path.Combine(folder, "text.ampletx"))).DiagnosticCode);
         _ = Encoding.UTF8;
     }
+
+    [Fact]
+    public void A_file_that_is_not_a_package_never_echoes_its_content_in_the_error()
+    {
+        string path = Write([new TxSource("song.amplet", AmpleTx.Roles.Song, "text/plain", "song.amplet", "song.amplet", Text: "hello\n")]);
+        string broken = Path.Combine(folder, "broken.ampletx");
+        int head = File.ReadAllText(path).IndexOf("#entry ", StringComparison.Ordinal);
+        Assert.True(head > 0);
+        File.WriteAllText(broken, File.ReadAllText(path).Insert(head, "SECRET-TOKEN-12345\n"));
+        AmpleException error = Assert.Throws<AmpleException>(() => TxPackage.Open(broken));
+        Assert.Equal("AMP5421", error.DiagnosticCode);
+        Assert.DoesNotContain("SECRET", error.Message, StringComparison.Ordinal);
+    }
 }
