@@ -136,9 +136,13 @@ public class FliteEngineTests(ITestOutputHelper output)
         already.Cancel();
         Assert.ThrowsAny<OperationCanceledException>(() => Engine.Render("hello", null, already.Token));
 
-        byte[] longText = Encoding.UTF8.GetBytes(string.Join(' ', Enumerable.Repeat("The old miller carried twelve loaves of bread across the field.", 150)));
-        using CancellationTokenSource soon = new(TimeSpan.FromMilliseconds(1));
-        Assert.ThrowsAny<OperationCanceledException>(() => Engine.Render(longText, null, soon.Token));
+        // cancelled from here a little after the render started: a timer of the token (CancelAfter) can be late on a busy machine (a CI runner), and the render then finished first
+        byte[] longText = Encoding.UTF8.GetBytes(string.Join(' ', Enumerable.Repeat("The old miller carried twelve loaves of bread across the field.", 600)));
+        using CancellationTokenSource soon = new();
+        Task running = Task.Run(() => Engine.Render(longText, null, soon.Token));
+        Thread.Sleep(10);
+        soon.Cancel();
+        Assert.ThrowsAny<OperationCanceledException>(() => running.GetAwaiter().GetResult());
     }
 
     [Fact]
