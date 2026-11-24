@@ -23,7 +23,9 @@ export function initToken() {
     token = m ? m[1] : '';
   }
   document.cookie = 'ample-token=; path=/; max-age=0; SameSite=Strict';   // the name of an older version: it would only confuse which session a tab belongs to
-  if (token) document.cookie = `ample-token-${location.port || (location.protocol === 'https:' ? '443' : '80')}-${token.slice(0, 16)}=${token}; path=/; max-age=604800; SameSite=Strict`;
+  // over https the cookie is marked Secure: it is never sent to the http address of the same host (a link to http:// would put the session in plain text)
+  const secure = location.protocol === 'https:' ? '; Secure' : '';
+  if (token) document.cookie = `ample-token-${location.port || (location.protocol === 'https:' ? '443' : '80')}-${token.slice(0, 16)}=${token}; path=/; max-age=604800; SameSite=Strict${secure}`;
   forgetOldTokenCookies(token ? `ample-token-${location.port || (location.protocol === 'https:' ? '443' : '80')}-${token.slice(0, 16)}` : '');
   if (!token) goToSignInIfAvailable();
   return token;
