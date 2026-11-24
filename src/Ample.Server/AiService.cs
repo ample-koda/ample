@@ -689,7 +689,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
     {
         AiTask task = ContextTokens.TryGetValue(token, out AiTask? t) ? t : throw new AmpleException("AMP5458", "This task is no longer running.");
         string rel = AiContext.Norm(path);
-        string full = ProjectPath.Resolve(s.Root, rel);
+        string full = ProjectPath.Resolve(s.Fs, s.Root, rel);
         if (ProjectPath.IsPrivate(rel) || !File.Exists(full))
         {
             throw new AmpleException("AMP5458", $"{rel} is not a file of the project that can be shared.");
@@ -763,7 +763,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         string reason = body.TryGetProperty("reason", out JsonElement reasonValue) ? (reasonValue.GetString() ?? string.Empty).Trim() : string.Empty;
         if (from.Length == 0 || to.Length == 0 || from == to) throw new AmpleException("AMP5458", "A move needs a source and a different destination, both project-relative.");
         if (ProjectPath.IsPrivate(from) || ProjectPath.IsPrivate(to)) throw new AmpleException("AMP5458", "Internal project files cannot be moved.");
-        string fullFrom = ProjectPath.Resolve(s.Root, from), fullTo = ProjectPath.Resolve(s.Root, to);
+        string fullFrom = ProjectPath.Resolve(s.Fs, s.Root, from), fullTo = ProjectPath.Resolve(s.Fs, s.Root, to);
         bool isDir = Directory.Exists(fullFrom);
         if (!isDir && !File.Exists(fullFrom)) throw new AmpleException("AMP5458", $"{from} does not exist in the project.");
         if (File.Exists(fullTo) || Directory.Exists(fullTo)) throw new AmpleException("AMP5458", $"{to} already exists; a move never overwrites.");
@@ -818,7 +818,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
         string[] chosen = [.. (ticked ?? [])];
         foreach (AiMove move in task.Moves.Where(m => !m.Applied && (m.Approved || chosen.Contains(m.Id))).ToList())
         {
-            string fullFrom = ProjectPath.Resolve(s.Root, move.From), fullTo = ProjectPath.Resolve(s.Root, move.To);
+            string fullFrom = ProjectPath.Resolve(s.Fs, s.Root, move.From), fullTo = ProjectPath.Resolve(s.Fs, s.Root, move.To);
             if ((!File.Exists(fullFrom) && !Directory.Exists(fullFrom)) || File.Exists(fullTo) || Directory.Exists(fullTo))
             {
                 task.Add("info", $"Move of {move.From} was skipped: the source is gone or the destination exists now.");
@@ -834,7 +834,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
             }
 
             string parent = move.To.Contains('/', StringComparison.Ordinal) ? move.To[..move.To.LastIndexOf('/')] : string.Empty;
-            if (parent.Length > 0 && !Directory.Exists(ProjectPath.Resolve(s.Root, parent))) await s.Bus.ExecuteAsync(new CreateFolderCommand(parent), ct).ConfigureAwait(false);
+            if (parent.Length > 0 && !Directory.Exists(ProjectPath.Resolve(s.Fs, s.Root, parent))) await s.Bus.ExecuteAsync(new CreateFolderCommand(parent), ct).ConfigureAwait(false);
             await s.Bus.ExecuteAsync(new MoveProjectPathCommand(move.From, move.To, move.IsDir), ct).ConfigureAwait(false);
             foreach ((string path, string text) in plan.Texts)
             {
@@ -857,7 +857,7 @@ internal sealed partial class AiService(ProjectSession s) : IAsyncDisposable
     {
         foreach (AiMove move in task.Moves.Where(m => m.Applied).Reverse().ToList())
         {
-            string fullFrom = ProjectPath.Resolve(s.Root, move.From), fullTo = ProjectPath.Resolve(s.Root, move.To);
+            string fullFrom = ProjectPath.Resolve(s.Fs, s.Root, move.From), fullTo = ProjectPath.Resolve(s.Fs, s.Root, move.To);
             if ((!File.Exists(fullTo) && !Directory.Exists(fullTo)) || File.Exists(fullFrom) || Directory.Exists(fullFrom))
             {
                 task.Add("info", $"The move of {move.From} could not be undone: {move.To} is gone or {move.From} exists again.");
@@ -2114,7 +2114,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 return;
             }
 
-            string full = ProjectPath.Resolve(s.Root, rel);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, rel);
             if (!File.Exists(full))
             {
                 return;
@@ -3099,7 +3099,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         bool staged = File.Exists(file);
-        string live = ProjectPath.Resolve(s.Root, rel);
+        string live = ProjectPath.Resolve(s.Fs, s.Root, rel);
         bool existing = !staged && File.Exists(live);
         string before = staged ? File.ReadAllText(file) : existing ? File.ReadAllText(live) : string.Empty;
         AiEdit.Result result = AiEdit.Apply(before, JsonNode.Parse(list.GetRawText())!.AsArray(), s.Spec);
@@ -3744,7 +3744,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         foreach (string f in Directory.EnumerateFiles(task.ProjectDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(task.ProjectDir, f).Replace('\\', '/');
-            if (ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel) || File.Exists(ProjectPath.Resolve(s.Root, rel))) continue;
+            if (ProjectPath.IsPrivate(rel) || rel.StartsWith("samples/offered/", StringComparison.Ordinal) || offered.Contains(rel) || File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) continue;
             FileInfo info = new(f);
             bool binary = info.Length > 2_000_000;
             if (!binary && info.Length > 0)
@@ -5489,7 +5489,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             return null;
         }
 
-        string full = ProjectPath.Resolve(s.Root, path);
+        string full = ProjectPath.Resolve(s.Fs, s.Root, path);
         if (!File.Exists(full))
         {
             return null;
@@ -5802,14 +5802,14 @@ Answer in English, whatever language the question is in, unless the user asks fo
         Dictionary<string, string?> preimages = new(StringComparer.Ordinal);
         foreach (AiChange c in task.Changes.Where(c => !(c.Path == task.Request.Song && c.After is not null)))
         {
-            string full = ProjectPath.Resolve(s.Root, c.Path);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, c.Path);
             preimages[c.Path] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
         }
 
         List<string> comingAlong = [];
         foreach (OfferedFile o in task.Offered.Where(o => chosen.Contains(o.Id)))
         {
-            if (!File.Exists(ProjectPath.Resolve(s.Root, o.ProjectPath)))
+            if (!File.Exists(ProjectPath.Resolve(s.Fs, s.Root, o.ProjectPath)))
             {
                 _ = AttachmentFile(o.Id);   // the audio that comes along must still be there: this says so before anything is written
                 comingAlong.Add(o.ProjectPath);
@@ -5818,7 +5818,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         foreach (string rel in StagedBinaries(task))
         {
-            if (!File.Exists(ProjectPath.Resolve(s.Root, rel)) && !comingAlong.Contains(rel))
+            if (!File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel)) && !comingAlong.Contains(rel))
             {
                 comingAlong.Add(rel);
             }
@@ -5846,7 +5846,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     {
         foreach ((string path, string? before) in task.Undo.ToList())
         {
-            string full = ProjectPath.Resolve(s.Root, path);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, path);
             if (before is null)
             {
                 if (File.Exists(full))
@@ -5865,7 +5865,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         foreach (string path in task.IncludedPaths)
         {
-            string file = ProjectPath.Resolve(s.Root, path);
+            string file = ProjectPath.Resolve(s.Fs, s.Root, path);
             if (File.Exists(file))
             {
                 File.Delete(file);
@@ -5892,7 +5892,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             return false;
         }
 
-        string full = ProjectPath.Resolve(s.Root, task.Request.Song);
+        string full = ProjectPath.Resolve(s.Fs, s.Root, task.Request.Song);
         task.Undo[task.Request.Song] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
         await s.Bus.ExecuteAsync(new WriteFileCommand(task.Request.Song, songText), ct).ConfigureAwait(false);
         s.ForgetDoc(task.Request.Song);
@@ -5917,7 +5917,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                     continue;
                 }
 
-                string full = ProjectPath.Resolve(s.Root, c.Path);
+                string full = ProjectPath.Resolve(s.Fs, s.Root, c.Path);
                 task.Undo[c.Path] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
                 if (c.After is null)
                 {
@@ -5936,7 +5936,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
             foreach (OfferedFile o in task.Offered.Where(o => chosen.Contains(o.Id)))
             {
-                string target = ProjectPath.Resolve(s.Root, o.ProjectPath);
+                string target = ProjectPath.Resolve(s.Fs, s.Root, o.ProjectPath);
                 if (!File.Exists(target))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -5947,7 +5947,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
             foreach (string rel in StagedBinaries(task))
             {
-                string target = ProjectPath.Resolve(s.Root, rel);
+                string target = ProjectPath.Resolve(s.Fs, s.Root, rel);
                 if (File.Exists(target)) continue;
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(Path.Combine(task.ProjectDir, rel.Replace('/', Path.DirectorySeparatorChar)), target, false);
@@ -5977,7 +5977,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         foreach (string path in undoPaths)
         {
             string? before = task.Undo[path];
-            string full = ProjectPath.Resolve(s.Root, path);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, path);
             if (before is null)
             {
                 if (File.Exists(full))
@@ -5995,7 +5995,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
 
         foreach (string path in task.IncludedPaths.Skip(keptIncluded))
         {
-            string file = ProjectPath.Resolve(s.Root, path);
+            string file = ProjectPath.Resolve(s.Fs, s.Root, path);
             if (File.Exists(file))
             {
                 File.Delete(file);
@@ -6015,7 +6015,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
     {
         foreach (string path in task.Undo.Keys.Concat(task.IncludedPaths))
         {
-            task.Written.TryAdd(path, AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Root, path)));
+            task.Written.TryAdd(path, AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Fs, s.Root, path)));
         }
     }
 
@@ -6090,7 +6090,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 }
                 else
                 {
-                    string full = ProjectPath.Resolve(s.Root, change.Path);
+                    string full = ProjectPath.Resolve(s.Fs, s.Root, change.Path);
                     task.Undo[change.Path] = File.Exists(full) ? await File.ReadAllTextAsync(full, ct).ConfigureAwait(false) : null;
                     if (change.After is null) { if (File.Exists(full)) File.Delete(full); }
                     else await s.Bus.ExecuteAsync(new WriteFileCommand(change.Path, change.After), ct).ConfigureAwait(false);
@@ -6101,7 +6101,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
             }
             foreach (OfferedFile offered in task.Offered.Where(offered => chosen.Contains(offered.Id)))
             {
-                string target = ProjectPath.Resolve(s.Root, offered.ProjectPath);
+                string target = ProjectPath.Resolve(s.Fs, s.Root, offered.ProjectPath);
                 if (!File.Exists(target))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -6115,7 +6115,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                 .Select(change => change.After ?? string.Empty);
             foreach (string rel in AcceptAssets.RequiredBinaries(StagedBinaries(task), usedTexts))
             {
-                string target = ProjectPath.Resolve(s.Root, rel);
+                string target = ProjectPath.Resolve(s.Fs, s.Root, rel);
                 if (File.Exists(target)) continue;
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(Path.Combine(task.ProjectDir, rel.Replace('/', Path.DirectorySeparatorChar)), target, false);
@@ -6215,7 +6215,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
         }
 
         IReadOnlyList<string> changed = AcceptRecovery.ChangedSince(
-            task.Written, path => AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Root, path)));
+            task.Written, path => AcceptRecovery.HashOfFile(ProjectPath.Resolve(s.Fs, s.Root, path)));
         if (changed.Count > 0)
         {
             throw new AmpleException(

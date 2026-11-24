@@ -1426,7 +1426,7 @@ public static class Routes
         add("GET", "/api/file", "project", "Reads a text file of the project (lyrics, chords, notes, data); other files are refused.", false, s is null ? null : (HttpContext c) =>
         {
             string rel = c.Request.Query["path"].ToString();
-            string full = ProjectPath.Resolve(s.Root, rel);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, rel);
             bool allowed = TextFile(rel) || Path.GetFileName(rel) == "ample.lock";
             if (allowed && !File.Exists(full) && c.Request.Query["optional"] == "1")
             {
@@ -1718,7 +1718,7 @@ public static class Routes
                 {
                     try
                     {
-                        string full = ProjectPath.Resolve(s.Root, relative);
+                        string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
                         return File.Exists(full) ? File.ReadAllText(full) : null;
                     }
                     catch (AmpleException)
@@ -1742,13 +1742,13 @@ public static class Routes
             string? stage = body.TryGetProperty("stage", out JsonElement stageValue) && stageValue.ValueKind == JsonValueKind.String && stageValue.GetString()!.Length > 0 ? stageValue.GetString() : null;
             string? file = body.TryGetProperty("file", out JsonElement fileValue) && fileValue.ValueKind == JsonValueKind.String && fileValue.GetString()!.Length > 0 ? fileValue.GetString() : null;
             bool detach = body.TryGetProperty("detach", out JsonElement detachValue) && detachValue.ValueKind == JsonValueKind.True;
-            if (file is not null) ProjectPath.Resolve(s.Root, file);
+            if (file is not null) ProjectPath.Resolve(s.Fs, s.Root, file);
             Ample.Engine.Modules.ModuleService midi = new(s.Root, () => s.Library, s.Manifest.Id.ToString("D"));
             string? Read(string relative)
             {
                 try
                 {
-                    string full = ProjectPath.Resolve(s.Root, relative);
+                    string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
                     return File.Exists(full) ? File.ReadAllText(full) : null;
                 }
                 catch (AmpleException)
@@ -1813,7 +1813,7 @@ public static class Routes
             {
                 try
                 {
-                    string full = ProjectPath.Resolve(s.Root, relative);
+                    string full = ProjectPath.Resolve(s.Fs, s.Root, relative);
                     return File.Exists(full) ? File.ReadAllText(full) : null;
                 }
                 catch (AmpleException)
@@ -1922,7 +1922,7 @@ public static class Routes
             JsonElement body = await Body(c);
             string moduleName = Str(body, "name");
             if (moduleName.Length is < 1 or > 64 || moduleName.Any(ch => !(char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_'))) throw new AmpleException("AMP5504", "The MIDI module name is invalid.");
-            string path = ProjectPath.Resolve(s.Root, "modules/" + moduleName + ".module");
+            string path = ProjectPath.Resolve(s.Fs, s.Root, "modules/" + moduleName + ".module");
             FileInfo info = new(path);
             if (!info.Exists || info.Length > 64L * 1024 * 1024) throw new AmpleException("AMP5504", "The generated MIDI module is missing or exceeds its export size limit.");
             ModuleDocState state = await s.ModuleDocAsync("modules/" + moduleName + ".module", c.RequestAborted);
@@ -3189,7 +3189,7 @@ public static class Routes
 
             string folder = Opt(b, "folder") is { Length: > 0 } chosen ? WorkingPath(chosen) : System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;   // a folder the person chose (the first save of a new song), or the folder of the song
             string rel = (folder.Length == 0 ? name : folder + "/" + name) + ".amplet";
-            if (File.Exists(ProjectPath.Resolve(s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
+            if (File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
             await s.Bus.ExecuteAsync(new WriteFileCommand(rel, d.Text), c.RequestAborted);
             events!.Publish("files.changed", new { paths = new[] { rel } });
             return Ok(new { path = rel });
@@ -3206,7 +3206,7 @@ public static class Routes
 
             string folder = System.IO.Path.GetDirectoryName(d.Path)?.Replace('\\', '/') ?? string.Empty;
             string rel = (folder.Length == 0 ? name : folder + "/" + name) + ".amplet";
-            if (File.Exists(ProjectPath.Resolve(s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
+            if (File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel))) throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
             AmpleDocument parsed = s.Parse(d);
             EditResult result = Edits.BakeDynamicHelpers(parsed, s.LastBuildAt.TryGetValue(Str(b, "path"), out DateTime builtAt) ? builtAt : parsed.ParsedAt, Opt(b, "block"));
             if (!result.Ok) throw new AmpleException("AMP5285", result.Error!);
@@ -4004,7 +4004,7 @@ public static class Routes
         }
 
         string rel = name + ".amplet";
-        if (File.Exists(ProjectPath.Resolve(s.Root, rel)))
+        if (File.Exists(ProjectPath.Resolve(s.Fs, s.Root, rel)))
         {
             throw new AmpleException("AMP5285", $"There is already a song called {rel}.");
         }

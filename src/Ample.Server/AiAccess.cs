@@ -226,7 +226,7 @@ internal sealed partial class AiService
             return staged;
         }
 
-        string live = ProjectPath.Resolve(s.Root, rel);
+        string live = ProjectPath.Resolve(s.Fs, s.Root, rel);
         return File.Exists(live) ? live : null;
     }
 
@@ -287,7 +287,7 @@ internal sealed partial class AiService
             throw new AmpleException("AMP5458", $"{outRel} is not a place in the proposal for a sequence.");
         }
 
-        if (File.Exists(target) || File.Exists(ProjectPath.Resolve(s.Root, outRel)))
+        if (File.Exists(target) || File.Exists(ProjectPath.Resolve(s.Fs, s.Root, outRel)))
         {
             throw new AmpleException("AMP5243", $"{outRel} already exists: give another 'out', or change it with ample_edit.");
         }

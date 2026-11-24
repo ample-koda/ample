@@ -216,7 +216,7 @@ internal static class ComponentsApi
         if (file.Length > 0)
         {
             if (!file.EndsWith(ModuleService.ComponentExtension, StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP2216", "Only a .amplec file of the project can be edited here.");
-            string full = ProjectPath.Resolve(s.Root, file);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, file);
             if (!File.Exists(full)) throw new AmpleException("AMP2216", $"The file {file} is not in the project.");
             text = await File.ReadAllTextAsync(full, ct).ConfigureAwait(false);
             relative = file;
@@ -304,7 +304,7 @@ internal static class ComponentsApi
         {
             string file = Read(body, "file");
             if (!file.EndsWith(ModuleService.ComponentExtension, StringComparison.OrdinalIgnoreCase)) throw new AmpleException("AMP2216", "The file must be a .amplec file of the project (file).");
-            string full = ProjectPath.Resolve(s.Root, file);
+            string full = ProjectPath.Resolve(s.Fs, s.Root, file);
             if (File.Exists(full)) throw new AmpleException("AMP2216", $"The file {file} exists already: choose another name, nothing is overwritten.");
             ComponentExtraction extracted = ComponentEmbedding.Extract(text, name, requested, file, s.Spec);
             if (!extracted.Ok) throw new AmpleException("AMP2208", extracted.Message);

@@ -922,7 +922,7 @@ internal static class AiContext
             return Window(path, source, proposal, offset);
         }
 
-        string full = ProjectPath.Resolve(s.Root, path);
+        string full = ProjectPath.Resolve(s.Fs, s.Root, path);
         if (!TextExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase) || ProjectPath.IsPrivate(path) || !File.Exists(full))
         {
             throw new AmpleException("AMP5458", $"{path} is not a text file of the project that can be read.");
