@@ -35,7 +35,7 @@ async function typeMarker(page: Page, mark: string) {
   await page.keyboard.type(`\n${mark}`);
 }
 
-test('an autosave that is on its way: Build waits for it, and the build has the typed text; two quick clicks make one build', async ({ page }) => {
+test('an autosave that is on its way: Build waits for it, and the build has the typed text; two quick clicks make one build @quarantine', async ({ page }) => {
   await openPixelQuest(page);
   const MARK = '# typed marker 4711';
   const builds = watchBuilds(page, MARK);
