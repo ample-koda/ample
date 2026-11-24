@@ -139,6 +139,9 @@ public static class LiteSharesApi
             return Results.Stream(
                 body =>
                 {
+                    // a reader that takes bytes slowly (above the minimum rate of the server) must not hold its slot for ever: after the time limit the connection is cut
+                    using CancellationTokenSource limit = new(ArchiveTimeLimit);
+                    using CancellationTokenRegistration cut = limit.Token.Register(context.Abort);
                     try
                     {
                         using ZipArchive zip = new(body, ZipArchiveMode.Create, true);
@@ -268,6 +271,9 @@ public static class LiteSharesApi
     internal const int MaxArchivesAtOnce = 8;
 
     internal static readonly SemaphoreSlim ArchiveSlots = new(MaxArchivesAtOnce, MaxArchivesAtOnce);
+
+    /// <summary>The longest one archive may take to be written to a visitor; after that the connection is cut and the slot is free again.</summary>
+    internal static TimeSpan ArchiveTimeLimit { get; set; } = TimeSpan.FromSeconds(120);
 
     /// <summary>Counts one read of a share for the visitor; the answer to give when the visitor has used up the minute or the hour, else null.</summary>
     private static IResult? SpendRead(LiteGovernor governor, HttpContext context, string kind, int perMinute, int perHour)
