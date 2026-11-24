@@ -1706,6 +1706,17 @@
       "stage": "runtime"
     },
     {
+      "code": "AMP5308",
+      "severity": "error",
+      "title": "Export target not allowed",
+      "explanation": "An export is written to a new file that ends in .ample or .zip, or it replaces an AMPLE archive. It never replaces another file and never writes into a folder.",
+      "wrongExample": "",
+      "rightExample": "",
+      "since": "1.0",
+      "retired": false,
+      "stage": "runtime"
+    },
+    {
       "code": "AMP5310",
       "severity": "error",
       "title": "Encrypted data cannot be opened",
