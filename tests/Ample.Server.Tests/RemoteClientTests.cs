@@ -77,7 +77,7 @@ public sealed class RemoteClientTests
             if (request.RequestUri!.AbsolutePath == "/api/login") return Json(HttpStatusCode.OK, "{\"token\":\"t" + ++logins + "\"}");
             return request.Headers.GetValues("X-Ample-Token").First() == "t1" ? new HttpResponseMessage(HttpStatusCode.Unauthorized) : Json(HttpStatusCode.OK, "[]");
         });
-        using RemoteClient client = new(Direct("http://server.test", "pw"), script);
+        using RemoteClient client = new(Direct("https://server.test", "pw"), script);
         string messages = string.Empty;
         client.Status += m => messages += m + "|";
         Assert.Equal("[]", await client.GetStringAsync("/api/project/files"));
@@ -95,7 +95,7 @@ public sealed class RemoteClientTests
             if (failures-- > 0) throw new HttpRequestException("connection reset");
             return Json(HttpStatusCode.OK, "[1]");
         });
-        using RemoteClient client = new(Direct("http://server.test", "pw"), script);
+        using RemoteClient client = new(Direct("https://server.test", "pw"), script);
         List<string> messages = [];
         client.Status += messages.Add;
         Assert.Equal("[1]", await client.GetStringAsync("/api/project/files"));
@@ -106,7 +106,7 @@ public sealed class RemoteClientTests
     public async Task A_server_that_stays_away_gives_a_clear_error_after_the_attempts()
     {
         Script script = new(request => throw new HttpRequestException("no route to host"));
-        RemoteOptions options = Direct("http://server.test", "pw");
+        RemoteOptions options = Direct("https://server.test", "pw");
         options.Attempts = 3;
         using RemoteClient client = new(options, script);
         RemoteConnectionException error = await Assert.ThrowsAsync<RemoteConnectionException>(() => client.GetStringAsync("/api/project/files"));
@@ -117,7 +117,7 @@ public sealed class RemoteClientTests
     public async Task Connecting_to_a_server_that_is_away_retries_with_messages_before_it_gives_up()
     {
         Script script = new(request => throw new HttpRequestException("no route to host"));
-        RemoteOptions options = Direct("http://server.test", "pw");
+        RemoteOptions options = Direct("https://server.test", "pw");
         options.Attempts = 3;
         using RemoteClient client = new(options, script);
         List<string> messages = [];

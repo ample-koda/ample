@@ -106,7 +106,7 @@ internal static class RemoteCommands
     private static void AmpleCommandsInit(string folder)
     {
         // the cache is not an AMPLE project (the server holds that), so Visual Studio only gets the project file for it
-        System.Diagnostics.ProcessStartInfo start = new(AmpleCli.For(null), "vs init \"" + folder + "\" --create-project")
+        System.Diagnostics.ProcessStartInfo start = new(AmpleCli.For(null), "vs init " + AmpleProjectWizard.Quote(folder) + " --create-project")
         {
             CreateNoWindow = true,
             UseShellExecute = false,

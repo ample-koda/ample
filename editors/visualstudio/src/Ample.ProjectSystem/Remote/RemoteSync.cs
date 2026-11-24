@@ -23,6 +23,9 @@ public sealed class SyncResult
     /// <summary>Gets the files over the size limit that were not fetched.</summary>
     public List<string> Skipped { get; } = [];
 
+    /// <summary>Gets the files the server listed that were refused: a path that leaves the cache or names a file the cache keeps for itself, or bytes that do not match the listed hash.</summary>
+    public List<string> Refused { get; } = [];
+
     /// <summary>Gets the id of the conflict folder (null when nothing conflicted).</summary>
     public string? ConflictId { get; internal set; }
 }
@@ -62,7 +65,13 @@ public sealed class RemoteSync
         foreach (FileEntry entry in server)
         {
             string relative = entry.Path;
-            string local = Local(relative);
+            string? local = SafeLocal(relative);
+            if (local is null)
+            {
+                result.Refused.Add(relative);
+                continue;
+            }
+
             manifest.TryGetValue(relative, out string? baseSha);
             string? localSha = System.IO.File.Exists(local) ? Sha(local) : null;
             if (localSha == entry.Sha256)
@@ -91,6 +100,12 @@ public sealed class RemoteSync
             }
 
             byte[] bytes = await client.GetBytesAsync("/api/project/export?path=" + System.Uri.EscapeDataString(relative), cancellationToken).ConfigureAwait(false);
+            if (!string.Equals(Hex(SHA256Of(bytes)), entry.Sha256, System.StringComparison.OrdinalIgnoreCase))
+            {
+                result.Refused.Add(relative);   // changed on the server while it was being fetched, or not what it was listed as: nothing is written
+                continue;
+            }
+
             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(local)!);
             System.IO.File.WriteAllBytes(local, bytes);
             manifest[relative] = entry.Sha256;
@@ -98,7 +113,7 @@ public sealed class RemoteSync
         }
 
         HashSet<string> onServer = new(server.Select(e => e.Path), System.StringComparer.Ordinal);
-        foreach (string relative in manifest.Keys.Where(k => !onServer.Contains(k) && System.IO.File.Exists(Local(k))).ToList()) result.GoneOnServer.Add(relative);
+        foreach (string relative in manifest.Keys.Where(k => !onServer.Contains(k) && SafeLocal(k) is string kept && System.IO.File.Exists(kept)).ToList()) result.GoneOnServer.Add(relative);
         SaveManifest();
         return result;
     }
@@ -111,7 +126,8 @@ public sealed class RemoteSync
         foreach (string full in LocalFiles())
         {
             string relative = full.Substring(root.Length).TrimStart('\\', '/').Replace('\\', '/');
-            string sha = Sha(full);
+            byte[] content = System.IO.File.ReadAllBytes(full);
+            string sha = Hex(SHA256Of(content));
             manifest.TryGetValue(relative, out string? baseSha);
             if (sha == baseSha) continue;
             if (server.TryGetValue(relative, out FileEntry? there))
@@ -136,7 +152,7 @@ public sealed class RemoteSync
                 await client.PostBytesAsync(
                     "/api/project/upload?name=" + System.Uri.EscapeDataString(name) + "&dir=" + System.Uri.EscapeDataString(directory)
                     + "&onConflict=overwrite-record&toWav=0&ifMatch=" + (baseSha ?? "none"),
-                    System.IO.File.ReadAllBytes(full),
+                    content,
                     cancellationToken).ConfigureAwait(false);
             }
             catch (RemoteRequestException ex) when (ex.Status == 409)
@@ -172,20 +188,59 @@ public sealed class RemoteSync
                 string name = System.IO.Path.GetFileName(sub);
                 if (folder == root && SkipFolders.Contains(name, System.StringComparer.OrdinalIgnoreCase)) continue;
                 if (name.Length > 0 && name[0] == '.') continue;
+                if ((System.IO.File.GetAttributes(sub) & System.IO.FileAttributes.ReparsePoint) != 0) continue;   // never follow a link out of the cache
                 folders.Push(sub);
             }
 
             foreach (string file in System.IO.Directory.EnumerateFiles(folder))
             {
                 string name = System.IO.Path.GetFileName(file);
-                if (folder == root && (SkipFiles.Contains(name, System.StringComparer.OrdinalIgnoreCase) || name.EndsWith(".ampleproj", System.StringComparison.OrdinalIgnoreCase)
-                    || name.EndsWith(".ampleproj.user", System.StringComparison.OrdinalIgnoreCase) || name.EndsWith(".sln", System.StringComparison.OrdinalIgnoreCase))) continue;
+                if (folder == root && KeptForItself(name)) continue;
                 yield return file;
             }
         }
     }
 
-    private string Local(string relative) => System.IO.Path.Combine(root, relative.Replace('/', System.IO.Path.DirectorySeparatorChar));
+    /// <summary>Whether a file of the cache root is the extension's own (project files, the solution, the targets): the server never writes them and a push never sends them.</summary>
+    private static bool KeptForItself(string name) =>
+        SkipFiles.Contains(name, System.StringComparer.OrdinalIgnoreCase) || name.EndsWith(".ampleproj", System.StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".ampleproj.user", System.StringComparison.OrdinalIgnoreCase) || name.EndsWith(".sln", System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The local file for a path the server listed, or null when the path is not safe: empty, rooted, with a drive or stream colon, a "..", a hidden or
+    /// reserved first folder, an empty or dotted/spaced segment, a name the cache keeps for itself, or when it would end outside the cache folder.
+    /// The server is not trusted with where a file goes (it could otherwise replace the project file that names the program to run, or the connection settings).
+    /// </summary>
+    private string? SafeLocal(string relative)
+    {
+        if (relative.Length == 0 || relative.Length > 400 || relative.IndexOfAny([':', '\\']) >= 0 || relative[0] == '/') return null;
+        string[] parts = relative.Split('/');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string part = parts[i];
+            if (part.Length == 0 || part == "." || part == ".." || part[part.Length - 1] == '.' || part[part.Length - 1] == ' ') return null;
+            if (part.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0) return null;
+        }
+
+        if (parts[0].Length > 0 && parts[0][0] == '.') return null;
+        if (parts.Length > 1 && SkipFolders.Contains(parts[0], System.StringComparer.OrdinalIgnoreCase)) return null;
+        if (parts.Length == 1 && KeptForItself(parts[0])) return null;
+        string full = System.IO.Path.GetFullPath(System.IO.Path.Combine(root, relative.Replace('/', System.IO.Path.DirectorySeparatorChar)));
+        string prefix = root.EndsWith(System.IO.Path.DirectorySeparatorChar.ToString(), System.StringComparison.Ordinal) ? root : root + System.IO.Path.DirectorySeparatorChar;
+        return full.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase) ? full : null;
+    }
+
+    private static byte[] SHA256Of(byte[] bytes)
+    {
+#if NET5_0_OR_GREATER
+        return SHA256.HashData(bytes);
+#else
+        using SHA256 sha = SHA256.Create();
+        return sha.ComputeHash(bytes);
+#endif
+    }
+
+    private static string Hex(byte[] bytes) => ToHex(bytes);
 
     private static string Sha(string file)
     {
