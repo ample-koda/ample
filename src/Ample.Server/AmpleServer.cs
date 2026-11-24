@@ -193,7 +193,7 @@ public static class AmpleServer
                     if (auth is not null && context.Request.Method == HttpMethods.Post && string.Equals(context.Request.Path.Value, "/api/login", StringComparison.Ordinal))
                     {
                         using JsonDocument body = await JsonDocument.ParseAsync(context.Request.Body).ConfigureAwait(false);
-                        string client = context.Connection.RemoteIpAddress?.ToString() ?? "local";
+                        string client = ClientAddress.Of(context);
 
                         // honeypot: a person never sees the hidden "website" field, a form-filling bot does; refused like a wrong password, but not counted towards the lockout
                         if (body.RootElement.TryGetProperty("website", out JsonElement trap) && !string.IsNullOrEmpty(trap.GetString()))
