@@ -1446,3 +1446,6 @@ kbd{font:600 12px ui-monospace,Consolas,monospace;padding:1px 7px;border:1px sol
 .song-event.budget .song-event-head{color:var(--warn,#d8a83e)}
 .song-event[tabindex]{cursor:pointer}
 @media (max-width:700px){.song-event{grid-template-columns:1fr;gap:2px}.song-event-more{grid-column:1}}
+
+/* the hidden status of the arrangement lies inside its row: without that it sat at its place in the page and a bottom panel dragged down made the page scroll */
+#arr-ctl{position:relative}
