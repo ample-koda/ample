@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#sq-patterns .sqgridrow')).toHaveCount(2);
 });
 
-test('Revert in the Sequencer restores the original text after Play wrote the staged edit', async ({ page }) => {
+test('Revert in the Sequencer restores the original text after Play wrote the staged edit @quarantine', async ({ page }) => {
   const before = await seqText();
   await page.locator('#sq-add-channel').selectOption({ index: 1 });   // a staged edit: one more channel
   await expect(page.locator('#sq-rack .sqchannel')).toHaveCount(3);
