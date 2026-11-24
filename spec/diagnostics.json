@@ -2553,6 +2553,17 @@
       "stage": "runtime"
     },
     {
+      "code": "AMP5531",
+      "severity": "error",
+      "title": "The song is too long to render",
+      "explanation": "The part of the song that is built is more than 268 million samples long (about 100 minutes). A slow tempo, a long meter and many bars together make a song this long; use a faster tempo or fewer bars.",
+      "wrongExample": "",
+      "rightExample": "",
+      "since": "1.0",
+      "retired": false,
+      "stage": "runtime"
+    },
+    {
       "code": "AMP5600",
       "severity": "error",
       "title": "Not enough free disk space to store a take",

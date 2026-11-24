@@ -7013,6 +7013,7 @@ settings <span class="tk-p">{</span> acestep.backend server <span class="tk-p">}
 <tr><td><a href="#AMP5506"><code>AMP5506</code></a></td><td>error</td><td>A controller of a midi-clip is not a value it can play</td></tr>
 <tr><td><a href="#AMP5505"><code>AMP5505</code></a></td><td>error</td><td>MIDI to audio converter has no input</td></tr>
 <tr><td><a href="#AMP5530"><code>AMP5530</code></a></td><td>error</td><td>Effect preview range is invalid or too long</td></tr>
+<tr><td><a href="#AMP5531"><code>AMP5531</code></a></td><td>error</td><td>The song is too long to render</td></tr>
 <tr><td><a href="#AMP5600"><code>AMP5600</code></a></td><td>error</td><td>Not enough free disk space to store a take</td></tr>
 <tr><td><a href="#AMP5601"><code>AMP5601</code></a></td><td>error</td><td>The takebank cannot be written</td></tr>
 <tr><td><a href="#AMP5602"><code>AMP5602</code></a></td><td>error</td><td>Clean-up refused</td></tr>
@@ -8528,6 +8529,10 @@ helper up(Notes source<span class="tk-p">,</span> Duration <span class="tk-t">de
 <article class="card" id="AMP5530"><h2><code>AMP5530</code> Effect preview range is invalid or too long</h2>
 <p><span class="badge bad">error</span> <span class="badge">runtime</span> <span class="badge">since 1.0</span></p>
 <p>Choose a non-negative preview interval no longer than 30 seconds.</p>
+</article>
+<article class="card" id="AMP5531"><h2><code>AMP5531</code> The song is too long to render</h2>
+<p><span class="badge bad">error</span> <span class="badge">runtime</span> <span class="badge">since 1.0</span></p>
+<p>The part of the song that is built is more than 268 million samples long (about 100 minutes). A slow tempo, a long meter and many bars together make a song this long; use a faster tempo or fewer bars.</p>
 </article>
 <article class="card" id="AMP5600"><h2><code>AMP5600</code> Not enough free disk space to store a take</h2>
 <p><span class="badge bad">error</span> <span class="badge">runtime</span> <span class="badge">since 1.0</span></p>

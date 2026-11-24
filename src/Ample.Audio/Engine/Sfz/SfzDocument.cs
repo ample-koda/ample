@@ -23,13 +23,31 @@ public static class SfzDocument
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(resolveInclude);
         Dictionary<string, string> defines = [];
-        string expanded = ExpandIncludesAndDefines(text, resolveInclude, defines, 0);
+        string expanded = ExpandIncludesAndDefines(text, resolveInclude, defines, 0, new ExpansionBudget());
         return ParseExpanded(expanded);
     }
 
     private const int MaxIncludeDepth = 32;
 
-    private static string ExpandIncludesAndDefines(string text, Func<string, string> resolveInclude, Dictionary<string, string> defines, int depth)
+    /// <summary>The most #include lines one SFZ file may expand in total (a file that includes the next one twice made 2^depth expansions).</summary>
+    internal const int MaxIncludes = 256;
+
+    /// <summary>The most text (characters) the expansion of includes and defines may make (a #define that names the one before it twice doubled the text for every define).</summary>
+    internal const int MaxExpandedChars = 4 * 1024 * 1024;
+
+    /// <summary>The most #define lines one SFZ file may have.</summary>
+    internal const int MaxDefines = 2000;
+
+    /// <summary>What one parse of an SFZ file has used up of the include limit; it is shared by the file and everything it includes.</summary>
+    private sealed class ExpansionBudget
+    {
+        public int Includes { get; set; }
+    }
+
+    private static AmpleException TooLarge() =>
+        new("AMP5395", $"The SFZ file expands to more than {MaxExpandedChars / (1024 * 1024)} MB of text (#define or #include).");
+
+    private static string ExpandIncludesAndDefines(string text, Func<string, string> resolveInclude, Dictionary<string, string> defines, int depth, ExpansionBudget budget)
     {
         if (depth > MaxIncludeDepth)
         {
@@ -63,6 +81,10 @@ public static class SfzDocument
                 if (parts.Length >= 3 && parts[1].StartsWith('$'))
                 {
                     defines[parts[1]] = parts[2].Trim();
+                    if (defines.Count > MaxDefines)
+                    {
+                        throw new AmpleException("AMP5395", $"The SFZ file has more than {MaxDefines} #define lines.");
+                    }
                 }
 
                 continue;
@@ -81,14 +103,28 @@ public static class SfzDocument
                 }
 
                 string path = line[(q1 + 1)..q2];
+                if (++budget.Includes > MaxIncludes)
+                {
+                    throw new AmpleException("AMP5395", $"The SFZ file expands more than {MaxIncludes} #include lines (in total).");
+                }
+
                 string included = resolveInclude(path);
-                result.Append(ExpandIncludesAndDefines(included, p => resolveInclude(ResolveIncludeRelative(path, p)), defines, depth + 1));
+                result.Append(ExpandIncludesAndDefines(included, p => resolveInclude(ResolveIncludeRelative(path, p)), defines, depth + 1, budget));
                 result.Append('\n');
+                if (result.Length > MaxExpandedChars)
+                {
+                    throw TooLarge();
+                }
                 continue;
             }
 
             result.Append(c);
             i++;
+        }
+
+        if (result.Length > MaxExpandedChars)
+        {
+            throw TooLarge();
         }
 
         return ApplyDefines(result.ToString(), defines);
@@ -119,6 +155,10 @@ public static class SfzDocument
         foreach ((string name, string value) in defines.OrderByDescending(d => d.Key.Length))
         {
             text = text.Replace(name, value, StringComparison.Ordinal);
+            if (text.Length > MaxExpandedChars)
+            {
+                throw TooLarge();   // after every define: one define can at most double the text, so the peak stays near twice the limit
+            }
         }
 
         return text;

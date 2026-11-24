@@ -393,6 +393,25 @@ public sealed class SfzReaderTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(5000)]
+    [InlineData(300)]
+    public void A_sample_name_that_is_too_long_for_a_file_name_is_an_error_of_the_sfz_file_with_a_short_message(int length)
+    {
+        // security finding 48: a name of thousands of characters ended the build with a PathTooLongException and a message of the same size
+        File.WriteAllText(Path.Combine(dir, "kit.sfz"), $"<region> sample={new string('x', length)}.wav key=60");
+        AmpleException ex = Assert.Throws<AmpleException>(() => SfzReader.Read(Path.Combine(dir, "kit.sfz"), 44100));
+        Assert.Equal("AMP5395", ex.DiagnosticCode);
+        Assert.True(ex.Message.Length < 300, $"the message has {ex.Message.Length} characters");
+    }
+
+    [Fact]
+    public void A_sample_name_with_a_character_no_file_name_has_is_an_error_of_the_sfz_file()
+    {
+        File.WriteAllText(Path.Combine(dir, "kit.sfz"), "<region> sample=a|b?.wav key=60");
+        Assert.Equal("AMP5395", Assert.Throws<AmpleException>(() => SfzReader.Read(Path.Combine(dir, "kit.sfz"), 44100)).DiagnosticCode);
+    }
+
     [Fact]
     public void A_missing_sfz_file_fails_with_AMP5395()
     {
