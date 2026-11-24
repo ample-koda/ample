@@ -44,7 +44,8 @@ namespace Ample.Setup
             {
                 string choice = label;
                 Button b = new Button { Text = label, FlatStyle = FlatStyle.Flat, BackColor = Card, ForeColor = Ink, Height = 26, Top = 48, Left = x };
-                b.Width = TextRenderer.MeasureText(label, b.Font).Width + 28;   // as wide as its words: a long label was cut off
+                // as wide as its words, measured with the font of the window: a button that is not on the form yet has the default font, which is narrower
+                b.Width = TextRenderer.MeasureText(label, Font).Width + 28;
                 packFilters.Add(b);
                 b.FlatAppearance.BorderColor = Accent;
                 b.Click += (s, e) =>
@@ -133,7 +134,15 @@ namespace Ample.Setup
             try
             {
                 string file = ExtrasResult.PathIn(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-                string last = System.IO.File.Exists(file) ? ExtrasResult.Describe(ExtrasResult.Parse(System.IO.File.ReadAllText(file)), id => packs.Any(p => p.Id == id && p.Installed)) : null;
+                string last = null;
+                if (System.IO.File.Exists(file))
+                {
+                    last = ExtrasResult.Describe(
+                        ExtrasResult.Parse(System.IO.File.ReadAllText(file)),
+                        id => packs.Any(p => p.Id == id && p.Installed),
+                        id => packs.Any(p => p.Id == id));
+                }
+
                 if (last != null) packsStatus.Text = last;
             }
             catch (System.IO.IOException)

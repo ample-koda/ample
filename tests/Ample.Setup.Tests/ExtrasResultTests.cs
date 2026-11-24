@@ -35,6 +35,23 @@ public class ExtrasResultTests
     }
 
     [Fact]
+    public void Something_that_is_not_a_pack_of_the_list_is_not_said_to_be_tickable_and_gets_its_command()
+    {
+        // the packs page said "Tick it below" for audiveris, which is not in its list: it could never be ticked and the note stayed for ever
+        List<ExtrasResult.Entry> entries = ExtrasResult.Parse("audiveris\tfailed\tample exited with 1\nmusescore-general\tfailed\tcould not download\n");
+
+        string both = ExtrasResult.Describe(entries, pack => false, pack => pack == "musescore-general")!;
+        Assert.Contains("musescore-general (could not download). Tick it below", both, StringComparison.Ordinal);
+        Assert.Contains("audiveris (ample exited with 1)", both, StringComparison.Ordinal);
+        Assert.Contains("ample packs install audiveris", both, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tick it below and press Next to try again. audiveris", both, StringComparison.Ordinal);
+
+        string only = ExtrasResult.Describe(ExtrasResult.Parse("audiveris\tfailed\tample exited with 1\n"), pack => false, pack => false)!;
+        Assert.DoesNotContain("Tick", only, StringComparison.Ordinal);
+        Assert.Contains("ample packs install audiveris", only, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Nothing_is_said_when_nothing_failed_or_when_the_extra_was_fetched_since()
     {
         List<ExtrasResult.Entry> entries = ExtrasResult.Parse("musescore-general\tfailed\tcould not download\n");
