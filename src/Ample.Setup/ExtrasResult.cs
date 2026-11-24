@@ -49,14 +49,40 @@ namespace Ample.Setup
         /// </summary>
         /// <param name="entries">The result of the last installation.</param>
         /// <param name="isInstalled">Whether an extra is installed now (it may have been fetched since).</param>
-        internal static string Describe(IEnumerable<Entry> entries, Func<string, bool> isInstalled)
+        internal static string Describe(IEnumerable<Entry> entries, Func<string, bool> isInstalled) => Describe(entries, isInstalled, _ => true);
+
+        /// <summary>
+        /// The same, for the packs page: only a pack that is in its list can be ticked there. Something else that failed (audiveris, the koda browser) is not in the list, so
+        /// it was said to be tickable and could never be ticked: it is named apart, with the command that fetches it.
+        /// </summary>
+        /// <param name="entries">The result of the last installation.</param>
+        /// <param name="isInstalled">Whether an extra is installed now.</param>
+        /// <param name="isInList">Whether the extra is a pack in the list of the page.</param>
+        internal static string Describe(IEnumerable<Entry> entries, Func<string, bool> isInstalled, Func<string, bool> isInList)
         {
             List<Entry> failed = (entries ?? Enumerable.Empty<Entry>()).Where(e => e.State == "failed" && !isInstalled(e.Pack)).ToList();
             if (failed.Count == 0) return null;
-            StringBuilder text = new StringBuilder("The last installation could not fetch: ");
-            text.Append(string.Join("; ", failed.Select(e => e.Pack + (e.Message.Length > 0 ? " (" + e.Message + ")" : string.Empty))));
-            text.Append(". Tick it below and press Next to try again.");
+            List<Entry> tickable = failed.Where(e => isInList(e.Pack)).ToList();
+            List<Entry> other = failed.Where(e => !isInList(e.Pack)).ToList();
+            StringBuilder text = new StringBuilder();
+            if (tickable.Count > 0)
+            {
+                text.Append("The last installation could not fetch: ");
+                text.Append(string.Join("; ", tickable.Select(Shown)));
+                text.Append(". Tick it below and press Next to try again.");
+            }
+
+            if (other.Count > 0)
+            {
+                if (text.Length > 0) text.Append(' ');
+                text.Append(tickable.Count > 0 ? "Not in the list (it is no sound pack): " : "The last installation could not fetch: ");
+                text.Append(string.Join("; ", other.Select(Shown)));
+                text.Append(". Fetch it with: ").Append(string.Join(", ", other.Select(e => "ample packs install " + e.Pack))).Append('.');
+            }
+
             return text.ToString();
         }
+
+        private static string Shown(Entry e) => e.Pack + (e.Message.Length > 0 ? " (" + e.Message + ")" : string.Empty);
     }
 }
