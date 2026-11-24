@@ -317,8 +317,7 @@ internal sealed partial class AiService
         using System.IO.Compression.ZipArchive zip = System.IO.Compression.ZipFile.OpenRead(mxlPath);
         System.IO.Compression.ZipArchiveEntry entry = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) && !e.FullName.StartsWith("META-INF/", StringComparison.OrdinalIgnoreCase))
             ?? throw new AmpleException("AMP5285", "This .mxl file did not contain a readable MusicXML part.");
-        using StreamReader reader = new(entry.Open());
-        return reader.ReadToEnd();
+        return Ample.Audio.IO.SafeZip.ReadText(entry);
     }
 
     /// <summary>The text of a PDF of the project (PdfPig). A missing helper is written to the project log with how to fix it.</summary>

@@ -95,7 +95,7 @@ public static class Archive
                 ZipArchiveEntry entry = zip.GetEntry("files/" + e.Path) ?? throw new AmpleException("AMP5302", $"The archive is missing '{e.Path}'.");
                 string dest = ProjectPath.Resolve(staging, e.Path);
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                entry.ExtractToFile(dest, true);
+                SafeZip.ExtractEntry(entry, dest, 8L << 30);
                 if (BackupStore.HashFile(dest) != e.Hash)
                 {
                     throw new AmpleException("AMP5302", $"'{e.Path}' in the archive does not match its recorded hash: the archive is damaged or was changed. Nothing was imported.");
