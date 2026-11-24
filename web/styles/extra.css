@@ -589,6 +589,10 @@ body.ai-busy .ai-peek-audio,body.ai-busy .ai-peek-play{pointer-events:none;opaci
 /* the name in the header is the AMPLE logo; the whole name shows on hover (title) */
 header h1#brand{display:flex;align-items:center;margin:0 8px 0 0;line-height:0;cursor:default}header h1#brand img{display:block;width:auto;height:28px}
 
+/* the badge of a link (junction or symbolic link): a disc in the panel colour with an arrow, so it reads on any theme */
+.project-item-icon .link-badge circle{fill:var(--panel);stroke:var(--acc);stroke-width:1.4}
+.project-item-icon .link-badge path{stroke:var(--acc);stroke-width:1.6;fill:none}
+
 /* file and folder icons a little larger in lists, the tree and the tiles; the negative margin keeps the height of a line as it was */
 .project-item-icon{width:20px;height:20px;margin-block:-2px}
 .tree-toggle .project-item-icon{width:21px;height:21px;margin-block:-1.5px}

@@ -28,10 +28,13 @@ export async function addNew(kind, inFolder) {
     const body = { kind: kind.id, name: picked.name };
     if (picked.folder) body.folder = picked.folder;
     const made = await api.post('/api/project/new', body);
-    await refreshProjectPanel();
+    // a new folder is stepped into at once (the panel stays open, the tree opens down to it), so the next folder can be made in it without opening anything
+    if (made.isFolder) await enterFolder(made.path);
+    else await refreshProjectPanel();
     if (made.open === 'song') document.dispatchEvent(new CustomEvent('ample:open', { detail: made.path }));
     else if (made.open === 'text' || made.open === 'midi') document.dispatchEvent(new CustomEvent('ample:open-file', { detail: made.path }));
-    else if (made.isFolder || made.open === 'none') document.dispatchEvent(new CustomEvent('ample:reveal-file', { detail: made.path }));   // a folder is shown (and opened) in the project files
+    // not for a folder: revealing it would send the panel back up to the folder around it
+    else if (!made.isFolder && made.open === 'none') document.dispatchEvent(new CustomEvent('ample:reveal-file', { detail: made.path }));
     toast(`Created ${made.path}`);
   } catch (error) { toast(error.message); }
 }
@@ -147,6 +150,8 @@ const ProjectColumnsExtra = [{ id: 'length', width: 90 }, { id: 'usedBy', width:
 /** The height of a row of the details list in pixels (the same number is in the style sheet: extra.css, .project-details). */
 const DETAIL_ROW = 40;
 let folder = '';
+let folderIsLink = false;     // the open folder is a link to somewhere outside the project (a junction to a sample library): the list is empty on purpose
+let treeShownFolder = null;   // the folder the tree was last opened down to: the tree follows the open folder when it changes, and leaves the person's folds alone otherwise
 let treeWidth = 260;
 let selected = '';
 let selectedPaths = new Set();
@@ -406,7 +411,10 @@ function renderContents(host) {
   const visible = display === sorted ? sorted : display.filter((item) => !item.head);
   lastVisible = visible;
   if (visible.length === 0) {
-    host.append(el('p', { className: 'project-panel-empty', textContent: query || filter !== 'all' ? 'No files match the current search and filters.' : 'This folder is empty. Use + to create a folder or upload files.' }));
+    const emptyText = query || filter !== 'all' ? 'No files match the current search and filters.'
+      : folderIsLink ? 'This folder is a link to somewhere outside the project (for example a sample library). Builds read it; the panel does not list what is behind it.'
+        : 'This folder is empty. Use + to create a folder or upload files.';
+    host.append(el('p', { className: 'project-panel-empty', textContent: emptyText }));
     if (query.trim() && items === baseItems) host.append(deepLine(host));
     return;
   }
@@ -596,9 +604,19 @@ export async function refreshProjectPanel() {
   const host = $('#project-panel-content');
   if (!host) return;
   usageCache.clear(); hashCache.clear();
-  const mine = ++refreshGeneration, asked = folder;
-  const response = await api.get(`/api/project/tree?path=${encodeURIComponent(folder)}&depth=1${hiddenQuery()}`);
+  const mine = ++refreshGeneration;
+  let asked = folder, response;
+  for (;;) {
+    try { response = await api.get(`/api/project/tree?path=${encodeURIComponent(asked)}&depth=1${hiddenQuery()}`); break; }
+    catch (error) {
+      // the open folder is gone (deleted or renamed, here or elsewhere): go up to the nearest one that is still there instead of leaving an error and an empty panel
+      if (!asked || !/does not exist/i.test(error?.message || '')) throw error;
+      asked = parentFolder(asked);
+      if (mine === refreshGeneration && folder !== asked) { folder = asked; saveState(); }
+    }
+  }
   if (mine !== refreshGeneration || asked !== folder) return;   // another folder was opened meanwhile: the list must match the breadcrumb
+  folderIsLink = response.link === true;
   baseItems = response.children;
   items = baseItems;
   await refreshProjectTree();
@@ -652,6 +670,12 @@ function fillBreadcrumb(crumb) {
 
 async function refreshProjectTree() {
   if (!treeHost) return;
+  // the open folder shows in the tree: its parents, and the folder itself so that what is made in it (a new folder) is seen at once
+  if (treeShownFolder !== folder) {
+    treeShownFolder = folder;
+    const parts = folder.split('/').filter(Boolean);
+    for (let count = 1; count <= parts.length; count++) treeOpen.add(parts.slice(0, count).join('/'));
+  }
   if (!treeHost.dataset.toggles) { treeHost.dataset.toggles = '1'; treeHost.addEventListener('ample:tree-toggle', (event) => { if (event.detail.expanded) treeOpen.add(event.detail.path); else treeOpen.delete(event.detail.path); }); }
   const remember = (nodes) => nodes?.forEach((item) => { if (item.expanded) treeOpen.add(item.path); remember(item.children); });
   remember(treeRoot?.children);
@@ -680,6 +704,27 @@ async function loadTreeChildren(item) {
 
 async function selectTreeFolder(item) {
   folder = item.path; saveState(); await refreshProjectPanel();
+}
+
+/** The quick "New folder..." of the + button: asks for a name, makes the folder in the open folder and steps into it, so the next one can be made in it. */
+async function newFolderHere() {
+  const parent = folder;
+  const input = el('input', { value: '', placeholder: 'folder-name', 'aria-label': 'New folder name' });
+  try {
+    if (!await ask('New project folder', `Create a folder in ${parent || 'the project root'}.`, [{ label: 'Create', value: true, primary: true }, { label: 'Cancel', value: false }], [input])) return;
+    const name = input.value.trim().replace(/^\/+|\/+$/g, '');
+    if (!name) { toast('Type a name for the folder.'); return; }
+    const path = parent ? `${parent}/${name}` : name;
+    await api.createProjectFolder(path);
+    await enterFolder(path);
+    toast(`Created ${path}`);
+  } catch (error) { toast(error.message); }
+}
+
+/** Opens a folder in the panel: the list shows it, the tree opens down to it, and nothing stays selected from the folder before. */
+export async function enterFolder(path) {
+  folder = path; selected = ''; selectedPaths = new Set(); anchor = ''; saveState();
+  await refreshProjectPanel();
 }
 
 export async function revealInProject(path) {
@@ -747,7 +792,19 @@ export function initProjectPanel() {
     catch (error) { toast(error.message); }
   };
   uploadFiles.onchange = async () => { await uploadSelectedFiles(uploadFiles.files || []); uploadFiles.value = ''; };
-  const actions = el('button', { type: 'button', textContent: '+', title: 'Upload files or create a folder', 'aria-label': 'Project actions', onclick: (event) => addMenuItems(folder).then((add) => showMenu(event.clientX, event.clientY, [add, '-', { label: 'Upload files...', fn: () => uploadFiles.click() }, { label: 'New folder...', fn: async () => { const input = el('input', { value: '', placeholder: 'folder-name', 'aria-label': 'New folder name' }); if (await ask('New project folder', `Create a folder in ${folder || 'the project root'}.`, [{ label: 'Create', value: true, primary: true }, { label: 'Cancel', value: false }], [input])) { await api.createProjectFolder(folder ? `${folder}/${input.value.trim()}` : input.value.trim()); await refreshProjectPanel(); } } }])) });
+  const openActions = (event) => {
+    // the click must not reach the window: its listener closes menus, and once the kinds are cached the menu is open before the click gets there,
+    // so it was closed again at once (the + button opened its menu the first time only)
+    event.stopPropagation();
+    const { clientX, clientY } = event;
+    return addMenuItems(folder).then((add) => showMenu(clientX, clientY, [
+      add,
+      '-',
+      { label: 'Upload files...', fn: () => uploadFiles.click() },
+      { label: 'New folder...', fn: newFolderHere },
+    ]));
+  };
+  const actions = el('button', { type: 'button', textContent: '+', title: 'Upload files or create a folder', 'aria-label': 'Project actions', onclick: openActions });
   const crumb = el('span', { className: 'project-breadcrumb', title: 'Drop an item here to move it out of this folder' });
   fillBreadcrumb(crumb);
   const toolbar = el('div', { className: 'project-panel-toolbar' }, [crumb, search, filterRow, details, zoom, actions, uploadFiles, uploadProgress]);

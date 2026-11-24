@@ -300,15 +300,54 @@ test('Add > Folder from the + menu and from the right-click menu of a folder cre
   await newName(page).fill('from-plus');
   await newCreate(page).click();
   await expect.poll(async () => JSON.stringify(await api('/api/project/tree?depth=0'))).toContain('"path":"from-plus"');
-  // the new folder is shown in the project files; its tile gets the right-click menu
-  const tile = page.locator('.project-tile[data-path="from-plus"]');
-  await expect(tile).toBeAttached();
-  await tile.evaluate((node) => { const r = node.getBoundingClientRect(); node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 })); });
+  // the panel steps into the new folder at once (it stays open): the path at the top ends in it and the tree is open down to it
+  await expect(page.locator('.project-breadcrumb .crumb-part.current')).toHaveText('from-plus');
+  const treeRow = page.locator('.project-panel-tree [role=treeitem][data-path="from-plus"]');
+  await expect(treeRow).toHaveAttribute('aria-selected', 'true');
+  // so the next folder is made inside it without opening anything first
+  await page.getByRole('button', { name: 'Project actions' }).click();
   await menuItem(page, 'Add').click();
   await menuItem(page, /^Folder$/).click();
   await newName(page).fill('inner');
   await newCreate(page).click();
   await expect.poll(async () => JSON.stringify(await api('/api/project/tree?path=from-plus&depth=0'))).toContain('from-plus/inner');
+  await expect(page.locator('.project-breadcrumb .crumb-part.current')).toHaveText('inner');
+  // the folder it was made in stays open in the tree, with the new folder under it
+  await expect(page.locator('.project-panel-tree [role=treeitem][data-path="from-plus"]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.project-panel-tree [role=treeitem][data-path="from-plus/inner"]')).toHaveAttribute('aria-selected', 'true');
+  // the right-click menu of a folder tile in the list still adds into that folder
+  await page.locator('.project-breadcrumb .crumb-part', { hasText: 'from-plus' }).click();
+  const tile = page.locator('.project-tile[data-path="from-plus/inner"]');
+  await expect(tile).toBeAttached();
+  await tile.evaluate((node) => {
+    const r = node.getBoundingClientRect();
+    node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 }));
+  });
+  await menuItem(page, 'Add').click();
+  await menuItem(page, /^Folder$/).click();
+  await newName(page).fill('deeper');
+  await newCreate(page).click();
+  await expect.poll(async () => JSON.stringify(await api('/api/project/tree?path=from-plus/inner&depth=0'))).toContain('from-plus/inner/deeper');
+});
+
+test('the folder tree keeps the keyboard focus when a row is folded or unfolded, and the quick New folder reports a name that is taken', async ({ page }) => {
+  await api('/api/project/folder', { method: 'POST', body: { path: 'keys' } });
+  await api('/api/project/folder', { method: 'POST', body: { path: 'keys/sub' } });
+  await openPanel(page);
+  await page.getByRole('button', { name: 'Project actions' }).click();
+  await page.locator('#menu div', { hasText: /^New folder/ }).click();
+  await dialogInput(page).fill('keys');
+  await dialogInput(page).press('Enter');
+  // the error is shown to the person and the panel stays as it was (it used to fail without a word)
+  await expect(page.locator('#toast')).not.toBeEmpty();
+  const row = page.locator('.project-panel-tree [role=treeitem][data-path="keys"]');
+  await row.focus();
+  await row.press('ArrowRight');
+  await expect(page.locator('.project-panel-tree [role=treeitem][data-path="keys"]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.project-panel-tree [role=treeitem][data-path="keys"]')).toBeFocused();
+  await page.locator('.project-panel-tree [role=treeitem][data-path="keys"]').press('ArrowLeft');
+  await expect(page.locator('.project-panel-tree [role=treeitem][data-path="keys"]')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.project-panel-tree [role=treeitem][data-path="keys"]')).toBeFocused();
 });
 
 test('Enter in the name field of a dialog presses its main button', async ({ page }) => {
