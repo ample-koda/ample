@@ -71,6 +71,7 @@ public static partial class AutotuneFixes
 
         int pc = char.ToUpperInvariant(m.Groups[1].Value[0]) switch { 'C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, _ => 11 };
         pc += m.Groups[2].Value switch { "#" => 1, "b" => -1, _ => 0 };
+        // security-ok: the regex allows one octave digit, so the number always fits
         int note = ((int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) + 1) * 12) + pc;
         return note is >= 0 and <= 127 ? note : null;
     }

@@ -23,7 +23,15 @@ public static class MidiModuleExporter
         if (definition.Problems.Count > 0) throw new AmpleException("AMP5504", "The MIDI module declaration is invalid.");
         // the bar of the module is the meter it was imported with (meter=3/4 in the retained source facts; 4/4 without it): the notes are checked and placed in bars of that length
         System.Text.RegularExpressions.Match meterFact = System.Text.RegularExpressions.Regex.Match(text.Replace("\r\n", "\n", StringComparison.Ordinal), @"^# midi-source [^\n]*? meter=(\d+)/(\d+)", System.Text.RegularExpressions.RegexOptions.Multiline);
-        int meterNumerator = meterFact.Success ? int.Parse(meterFact.Groups[1].Value, CultureInfo.InvariantCulture) : 4, meterDenominator = meterFact.Success ? int.Parse(meterFact.Groups[2].Value, CultureInfo.InvariantCulture) : 4;
+        // a meter of more digits than an int holds is no meter: the default 4/4 is used (the retained source facts come from a file of the project)
+        int meterNumerator = 4, meterDenominator = 4;
+        if (meterFact.Success
+            && int.TryParse(meterFact.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int factNumerator)
+            && int.TryParse(meterFact.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int factDenominator))
+        {
+            (meterNumerator, meterDenominator) = (factNumerator, factDenominator);
+        }
+
         if (meterNumerator is < 1 or > 16 || meterDenominator is not (2 or 4 or 8 or 16)) (meterNumerator, meterDenominator) = (4, 4);
         AmpleDocument document = Parser.Parse("composition \"midi-export\" { ample 1  tempo 100  meter " + meterNumerator.ToString(CultureInfo.InvariantCulture) + "/" + meterDenominator.ToString(CultureInfo.InvariantCulture) + "  master-seed 1 }\n" + definition.Body, spec);
         if (document.Diagnostics.Any(d => d.Severity == Severity.Error)) throw new AmpleException("AMP5504", "The MIDI module contains language errors.");

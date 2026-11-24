@@ -584,10 +584,18 @@ public static partial class Parser
                     int meterNumerator = 4, meterDenominator = 4;
                     if (mm.Groups["mn"].Success)
                     {
-                        int n = int.Parse(mm.Groups["mn"].Value, CultureInfo.InvariantCulture), d = int.Parse(mm.Groups["md"].Value, CultureInfo.InvariantCulture);
+                        // a number of more than ten digits does not fit an int: it is "not allowed" like any other wrong number (it used to end the parse with an OverflowException)
+                        int n = int.TryParse(mm.Groups["mn"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int tn) ? tn : int.MaxValue;
+                        int d = int.TryParse(mm.Groups["md"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int td) ? td : int.MaxValue;
                         if (n is < 1 or > 16 || d is not (2 or 4 or 8 or 16))
                         {
-                            Add(i, "AMP1120", Severity.Error, $"The meter {n}/{d} is not allowed: the top number is 1 to 16 and the bottom number is 2, 4, 8 or 16.", new Opts { Needle = mm.Groups["mn"].Value + "/" + mm.Groups["md"].Value, Hint = "Write for example meter 3/4, 6/8 or 5/4. Without a meter a song is in 4/4." });
+                            string meterText = mm.Groups["mn"].Value + "/" + mm.Groups["md"].Value;
+                            Add(
+                                i,
+                                "AMP1120",
+                                Severity.Error,
+                                $"The meter {meterText} is not allowed: the top number is 1 to 16 and the bottom number is 2, 4, 8 or 16.",
+                                new Opts { Needle = meterText, Hint = "Write for example meter 3/4, 6/8 or 5/4. Without a meter a song is in 4/4." });
                         }
                         else
                         {
@@ -657,7 +665,13 @@ public static partial class Parser
 
                 if ((mm = LayoutPattern().Match(line)).Success)
                 {
-                    layout[Unquote(mm.Groups[1].Value)] = (int.Parse(mm.Groups[2].Value, CultureInfo.InvariantCulture), int.Parse(mm.Groups[3].Value, CultureInfo.InvariantCulture));
+                    // a position that does not fit an int is left out: the block gets its automatic place (it used to end the parse with an OverflowException)
+                    if (int.TryParse(mm.Groups[2].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int layoutX)
+                        && int.TryParse(mm.Groups[3].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int layoutY))
+                    {
+                        layout[Unquote(mm.Groups[1].Value)] = (layoutX, layoutY);
+                    }
+
                     continue;
                 }
 

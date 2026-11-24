@@ -206,7 +206,12 @@ public sealed partial class ControlExpression
         {
             int start = Position;
             while (Position < text.Length && char.IsDigit(text[Position])) Position++;
-            long whole = long.Parse(text.AsSpan(start, Position - start), NumberStyles.None, CultureInfo.InvariantCulture);
+            // more digits than a long holds is an error of the expression like any other (an OverflowException is not caught by TryParse)
+            if (Position - start > 12 || !long.TryParse(text.AsSpan(start, Position - start), NumberStyles.None, CultureInfo.InvariantCulture, out long whole))
+            {
+                throw new FormatException("a number in the expression is too large");
+            }
+
             long fraction = 0;
             if (Position + 1 < text.Length && text[Position] == '.' && char.IsDigit(text[Position + 1]))
             {

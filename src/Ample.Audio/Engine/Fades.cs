@@ -94,7 +94,9 @@ public static partial class Fades
     {
         Match m = PositionPattern().Match(text);
         if (!m.Success) throw Bad(whole);
+        // security-ok: the regex allows at most six digits, so the number always fits
         long micro = long.Parse(m.Groups["whole"].Value, NumberStyles.None, CultureInfo.InvariantCulture) * 1_000_000;
+        // security-ok: the regex allows at most six digits, so the number always fits
         if (m.Groups["frac"].Success) micro += long.Parse(m.Groups["frac"].Value.PadRight(6, '0'), NumberStyles.None, CultureInfo.InvariantCulture);
         return new FadePosition(micro, m.Groups["s"].Success);
     }

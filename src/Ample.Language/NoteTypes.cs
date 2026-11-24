@@ -130,6 +130,7 @@ public static partial class NotePipeline
         pitch = 0;
         System.Text.RegularExpressions.Match m = NoteNamePattern.Match(text);
         if (!m.Success || !NoteTheory.TryRoot(m.Groups[1].Value + m.Groups[2].Value, out int pc)) return false;
+        // security-ok: the regex allows one octave digit, so the number always fits
         int value = (12 * (int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) + 1)) + pc;
         pitch = value;
         return value is >= 0 and <= 127;

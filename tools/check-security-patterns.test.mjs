@@ -44,6 +44,15 @@ test('an ffmpeg input that may name a network address is caught, a local-only or
   assert.ok(!hit(id, '["-hide_banner", "-f", "wav", "-i", "pipe:0", "-vn"]'));
 });
 
+test('a number of a song read with Parse is caught, TryParse and a parse of a short text are not', () => {
+  const id = 'parse-of-song-number-throws';
+  assert.ok(hit(id, 'int n = int.Parse(mm.Groups["mn"].Value, CultureInfo.InvariantCulture);'));
+  assert.ok(hit(id, 'long whole = long.Parse(m.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture);'));
+  assert.ok(hit(id, 'long whole = long.Parse(text.AsSpan(start, Position - start), NumberStyles.None, CultureInfo.InvariantCulture);'));
+  assert.ok(!hit(id, 'int n = int.TryParse(mm.Groups["mn"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int tn) ? tn : 0;'));
+  assert.ok(!hit(id, 'int times = int.Parse(parts[1], CultureInfo.InvariantCulture);'));
+});
+
 test('xml read without a limit on entities is caught, an xml reader with settings is not', () => {
   assert.ok(hit('xml-with-entities', 'XDocument doc = XDocument.Parse(xml);'));
   assert.ok(hit('xml-with-entities', 'XmlDocument document = new XmlDocument();'));

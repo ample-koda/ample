@@ -76,6 +76,13 @@ export const RULES = [
     use: 'XmlReader.Create(reader, new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null }) and XDocument.Load(xmlReader)',
   },
   {
+    id: 'parse-of-song-number-throws',
+    // int.Parse and long.Parse throw an OverflowException on twenty digits, and the parsers catch only FormatException: one word in a song ended the parse
+    pattern: /\b(?:int|long|uint|short|byte)\.Parse\(\s*(?:\w+\.)?(?:\w+\.)?Groups\[|\blong\.Parse\(\s*text\.AsSpan/,
+    only: /(^|\/)src\/Ample\.(Language|Engine|Audio|Server|Storage)\//,
+    use: 'int.TryParse(..., out value) and a diagnostic or a bad note when it fails; or a regex that limits the digits ({1,9}) with a security-ok reason',
+  },
+  {
     id: 'ffmpeg-input-without-protocol-whitelist',
     // ffmpeg opens playlists and scripts named inside a file it was given (http, tcp, concat): an input that is not a pipe is limited to local files
     pattern: /^(?!.*protocol_whitelist).*"-i",\s+(?!"pipe:0")/,
