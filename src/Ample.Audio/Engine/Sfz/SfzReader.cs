@@ -437,16 +437,26 @@ public static class SfzReader
     private static byte[] ReadUnder(string rootDir, string boundary, string relativeToRoot, Dictionary<string, string> usedFiles)
     {
         string normalized = relativeToRoot.Replace('\\', '/');
-        string full = Path.GetFullPath(Path.Combine(rootDir, normalized.Replace('/', Path.DirectorySeparatorChar)));
+        string full;
+        try
+        {
+            full = Path.GetFullPath(Path.Combine(rootDir, normalized.Replace('/', Path.DirectorySeparatorChar)));
+        }
+        catch (Exception ex) when (ex is ArgumentException or PathTooLongException or NotSupportedException)
+        {
+            // a name of thousands of characters or with characters no file name has: an error of the SFZ file, not an exception that ends the build
+            throw new AmpleException("AMP5395", $"'{Shown(relativeToRoot)}' is not a usable file name.");
+        }
+
         string boundaryWithSep = boundary.EndsWith(Path.DirectorySeparatorChar) ? boundary : boundary + Path.DirectorySeparatorChar;
         if (!full.StartsWith(boundaryWithSep, StringComparison.OrdinalIgnoreCase))
         {
-            throw new AmpleException("AMP5395", $"'{relativeToRoot}' is outside the allowed folder; this is not allowed.");
+            throw new AmpleException("AMP5395", $"'{Shown(relativeToRoot)}' is outside the allowed folder; this is not allowed.");
         }
 
         if (!File.Exists(full))
         {
-            throw new AmpleException("AMP5395", $"'{relativeToRoot}' (referenced from the SFZ file) does not exist.");
+            throw new AmpleException("AMP5395", $"'{Shown(relativeToRoot)}' (referenced from the SFZ file) does not exist.");
         }
 
         byte[] bytes = File.ReadAllBytes(full);
@@ -455,6 +465,13 @@ public static class SfzReader
     }
 
     private static string AsText(byte[] bytes) => System.Text.Encoding.UTF8.GetString(bytes);
+
+    /// <summary>A name from the file in a message: at most 80 characters, and no control characters (the name can be as long as the file).</summary>
+    private static string Shown(string name)
+    {
+        string clean = new([.. name.Select(c => char.IsControl(c) ? '?' : c)]);
+        return clean.Length <= 80 ? clean : clean[..80] + "...";
+    }
 
     private static void AddUsed(Dictionary<string, string> usedFiles, string rootDir, string fullPath, byte[]? bytes = null)
     {

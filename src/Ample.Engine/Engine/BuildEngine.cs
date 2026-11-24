@@ -703,6 +703,7 @@ public sealed class BuildEngine(Takebank bank, SpecData spec, Guid projectId, st
         bool arranged = BlockTiming.IsArranged(owner, doc, []);
         int first = arranged ? range.FirstBar : 1;
         int count = arranged ? range.Bars : localBars;
+        RenderLimits.Check(spb, count);
         HashSet<int> active = [.. block.Parts.Count == 0 ? Enumerable.Range(1, count) : block.Parts.SelectMany(p => Enumerable.Range(p.At, p.Length))];
         ulong master = (ulong)(doc.Project?.MasterSeed ?? 0);
         Parameter? typed = block.Parameters.FirstOrDefault(p => p.Name == "seed" && ulong.TryParse(p.Value, NumberStyles.None, CultureInfo.InvariantCulture, out _));

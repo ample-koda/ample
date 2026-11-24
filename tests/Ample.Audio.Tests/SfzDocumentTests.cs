@@ -93,4 +93,64 @@ public sealed class SfzDocumentTests
         var regions = Parse("#include \"dir/a.sfz\"", includes);
         Assert.Single(regions);
     }
+
+    // security finding 46: a small file made the expansion double with every #define (29 defines ran out of memory) or with every #include level (17 levels took 22 s)
+
+    [Fact]
+    public void Defines_that_double_the_text_are_refused_quickly_and_not_expanded_until_memory_runs_out()
+    {
+        System.Text.StringBuilder text = new();
+        for (int i = 0; i < 29; i++)
+        {
+            text.Append(System.Globalization.CultureInfo.InvariantCulture, $"#define $a{i:00} $a{i + 1:00}$a{i + 1:00}\n");
+        }
+
+        text.Append("#define $a29 xxxxxxxx\n<region> sample=$a00\n");
+        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        AmpleException refused = Assert.Throws<AmpleException>(() => Parse(text.ToString()));
+        Assert.Equal("AMP5395", refused.DiagnosticCode);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"took {clock.Elapsed.TotalSeconds:0.0} s");
+    }
+
+    [Fact]
+    public void An_include_that_includes_the_next_file_twice_is_refused_by_the_total_and_not_by_the_depth()
+    {
+        Dictionary<string, string> includes = [];
+        for (int i = 0; i < 30; i++)
+        {
+            includes[$"i{i}.sfz"] = $"#include \"i{i + 1}.sfz\"\n#include \"i{i + 1}.sfz\"\n";
+        }
+
+        includes["i30.sfz"] = "<region> sample=a.wav\n";
+        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        AmpleException refused = Assert.Throws<AmpleException>(() => Parse("#include \"i0.sfz\"", includes));
+        Assert.Equal("AMP5395", refused.DiagnosticCode);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"took {clock.Elapsed.TotalSeconds:0.0} s");
+    }
+
+    [Fact]
+    public void More_defines_than_the_limit_are_refused()
+    {
+        System.Text.StringBuilder text = new();
+        for (int i = 0; i <= SfzDocument.MaxDefines; i++)
+        {
+            text.Append(System.Globalization.CultureInfo.InvariantCulture, $"#define $d{i} {i}\n");
+        }
+
+        Assert.Equal("AMP5395", Assert.Throws<AmpleException>(() => Parse(text.ToString())).DiagnosticCode);
+    }
+
+    [Fact]
+    public void An_include_chain_and_a_few_defines_below_the_limits_still_work()
+    {
+        Dictionary<string, string> includes = [];
+        for (int i = 0; i < 20; i++)
+        {
+            includes[$"c{i}.sfz"] = $"#include \"c{i + 1}.sfz\"\n";
+        }
+
+        includes["c20.sfz"] = "<region> sample=$name.wav\n";
+        var regions = Parse("#define $name kick\n#include \"c0.sfz\"", includes);
+        Assert.Equal("kick.wav", Assert.Single(regions).Opcodes["sample"]);
+    }
 }
