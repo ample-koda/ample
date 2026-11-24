@@ -213,6 +213,7 @@ public sealed class MainInstance
     public async Task<string?> RestartOtherAsync(InstanceRecord instance, CancellationToken cancellationToken)
     {
         if (instance.Relaunch is null) return "This instance did not tell the hub how to start it again.";
+        if (!LaunchPolicy.IsRelaunchRecipe(instance.Relaunch.Exe, instance.Relaunch.Args)) return "The start recipe of this instance is not the one AMPLE writes, so the hub does not run it.";
         string? problem = await InstanceControl.StopAsync(Registry, instance, Http, TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
         if (problem is not null) return problem;
         InstanceControl.Launch(instance.Relaunch);
