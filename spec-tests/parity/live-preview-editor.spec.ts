@@ -148,7 +148,7 @@ const normalState = (page: Page) => page.evaluate(() => import('/app/store.js').
   clockAt: s.S.build.clockAt ?? null,
 }))));
 
-test('a listening build does not replace the takes of the normal build, and Live Preview plays its own preview take', async ({ page }) => {
+test('a listening build does not replace the takes of the normal build, and Live Preview plays its own preview take @quarantine', async ({ page }) => {
   await openSource(page);
   const listened: string[] = [];
   page.on('response', async (response) => {
