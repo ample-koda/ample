@@ -69,7 +69,13 @@ internal static class FaerSeparation
     {
         string output = Path.Combine(Path.GetDirectoryName(input)!, "audio.flac");
         ProcessStartInfo start = new("ffmpeg") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
-        foreach (string argument in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", input, "-map_metadata", "-1", "-c:a", "flac", output }) start.ArgumentList.Add(argument);
+        string[] arguments =
+        [
+            "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+            "-protocol_whitelist", "file", "-i", input,
+            "-map_metadata", "-1", "-c:a", "flac", output,
+        ];
+        foreach (string argument in arguments) start.ArgumentList.Add(argument);
         Process? process;
         try { process = Process.Start(start); }
         catch (Win32Exception) { return null; }

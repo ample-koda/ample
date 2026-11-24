@@ -76,7 +76,7 @@ internal sealed partial class AiAttachments(string folder)
         [
             ("pdftoppm", ["-r", res, "-png", "-f", "1", "-l", last, pdf, prefix]),
             ("mutool", ["draw", "-r", res, "-o", prefix + "-%d.png", pdf, "1-" + last]),
-            ("gs", ["-q", "-dNOPAUSE", "-dBATCH", "-sDEVICE=png16m", "-r" + res, "-dFirstPage=1", "-dLastPage=" + last, "-sOutputFile=" + prefix + "-%d.png", pdf]),
+            ("gs", ["-q", "-dSAFER", "-dNOPAUSE", "-dBATCH", "-sDEVICE=png16m", "-r" + res, "-dFirstPage=1", "-dLastPage=" + last, "-sOutputFile=" + prefix + "-%d.png", pdf]),
         ];
         foreach ((string exe, string[] args) in tries)
         {

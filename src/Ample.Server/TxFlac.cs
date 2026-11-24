@@ -142,10 +142,20 @@ internal static class TxFlac
     public static Task EnsureAvailableAsync(CancellationToken ct) => RunAsync(["-hide_banner", "-version"], ct);
 
     /// <summary>Encodes a WAV to FLAC.</summary>
-    public static Task EncodeAsync(string wav, string flac, CancellationToken ct) => RunAsync(["-v", "error", "-y", "-i", wav, "-map_metadata", "-1", "-fflags", "+bitexact", "-c:a", "flac", "-compression_level", "8", flac], ct);
+    public static Task EncodeAsync(string wav, string flac, CancellationToken ct) => RunAsync(
+        [
+            "-v", "error", "-y",
+            "-protocol_whitelist", "file", "-i", wav,
+            "-map_metadata", "-1", "-fflags", "+bitexact", "-c:a", "flac", "-compression_level", "8", flac,
+        ], ct);
 
     /// <summary>Decodes a FLAC back to a WAV with the bit depth of the original.</summary>
-    public static Task DecodeAsync(string flac, string wav, int bits, CancellationToken ct) => RunAsync(["-v", "error", "-y", "-i", flac, "-map_metadata", "-1", "-fflags", "+bitexact", "-c:a", bits == 24 ? "pcm_s24le" : "pcm_s16le", "-f", "wav", wav], ct);
+    public static Task DecodeAsync(string flac, string wav, int bits, CancellationToken ct) => RunAsync(
+        [
+            "-v", "error", "-y",
+            "-protocol_whitelist", "file", "-i", flac,
+            "-map_metadata", "-1", "-fflags", "+bitexact", "-c:a", bits == 24 ? "pcm_s24le" : "pcm_s16le", "-f", "wav", wav,
+        ], ct);
 
     /// <summary>The bit depth of a WAV.</summary>
     public static int BitsOf(string wav) => Format(wav).Bits;
