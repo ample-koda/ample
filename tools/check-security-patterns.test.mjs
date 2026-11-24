@@ -53,6 +53,14 @@ test('a number of a song read with Parse is caught, TryParse and a parse of a sh
   assert.ok(!hit(id, 'int times = int.Parse(parts[1], CultureInfo.InvariantCulture);'));
 });
 
+test('a folder test by the start of a full path is caught, IsInside is not', () => {
+  const id = 'containment-by-startswith-of-fullpath';
+  assert.ok(hit(id, 'return full.StartsWith(Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase) && File.Exists(full);'));
+  assert.ok(hit(id, 'if (full.StartsWith(Path.GetFullPath(folder), StringComparison.Ordinal))'));
+  assert.ok(!hit(id, 'if (ProjectPath.IsInside(Path.GetFullPath(folder), full) && File.Exists(full))'));
+  assert.ok(!hit(id, 'return name.StartsWith("ample-", StringComparison.Ordinal);'));
+});
+
 test('xml read without a limit on entities is caught, an xml reader with settings is not', () => {
   assert.ok(hit('xml-with-entities', 'XDocument doc = XDocument.Parse(xml);'));
   assert.ok(hit('xml-with-entities', 'XmlDocument document = new XmlDocument();'));

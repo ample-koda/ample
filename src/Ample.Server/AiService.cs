@@ -2882,7 +2882,7 @@ Answer in English, whatever language the question is in, unless the user asks fo
                     foreach (string folder in new[] { root, s.Root })
                     {
                         string full = Path.GetFullPath(Path.Combine(folder, seqFile));
-                        if (full.StartsWith(Path.GetFullPath(folder), StringComparison.Ordinal) && File.Exists(full))
+                        if (Ample.Audio.IO.ProjectPath.IsInside(Path.GetFullPath(folder), full) && File.Exists(full))   // whole folder names: "<folder>-x" is not inside "<folder>"
                         {
                             SequenceFile.Parse(File.ReadAllText(full)).ParseLanes(lanesText);
                             break;

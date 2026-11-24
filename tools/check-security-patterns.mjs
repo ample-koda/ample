@@ -76,6 +76,13 @@ export const RULES = [
     use: 'XmlReader.Create(reader, new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null }) and XDocument.Load(xmlReader)',
   },
   {
+    id: 'containment-by-startswith-of-fullpath',
+    // "<root>-x" starts with "<root>" and a link inside the folder leads out: a path is inside a folder by ProjectPath.IsInside or ProjectPath.Resolve(fs, root, path)
+    pattern: /\.StartsWith\(\s*(?:Path\.)?GetFullPath\(/,
+    only: /(^|\/)src\//,
+    use: 'ProjectPath.Resolve(fs, root, path) (it also looks for links) or ProjectPath.IsInside(rootFull, fullPath) (it compares whole folder names)',
+  },
+  {
     id: 'parse-of-song-number-throws',
     // int.Parse and long.Parse throw an OverflowException on twenty digits, and the parsers catch only FormatException: one word in a song ended the parse
     pattern: /\b(?:int|long|uint|short|byte)\.Parse\(\s*(?:\w+\.)?(?:\w+\.)?Groups\[|\blong\.Parse\(\s*text\.AsSpan/,

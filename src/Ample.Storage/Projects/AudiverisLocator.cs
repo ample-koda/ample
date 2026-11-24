@@ -29,7 +29,7 @@ public static class AudiverisLocator
             if (json.RootElement.TryGetProperty("exe", out JsonElement exe) && exe.ValueKind == JsonValueKind.String && exe.GetString() is { Length: > 0 } relative)
             {
                 string full = Path.GetFullPath(Path.Combine(folder, relative));
-                return full.StartsWith(Path.GetFullPath(folder), StringComparison.Ordinal) && File.Exists(full) ? full : null;
+                return Ample.Audio.IO.ProjectPath.IsInside(Path.GetFullPath(folder), full) && File.Exists(full) ? full : null;   // whole folder names, not the start of the text
             }
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or ArgumentException)

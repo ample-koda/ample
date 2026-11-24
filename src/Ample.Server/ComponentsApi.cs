@@ -122,7 +122,20 @@ internal static class ComponentsApi
         return new { items = Queries.CompletionAt(doc, spec, line + 1, character + 1).Select(c => new { label = c.Label, detail = c.Detail, kind = c.Kind, insert = c.Insert }) };
     }
 
-    private static Func<string, string?> DiskReader(ProjectSession s) => target => { string full = Path.GetFullPath(Path.Combine(s.Root, target)); return full.StartsWith(Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase) && File.Exists(full) ? File.ReadAllText(full) : null; };
+    private static Func<string, string?> DiskReader(ProjectSession s) => target => SafeFull(s.Fs, s.Root, target) is { } full && File.Exists(full) ? File.ReadAllText(full) : null;
+
+    /// <summary>The full path of a file of the project, or null when the path leaves the project (a link, a sibling folder that starts with the same letters, the private folder).</summary>
+    internal static string? SafeFull(IFileSystem fs, string root, string target)
+    {
+        try
+        {
+            return Ample.Audio.IO.ProjectPath.IsPrivate(target) ? null : Ample.Audio.IO.ProjectPath.Resolve(fs, root, target);
+        }
+        catch (AmpleException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>The problems of the text of a component file while it is typed (nothing is read from or written to disk): the diagnostics of the parser in the shape of the language server (0-based ranges), so the editor shows them like those of a song.</summary>
     public static object CheckText(ProjectSession s, string text) => CheckText(s.Spec, DiskReader(s), text);
@@ -164,8 +177,9 @@ internal static class ComponentsApi
         string? alias = body.TryGetProperty("alias", out JsonElement al) && al.ValueKind == JsonValueKind.String && al.GetString() is { Length: > 0 } given ? given : null;
         bool builtIn = file.StartsWith(BuiltInComponents.Prefix, StringComparison.Ordinal);
         if (builtIn && BuiltInComponents.Read(file) is null) throw new AmpleException("AMP5285", $"\"{file}\" is not a built-in component file.");
-        string full = builtIn ? file : Path.GetFullPath(Path.Combine(s.Root, file));
-        if (!builtIn && (!full.StartsWith(Path.GetFullPath(s.Root), StringComparison.OrdinalIgnoreCase) || !File.Exists(full) || !file.EndsWith(ModuleService.ComponentExtension, StringComparison.OrdinalIgnoreCase)))
+        string? safe = builtIn ? file : SafeFull(s.Fs, s.Root, file);
+        string full = safe ?? string.Empty;
+        if (!builtIn && (safe is null || !File.Exists(full) || !file.EndsWith(ModuleService.ComponentExtension, StringComparison.OrdinalIgnoreCase)))
             throw new AmpleException("AMP5285", $"\"{file}\" is not a component file of this project.");
         DocSession doc = await s.DocAsync(path, ct).ConfigureAwait(false);
         if (!builtIn) file = Path.GetRelativePath(s.Root, full).Replace('\\', '/');   // the path as the project writes it, whatever was sent
