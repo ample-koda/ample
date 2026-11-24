@@ -20,13 +20,14 @@ public static class Archive
     public static BackupManifest Export(string projectRoot, Guid projectId, string projectName, string file, bool includeTakes, IClock clock)
     {
         ArgumentNullException.ThrowIfNull(clock);
+        CheckTarget(file);
         string temp = Path.Combine(Path.GetTempPath(), "ample-export-" + Guid.NewGuid().ToString("N")[..8]);
+        string partial = file + ".part";
         BackupStore staging = new(temp, clock, _ => long.MaxValue);
         try
         {
             BackupReport report = staging.CreatePlain(projectRoot, projectId, projectName, includeTakes, CancellationToken.None);
             BackupManifest manifest = staging.Get(report.Id);
-            string partial = file + ".part";
             using (ZipArchive zip = ZipFile.Open(partial, ZipArchiveMode.Create))
             {
                 ZipArchiveEntry m = zip.CreateEntry("manifest.json", CompressionLevel.Optimal);
@@ -47,6 +48,41 @@ public static class Archive
         finally
         {
             Directory.Delete(temp, true);
+            if (File.Exists(partial))
+            {
+                File.Delete(partial);   // a failed export leaves no half file next to the target
+            }
+        }
+    }
+
+    /// <summary>
+    /// What an export may write: a file called <c>.ample</c> or <c>.zip</c>, and an existing file only when it is an AMPLE archive itself. The route takes the name from a
+    /// request, so without this it replaced any file the server could write (another project's database, a sign-in file) with a zip (security finding 56).
+    /// </summary>
+    /// <exception cref="AmpleException">AMP5308 when the target is not allowed.</exception>
+    internal static void CheckTarget(string file)
+    {
+        string extension = Path.GetExtension(file);
+        if (!string.Equals(extension, ".ample", StringComparison.OrdinalIgnoreCase) && !string.Equals(extension, ".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AmpleException("AMP5308", "An export is written to a file that ends in .ample or .zip.");
+        }
+
+        if (Directory.Exists(file))
+        {
+            throw new AmpleException("AMP5308", "The export target is a folder, not a file.");
+        }
+
+        if (File.Exists(file))
+        {
+            try
+            {
+                _ = ReadManifest(file);
+            }
+            catch (AmpleException)
+            {
+                throw new AmpleException("AMP5308", "The export target exists and is not an AMPLE archive: it is not replaced.");
+            }
         }
     }
 

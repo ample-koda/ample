@@ -6936,6 +6936,7 @@ settings <span class="tk-p">{</span> acestep.backend server <span class="tk-p">}
 <tr><td><a href="#AMP5305"><code>AMP5305</code></a></td><td>error</td><td>Backup before the act failed</td></tr>
 <tr><td><a href="#AMP5306"><code>AMP5306</code></a></td><td>warning</td><td>Invalid SFZ opcode value</td></tr>
 <tr><td><a href="#AMP5307"><code>AMP5307</code></a></td><td>error</td><td>The file changed on disk</td></tr>
+<tr><td><a href="#AMP5308"><code>AMP5308</code></a></td><td>error</td><td>Export target not allowed</td></tr>
 <tr><td><a href="#AMP5310"><code>AMP5310</code></a></td><td>error</td><td>Encrypted data cannot be opened</td></tr>
 <tr><td><a href="#AMP5311"><code>AMP5311</code></a></td><td>error</td><td>Vault or passphrase problem</td></tr>
 <tr><td><a href="#AMP5312"><code>AMP5312</code></a></td><td>error</td><td>Signature check failed</td></tr>
@@ -8191,6 +8192,10 @@ helper up(Notes source<span class="tk-p">,</span> Duration <span class="tk-t">de
 <article class="card" id="AMP5307"><h2><code>AMP5307</code> The file changed on disk</h2>
 <p><span class="badge bad">error</span> <span class="badge">runtime</span> <span class="badge">since 1.0</span></p>
 <p>The file of an open song was changed outside the editor and the working copy changed the same place, so a save would overwrite one of the two. Nothing was saved. Look at the differences (GET /api/doc/disk) and choose per difference: the file&#39;s lines, the working copy&#39;s, both or your own text (POST /api/doc/resolve), then save again.</p>
+</article>
+<article class="card" id="AMP5308"><h2><code>AMP5308</code> Export target not allowed</h2>
+<p><span class="badge bad">error</span> <span class="badge">runtime</span> <span class="badge">since 1.0</span></p>
+<p>An export is written to a new file that ends in .ample or .zip, or it replaces an AMPLE archive. It never replaces another file and never writes into a folder.</p>
 </article>
 <article class="card" id="AMP5310"><h2><code>AMP5310</code> Encrypted data cannot be opened</h2>
 <p><span class="badge bad">error</span> <span class="badge">runtime</span> <span class="badge">since 1.0</span></p>

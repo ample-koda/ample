@@ -217,6 +217,55 @@ public sealed class BackupTests : IDisposable
         Assert.Equal([ids[1]], zero.Remove);
     }
 
+    [Theory]
+    [InlineData("auth.json")]
+    [InlineData("project.db")]
+    [InlineData("tool.dll")]
+    [InlineData("startup.bat")]
+    [InlineData("noextension")]
+    [InlineData("song.ample.txt")]
+    public async Task An_export_is_written_only_to_a_file_called_ample_or_zip(string name)
+    {
+        // security finding 56: the route took any file name from the request and replaced the file with a zip
+        string root = await ProjectWithFilesAsync();
+        (Guid id, string name2) = Identity(root);
+        string file = Path2(name);
+        Assert.Equal("AMP5308", Assert.Throws<AmpleException>(() => Archive.Export(root, id, name2, file, true, clock)).DiagnosticCode);
+        Assert.False(File.Exists(file));
+        Assert.False(File.Exists(file + ".part"));
+    }
+
+    [Fact]
+    public async Task An_export_never_replaces_a_file_that_is_not_an_ample_archive_and_never_writes_into_a_folder()
+    {
+        string root = await ProjectWithFilesAsync();
+        (Guid id, string name) = Identity(root);
+        string precious = Path2("precious.ample");
+        File.WriteAllText(precious, "not an archive: another project's database, say");
+        Assert.Equal("AMP5308", Assert.Throws<AmpleException>(() => Archive.Export(root, id, name, precious, true, clock)).DiagnosticCode);
+        Assert.Equal("not an archive: another project's database, say", File.ReadAllText(precious));
+        Assert.False(File.Exists(precious + ".part"));
+
+        string folder = Path2("folder.ample");
+        Directory.CreateDirectory(folder);
+        Assert.Equal("AMP5308", Assert.Throws<AmpleException>(() => Archive.Export(root, id, name, folder, true, clock)).DiagnosticCode);
+    }
+
+    [Fact]
+    public async Task An_export_replaces_an_earlier_archive_and_the_zip_name_is_allowed_too()
+    {
+        string root = await ProjectWithFilesAsync();
+        (Guid id, string name) = Identity(root);
+        string file = Path2("again.ample");
+        Archive.Export(root, id, name, file, false, clock);
+        BackupManifest second = Archive.Export(root, id, name, file, true, clock);   // an AMPLE archive may be replaced
+        Assert.Equal(second.Entries.Count, Archive.ReadManifest(file).Entries.Count);
+        string zip = Path2("copy.ZIP");
+        Archive.Export(root, id, name, zip, true, clock);
+        Assert.True(File.Exists(zip));
+        Assert.False(File.Exists(file + ".part"));
+    }
+
     [Fact]
     public async Task Export_and_import_round_trip_check_every_hash_and_can_give_a_new_id()
     {
