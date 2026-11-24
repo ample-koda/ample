@@ -18,6 +18,7 @@ public sealed class AmplePackage : AsyncPackage
     /// <summary>Registers the Build current AMPLET commands.</summary>
     protected override async System.Threading.Tasks.Task InitializeAsync(System.Threading.CancellationToken cancellationToken, System.IProgress<ServiceProgressData> progress)
     {
+        AmpleCli.Ask = ProgramTrustPrompt.Ask;
         await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
         if (await GetServiceAsync(typeof(System.ComponentModel.Design.IMenuCommandService)) is OleMenuCommandService commands) AmpleCommands.Register(commands);
     }
