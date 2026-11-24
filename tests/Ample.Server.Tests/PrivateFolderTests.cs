@@ -61,6 +61,12 @@ public sealed class PrivateFolderTests
     [InlineData("a/../.ample/x.json", true)]
     [InlineData("a\\..\\.AMPLE\\x.json", true)]
     [InlineData(".Ample//x.json", true)]
+    [InlineData("AMPLE~1/x.json", true)]
+    [InlineData("a/../ample~12/x.json", true)]
+    [InlineData("AMPLE~", false)]
+    [InlineData("AMPLE~x", false)]
+    [InlineData("AMPLE~1a", false)]
+    [InlineData("songs/AMPLE~1", false)]
     [InlineData("a/.ample/x.json", false)]
     [InlineData(".amplet", false)]
     [InlineData("samples/.ample", false)]
@@ -68,6 +74,12 @@ public sealed class PrivateFolderTests
     [InlineData("", false)]
     public void IsPrivate_looks_at_the_resolved_path_not_at_the_text(string path, bool expected) =>
         Assert.Equal(expected, ProjectPath.IsPrivate(path));
+
+    [Theory]
+    [InlineData("AMPLE~1/auth.json")]
+    [InlineData("songs/ample~2/x")]
+    public void The_short_windows_name_of_the_private_folder_is_not_a_project_path(string path) =>
+        Assert.Equal("AMP5202", Assert.Throws<Ample.Core.Abstractions.AmpleException>(() => ProjectPath.Resolve(Path.GetTempPath(), path)).DiagnosticCode);
 
     private static async Task<string> Try(Func<Task<string>> call)
     {

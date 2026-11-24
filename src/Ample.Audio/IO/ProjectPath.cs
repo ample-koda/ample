@@ -27,8 +27,15 @@ public static class ProjectPath
             segments.Add(part);
         }
 
-        return segments.Count > 0 && segments[0].TrimEnd(' ', '.').Equals(".ample", StringComparison.OrdinalIgnoreCase);
+        return segments.Count > 0 && (segments[0].TrimEnd(' ', '.').Equals(".ample", StringComparison.OrdinalIgnoreCase) || IsShortAliasOfPrivate(segments[0]));
     }
+
+    /// <summary>
+    /// True for <c>AMPLE~1</c>, <c>ample~2</c> and so on: the 8.3 short name Windows gives to <c>.ample</c> (the dot is dropped), which opens the same folder.
+    /// A check of the name <c>.ample</c> alone misses it.
+    /// </summary>
+    public static bool IsShortAliasOfPrivate(string segment) =>
+        segment.StartsWith("AMPLE~", StringComparison.OrdinalIgnoreCase) && segment.Length > 6 && segment.AsSpan(6).IndexOfAnyExceptInRange('0', '9') < 0;
 
     /// <summary>Resolves a relative path inside a root. Never touches the disk.</summary>
     /// <exception cref="AmpleException">AMP5201 (escapes or absolute) or AMP5202 (invalid or reserved name).</exception>
@@ -73,6 +80,11 @@ public static class ProjectPath
             if (segment.EndsWith('.') || segment.EndsWith(' '))
             {
                 throw new AmpleException("AMP5202", $"The path '{Shown(relative)}' has a name that ends with a dot or a space.");
+            }
+
+            if (IsShortAliasOfPrivate(segment))
+            {
+                throw new AmpleException("AMP5202", $"The path '{Shown(relative)}' uses a short Windows name (AMPLE~1) of the private folder.");
             }
 
             string stem = segment.Split('.')[0].ToUpperInvariant();
