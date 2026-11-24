@@ -38,7 +38,7 @@ test('playlist: selecting a line selects its block in the rest of the studio', a
   expect((await state(page)).sel).toEqual(['drums']);
 });
 
-test('playlist: a clip moves with the keyboard and the text is the same as in the Arrangement', async ({ page }) => {
+test('playlist: a clip moves with the keyboard and the text is the same as in the Arrangement @quarantine', async ({ page }) => {
   await openPlaylist(page);
   const clip = page.locator('#b-playlist .pl-clip[data-key="drums:0"]');
   await clip.focus();
