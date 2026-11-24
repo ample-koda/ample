@@ -153,6 +153,11 @@ public static class AmpleServer
                         return;
                     }
 
+                    // no page of the studio is ever shown inside another site (a framed login or studio can be clicked through from under a lookalike page); Lite sets its full policy below
+                    context.Response.Headers["X-Frame-Options"] = "DENY";
+                    context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'";
+                    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+
                     // a link to a shared song (/s/K7QF2M9X) is the same page as Lite: the page reads the id from the address (in every mode, so that the browser tests can reach it)
                     if (System.Text.RegularExpressions.Regex.IsMatch(context.Request.Path.Value ?? string.Empty, "^/(?:mix|m|s)/[0-9A-HJKMNP-TV-Z]{8}/?$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromMilliseconds(200))) context.Request.Path = "/remix/";
 
