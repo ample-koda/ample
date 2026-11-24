@@ -54,6 +54,14 @@ function targetOf(take) {
   return ids.find((id) => onBoard.has(id)) ?? ids[0] ?? null;
 }
 
+let targetMemo = { key: '', value: null };
+/** targetOf, remembered until the build, the song or the module level changes: follow() asks on every frame and it walks the whole graph. */
+function cachedTarget(take) {
+  const key = `${take}|${S.build?.sig ?? ''}|${S.doc?.version ?? ''}|${S.moduleStack.length}`;
+  if (targetMemo.key !== key) targetMemo = { key, value: targetOf(take) };
+  return targetMemo.value;
+}
+
 function loadFirstBar(take) {
   if (firstBars.has(take) || askedFirstBar.has(take)) return;
   askedFirstBar.add(take);
@@ -91,7 +99,7 @@ function follow(st) {
       const target = targetOf(st.take);
       session = target ? { take: st.take, target, sig: S.build.sig, text: S.doc?.text ?? '' } : null;
     }
-    if (!session || targetOf(st.take) !== session.target || S.build.sig !== session.sig) { session = null; return null; }
+    if (!session || cachedTarget(st.take) !== session.target || S.build.sig !== session.sig) { session = null; return null; }
     loadFirstBar(st.take); loadLevels();
     return firstBars.has(st.take) ? session : null;
   }
@@ -129,6 +137,7 @@ function compute(bar, target) {
 function apply(nodes, links, lvl = new Map()) {
   const w = world();
   if (!w) return;
+  scrubRefs.clear();
   const beat = secondsPerBar(S.doc?.project?.tempo) / 4;
   w.style.setProperty('--fx-beat', `${beat.toFixed(4)}s`);
   const phase = `${(-(playerState().time % (beat * 8))).toFixed(3)}s`;   // every motion repeats in 1, 2, 4 or 8 beats, so one phase puts them all in step with the music
@@ -174,14 +183,22 @@ function clear() {
  * has a short take, and its playhead runs through it while those bars play). Written every frame, after the transport has put the heads of the cards that are not playing back to 0.
  */
 /** The playhead through the section timeline of a drums block (shown in its properties): where in its song the block is now; every other timeline has none. */
+let sectionLines = { at: 0, list: [] };
+const sectionTimelines = () => {
+  const now = performance.now();
+  if (now - sectionLines.at > 300) sectionLines = { at: now, list: [...document.querySelectorAll('.sectl[data-block]')] };
+  return sectionLines.list;
+};
 function sectionHeads(bar) {
-  for (const tl of document.querySelectorAll('.sectl[data-block]')) {
+  for (const tl of sectionTimelines()) {
     const id = tl.dataset.block, total = Number(tl.dataset.total) || 0;
     const node = applied.nodes.has(id) ? flat().nodes.find((n) => n.id === id) : null;
     const index = node && total ? localBar(node.parts, bar) : -1;
     tl.setHead?.(index < 0 ? null : ((index % total) + (bar - Math.floor(bar))) / total);
   }
 }
+
+const scrubRefs = new Map();   // block id -> { card, parts }: found once, until the cards are drawn again or the lit set changes
 
 function scrub(bar) {
   sectionHeads(bar);
@@ -190,9 +207,16 @@ function scrub(bar) {
   const tempo = S.doc?.project?.tempo;
   for (const id of applied.nodes) {
     const entry = levels.get(S.build?.takes?.[id]);
-    const card = w.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
-    if (!card || !entry || entry === 'none') continue;
-    const t = takeTime(entry, bar, tempo, entry.firstBar, flat().nodes.find((n) => n.id === id)?.parts);
+    if (!entry || entry === 'none') continue;
+    let ref = scrubRefs.get(id);
+    if (!ref || !ref.card.isConnected) {
+      const found = w.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+      if (!found) continue;
+      ref = { card: found, parts: flat().nodes.find((n) => n.id === id)?.parts };
+      scrubRefs.set(id, ref);
+    }
+    const card = ref.card;
+    const t = takeTime(entry, bar, tempo, entry.firstBar, ref.parts);
     const percent = t < 0 || t >= entry.seconds ? 0 : (t / entry.seconds) * 100;
     const played = card.querySelector('.player .pl-played'), head = card.querySelector('.player .plhead');
     if (played) played.style.width = `${percent.toFixed(2)}%`;
@@ -200,9 +224,14 @@ function scrub(bar) {
   }
 }
 
+let visibleMemo = { at: -1000, value: false };
+/** Whether the block view is on the screen. Reading offsetParent makes the browser lay the page out, and this is asked on every frame: four times a second is enough. */
 function visible() {
+  const now = performance.now();
+  if (now - visibleMemo.at < 250) return visibleMemo.value;
   const w = world();
-  return Boolean(w && w.offsetParent !== null && !document.hidden);
+  visibleMemo = { at: now, value: Boolean(w && w.offsetParent !== null && !document.hidden) };
+  return visibleMemo.value;
 }
 
 function tick(st) {
@@ -240,7 +269,7 @@ export function initPlayLights() {
   onPlayer(tick);
   // the cards and lines are drawn again on every change of the song: put the marks back
   onGraphPainted(() => { if (state.active) apply(state.nodes, state.links, state.lvl); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
+  document.addEventListener('visibilitychange', () => { visibleMemo.at = -1000; if (document.hidden) clear(); });
   // what a test or a curious person can read: the ids that are lit right now
   window.AMPLE_PLAYFX = { get state() { return { active: state.active, bar: state.bar, nodes: [...applied.nodes], links: [...applied.links] }; }, linkKey };
 }
