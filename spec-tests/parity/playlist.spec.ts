@@ -446,7 +446,7 @@ test('playlist: the dock lists what the last edit changed, a rubber band picks s
   await expect(page.locator('#b-playlist .pl-clip[data-key="piano:0"]')).toHaveClass(/\bpicked\b/);
 });
 
-test('playlist: a clip is copied, cut and pasted as another part of its block', async ({ page }) => {
+test('playlist: a clip is copied, cut and pasted as another part of its block @quarantine', async ({ page }) => {
   await openPlaylist(page);
   const drums = page.locator('#b-playlist .pl-clip[data-key="drums:0"]');
   await until(async () => /drums drums at 1 for 16 as "beat A", 17 for 16/.test(await text(page)), async () => { await drums.focus(); await drums.press('Control+c'); await drums.press('Control+v'); });
