@@ -37,7 +37,7 @@ test('a template-declared long field uses the expanded editor and preserves line
   await node(page, 'drums').locator('.nh .t').click();
   await openTab(page, 'parameters');
   const property = page.locator('#props .prop-tabpanel.active .prop').filter({ has: page.locator('label', { hasText: /(^|\s)pattern\s*♪$/ }) });
-  await expect(property.locator('input')).toHaveValue('beat-A');
+  await expect(property.locator('textarea')).toHaveValue('beat-A');   // a multiline parameter is a text area: an input dropped its line breaks
   await property.locator('button', { hasText: '…' }).click();
   await expect(page.locator('#dlg')).toHaveJSProperty('open', true);
   await page.locator('#dlg-extra textarea').fill('kick\nsnare');
