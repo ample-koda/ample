@@ -5406,27 +5406,9 @@ Answer in English, whatever language the question is in, unless the user asks fo
     /// </summary>
     private static void LinkDirectory(string link, string target, StageBudget budget)
     {
-        if (OperatingSystem.IsWindows())
+        if (Junction.TryCreate(link, target))
         {
-            try
-            {
-                ProcessStartInfo info = new("cmd.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-                foreach (string arg in new[] { "/d", "/c", "mklink", "/J", link, target })
-                {
-                    info.ArgumentList.Add(arg);
-                }
-
-                using Process p = Process.Start(info)!;
-                p.WaitForExit(15000);
-                if (p.ExitCode == 0 && Directory.Exists(link))
-                {
-                    return;
-                }
-            }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
-            {
-                // try the next way
-            }
+            return;
         }
 
         try
