@@ -388,7 +388,7 @@ public sealed class TxPackage
 
             if (!line.StartsWith("#entry ", StringComparison.Ordinal))
             {
-                throw new AmpleException("AMP5421", "The package has a line that is not an entry head: " + (line.Length > 40 ? line[..40] : line));
+                throw new AmpleException("AMP5421", "The package has a line that is not an entry head (the text is not shown: a file that is not a package must not echo its content).");
             }
 
             JsonObject o = JsonNode.Parse(line[7..])!.AsObject();
