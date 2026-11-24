@@ -53,6 +53,7 @@ public static partial class ClipControlSyntax
         List<(int Number, string Value)> entries = [];
         foreach (Match m in CcEntry().Matches(text))
         {
+            // security-ok: the regex allows at most three digits, so the number always fits
             int number = int.Parse(m.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture);
             if (number > 127 || !Valid(m.Groups[2].Value, "raw")) return null;
             entries.Add((number, m.Groups[2].Value));

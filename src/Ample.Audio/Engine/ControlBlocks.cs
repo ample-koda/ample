@@ -29,7 +29,8 @@ public static partial class ControlBlocks
     {
         Match m = NumberPattern().Match(text.Trim());
         if (!m.Success) return fallback;
-        long whole = long.Parse(m.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture);
+        // more digits than a long holds (or than any control can use) is no number: the fallback is used (it used to end the build with an OverflowException)
+        if (m.Groups[2].Value.Length > 12 || !long.TryParse(m.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out long whole)) return fallback;
         long fraction = 0;
         if (m.Groups[3].Success)
         {

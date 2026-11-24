@@ -131,6 +131,9 @@ public static partial class NotePipeline
     /// <summary>Micro-beats in one beat.</summary>
     public const long Beat = 1_000_000;
 
+    /// <summary>The largest start or length of a note read from text, in ticks (about 100 million bars): sums of such values still fit a long.</summary>
+    private const long MaxNoteTicks = long.MaxValue / 1024;
+
     [ThreadStatic]
     private static long meterBar;
 
@@ -678,12 +681,26 @@ public static partial class NotePipeline
         {
             Match m = Entry.Match(word);
             if (!m.Success) { issues.Add(new PipeIssue("bad-notes", $"Not a note: {word}", start, end)); continue; }
-            int bar = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            // a number that does not fit (a bar of twenty digits, a length of 10^30 beats) is a bad note, not an exception that ends the parse
+            if (!int.TryParse(m.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int bar)
+                || !int.TryParse(m.Groups[4].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int pitch)
+                || !int.TryParse(m.Groups[5].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int velocity))
+            {
+                issues.Add(new PipeIssue("bad-notes", $"A number is too large: {word}", start, end));
+                continue;
+            }
+
             if (bar < 1) { issues.Add(new PipeIssue("bad-notes", $"Bar must be 1 or more: {word}", start, end)); continue; }
             Rat beat = ParseDecimal(m.Groups[2].Value)!.Value, len = ParseDecimal(m.Groups[3].Value)!.Value;
-            long at = ((bar - 1) * Bar) + (long)RoundHalfEven(beat * Rat.Of(Beat));
-            long length = Math.Max(1, (long)RoundHalfEven(len * Rat.Of(Beat)));
-            events.Add(new PipeNote(at, length, int.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture), int.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture), m.Groups[6].Value, m.Groups[7].Value));
+            BigInteger atTicks = ((bar - 1) * (BigInteger)Bar) + RoundHalfEven(beat * Rat.Of(Beat));
+            BigInteger lengthTicks = BigInteger.Max(1, RoundHalfEven(len * Rat.Of(Beat)));
+            if (atTicks > MaxNoteTicks || lengthTicks > MaxNoteTicks)
+            {
+                issues.Add(new PipeIssue("bad-notes", $"A number is too large: {word}", start, end));
+                continue;
+            }
+
+            events.Add(new PipeNote((long)atTicks, (long)lengthTicks, pitch, velocity, m.Groups[6].Value, m.Groups[7].Value));
         }
 
         return events;
@@ -2059,6 +2076,7 @@ public static partial class NotePipeline
             {
                 long v;
                 Match name = key == "pitch" ? PitchNamePattern().Match(token) : Match.Empty;
+                // security-ok: the regex allows one octave digit, so the number always fits
                 if (name.Success && NoteTheory.TryRoot(char.ToUpperInvariant(name.Groups[1].Value[0]) + name.Groups[1].Value[1..], out int root)) v = (12 * (long.Parse(name.Groups[2].Value, CultureInfo.InvariantCulture) + 1)) + root;
                 else if (!long.TryParse(token, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out v)) { Problem(errors, "bad-argument", $"\"{token}\" is not a value of {key}{(key == "pitch" ? " (a number or a note name like C4 or F#3)" : string.Empty)}", n); return false; }
                 if (v < min || v > max) { Problem(errors, "bad-argument", $"{key} must be from {min} to {max} (found {v})", n); return false; }
