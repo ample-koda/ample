@@ -44,6 +44,18 @@ public sealed class ServerTests : IAsyncLifetime, IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("99999999999999999999")]
+    [InlineData("-1")]
+    [InlineData("12abc")]
+    public async Task A_seed_that_is_not_a_whole_number_that_fits_is_a_400_and_not_a_500(string seed)
+    {
+        // security finding 55: twenty digits was an OverflowException, which the 400 answer did not list, so the person got a 500
+        using HttpResponseMessage response = await http.PostAsJsonAsync("/api/acts/master-seed", new { seed }, CancellationToken.None);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.DoesNotContain("OverflowException", await response.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Api_without_token_is_refused()
     {

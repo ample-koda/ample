@@ -1481,7 +1481,7 @@ public static class Routes
             catch (SmfFormatException ex) { throw new AmpleException("AMP5501", ex.Message); }
             string track = Opt(b, "track") ?? "all";
             if (track != "all" && (!int.TryParse(track, out int trackIndex) || trackIndex < 0 || trackIndex >= parsed.Tracks.Count)) throw new AmpleException("AMP5503", "The MIDI track selector must be 'all' or a valid zero-based track number.");
-            SmfFile selected = track == "all" ? parsed : SelectTrackWithGlobalMeta(parsed, int.Parse(track, System.Globalization.CultureInfo.InvariantCulture));
+            SmfFile selected = track == "all" ? parsed : SelectTrackWithGlobalMeta(parsed, ParseInt(track, System.Globalization.CultureInfo.InvariantCulture));
             MidiModuleConversion result = await MidiModuleConverter.WriteAsync(selected, s.Root, Str(b, "name"), s.Bus, c.RequestAborted);
             int tempo = Math.Clamp((60_000_000 + parsed.TempoMap[0].MicrosecondsPerQuarter / 2) / parsed.TempoMap[0].MicrosecondsPerQuarter, 20, 300);
             return Ok(new { path = "modules/" + result.Name + ".module", result.Name, tempo, ppq = parsed.TicksPerQuarter, warnings = result.Warnings });
@@ -1509,7 +1509,7 @@ public static class Routes
             catch (SmfFormatException ex) { throw new AmpleException("AMP5501", ex.Message); }
             string selectedTrack = c.Request.Query["track"].ToString();
             if (selectedTrack != "all" && (!int.TryParse(selectedTrack, out int trackIndex) || trackIndex < 0 || trackIndex >= parsed.Tracks.Count)) throw new AmpleException("AMP5501", "The selected MIDI track does not exist.");
-            IEnumerable<SmfTrack> selectedTracks = selectedTrack == "all" ? parsed.Tracks : [parsed.Tracks[int.Parse(selectedTrack, System.Globalization.CultureInfo.InvariantCulture)]];
+            IEnumerable<SmfTrack> selectedTracks = selectedTrack == "all" ? parsed.Tracks : [parsed.Tracks[ParseInt(selectedTrack, System.Globalization.CultureInfo.InvariantCulture)]];
             long lastTick = selectedTracks.SelectMany(t => t.Events).Select(e => e.Tick).DefaultIfEmpty(0).Max();
             int bars = checked((int)Math.Max(1, (lastTick + 4L * parsed.TicksPerQuarter - 1) / (4L * parsed.TicksPerQuarter)));
             if (bars > 100_000) throw new AmpleException("AMP5501", "The MIDI file exceeds the supported 100,000-bar song limit.");
@@ -1992,7 +1992,7 @@ public static class Routes
         add("POST", "/api/projects/new", "projects", "Creates a new project folder (it is not opened).", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
-            string folder = Path.GetFullPath(Str(b, "folder"));
+            string folder = ServerPaths.Folder(Str(b, "folder"), "project folder");
             using OpenProject created = await ProjectStore.CreateAsync(s.Fs, s.Clock, new Ample.Audio.IO.GuidV7Generator(), folder, Opt(b, "name") ?? Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar)), null, c.RequestAborted);
             DemoSong.SeedNew(folder, s.AmpleRoot);   // every new project starts with the demo song
             Ample.Storage.Projects.RecentProjects.Touch(s.Library.Home, folder, created.Manifest.Name, created.Manifest.Id.ToString("D"), s.Clock, null);
@@ -2148,7 +2148,7 @@ public static class Routes
         });
         add("POST", "/api/acts/master-seed", "acts", "Dry run of changing the master seed; returns a token and what to type.", false, s is null ? null : async (HttpContext c) =>
         {
-            ChangeMasterSeedAct act = new(ulong.Parse(Str(await Body(c), "seed"), System.Globalization.CultureInfo.InvariantCulture));
+            ChangeMasterSeedAct act = new(ParseUlong(Str(await Body(c), "seed"), System.Globalization.CultureInfo.InvariantCulture));
             return await DryRun(s, c, act.Title, act.Acceptance, act.DryRunAsync, (typed, why) => act.RunAsync(s.Journal, s.Context, "ui", typed, why).AsTask());
         });
         add("POST", "/api/health/recover", "health", "Deals with an interrupted command: restore what it was about to overwrite (from its pre-image), or accept the file as it is.", true, s is null ? null : async (HttpContext c) =>
@@ -2180,7 +2180,9 @@ public static class Routes
         add("POST", "/api/backup/create", "backup", "Makes a backup (into the remembered target, or the target given).", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = Obj(await Body(c));
-            string target = Opt(b, "target") ?? Ample.Storage.Backup.BackupPolicy.Read(s.Root, s.Clock)?.Target ?? throw new AmpleException("AMP5285", "Say where the backups go (target).");
+            string given = Opt(b, "target") ?? Ample.Storage.Backup.BackupPolicy.Read(s.Root, s.Clock)?.Target
+                ?? throw new AmpleException("AMP5285", "Say where the backups go (target).");
+            string target = ServerPaths.Folder(given, "backup target");
             Ample.Storage.Backup.BackupReport r = new Ample.Storage.Backup.BackupStore(target, s.Clock).Create(s.Root, s.Manifest.Id, s.Manifest.Name, !(b.TryGetProperty("includeTakes", out JsonElement t) && t.ValueKind == JsonValueKind.False), c.RequestAborted);
             Ample.Storage.Backup.BackupPolicy.Remember(s.Root, Path.GetFullPath(target), r.Id, s.Clock.UtcNow);
             return Ok(r);
@@ -2194,7 +2196,8 @@ public static class Routes
         add("POST", "/api/backup/policy", "backup", "Chooses the target and whether a backup is made before every dangerous act (takes effect the next time the server starts).", true, s is null ? null : async (HttpContext c) =>
         {
             JsonElement b = await Body(c);
-            Ample.Storage.Backup.BackupPolicy.SetAuto(s.Root, Path.GetFullPath(Str(b, "target")), !(b.TryGetProperty("auto", out JsonElement a) && a.ValueKind == JsonValueKind.False));
+            string policyTarget = ServerPaths.Folder(Str(b, "target"), "backup target");
+            Ample.Storage.Backup.BackupPolicy.SetAuto(s.Root, policyTarget, !(b.TryGetProperty("auto", out JsonElement a) && a.ValueKind == JsonValueKind.False));
             return Ok(Ample.Storage.Backup.BackupPolicy.Read(s.Root, s.Clock)!);
         });
         add("POST", "/api/export", "backup", "Writes the project into an archive file (no secrets, a consistent copy of the database).", true, s is null ? null : async (HttpContext c) =>
@@ -2217,7 +2220,7 @@ public static class Routes
         {
             JsonElement b = await Body(c);
             bool project = (Opt(b, "scope") ?? "global") == "project";
-            string path = Str(b, "path");
+            string path = ServerPaths.Folder(Str(b, "path"), "library folder");
             Ample.Storage.Library.Mount m = s.Library.LinkMount(Opt(b, "name") ?? Path.GetFileName(path.TrimEnd('/', '\\')), path, project ? "project" : "global", project ? s.Manifest.Id.ToString("D") : null, !(b.TryGetProperty("readOnly", out JsonElement ro) && ro.ValueKind == JsonValueKind.False));
             if (project)
             {
@@ -3705,7 +3708,7 @@ public static class Routes
             {
                 case "unlock": await k.UnlockSeedAsync(block, seedName); break;
                 case "lock": await k.LockSeedAsync(block, seedName); break;
-                case "set": await k.SetSeedAsync(block, seedName, ulong.Parse(Str(b, "value"), System.Globalization.CultureInfo.InvariantCulture), Opt(b, "reason") ?? "changed in the UI"); break;
+                case "set": await k.SetSeedAsync(block, seedName, ParseUlong(Str(b, "value"), System.Globalization.CultureInfo.InvariantCulture), Opt(b, "reason") ?? "changed in the UI"); break;
                 case "randomize": await k.RandomizeSeedAsync(block, seedName, Opt(b, "reason") ?? "randomized in the UI"); break;
                 default: throw new AmpleException("AMP5285", "Unknown seed action.");
             }
@@ -3786,7 +3789,8 @@ public static class Routes
             JsonElement b = await Body(c);
             ControlService k = await ControlFor(s, c, Str(b, "path"));
             AmpleDocument doc = s.ParseExpanded(await s.DocAsync(Str(b, "path"), c.RequestAborted));
-            return Ok(new { warning = ControlService.RegenerationWarning, result = await k.RegenerateAsync(doc, Str(b, "block"), b.TryGetProperty("seed", out JsonElement sd) ? ulong.Parse(sd.GetString()!, System.Globalization.CultureInfo.InvariantCulture) : null, c.RequestAborted) });
+            ulong? newSeed = b.TryGetProperty("seed", out JsonElement sd) ? ParseUlong(sd.GetString()!, System.Globalization.CultureInfo.InvariantCulture) : null;
+            return Ok(new { warning = ControlService.RegenerationWarning, result = await k.RegenerateAsync(doc, Str(b, "block"), newSeed, c.RequestAborted) });
         });
         add("POST", "/api/control/verify-reproduction", "control", "Renders with the reference take's seed and current software/settings, compares output bytes and warns on recipe or version changes. Keeps the reference take selected.", true, s is null ? null : async (HttpContext c) =>
         {
@@ -3888,7 +3892,14 @@ public static class Routes
         });
     }
 
-    private static int Pos(HttpContext c, string name) => int.Parse(c.Request.Query[name].ToString(), System.Globalization.CultureInfo.InvariantCulture);
+    // a number in a request that does not fit is a FormatException (a 400 for the person), not an OverflowException (a 500)
+    private static ulong ParseUlong(string text, IFormatProvider provider) =>
+        ulong.TryParse(text, System.Globalization.NumberStyles.None, provider, out ulong value) ? value : throw new FormatException("a number is not a whole number that fits");
+
+    private static int ParseInt(string text, IFormatProvider provider) =>
+        int.TryParse(text, System.Globalization.NumberStyles.None, provider, out int value) ? value : throw new FormatException("a number is not a whole number that fits");
+
+    private static int Pos(HttpContext c, string name) => ParseInt(c.Request.Query[name].ToString(), System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Reads a default ACE model of the project settings: the old one when the request does not mention it, empty to clear it, otherwise a family keyword or a .gguf file name.</summary>
     private static string DefaultModel(JsonElement faer, string name, string blockType, string old)

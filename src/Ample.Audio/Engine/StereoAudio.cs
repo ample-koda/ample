@@ -102,7 +102,13 @@ public static class StereoWav
         {
             int size = BinaryPrimitives.ReadInt32LittleEndian(bytes[(pos + 4)..]);
             if (bytes[pos] == 'd' && bytes[pos + 1] == 'a' && bytes[pos + 2] == 't' && bytes[pos + 3] == 'a') { dataAt = pos; dataLength = Math.Min(size < 0 ? int.MaxValue : size, bytes.Length - pos - 8); break; }
-            pos += 8 + size + (size & 1);
+            long next = (long)pos + 8 + size + (size & 1);   // a chunk size near 2^31 overflowed an int
+            if (size < 0 || next > bytes.Length)
+            {
+                break;
+            }
+
+            pos = (int)next;
         }
 
         int start = dataAt + 8;

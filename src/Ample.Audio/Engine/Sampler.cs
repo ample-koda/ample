@@ -377,11 +377,26 @@ public sealed class SampleSet
                 return BitConverter.ToInt32(b.Slice(body + 4, 4));
             }
 
-            pos = body + size + (size & 1);
+            long next = (long)body + size + (size & 1);   // a chunk size near 2^31 overflowed an int and the next read threw
+            if (size < 0 || next > b.Length)
+            {
+                break;
+            }
+
+            pos = (int)next;
         }
 
         return 0;
     }
+
+    /// <summary>The lowest sample rate of a WAV that is read: a file that says 1 Hz made the resampling ten thousand times longer (n * 65,536 samples).</summary>
+    internal const int MinWavRate = 1000;
+
+    /// <summary>The highest sample rate of a WAV that is read.</summary>
+    internal const int MaxWavRate = 768000;
+
+    /// <summary>The most frames a resampled sample may have (2^26, about 25 minutes at 44.1 kHz).</summary>
+    internal const long MaxResampledFrames = 1L << 26;
 
     /// <summary>Reads 8, 16, 24 or 32-bit PCM or 32-bit float WAV (one or two channels), mixes to mono, converts to 16 bits and resamples (linear, fixed point).</summary>
     public static short[] ReadWav(ReadOnlySpan<byte> b, int targetRate, int channel = 0)
@@ -417,10 +432,16 @@ public sealed class SampleSet
                 break;
             }
 
-            pos = body + size + (size & 1);
+            long next = (long)body + size + (size & 1);   // a chunk size near 2^31 overflowed an int and the next read threw
+            if (size < 0 || next > b.Length)
+            {
+                break;
+            }
+
+            pos = (int)next;
         }
 
-        if (dataAt < 0 || channels is < 1 or > 2 || rate <= 0 || !((code == 1 && bits is 8 or 16 or 24 or 32) || (code == 3 && bits == 32)))
+        if (dataAt < 0 || channels is < 1 or > 2 || rate is < MinWavRate or > MaxWavRate || !((code == 1 && bits is 8 or 16 or 24 or 32) || (code == 3 && bits == 32)))
         {
             throw new InvalidDataException("only PCM (8, 16, 24, 32 bit) or 32-bit float WAV with one or two channels can be played");
         }
@@ -497,6 +518,11 @@ public sealed class SampleSet
         }
 
         long frames = (((long)x.Length - 1) << 16) / stepQ16;
+        if (frames > MaxResampledFrames)
+        {
+            throw new InvalidDataException("the sample would be longer than " + MaxResampledFrames + " frames after the change of its rate");
+        }
+
         short[] y = new short[frames];
         for (long i = 0; i < frames; i++)
         {

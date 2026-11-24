@@ -52,7 +52,8 @@ public static class Wav
             (StereoBuffer stereo, int stereoRate) = StereoWav.Decode(bytes);
             return (stereo.ToMono(), stereoRate);
         }
-        int length = BinaryPrimitives.ReadInt32LittleEndian(bytes[40..]) / 2;
+        // the size in the header can claim more than the file has (up to 2 GB from 44 bytes): only what is there is read, and a short or negative claim reads nothing
+        int length = Math.Max(0, Math.Min(BinaryPrimitives.ReadInt32LittleEndian(bytes[40..]), bytes.Length - 44) / 2);
         short[] samples = new short[length];
         for (int i = 0; i < length; i++)
         {
