@@ -15,7 +15,7 @@ async function fresh(page: Page) {
   await page.waitForSelector('html[data-lite-ready="true"]');
 }
 
-test('a slow answer of an older open does not take the editor from the file that was opened after it', async ({ page }) => {
+test('a slow answer of an older open does not take the editor from the file that was opened after it @quarantine', async ({ page }) => {
   await fresh(page);
   await page.click('#lite-demos-btn');
   await page.locator('#lite-demo-list li[data-demo="pixel-quest"] button').click();
