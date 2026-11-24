@@ -15,6 +15,7 @@ public sealed class AuthService
     private const int MaxFailures = 5;
     private static readonly TimeSpan SessionLife = TimeSpan.FromHours(12);
     private static readonly TimeSpan LockLife = TimeSpan.FromMinutes(1);
+    private const int MaxTrackedClients = 10_000;
 
     private readonly string user;
     private readonly byte[] salt;
@@ -22,6 +23,7 @@ public sealed class AuthService
     private readonly int iterations;
     private readonly ConcurrentDictionary<string, DateTime> sessions = new();
     private readonly ConcurrentDictionary<string, (int Failures, DateTime LockedUntil)> throttle = new();
+    private readonly object gate = new();
 
     private AuthService(string user, byte[] salt, byte[] hash, int iterations)
     {
@@ -76,10 +78,37 @@ public sealed class AuthService
     {
         locked = false;
         DateTime now = DateTime.UtcNow;
-        if (throttle.TryGetValue(client, out (int Failures, DateTime LockedUntil) t) && t.LockedUntil > now)
+        lock (gate)
         {
-            locked = true;
-            return null;
+            // the attempt is counted BEFORE the slow hash is computed: counting after it let a burst of parallel requests all pass the check and
+            // so guess without a limit (the lockout only started once the first answers came back)
+            int attempts = 0;
+            if (throttle.TryGetValue(client, out (int Failures, DateTime LockedUntil) t))
+            {
+                if (t.LockedUntil > now)
+                {
+                    locked = true;
+                    return null;
+                }
+
+                attempts = t.Failures;
+            }
+
+            if (attempts >= MaxFailures)
+            {
+                throttle[client] = (0, now + LockLife);
+                locked = true;
+                return null;
+            }
+
+            throttle[client] = (attempts + 1, DateTime.MinValue);
+            if (throttle.Count > MaxTrackedClients)
+            {
+                foreach (KeyValuePair<string, (int Failures, DateTime LockedUntil)> old in throttle.Where(e => e.Value.LockedUntil < now && e.Key != client).ToArray())
+                {
+                    throttle.TryRemove(old.Key, out _);   // memory stays bounded: only those not locked now are forgotten
+                }
+            }
         }
 
         // the hash is always computed, so a wrong user name takes as long as a wrong password
@@ -87,12 +116,14 @@ public sealed class AuthService
         bool ok = CryptographicOperations.FixedTimeEquals(given, hash) & CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(name.Trim()), Encoding.UTF8.GetBytes(user));
         if (!ok)
         {
-            int failures = (throttle.TryGetValue(client, out (int Failures, DateTime LockedUntil) p) ? p.Failures : 0) + 1;
-            throttle[client] = failures >= MaxFailures ? (0, now + LockLife) : (failures, DateTime.MinValue);
-            return null;
+            return null;   // the attempt was already counted
         }
 
-        throttle.TryRemove(client, out _);
+        lock (gate)
+        {
+            throttle.TryRemove(client, out _);
+        }
+
         foreach (KeyValuePair<string, DateTime> old in sessions.Where(s => s.Value < now).ToArray())
         {
             sessions.TryRemove(old.Key, out _);
