@@ -54,12 +54,13 @@ test('a speech block that is too long is refused on the page with the length it 
 });
 
 test('more speech blocks than Remix allows are refused on the page', async ({ page }) => {
-  await buildWith(page, Array.from({ length: 8 }, (_, i) => `
+  // the demo song has one speech block of its own; Remix allows 16 (MaxSpeechBlocks in LiteLimits, raised from 8 by #978), so 16 more are one too many
+  await buildWith(page, Array.from({ length: 16 }, (_, i) => `
 speech extra${i} {
   text "hello"
 }
 `).join(''));
-  await expect(page.locator('#lite-log')).toContainText('Stopped: A Remix build allows at most 8 speech blocks.', { timeout: 60000 });
+  await expect(page.locator('#lite-log')).toContainText('Stopped: A Remix build allows at most 16 speech blocks.', { timeout: 60000 });
 });
 
 test('Listen in Remix lights the word that sounds in the text of the speech block', async ({ page }) => {
