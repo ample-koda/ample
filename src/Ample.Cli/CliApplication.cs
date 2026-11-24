@@ -12,7 +12,23 @@ public static class CliApplication
     public static int Run(string[] args, TextWriter output)
     {
         RootCommand rootCommand = BuildRootCommand("ample", output);
-        return rootCommand.Parse(args).Invoke(new InvocationConfiguration { Output = output, Error = output });
+        // the default handler of the parser prints a stack trace for any exception: a missing file, a folder given as a file and a file that
+        // exists already are things a person does, so they get one line (the other exceptions are printed as before)
+        InvocationConfiguration configuration = new() { Output = output, Error = output, EnableDefaultExceptionHandler = false };
+        try
+        {
+            return rootCommand.Parse(args).Invoke(configuration);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or UnauthorizedAccessException or IOException)
+        {
+            output.WriteLine("error: " + ex.Message);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            output.WriteLine("Unhandled exception: " + ex);
+            return 1;
+        }
     }
 
     /// <summary>Describes the command tree for the generated CLI reference.</summary>

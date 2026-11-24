@@ -44,17 +44,17 @@ Many effects (the delay, the reverb) have a **mix** setting: how much of the cha
 ## In the text
 
 ```
-eq tone stable@1.0 {
+eq tone {
   low 4 dB
   from bass.audio -> in
 }
-delay echo stable@1.0 {
+delay echo {
   time 375 ms
   feedback 35%
   mix 28%
   from tone.out -> in
 }
-reverb room stable@1.0 {
+reverb room {
   size 45%
   decay 50%
   mix 22%

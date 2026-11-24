@@ -24,25 +24,25 @@ The same song, as text, looks like this:
 ```
 composition "my first song" { ample 1  tempo 100  master-seed 7 }
 
-midi-clip chords stable@1.0 {
+midi-clip chords {
   chords Am F C G
   bars 8
 }
-drums beat stable@1.2 at 1 for 8 {
+drums beat at 1 for 8 {
 }
-bass bass stable@1.1 at 1 for 8 {
+bass bass at 1 for 8 {
   from chords.notes -> notes
 }
-mixer mix stable@1.1 {
+mixer mix {
   from beat.audio -> in1
   from bass.audio -> in2
 }
-master master live@1.3 {
+master master {
   from mix.mix -> mix
 }
 ```
 
-Each paragraph is a block: first the kind of block (`bass`), then its name (`bass`), then a version tag. The lines inside the curly braces are its settings. A line that starts with `from` is a cable; it says where the sound or the notes come from.
+Each paragraph is a block: first the kind of block (`bass`), then its name (`bass`). The lines inside the curly braces are its settings. A line that starts with `from` is a cable; it says where the sound or the notes come from.
 
 ## Build it
 

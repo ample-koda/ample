@@ -24,6 +24,7 @@ export const LIMITS = new Map([
 export const EXCLUDED = [
   /(^|\/)(node_modules|vendor|codemirror|bin|obj|dist|test-results|playwright-report)\//,
   /^docs\/help\//,
+  /^docs\/guide\//,   // built from guide/pages by tools/guide/build.mjs (a paragraph is one line)
   /^docs\/api\//,
   /\.min\.(js|css)$/,
   /(^|\/)package-lock\.json$/,

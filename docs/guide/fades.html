@@ -17,7 +17,7 @@
 <h2 id="the-shape-of-a-fade">The shape of a fade<a class="anchor" href="#the-shape-of-a-fade" aria-label="Link to this section">#</a></h2>
 <ul><li><strong>lin</strong>: the volume goes down in a straight <a class="term" href="glossary.html#line" data-term="line">line</a>.</li><li><strong>equal</strong>: keeps the loudness feeling steady while two sounds cross, so the middle of a crossfade does not sound softer. This is the one to use for crossfades.</li><li><strong>exp</strong>: starts slowly and ends quickly, which sounds natural for a fade out.</li></ul>
 <h2 id="a-crossfade-in-the-text">A crossfade in the text<a class="anchor" href="#a-crossfade-in-the-text" aria-label="Link to this section">#</a></h2>
-<pre class="code"><code>crossfade change stable@1.0 {
+<pre class="code"><code>crossfade change {
   from groove-a.audio -&gt; a
   from groove-b.audio -&gt; b
   start 5

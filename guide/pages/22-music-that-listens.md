@@ -10,7 +10,7 @@ A **control** is a number that changes over time and that you use to steer a par
 ## Listen to a sound: follow
 
 ```
-follow traffic stable@1.0 {
+follow traffic {
   band low
   baseline on
   attack 100 ms
@@ -33,7 +33,7 @@ The control has two outputs: `level` and `gate` (on while the sound is above the
 **Written in the parameter**, next to `auto(...)`:
 
 ```
-reverb space stable@1.0 {
+reverb space {
   mix 10 + 60 * traffic.level
   from opens.out -> in
 }
@@ -44,7 +44,7 @@ The mix is 10 percent in the rain and up to 70 percent while a car passes. Numbe
 **Connected**, like a sound:
 
 ```
-filter opens stable@1.0 {
+filter opens {
   from swell.level -> cutoff
 }
 ```

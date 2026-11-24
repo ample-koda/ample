@@ -40,7 +40,7 @@ Choose **Fade out** or **Fade in**, the start, the length and the shape, and the
 ## A crossfade in the text
 
 ```
-crossfade change stable@1.0 {
+crossfade change {
   from groove-a.audio -> a
   from groove-b.audio -> b
   start 5

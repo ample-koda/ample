@@ -17,7 +17,7 @@
 <pre class="code"><code>composition &quot;Rooftop Light&quot; { ample 1  tempo 92  master-seed 20261008 }</code></pre>
 <h2 id="2-the-band-one-sequencer">2. The band: one sequencer<a class="anchor" href="#2-the-band-one-sequencer" aria-label="Link to this section">#</a></h2>
 <p>Add a <strong>sequencer</strong> block, name it <code>band</code>, and in the <a class="term" href="glossary.html#project-panel" data-term="project-panel">project panel</a> choose <strong>Add</strong>, <strong>Sequence</strong>. The block points at the file:</p>
-<pre class="code"><code>sequencer band stable@1.0 at 1 for 40 {
+<pre class="code"><code>sequencer band at 1 for 40 {
   file sequences/band.seq
   lanes lane1=kick lane2=snare+tom lane3=hat+open lane4=bass lane5=gtr
 }</code></pre>
@@ -49,12 +49,12 @@
 <p>A voice that stays on the same note while the chords change is what makes a choir sound like people instead of like keys. The notes are written once, with a <a class="term" href="glossary.html#velocity" data-term="velocity">velocity</a> (how hard) per part: very soft in the intro (42), soft in the verses (54 and 58), and 84 and 92 in the choruses, where an extra high voice, an octave above the top one, joins in.</p>
 <figure><a href="img/tut-choir-roll.png"><img src="img/tut-choir-roll.png" alt="The piano roll of the choir: four voices per bar, 168 notes. The velocity lane below shows the build-up through the song." loading="lazy"></a><figcaption>The piano roll of the choir: four voices per bar, 168 notes. The velocity lane below shows the build-up through the song.</figcaption></figure>
 <p>Both choirs play the same notes but get them through their own <strong><a class="term" href="glossary.html#humanize" data-term="humanize">midi-humanize</a></strong> block. It shifts every note a tiny bit in time and in velocity (the settings are <code>timing 18</code> and <code>velocity 9</code> for the first voice, 26 and 12 for the second), differently for each. Two voices that are never exactly together are the oldest trick to make one sound into a crowd.</p>
-<pre class="code"><code>midi-humanize choir_loose stable@1.0 {
+<pre class="code"><code>midi-humanize choir_loose {
   velocity 9
   timing 18
   from choir_notes.notes -&gt; notes
 }
-gm choir_aahs stable@1.0 at 1 for 40 {
+gm choir_aahs at 1 for 40 {
   file pack:musescore-general
   program 52
   gain -2 dB
@@ -77,7 +77,7 @@ gm choir_aahs stable@1.0 at 1 for 40 {
 <figure><a href="img/tut-advanced-reverb.png"><img src="img/tut-advanced-reverb.png" alt="The advanced controls of the hall: three knobs and the decay of the room. The estimated RT60 says how long it takes to fade away." loading="lazy"></a><figcaption>The advanced controls of the hall: three knobs and the decay of the room. The estimated RT60 says how long it takes to fade away.</figcaption></figure>
 <figure><a href="img/tut-graph-choir.png"><img src="img/tut-graph-choir.png" alt="The middle of the choir chain in the graph: the EQ, the ensemble chorus, the delay." loading="lazy"></a><figcaption>The middle of the choir chain in the graph: the EQ, the ensemble chorus, the delay.</figcaption></figure>
 <p>At the end of the chain a <strong>compressor</strong> does something special: it is a <strong><a class="term" href="glossary.html#sidechain" data-term="sidechain">sidechain</a></strong> compressor. Its <code>key</code> input is connected to the kick lane, so every time the kick hits, the compressor presses the choir down a little and lets it come back during the next 220 milliseconds. You will not hear it as an effect; you hear that the kick and the choir share the space.</p>
-<pre class="code"><code>compressor choir_duck stable@1.0 {
+<pre class="code"><code>compressor choir_duck {
   threshold -34 dB
   ratio 3
   attack 6 ms
@@ -90,7 +90,7 @@ gm choir_aahs stable@1.0 at 1 for 40 {
 <h2 id="5-mix-and-finish">5. Mix and finish<a class="anchor" href="#5-mix-and-finish" aria-label="Link to this section">#</a></h2>
 <figure><a href="img/tut-graph-mix.png"><img src="img/tut-graph-mix.png" alt="The end of the song: the mixer, the compressor, the fade-out and the master." loading="lazy"></a><figcaption>The end of the song: the mixer, the compressor, the fade-out and the master.</figcaption></figure>
 <p>The four groups (drums, bass, guitar, choir) go into one mixer. Every input has its level:</p>
-<pre class="code"><code>mixer mix stable@1.1 {
+<pre class="code"><code>mixer mix {
   from drum_glue.out -&gt; in1
   from bass_even.out -&gt; in2
   from gtr_room.out -&gt; in3
@@ -100,11 +100,11 @@ gm choir_aahs stable@1.0 at 1 for 40 {
 }</code></pre>
 <p>Then three things make it a finished song:</p>
 <ul><li>a gentle <strong>compressor</strong> over the whole mix (threshold -18 dB, ratio 2.2, makeup 6 dB) brings the average level up without taking the life out of it,</li><li>a <strong>volume</strong> block with <code>gain fadeout(38, 3, exp)</code> fades the song away from bar 38 over three bars,</li><li>the <strong><a class="term" href="glossary.html#master" data-term="master">master</a></strong> has a limiter that keeps the peaks under -1 dB.</li></ul>
-<pre class="code"><code>volume finale stable@1.0 {
+<pre class="code"><code>volume finale {
   from mastercomp.out -&gt; in
   gain fadeout(38, 3, exp)
 }
-master master live@1.3 {
+master master {
   from finale.mixed -&gt; mix
 }</code></pre>
 <figure><a href="img/tut-code-mix.png"><img src="img/tut-code-mix.png" alt="The end of the text: the mixer, the master compressor, the fade-out and the master." loading="lazy"></a><figcaption>The end of the text: the mixer, the master compressor, the fade-out and the master.</figcaption></figure>

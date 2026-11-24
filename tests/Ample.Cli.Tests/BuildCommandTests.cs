@@ -49,6 +49,31 @@ public sealed class BuildCommandTests : IDisposable
         Assert.Equal(2 * 2 * Ample.Engine.Engine.BuildEngine.PreviewRate, previewSamples.Length);   // two bars of two seconds
     }
 
+    [Theory]
+    [InlineData("build")]
+    [InlineData("play")]
+    [InlineData("bake")]
+    [InlineData("seed")]
+    public void A_missing_song_or_a_folder_given_as_a_song_is_one_line_and_not_a_stack_trace(string command)
+    {
+        // a missing file (and a folder named like a song) ended these commands with "Unhandled exception: System.IO.FileNotFoundException ..." and a long stack
+        string project = Path.Combine(folder, "m-" + command);
+        Assert.Equal(0, Run("new", project).Code);
+        string[] extra = command is "bake" or "seed" ? ["x"] : [];
+        (int code, string text) = Run([command, Path.Combine(project, "nope.amplet"), .. extra]);
+        Assert.Equal(1, code);
+        Assert.StartsWith("error:", text.TrimStart(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Unhandled exception", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("   at ", text, StringComparison.Ordinal);
+
+        string directory = Path.Combine(project, "folder.amplet");
+        Directory.CreateDirectory(directory);
+        (code, text) = Run([command, directory, .. extra]);
+        Assert.Equal(1, code);
+        Assert.DoesNotContain("Unhandled exception", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("   at ", text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_song_with_errors_is_not_built()
     {

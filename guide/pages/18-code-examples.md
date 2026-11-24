@@ -12,17 +12,17 @@ Every song is a text file, and it is worth being able to read it. This page goes
 ## The shape of a block
 
 ```
-drums beat stable@1.2 at 1 for 8 {
+drums beat at 1 for 8 {
   kit samples/kit
 }
 ```
 
-A block is: **the kind** (`drums`), **its name** (`beat`), **a version tag** (`stable@1.2`), where it is in time (`at 1 for 8`: from bar 1, for 8 bars), and then its settings between curly braces. Names have no spaces; use `-` or `_`.
+A block is: **the kind** (`drums`), **its name** (`beat`), where it is in time (`at 1 for 8`: from bar 1, for 8 bars), and then its settings between curly braces. Names have no spaces; use `-` or `_`.
 
 ## Cables
 
 ```
-bass bass stable@1.1 {
+bass bass {
   from chords.notes -> notes
 }
 ```
@@ -34,16 +34,16 @@ A cable is written in the block that **receives**: `from <block>.<output> -> <in
 ```
 composition "tiny" { ample 1  tempo 100  master-seed 1 }
 
-midi-clip chords stable@1.0 {
+midi-clip chords {
   chords Am F C G
 }
-bass bass stable@1.1 {
+bass bass {
   from chords.notes -> notes
 }
-mixer mix stable@1.1 {
+mixer mix {
   from bass.audio -> in1
 }
-master master live@1.3 {
+master master {
   from mix.mix -> mix
 }
 ```
@@ -53,7 +53,7 @@ The first line is the project: its name, the tempo and the master seed. The rest
 ## Two parts, in time
 
 ```
-piano piano stable@1.0 at 1 for 8 as verse, 9 for 8 as chorus {
+piano piano at 1 for 8 as verse, 9 for 8 as chorus {
   from chords.notes -> notes
 }
 ```
@@ -63,7 +63,7 @@ A block can play in several stretches, and each can have a name: verse in bars 1
 ## A drum beat with sections
 
 ```
-drums beat stable@1.2 at 1 for 12 {
+drums beat at 1 for 12 {
   kit samples/kit
   pattern kick:x...x...x...x... snare:....x.......x... hat:x.x.x.x.x.x.x.x.
   patterns verse=kick:x.......x....... snare:....x.......x... hat:x.x.x.x.x.x.x.x. / fill=kick:xxxxxxxxxxxxxxxx snare:x.x.x.x.xxxxxxxx hat:xxxxxxxxxxxxxxxx
@@ -76,7 +76,7 @@ drums beat stable@1.2 at 1 for 12 {
 ## Notes written by hand
 
 ```
-midi-clip lead stable@1.0 at 1 for 4 {
+midi-clip lead at 1 for 4 {
   melody "a3:0.5 c4:0.5 e4:1 g4:0.5 e4:0.5 c4:1 a3:2"
 }
 ```
@@ -86,24 +86,24 @@ A tune as note names and lengths in beats. See MIDI and notes.
 ## An effect chain
 
 ```
-midi-clip harmony stable@1.0 at 1 for 16 {
+midi-clip harmony at 1 for 16 {
   chords Am F C G Am F C G Am F C G Am F C G
 }
-bass line stable@1.2 at 1 for 16 {
+bass line at 1 for 16 {
   from harmony.notes -> notes
 }
-filter dull stable@1.0 {
+filter dull {
   type lowpass
   cutoff 700 Hz
   from line.audio -> in
 }
-delay echo stable@1.0 {
+delay echo {
   time 375 ms
   feedback 35%
   mix 28%
   from dull.out -> in
 }
-reverb room stable@1.0 {
+reverb room {
   size 45%
   decay 50%
   mix 22%
@@ -116,7 +116,7 @@ A bass through a low-pass filter, a delay and a reverb. Each effect takes what t
 ## Fading out at the end
 
 ```
-volume ending stable@1.0 {
+volume ending {
   from line.audio -> in
   gain fadeout(7, 6s, exp)
 }
@@ -139,7 +139,7 @@ The Source view helps you type. While you type, AMPLE shows its best guess in gr
 What it can complete, depending on where the cursor is:
 
 - **Block kinds** on a new line (`drums`, `midi-clip`, ...). Taking one writes the whole block with its parameters filled in.
-- **The tag** after the name: `stable@`, `pinned@` or `live@`; and then `at` and `for` after the tag.
+- **`pinned@`** after the name, for a block that keeps an older version of its definition; and then `at` and `for`.
 - **Settings** inside a block: the names of the settings that block has and does not have yet, and `from`.
 - **The values** of a setting that has a fixed list of choices, such as the loudness target of the master (`-14 LUFS`).
 - **Cables**: after `from` the other blocks, after the dot the outputs of that block, after `->` the inputs of this one.
