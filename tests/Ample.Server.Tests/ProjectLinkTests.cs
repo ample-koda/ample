@@ -80,4 +80,51 @@ public sealed class ProjectLinkTests
             }
         }
     }
+
+    [Fact]
+    public async Task The_project_listing_shows_a_link_folder_as_a_link_and_does_not_list_what_is_behind_it()
+    {
+        string work = Path.Combine(Path.GetTempPath(), "ample-linklist-" + Guid.NewGuid().ToString("N"));
+        string server = Path.Combine(work, "project");
+        string outside = Path.Combine(work, "outside");
+        string home = work + "-home";
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret-name.txt"), "x");
+        using (OpenProject p = await ProjectStore.CreateAsync(new PhysicalFileSystem(), new SystemClock(), new GuidV7Generator(), server, "demo", null, CancellationToken.None))
+        {
+            _ = p;
+        }
+
+        Directory.CreateDirectory(Path.Combine(server, "plain"));
+        string link = Path.Combine(server, "samples-link");
+        if (!MakeLink(link, outside)) return;   // no right to make a link on this machine: nothing to test
+        AuthService.SetPassword(home, "koda", "a-long-password");
+        await using RunningServer running = await AmpleServer.StartAsync(new ServerOptions(server, FindAmpleRoot(), LibraryHome: home) { Login = true });
+        try
+        {
+            using RemoteClient client = new(new RemoteOptions { Url = running.Url, User = "koda", PasswordProvider = () => "a-long-password" });
+            using System.Text.Json.JsonDocument root = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/project/tree?depth=1"));
+            System.Text.Json.JsonElement[] folders = [.. root.RootElement.GetProperty("children").EnumerateArray().Where(item => item.GetProperty("isDir").GetBoolean())];
+            System.Text.Json.JsonElement linked = Assert.Single(folders, item => item.GetProperty("name").GetString() == "samples-link");
+            Assert.True(linked.GetProperty("isLink").GetBoolean());
+            System.Text.Json.JsonElement plain = Assert.Single(folders, item => item.GetProperty("name").GetString() == "plain");
+            Assert.False(plain.GetProperty("isLink").GetBoolean());
+
+            string inside = await client.GetStringAsync("/api/project/tree?path=samples-link&depth=1");
+            using System.Text.Json.JsonDocument opened = System.Text.Json.JsonDocument.Parse(inside);
+            Assert.True(opened.RootElement.GetProperty("link").GetBoolean());
+            Assert.Empty(opened.RootElement.GetProperty("children").EnumerateArray());
+            Assert.DoesNotContain("secret-name", inside, StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { if (Directory.Exists(link)) Directory.Delete(link); }
+            catch (IOException) { }
+            foreach (string d in new[] { work, home })
+            {
+                try { Directory.Delete(d, true); }
+                catch (IOException) { }
+            }
+        }
+    }
 }

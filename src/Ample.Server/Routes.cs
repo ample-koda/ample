@@ -355,7 +355,8 @@ public static class Routes
     private const int MaxTranscriptionSeconds = 600;
     private sealed record StoredTranscriptionFile(string Path, string ContentType);
     private sealed record StoredTranscription(string Id, string ResultJson, SortedDictionary<string, StoredTranscriptionFile> Files);
-    private sealed record ProjectTreeItem(string Name, string Path, string Kind, long SizeBytes, DateTimeOffset Modified, bool IsDir, IReadOnlyList<ProjectTreeItem>? Children);
+    /// <summary>One entry of the project listing. <c>IsLink</c> marks a folder or file that is a link (a junction or symbolic link): the panel draws it with a link badge.</summary>
+    private sealed record ProjectTreeItem(string Name, string Path, string Kind, long SizeBytes, DateTimeOffset Modified, bool IsDir, IReadOnlyList<ProjectTreeItem>? Children, bool IsLink = false);
 
     private static StoredTranscription ReadTranscription(string projectRoot, string id)
     {
@@ -895,9 +896,19 @@ public static class Routes
         {
             string relative = c.Request.Query["path"].ToString();
             int depth = int.TryParse(c.Request.Query["depth"], out int requested) ? Math.Clamp(requested, 0, 8) : 0;
-            string full = relative.Length == 0 ? s.Root : ProjectPath.Resolve(s.Fs, s.Root, relative);
+            string full;
+            try
+            {
+                full = relative.Length == 0 ? s.Root : ProjectPath.Resolve(s.Fs, s.Root, relative);
+            }
+            catch (AmpleException ex) when (ex.DiagnosticCode == "AMP5203" && HasProjectLink(s.Fs, s.Root, relative))
+            {
+                // a link to somewhere outside the project (a junction to a sample library): builds read it, the panel does not list what is behind it
+                return Ok(new { path = relative.Replace('\\', '/'), link = true, children = Array.Empty<ProjectTreeItem>() });
+            }
+
             if (!Directory.Exists(full) || Path.GetRelativePath(s.Root, full).Split(Path.DirectorySeparatorChar).Any(part => part.Equals(".ample", StringComparison.OrdinalIgnoreCase))) throw new AmpleException("AMP5243", "The project folder does not exist.");
-            return Ok(new { path = relative.Replace('\\', '/'), children = ProjectTree(s, full, depth, c.Request.Query["hidden"].ToString() == "1") });
+            return Ok(new { path = relative.Replace('\\', '/'), link = false, children = ProjectTree(s, full, depth, c.Request.Query["hidden"].ToString() == "1") });
         });
         add("GET", "/api/project/hash", "project", "Returns the SHA-256 digest of one project file without entering .ample or following links.", false, s is null ? null : async (HttpContext c) =>
         {
@@ -3938,10 +3949,12 @@ public static class Routes
         foreach (string directory in session.Fs.GetDirectories(folder))
         {
             string name = Path.GetFileName(directory);
-            if (name.Equals(".ample", StringComparison.OrdinalIgnoreCase) || (!showHidden && name.StartsWith('.')) || session.Fs.GetLinkTarget(directory) is not null) continue;
+            if (name.Equals(".ample", StringComparison.OrdinalIgnoreCase) || (!showHidden && name.StartsWith('.'))) continue;
+            // a link (such as a junction to a sample library) is shown, marked as a link, and never entered here: what it holds is not listed
+            bool link = session.Fs.GetLinkTarget(directory) is not null;
             string relative = Path.GetRelativePath(session.Root, directory).Replace('\\', '/');
             DateTimeOffset modified = Directory.GetLastWriteTimeUtc(directory);
-            children.Add(new ProjectTreeItem(name, relative, "folder", 0, modified, true, depth > 0 ? ProjectTree(session, directory, depth - 1, showHidden) : null));
+            children.Add(new ProjectTreeItem(name, relative, "folder", 0, modified, true, depth > 0 && !link ? ProjectTree(session, directory, depth - 1, showHidden) : null, link));
         }
 
         foreach (string file in session.Fs.GetFiles(folder))
@@ -3952,7 +3965,7 @@ public static class Routes
             string extension = Path.GetExtension(name).ToLowerInvariant();
             string kind = extension switch { ".amplet" => "song", ".module" => "module", ".wav" or ".mp3" or ".flac" or ".ogg" or ".m4a" => "audio", ".mid" or ".midi" => "midi", ".lyr" or ".lrc" or ".srt" => "lyrics", _ => "file" };
             FileInfo info = new(file);
-            children.Add(new ProjectTreeItem(name, relative, kind, info.Length, info.LastWriteTimeUtc, false, null));
+            children.Add(new ProjectTreeItem(name, relative, kind, info.Length, info.LastWriteTimeUtc, false, null, session.Fs.GetLinkTarget(file) is not null));
         }
 
         return children.OrderBy(item => item.IsDir ? 0 : 1).ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToArray();

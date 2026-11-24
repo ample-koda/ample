@@ -4,6 +4,8 @@ import { beginFileDrag } from './dragfile.js';
 
 export function renderProjectTree(host, roots, selectFolder, loadChildren, selectedPath, onContextMenu) {
   host.setAttribute('role', 'tree');
+  // the rows are drawn again after every fold and unfold: a row that had the focus (the person is moving through the tree with the arrow keys) keeps it
+  const focusedPath = host.contains(document.activeElement) ? document.activeElement.closest?.('[data-path]')?.dataset.path : undefined;
   host.innerHTML = '';
   const append = (items, depth) => items.filter((item) => item.isDir).forEach((item) => {
     const wrap = el('div', { className: 'tree-node' });
@@ -43,4 +45,5 @@ export function renderProjectTree(host, roots, selectFolder, loadChildren, selec
     if (item.expanded && item.children?.length) append(item.children, depth + 1);
   });
   append(roots, 0);
+  if (focusedPath !== undefined) [...host.querySelectorAll('[role=treeitem]')].find((row) => row.dataset.path === focusedPath)?.focus({ preventScroll: true });
 }

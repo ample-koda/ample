@@ -35,5 +35,10 @@ export function projectItemIcon(item) {
   icon.setAttribute('stroke-linejoin', 'round');
   icon.setAttribute('focusable', 'false');
   icon.innerHTML = paths[kind];
+  // a link (a junction or symbolic link, such as a sample library linked into the project): a small arrow badge in the corner, like the shortcut mark of a file manager
+  if (item?.isLink) {
+    icon.insertAdjacentHTML('beforeend', '<g class="link-badge"><circle cx="17.5" cy="17.5" r="5.6"/><path d="M15.4 19.6l4.2-4.2m-2.6 0h2.6v2.6"/></g>');
+    icon.classList.add('project-item-link');
+  }
   return icon;
 }
