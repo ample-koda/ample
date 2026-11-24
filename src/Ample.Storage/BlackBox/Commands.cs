@@ -92,7 +92,7 @@ public sealed class WriteFileCommand(string relativePath, string text) : IComman
     /// <inheritdoc />
     public async ValueTask<string?> PreImageAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        string full = ProjectPath.Resolve(context.ProjectRoot, relativePath);
+        string full = ProjectPath.Resolve(context.Fs, context.ProjectRoot, relativePath);
         if (!context.Fs.FileExists(full))
         {
             return JsonSerializer.Serialize(new { path = relativePath, existed = false });
@@ -107,7 +107,7 @@ public sealed class WriteFileCommand(string relativePath, string text) : IComman
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        string full = ProjectPath.Resolve(context.ProjectRoot, relativePath);
+        string full = ProjectPath.Resolve(context.Fs, context.ProjectRoot, relativePath);
         context.Fs.CreateDirectory(Path.GetDirectoryName(full)!);
         await AtomicFile.WriteTextAsync(context.Fs, full, text, cancellationToken).ConfigureAwait(false);
     }
