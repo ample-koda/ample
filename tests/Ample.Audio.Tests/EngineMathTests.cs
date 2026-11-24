@@ -69,4 +69,23 @@ public sealed partial class EngineMathTests
         Assert.Equal(-1, EngineMath.Tanh(-50));
         Assert.Equal(0, EngineMath.Exp(-5000));   // a decay far past its end is silence, not an exception
     }
+
+    [Fact]
+    public void Sine_cosine_and_exp_are_within_a_few_units_of_the_library_everywhere_they_are_used()
+    {
+        for (double x = -200; x <= 200; x += 0.0137)
+        {
+            Assert.Equal(Math.Sin(x), EngineMath.Sin(x), 1e-14);
+            Assert.Equal(Math.Cos(x), EngineMath.Cos(x), 1e-14);
+        }
+
+        for (double x = -700; x <= 700; x += 0.731)
+        {
+            double expected = Math.Exp(x);
+            Assert.True(Math.Abs(EngineMath.Exp(x) - expected) <= expected * 4e-16, $"exp({x})");
+        }
+
+        Assert.Equal(Math.Pow(10, -6 / 20.0), EngineMath.Exp10(-6 / 20.0), 1e-15);
+        Assert.Equal(Math.Pow(2, 1.5), EngineMath.Exp2(1.5), 1e-14);
+    }
 }

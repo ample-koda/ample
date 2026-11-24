@@ -93,6 +93,30 @@ public static class DelayLlama
     }
 
     // a gentle limit near full scale, so a loud unison never clips hard
+    /// <summary>A damped sine sin(w n + p) e^(-d n) as a rotating complex number: Start uses the exact functions once, Step multiplies by one rotation.</summary>
+    private struct Damped
+    {
+        private double re;
+        private double im;
+        private double rotRe;
+        private double rotIm;
+
+        internal readonly double Im => im;
+
+        internal static Damped Start(double hz, double bandwidth, double offset, int rate)
+        {
+            double w = 2 * Math.PI * hz / rate, d = Math.PI * bandwidth / rate, size = EngineMath.Exp(-d * offset), shrink = EngineMath.Exp(-d);
+            return new Damped { re = size * EngineMath.Cos(w * offset), im = size * EngineMath.Sin(w * offset), rotRe = shrink * EngineMath.Cos(w), rotIm = shrink * EngineMath.Sin(w) };
+        }
+
+        internal void Step()
+        {
+            double nextRe = (re * rotRe) - (im * rotIm);
+            im = (re * rotIm) + (im * rotRe);
+            re = nextRe;
+        }
+    }
+
     private static double Soft(double x) => Math.Abs(x) < 0.8 ? x : Math.Sign(x) * (0.8 + (0.2 * EngineMath.Tanh((Math.Abs(x) - 0.8) / 0.2)));
 
     // the classic stereo echo: two taps (about 310 and 398 ms), each feeding back into itself, added to the dry sound
@@ -145,6 +169,7 @@ public static class DelayLlama
         uint rng = (uint)(seed ^ (seed >> 32)) | 1;
         double Random() { rng = (rng * 1103515245u) + 12345u; return ((rng >> 16) & 0x7FFF) / 32768.0; }
         double vibratoPhase = Random() * 2 * Math.PI, jitter = 1, glideFrom = double.NaN, glideTo = double.NaN, pitch = 60;
+        double lastQuantised = double.NaN, lastFrequency = 440;
         long glideStart = 0;
         int glideLength = Math.Max(1, (int)(s.GlideMs * rate / 1000));
         int jitterCounter = 0, jitterPeriod = Math.Max(1, (int)(rate * 0.104));
@@ -245,7 +270,14 @@ public static class DelayLlama
             double sung = pitch + (cents / 100) + vibrato + (bend is null ? 0 : bend[i]);
             // the pitch in steps of 1/32 semitone, as the original: part of its character
             double quantised = Math.Floor((sung - 12) * 32) / 32 + 12;
-            double frequency = 440 * EngineMath.Pow(2, (quantised - 69) / 12);
+            // the pitch moves in steps of 1/32 semitone: the frequency is worked out again only when the step changes
+            if (quantised != lastQuantised)
+            {
+                lastQuantised = quantised;
+                lastFrequency = 440 * EngineMath.Exp2((quantised - 69) / 12);
+            }
+
+            double frequency = lastFrequency;
             double periodSamples = Math.Max(1, rate / frequency);
             sinceGrain++;
             if (sinceGrain < periodSamples)
@@ -264,14 +296,18 @@ public static class DelayLlama
             // fewer grains overlap at a high pitch: louder low, quieter high
             double compensate = Math.Clamp(((sung - 12) * (-1.0 / 72)) + 2, 0.1, 3);
             double amplitude = 0.5 * compensate * envelope * level * (0.45 + (0.55 * open));
+            // the three damped formant waves sin(2 pi f t) e^(-pi B t), t = (k + overshoot) / rate, as rotations: the exact functions run once per grain and every
+            // sample is a complex multiplication (additions and multiplications only, the same bits on every machine; calling them per sample made a demo take
+            // more than the 90 seconds of the Lite)
+            Damped one = Damped.Start(f1, Bandwidths[0], overshoot, rate), two = Damped.Start(f2, Bandwidths[1], overshoot, rate), three = Damped.Start(f3, Bandwidths[2], overshoot, rate);
+            double twoLevel = 0.6 + (0.4 * open);
             for (int k = 0; k < grainLength && i + k < length; k++)
             {
-                double t = (k + overshoot) / rate;   // sample i lies overshoot after the true start of the grain
-                double sample = (EngineMath.Sin(2 * Math.PI * f1 * t) * EngineMath.Exp(-Math.PI * Bandwidths[0] * t))
-                    + (EngineMath.Sin(2 * Math.PI * f2 * t) * EngineMath.Exp(-Math.PI * Bandwidths[1] * t) * (0.6 + (0.4 * open)))
-                    + (EngineMath.Sin(2 * Math.PI * f3 * t) * EngineMath.Exp(-Math.PI * Bandwidths[2] * t) * 0.8)
-                    + (breath[k] * breathAmount);
+                double sample = one.Im + (two.Im * twoLevel) + (three.Im * 0.8) + (breath[k] * breathAmount);
                 output[i + k] += sample * window[k] * amplitude;
+                one.Step();
+                two.Step();
+                three.Step();
             }
         }
 
