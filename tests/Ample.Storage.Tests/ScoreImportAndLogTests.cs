@@ -107,6 +107,21 @@ public sealed class ScoreImportAndLogTests
         </score-partwise>
         """;
 
+    private const string Doctype = "<!DOCTYPE score-partwise PUBLIC \"-//Recordare//DTD MusicXML 3.1 Partwise//EN\" \"http://www.musicxml.org/dtds/partwise.dtd\">";
+    private const string EntityBomb = "<!DOCTYPE score-partwise [<!ENTITY a \"aaaaaaaaaa\"><!ENTITY b \"&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;\">"
+        + "<!ENTITY c \"&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;\"><!ENTITY d \"&c;&c;&c;&c;&c;&c;&c;&c;&c;&c;\"><!ENTITY e \"&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;\">"
+        + "<!ENTITY f \"&e;&e;&e;&e;&e;&e;&e;&e;&e;&e;\">]>";
+
+    [Fact]
+    public void A_normal_doctype_line_is_skipped_and_an_entity_bomb_is_not_expanded()
+    {
+        string plain = MusicXmlWithPercussion();
+        string withDoctype = plain.Replace("<score-partwise", Doctype + "\n<score-partwise", StringComparison.Ordinal);
+        Assert.Equal(ScoreImport.FromMusicXml(plain, "beat", 4).Notes, ScoreImport.FromMusicXml(withDoctype, "beat", 4).Notes);
+        string bomb = plain.Replace("<score-partwise", EntityBomb + "\n<score-partwise", StringComparison.Ordinal).Replace("<part-name>Drums", "<part-name>&f;", StringComparison.Ordinal);
+        Assert.ThrowsAny<System.Xml.XmlException>(() => ScoreImport.FromMusicXml(bomb, "beat", 4));
+    }
+
     [Fact]
     public void MusicXml_unpitched_percussion_notes_are_mapped_through_the_midi_instrument()
     {

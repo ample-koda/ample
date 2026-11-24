@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace Ample.Audio.Midi;
@@ -124,7 +125,11 @@ public static class ScoreImport
     /// <summary>Imports an uncompressed MusicXML (score-partwise) document.</summary>
     public static ScoreImportResult FromMusicXml(string xml, string title, int barsPerPattern)
     {
-        XDocument doc = XDocument.Parse(xml);
+        // A DOCTYPE line is normal in MusicXML and is skipped (Ignore); the entities it could define are not expanded, so a few hundred bytes cannot grow into gigabytes.
+        XmlReaderSettings settings = new() { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null, MaxCharactersInDocument = 256L << 20 };
+        using StringReader text = new(xml);
+        using XmlReader xmlReader = XmlReader.Create(text, settings);
+        XDocument doc = XDocument.Load(xmlReader);
         XElement root = doc.Root ?? throw new FormatException("The MusicXML file is empty.");
         if (root.Name.LocalName != "score-partwise")
         {
