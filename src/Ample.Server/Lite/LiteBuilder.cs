@@ -47,7 +47,7 @@ public sealed record LiteObservation(long Seq, string Level, string? Code, strin
 public static partial class LiteBuilder
 {
     /// <summary>How many blocks of one Remix build render at the same time (the memory estimate of the speech blocks is the sum of the largest ones).</summary>
-    internal const int BlockParallelism = 2;
+    internal const int BlockParallelism = 4;   // owner 2026-11-25: twice the blocks at a time (the server has 12 cores; the memory check of LitePolicy counts this many)
 
     [GeneratedRegex(@"[A-Za-z]:[\\/][^\s""'<>|]*|\\\\[^\s""']+|/(?:home|usr|var|tmp|etc|mnt|root|opt)/[^\s""']*", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex AbsolutePath();
