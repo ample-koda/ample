@@ -1968,7 +1968,10 @@ function pickComp() {
 /* ---------- leaving ---------- */
 /** Keeps unapplied editor text until the user explicitly agrees to switch songs. */
 export async function confirmSongSwitch(path) {
-  if (!SE.file || path === S.path) return true;
+  if (path === S.path) return true;
+  const { closeSequencerForSongSwitch } = await import('./sequencer.js');
+  if (!(await closeSequencerForSongSwitch())) return false;
+  if (!SE.file) return true;
   const text = $('#se-ta')?.value ?? SE.text;
   if (text === SE.orig) return true;
   SE.text = text;

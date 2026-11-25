@@ -228,9 +228,6 @@ public static partial class Parser
     [GeneratedRegex("^#\\s*ample-ignore\\s+(.+)$", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex IgnorePattern();
 
-    [GeneratedRegex("^(?:project|composition)\\s+(\"(?:[^\"\\\\]|\\\\.)*\")\\s*\\{\\s*(?:ample\\s+(?<ample>\\d+)\\s+)?tempo\\s+(\\d+(?:\\.\\d+)?)\\s+(?:meter\\s+(?<mn>\\d+)/(?<md>\\d+)\\s+)?master-seed\\s+(\\d+)\\s*\\}$", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
-    private static partial Regex ProjectPattern();
-
     [GeneratedRegex("^features\\s*\\{(.*)\\}$", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex FeaturesPattern();
 
@@ -563,9 +560,10 @@ public static partial class Parser
                 }
 
                 Match mm;
-                if ((mm = ProjectPattern().Match(line)).Success)
+                // the settings in the braces may come in any order (CompositionLine)
+                if (CompositionLine.Read(line) is { } composition)
                 {
-                    string rawTempo = mm.Groups[2].Value;
+                    string rawTempo = composition.Tempo;
                     double tempo = double.Parse(rawTempo, CultureInfo.InvariantCulture);
                     if (tempo < spec.MinTempo || tempo > spec.MaxTempo)
                     {
@@ -573,7 +571,7 @@ public static partial class Parser
                         Add(i, "AMP1002", Severity.Error, $"Tempo must be between {Fmt(spec.MinTempo)} and {Fmt(spec.MaxTempo)} (found {rawTempo}).", new Opts { Needle = rawTempo, Hint = "Typical songs sit between 60 and 180.", FixLabel = "Use " + use, FixText = use });
                     }
 
-                    string rawSeed = mm.Groups[3].Value;
+                    string rawSeed = composition.Seed;
                     if (!ulong.TryParse(rawSeed, NumberStyles.None, CultureInfo.InvariantCulture, out ulong seed) || seed > spec.MaxSeed)
                     {
                         Add(i, "AMP1009", Severity.Error, $"The master seed must be a whole number from 0 to {spec.MaxSeed.ToString(CultureInfo.InvariantCulture)} (found {rawSeed}).", new Opts { Needle = rawSeed, Hint = "Use a whole number in the supported unsigned 64-bit range." });
@@ -582,14 +580,14 @@ public static partial class Parser
 
                     // meter 3/4: how many beats a bar has (numerator 1 to 16 over 2, 4, 8 or 16); the default is 4/4
                     int meterNumerator = 4, meterDenominator = 4;
-                    if (mm.Groups["mn"].Success)
+                    if (composition.MeterTop is not null)
                     {
                         // a number of more than ten digits does not fit an int: it is "not allowed" like any other wrong number (it used to end the parse with an OverflowException)
-                        int n = int.TryParse(mm.Groups["mn"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int tn) ? tn : int.MaxValue;
-                        int d = int.TryParse(mm.Groups["md"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int td) ? td : int.MaxValue;
+                        int n = int.TryParse(composition.MeterTop, NumberStyles.None, CultureInfo.InvariantCulture, out int tn) ? tn : int.MaxValue;
+                        int d = int.TryParse(composition.MeterBottom, NumberStyles.None, CultureInfo.InvariantCulture, out int td) ? td : int.MaxValue;
                         if (n is < 1 or > 16 || d is not (2 or 4 or 8 or 16))
                         {
-                            string meterText = mm.Groups["mn"].Value + "/" + mm.Groups["md"].Value;
+                            string meterText = composition.MeterTop + "/" + composition.MeterBottom;
                             Add(
                                 i,
                                 "AMP1120",
@@ -604,12 +602,21 @@ public static partial class Parser
                     }
 
                     int? ample = null;
-                    if (mm.Groups["ample"].Success)
+                    if (composition.Ample is { } ampleText)
                     {
-                        Group g = mm.Groups["ample"];
-                        if (!int.TryParse(g.Value, NumberStyles.None, CultureInfo.InvariantCulture, out int stated) || !AmpleVersions.IsKnown(stated))
+                        if (!int.TryParse(ampleText, NumberStyles.None, CultureInfo.InvariantCulture, out int stated) || !AmpleVersions.IsKnown(stated))
                         {
-                            Add(i, "AMP1119", Severity.Error, AmpleVersionMessage(g.Value), new Opts { ColStart = g.Index, ColEnd = g.Index + g.Length, Hint = AmpleVersionHint, FixLabel = "Use " + AmpleVersions.Current, FixText = AmpleVersions.Current.ToString(CultureInfo.InvariantCulture), FixFrom = g.Index, FixNeedle = g.Value });
+                            Opts versionOpts = new()
+                            {
+                                ColStart = composition.AmpleIndex,
+                                ColEnd = composition.AmpleIndex + ampleText.Length,
+                                Hint = AmpleVersionHint,
+                                FixLabel = "Use " + AmpleVersions.Current,
+                                FixText = AmpleVersions.Current.ToString(CultureInfo.InvariantCulture),
+                                FixFrom = composition.AmpleIndex,
+                                FixNeedle = ampleText,
+                            };
+                            Add(i, "AMP1119", Severity.Error, AmpleVersionMessage(ampleText), versionOpts);
                         }
                         else
                         {
@@ -622,7 +629,7 @@ public static partial class Parser
                         Add(i, "AMP1118", Severity.Info, $"The song does not say which AMPLE version it was written for: it is read as the current one ({AmpleVersions.Current}).", new Opts { Needle = line.StartsWith("project", StringComparison.Ordinal) ? "project" : "composition", Hint = "Stating it keeps the song reading the same when AMPLE changes later.", FixLabel = $"Add ample {AmpleVersions.Current}", FixNeedle = "tempo", FixFrom = brace, FixText = $"ample {AmpleVersions.Current}  tempo" });
                     }
 
-                    Project = new ProjectInfo(Unquote(mm.Groups[1].Value), tempo, seed, i, ample, meterNumerator, meterDenominator);
+                    Project = new ProjectInfo(Unquote(composition.Name), tempo, seed, i, ample, meterNumerator, meterDenominator);
                     if (line.StartsWith("project", StringComparison.Ordinal))
                     {
                         // the old word still works (the song builds as it is); the warning offers the new one
@@ -634,7 +641,9 @@ public static partial class Parser
 
                 if (ProjectWord().IsMatch(line) && (line.StartsWith("project", StringComparison.Ordinal) || line.StartsWith("composition", StringComparison.Ordinal)))
                 {
-                    Add(i, "AMP1003", Severity.Error, "Expected: composition \"name\" { tempo N  master-seed N }", new Opts());
+                    const string expected = "Expected: composition \"name\" { ample 1  tempo N  meter N/N  master-seed N }"
+                        + " (the settings in any order; ample and meter may be left out, each one only once)";
+                    Add(i, "AMP1003", Severity.Error, expected, new Opts());
                     continue;
                 }
 
@@ -2152,6 +2161,21 @@ public static partial class Parser
                             break;
                         }
                     }
+                }
+
+                foreach (Parameter p in b.Parameters)
+                {
+                    // a level the effects use in whole decibels (WholeDecibels: eq bands, thresholds, a ceiling, a duck depth): say so when it has a decimal part
+                    if (!WholeDecibels.Is(b.Type, p.Name)) continue;
+                    System.Text.RegularExpressions.Regex withDecimals = new(@"^([+-]?\d+\.\d+)\s*(?:dB)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+                    System.Text.RegularExpressions.Match single = withDecimals.Match(p.Value.Trim().Trim('"').Trim());
+                    if (!single.Success) continue;
+                    int roundedLevel = (int)Math.Round(double.Parse(single.Groups[1].Value, CultureInfo.InvariantCulture), MidpointRounding.AwayFromZero);
+                    string levelText = roundedLevel.ToString(CultureInfo.InvariantCulture);
+                    string levelMessage = $"{b.Type} {p.Name}: \"{single.Groups[1].Value}\" has a decimal part, and the {b.Type} works in whole decibels;"
+                        + $" it is read as {levelText} dB.";
+                    Add(p.Line, "AMP2098", Severity.Warning, levelMessage,
+                        new Opts { Needle = single.Groups[1].Value, Hint = "Write a whole number, for example " + levelText + " dB." });
                 }
 
                 foreach (Parameter p in b.Parameters)

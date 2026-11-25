@@ -8,7 +8,7 @@ import { $, ask, el, toast } from './ui.js';
 import { S, edit, refreshInputs } from './store.js';
 import { registerView, setView } from './views.js';
 import { onPlayer } from './player.js';
-import { TAGS, currentRowIndex, isSorted, lyricChecks, lyricsText, parseLyrics, sortByTime, timedRows } from './lyrics-model.js';
+import { TAGS, lrcTime as mmss, currentRowIndex, isSorted, lyricChecks, lyricsText, parseLyrics, sortByTime, timedRows } from './lyrics-model.js';
 import { createSaveControl } from './savecontrol.js';
 import { barBeats } from '../lib/meter.mjs';
 
@@ -16,7 +16,6 @@ const L = { node: null, file: '', rows: [], snap: '', unit: 'bars', sel: -1, und
 const tempo = () => (S.doc && S.doc.project ? S.doc.project.tempo : 120);
 const barSec = (b) => ((b - 1) * barBeats() * 60) / tempo();
 const secBar = (s) => Math.round(((s * tempo()) / (barBeats() * 60) + 1) * 100) / 100;
-const mmss = (s) => { const m = Math.floor(s / 60); const x = s - m * 60; return `${String(m).padStart(2, '0')}:${x.toFixed(2).padStart(5, '0')}`; };
 
 const sorted = () => isSorted(L.rows);
 

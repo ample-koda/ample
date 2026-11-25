@@ -35,3 +35,11 @@ test('text without a seed in this shape is not changed', () => {
   assert.equal(withSeed(text, '5'), text);
   assert.equal(seedOfText(undefined), null);
 });
+
+test('the seed is found and replaced in any order of the settings, as the server reads the line', () => {
+  const text = 'composition "x" { master-seed 7  meter 3/4  tempo 96  ample 1 }\nclick a at 1 for 1 {\n}\n';
+  assert.equal(seedOfText(text), '7');
+  assert.equal(withSeed(text, '99').split('\n')[0], 'composition "x" { master-seed 99  meter 3/4  tempo 96  ample 1 }');
+  assert.equal(seedOfText('composition "x" {master-seed 5}'), '5');
+  assert.equal(seedOfText('composition "x" { ample 1  tempo 90  master-seed 3 }'), '3');
+});

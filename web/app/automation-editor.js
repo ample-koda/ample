@@ -2,7 +2,7 @@
 // double-click a point to remove it. It writes the same auto(bar:value, ...) text the source holds. @ample:automation
 
 import { el, ask, showMenu, toast } from './ui.js';
-import { AUTOMATABLE, automationRange, formatAuto, parseAuto, startingPoints } from '../lib/automation-model.mjs';
+import { AUTOMATABLE, automationRange, formatAuto, parseAuto, startingPoints, unreadableAuto } from '../lib/automation-model.mjs';
 import { flat } from './store.js';
 import { fadeable, isFade } from '../lib/fade-model.mjs';
 import { openFadeEditor } from './fade-editor.js';
@@ -21,6 +21,8 @@ export const automatable = (type, name) => !!AUTOMATABLE[type]?.[name];
 export async function openAutomationEditor({ type, name, title, text, bars, tempo, block }) {
   // a fade has its own editor (a start, a length and a shape instead of points)
   if (isFade(text)) return openFadeEditor({ title, text, bars, tempo });
+  // a curve with a point in seconds (or one the editor cannot read) would open as a flat line, and Apply would replace the real curve
+  if (unreadableAuto(text)) { toast('This curve has points the editor cannot show (a point in seconds): edit it as text.'); return undefined; }
   // the range can depend on the other parameters of the block (a pitch curve with a range is in percent)
   const range = automationRange(type, name, flat().nodes.find((n) => n.id === block)?.params) || AUTOMATABLE[type][name];
   const shownBars = Math.max(16, bars || 16);

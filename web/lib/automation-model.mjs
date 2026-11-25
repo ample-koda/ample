@@ -28,23 +28,30 @@ export function automationRange(type, name, params = {}) {
 
 export const isAutomation = (text) => /^\s*(auto|lfo|env|fadein|fadeout)\(/.test(String(text ?? ''));
 
-/** The points of an auto(...) text as [{ bar, value }] sorted by bar; null when the text is something else (a number, an lfo, a malformed text). */
+/**
+ * The points of an auto(...) text as [{ bar, value }] sorted by bar; null when the text is something else (a number, an lfo, a malformed text).
+ * A bar may have decimals (4.5 is half way through bar 4) and a value a sign (+3), as the server reads them (Automation.cs ParseSamples).
+ * A point in seconds (12s) cannot be placed on the bars here: such a curve is null too, and `unreadableAuto` says so.
+ */
 export function parseAuto(text) {
   const m = /^\s*auto\((.*)\)\s*$/s.exec(String(text ?? ''));
   if (!m) return null;
   const points = [];
   for (const part of m[1].split(',').map((p) => p.trim()).filter(Boolean)) {
-    const pm = /^(\d+):\s*(-?\d+)\s*(?:dB|Hz|%)?$/i.exec(part);
+    const pm = /^(\d+(?:\.\d+)?)\s*:\s*([+-]?\d+)\s*(?:dB|Hz|%)?$/i.exec(part);
     if (!pm || Number(pm[1]) < 1) return null;
     points.push({ bar: Number(pm[1]), value: Number(pm[2]) });
   }
   return points.length ? points.sort((a, b) => a.bar - b.bar) : null;
 }
 
-/** Writes points back: one point per bar (a later point on the same bar wins). */
+/** True for an auto(...) curve the editor cannot show (a point in seconds, or a text it does not read): it must be edited as text, never replaced by a flat line. */
+export const unreadableAuto = (text) => /^\s*auto\(/.test(String(text ?? '')) && parseAuto(text) === null;
+
+/** Writes points back: one point per bar position (a later point on the same place wins); a bar with decimals keeps them (up to 4). */
 export function formatAuto(points) {
   const byBar = new Map();
-  for (const p of points) byBar.set(Math.max(1, Math.round(p.bar)), Math.round(p.value));
+  for (const p of points) byBar.set(Math.max(1, Math.round(p.bar * 10000) / 10000), Math.round(p.value));
   return `auto(${[...byBar].sort((a, b) => a[0] - b[0]).map(([bar, value]) => `${bar}:${value}`).join(', ')})`;
 }
 

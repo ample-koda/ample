@@ -1,6 +1,7 @@
 // The arrangement: lanes generated from the blocks, bars from their parts, a transport with the waveform of the
 // built song, and preview of a bar range. @ample:arrangement @ample:preview-playback
 
+import { createPendingSteps } from '../lib/pending-steps.mjs';
 import { $, activatable, ask, el, showMenu, toast } from './ui.js';
 import { api } from './api.js';
 import { S, build, edit, flat, notify, readOnly, select } from './store.js';
@@ -20,6 +21,7 @@ import { barBeats } from '../lib/meter.mjs';
 
 let bw = 32;
 let partDrag = null;
+const steps = createPendingSteps();   // quick or held arrow keys step from the value asked for last (bug 10)
 const openTracks = new Set();
 let labelsObserver = null;
 
@@ -254,8 +256,9 @@ export function renderArrangement() {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
         const step = event.key === 'ArrowRight' ? 1 : -1;
-        let from = slice.from, to = endBar;
+        let { from, to } = steps.from('slice', { from: slice.from, to: endBar });   // from what the key before asked for (bug 10)
         if (side === 'left') from = Math.max(1, Math.min(to, from + step)); else to = Math.max(from, Math.min(bars, to + step));
+        steps.asked('slice', { from, to });
         writeSlice(from, to >= bars && !slice.to ? null : to);
       };
       handle.onpointerdown = (event) => {
@@ -346,9 +349,12 @@ export function renderArrangement() {
         if (event.key === 'Enter') { event.preventDefault(); editPartTiming(n, parts, Number(b.dataset.part)); return; }
         if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
         event.preventDefault();
-        const i = Number(b.dataset.part), next = parts.map((part, j) => j !== i ? part : event.shiftKey
-          ? { ...part, length: Math.max(1, part.length + (event.key === 'ArrowRight' ? 1 : -1)) }
-          : { ...part, at: Math.max(1, part.at + (event.key === 'ArrowRight' ? 1 : -1)) });
+        // step from the place the key before asked for: the clip is drawn again only when the server answers (bug 10)
+        const i = Number(b.dataset.part), key = `part:${n.id}:${i}`, now = steps.from(key, parts[i]);
+        const delta = event.key === 'ArrowRight' ? 1 : -1;
+        const moved = event.shiftKey ? { ...now, length: Math.max(1, now.length + delta) } : { ...now, at: Math.max(1, now.at + delta) };
+        steps.asked(key, moved);
+        const next = parts.map((part, j) => (j !== i ? part : moved));
         await commitParts(n, next, p.length, next[i].length);
       };
       b.onpointerdown = (event) => {

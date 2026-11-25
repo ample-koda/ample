@@ -74,3 +74,18 @@ test('a missing or bad tempo counts as 120', () => {
   assert.equal(barMilliseconds(0.5, 4), 240000, 'a tempo below 1 is taken as 1');
   assert.equal(barMilliseconds('x', 3), 1500);
 });
+
+test('a meter is read as the server reads it: half-note meters up to 16/2, and a meter the server refuses is 4/4 (bug 11)', async () => {
+  const { meterBeats, setBarBeats, barBeats, setBarBeatsFromText } = await import('../meter.mjs');
+  try {
+    assert.equal(meterBeats(9, 2), 18);
+    assert.equal(meterBeats(16, 2), 32);
+    assert.equal(meterBeats(3, 5), 4);
+    assert.equal(meterBeats(17, 4), 4);
+    assert.equal(meterBeats(7, 8), 3.5);
+    setBarBeats(18);
+    assert.equal(barBeats(), 18);
+    assert.equal(setBarBeatsFromText('composition "x" { ample 1  tempo 90  meter 12/2 }'), 24);
+    assert.equal(setBarBeatsFromText('composition "x" { ample 1  tempo 90  meter 3/5 }'), 4);
+  } finally { setBarBeats(4); }
+});

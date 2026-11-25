@@ -13,7 +13,8 @@ blank       = eol ;
 comment     = "#" , { any-char } , eol ;
 ignore      = "#" , "ample-ignore" , rule-code , { [ "," ] , rule-code } , eol ;
 
-composition = ( "composition" | "project" ) , string , "{" , [ "ample" , integer ] , "tempo" , number , [ "meter" , integer , "/" , integer ] , "master-seed" , integer , "}" , eol ;   (* "project" is the old word: still read, with AMP1117 *)
+composition = ( "composition" | "project" ) , string , "{" , { setting } , "}" , eol ;   (* "project" is the old word: still read, with AMP1117 *)
+setting     = "ample" , integer | "tempo" , number | "meter" , integer , "/" , integer | "master-seed" , integer ;   (* any order; tempo and master-seed once each, ample and meter at most once *)
 features    = "features" , "{" , { feature-pair } , "}" , eol ;
 feature-pair = module , ( "on" | "off" ) | "assist" , assist-level ;
 module      = "quality" | "credits" | "signing" | "secrets" | "lyrics" | "git-mirror" ;
@@ -245,7 +246,7 @@ A mistake in the head is one error at its place: a `(` that is never closed (`if
 
 ## Meter
 
-`composition "waltz" { ample 1  tempo 96  meter 3/4  master-seed 7 }`: the optional `meter` sits between `tempo` and `master-seed`. Without it a song is in 4/4. The top number is the beats of a bar (1 to 16), the bottom number the note that gets a beat (2, 4, 8 or 16); anything else is AMP1120 and the song stays in 4/4.
+`composition "waltz" { ample 1  tempo 96  meter 3/4  master-seed 7 }`: the optional `meter` may stand anywhere in the braces (the settings come in any order; `ample fmt` writes ample, tempo, meter, master-seed). Without it a song is in 4/4. The top number is the beats of a bar (1 to 16), the bottom number the note that gets a beat (2, 4, 8 or 16); anything else is AMP1120 and the song stays in 4/4.
 
 What follows from it, for the whole song: a bar lasts `4 x top / bottom` quarter-note beats (3/4 and 6/8: three, 5/4: five, 7/8: three and a half); `at 3 for 2` still counts bars; the beat of a note (`bar:beat:length:pitch:velocity`) runs from 0 up to the beats of the bar; `1bar` in the note language is one such bar; the grid of a `drums` pattern and of a sequencer row is sixteenth notes, so a bar has 12 steps in 3/4 (a pattern of 16 characters is cut after 12 in a 3/4 song, write 12); `chords Am.F` shares a bar between two chords; a note value such as `1/16` stays a fraction of a whole note (four beats) in every meter; the tempo is quarter notes per minute in every meter, so 6/8 at 120 is a bar of three quarter notes (1.5 seconds).
 

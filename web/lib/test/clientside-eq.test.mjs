@@ -17,3 +17,13 @@ test('EQ bypass preserves input and checks cancellation', async () => {
   const controller = new AbortController(); controller.abort();
   await assert.rejects(() => eqAudio(audio, {}, controller.signal), { name: 'AbortError' });
 });
+
+test('corners written the wrong way round are put in order: a mid boost stays a boost (bug 27)', async () => {
+  const rate = 44100, length = 8820, tone = Float32Array.from({ length }, (_, i) => 0.25 * Math.sin(2 * Math.PI * 1400 * i / rate));
+  const peak = (audio) => audio.channels[0].slice(length / 2).reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  const signal = new AbortController().signal;
+  const right = await eqAudio({ sampleRate: rate, channels: [tone] }, { mid: '12 dB', low_hz: '1000 Hz', high_hz: '2000 Hz' }, signal);
+  const crossed = await eqAudio({ sampleRate: rate, channels: [tone] }, { mid: '12 dB', low_hz: '2000 Hz', high_hz: '1000 Hz' }, signal);
+  assert.ok(Math.abs(peak(right) - peak(crossed)) < 1e-6, `${peak(right)} and ${peak(crossed)}`);
+  assert.ok(peak(crossed) > 0.25, 'the boost raises the tone');
+});

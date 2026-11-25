@@ -1,4 +1,5 @@
 import { pause } from './yield-slice.mjs';
+import { serverInt } from './server-int.mjs';
 import { barBeats } from './meter.mjs';
 
 const CYCLES = { '1/1': 1, '1/2': 2, '1/4': 4, '1/8': 8, '1/16': 16, '1/32': 32, '1/4t': 6, '1/8t': 12, '1/16t': 24 };   // note values per bar, as the server's FilterLfoCycles
@@ -7,12 +8,11 @@ export function syncSamples(params, rate, tempo = 120) {
   const cycles = CYCLES[String(params?.sync ?? 'off').trim()];
   if (!cycles) return 0;
   const samplesPerBar = Math.floor(barBeats() * 60 * rate * 1000 / Math.round((Number(tempo) || 120) * 1000));
-  return Math.max(1, Math.round(samplesPerBar / cycles));
+  // a note value is a part of a whole note (four beats) in any meter, as the server (delay 2): 1/8 is an eighth note in 3/4 too
+  return Math.max(1, Math.round(samplesPerBar / (cycles * barBeats() / 4)));
 }
-const value = (text, fallback) => {
-  const parsed = Number.parseFloat(String(text ?? '').replace(/ms|%/gi, '').trim());
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+// a whole number as the server reads it (Effects.cs Read): "187.5 ms" is 187 and "37.5%" is 37 there, so the preview reads them the same way
+const value = (text, fallback) => serverInt(text, fallback);
 
 /** Applies AMPLE's bounded integer-delay topology over decoded buffers; floats keep the result approximate. */
 export async function delayAudio(audio, params, signal, tempo = 120) {

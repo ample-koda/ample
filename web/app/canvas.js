@@ -25,7 +25,7 @@ import { api } from './api.js';
 import { isExpression, seedSites, stableNameOf } from '../lib/note-pipeline.mjs';
 import { refKey } from '../lib/block-activity.mjs';
 import { openMidiCompare } from './midi-compare-view.js';
-import { setView } from './views.js';
+import { V, setView } from './views.js';
 import { openStudioPanel } from './studio/modal.js';
 import { hasStudioPanel } from './studio/panels/registry.js';
 import { volumeControls } from './studio/panels/volume.js';
@@ -1939,6 +1939,11 @@ export function initCanvas() {
     // (undo and redo stay available inside the studio panel: a knob turn there is an edit of the song)
     const openDialog = document.querySelector('dialog[open]');
     if (e.defaultPrevented || (openDialog && !(openDialog.id === 'studio' && ctrl && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')))) return;
+    if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+    if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+    // the other keys act on the board, so only while it is shown: in the source, library, branches, lyrics, patterns or sequencer view a Delete removed a hidden block
+    // and an arrow key moved one (bug 6); undo and redo above stay for every view, they are edits of the song
+    if (V.mode !== 'blocks') return;
     if ((e.key === 'Delete' || e.key === 'Backspace') && (e.target === document.body || e.target === document.documentElement || e.target.closest?.('#cv'))) {
       if (S.selLink) { const l = current().links.find((x) => linkId(x) === S.selLink); if (l) { deleteLink(l); toast('Link removed. Press Ctrl+Z to undo.'); } }
       else if (!readOnly() && S.selSet.size) { const count = S.selSet.size; Promise.resolve(deleteSelected(ctrl)).then((done) => done !== false && toast(`Removed ${count} item${count === 1 ? '' : 's'}. Press Ctrl+Z to undo.`)); }
@@ -1946,8 +1951,6 @@ export function initCanvas() {
     if (e.key === 'f' && !ctrl) fit(true);
     if (ctrl && e.key.toLowerCase() === 'g') { e.preventDefault(); const n = S.sel && nodeById(S.sel); if (e.shiftKey && n && n.isGroup) ungroupNode(n); else groupSelected(); }
     if (ctrl && e.key.toLowerCase() === 'a') { e.preventDefault(); selectAll(); }
-    if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
-    if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
     if (e.altKey && e.key === 'ArrowUp') up();
     if (!e.altKey && !ctrl && e.key.startsWith('Arrow') && S.selSet.size && !readOnly()) {
       e.preventDefault();

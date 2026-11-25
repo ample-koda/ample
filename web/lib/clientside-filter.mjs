@@ -14,7 +14,8 @@ const cyclesPerBar = { '1/1': 1, '1/2': 2, '1/4': 4, '1/8': 8, '1/16': 16, '1/32
 export async function filterAudio(audio, params, tempo, firstBar, signal) {
   if (params.enabled === 'off') return audio;
   const rate = audio.sampleRate, base = number(params.cutoff, 1000, 20, 20000), depth = number(params.lfo_depth, 0, 0, 8);
-  const cycles = cyclesPerBar[params.lfo_rate] || 0, barsamples = Math.floor((barBeats() * 60) * rate / (Number(tempo) || 120)), origin = (Math.max(1, firstBar) - 1) * barsamples;
+  // the note value is a part of a whole note in any meter (filter 5): the number per bar is that times the beats of a bar over four
+  const cycles = (cyclesPerBar[params.lfo_rate] || 0) * barBeats() / 4, barsamples = Math.floor((barBeats() * 60) * rate / (Number(tempo) || 120)), origin = (Math.max(1, firstBar) - 1) * barsamples;
   const shape = params.lfo_shape || 'sine';
   // an automated cutoff or resonance (auto/lfo/env, or the points of a control): one value per sample, joined by straight lines as the server (Automation.CurveAt)
   const perSample = (value, lo, hi) => {

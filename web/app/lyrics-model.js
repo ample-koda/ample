@@ -81,3 +81,6 @@ export function currentRowIndex(rows, bar) {
   rows.forEach((r, i) => { if (!r.tag && r.bar <= bar && (found < 0 || r.bar >= rows[found].bar)) found = i; });
   return found;
 }
+
+/** A time in seconds as an .lrc time stamp, mm:ss.xx. rounded to hundredths first, then split: a rest of 59.995 s or more wrote [00:60.00] instead of [01:00.00] (bug 15) */
+export const lrcTime = (s) => { const cs = Math.max(0, Math.round(s * 100)); const m = Math.floor(cs / 6000); const x = (cs % 6000) / 100; return `${String(m).padStart(2, '0')}:${x.toFixed(2).padStart(5, '0')}`; };

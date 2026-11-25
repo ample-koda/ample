@@ -46,6 +46,7 @@ export function setBottomTab(t) {
   document.querySelectorAll('.bsec').forEach((s) => s.classList.toggle('on', s.id === `b-${t}`));
   $('#bottom').classList.remove('min');
   $('#b-min').textContent = '▾';
+  document.dispatchEvent(new CustomEvent('ample:bottom-open'));   // the layout remembers that the panel is open (bug 24)
 }
 
 /** Open and focus the exact source diagnostic or original upstream build error. */
@@ -566,7 +567,10 @@ export function renderProps() {
       row(meta && meta.label ? meta.label : k, withChip(extra ? el('div', { className: 'row', style: 'margin:0' }, [field, extra]) : field), k);
       return;
     }
-    const inp = el('input', { value: display, disabled: ro || locked, title: tip, placeholder: meta && meta.placeholder ? meta.placeholder : '' });
+    // a text with line breaks gets a text area: an input drops the line feeds of its value, so one small edit joined every line (bug 20)
+    const fieldProps = { value: display, disabled: ro || locked, title: tip, placeholder: meta && meta.placeholder ? meta.placeholder : '' };
+    const areaProps = { ...fieldProps, rows: 3, className: 'parameter-multiline', style: 'width:100%;box-sizing:border-box;resize:vertical' };
+    const inp = meta && meta.multiline ? el('textarea', areaProps) : el('input', fieldProps);
     inp.onchange = () => save(inp.value, inp);
     if (meta && meta.modalEditor) {
       const expand = el('button', { textContent: '…', title: `Edit ${meta.label || k} in a larger editor`, 'aria-label': `Edit ${meta.label || k} in a larger editor`, disabled: ro || locked });
@@ -808,7 +812,8 @@ export function renderStructure() {
   box.append(el('h5', { textContent: 'Problems' }));
   const diags = S.doc ? S.doc.diagnostics : [];
   if (!diags.length) box.append(el('div', { className: 'dim', textContent: 'none', style: 'padding:2px 6px' }));
-  diags.forEach((d) => box.append(el('div', { className: `seerr ${d.severity}`, textContent: `${d.code} ${d.line + 1}:${d.col + 1} ${d.message}` })));
+  // a diagnostic counts lines and columns from 1 already (Model.cs Diagnostic): no + 1 (bug 25: 5:3 showed as 6:4)
+  diags.forEach((d) => box.append(el('div', { className: `seerr ${d.severity}`, textContent: `${d.code} ${d.line}:${d.col} ${d.message}` })));
 }
 
 export { fit, selectAll, up, container, flat };

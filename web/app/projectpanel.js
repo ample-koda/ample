@@ -494,7 +494,7 @@ function openItem(item) {
   if (lastOpened.path === item.path && now - lastOpened.at < 500) return;
   lastOpened = { path: item.path, at: now };
   if (!item.isDir && PACKAGE_NAME.test(item.path)) { import('./package.js').then((module) => module.openPackageViewer(item.path)).catch((error) => toast(error.message || String(error))); return; }
-  if (item.isDir) { folder = item.path; saveState(); refreshProjectPanel().catch(() => {}); return; }
+  if (item.isDir) { enterFolder(item.path).catch(() => {}); return; }   // every change of folder clears the selection of the folder before (bug 18)
   // a sound file opens in a window of its own that floats over the page: the panel stays as it is, and nothing needs to be connected to the file
   if (AUDIO_NAME.test(item.name || item.path)) { import('./filepreview.js').then((module) => module.openFilePreview(item)).catch((error) => toast(error.message || String(error))); return; }
   document.dispatchEvent(new CustomEvent('ample:reveal-file', { detail: item.path }));
@@ -628,7 +628,7 @@ export async function refreshProjectPanel() {
 /** The open folder as clickable parts with an Up button: the way back up that does not need the tree. */
 function fillBreadcrumb(crumb) {
   const parts = folder.split('/').filter(Boolean);
-  const go = (path) => { if (path === folder) return; folder = path; saveState(); refreshProjectPanel().catch((error) => toast(error.message)); };
+  const go = (path) => { if (path === folder) return; enterFolder(path).catch((error) => toast(error.message)); };
   const up = el('button', { type: 'button', className: 'crumb-up', textContent: '↑', title: 'Up one folder (Alt+Up)', 'aria-label': 'Up one folder' });
   up.disabled = !folder;
   up.onclick = () => go(parentFolder(folder));
@@ -703,7 +703,7 @@ async function loadTreeChildren(item) {
 }
 
 async function selectTreeFolder(item) {
-  folder = item.path; saveState(); await refreshProjectPanel();
+  await enterFolder(item.path);
 }
 
 /** The quick "New folder..." of the + button: asks for a name, makes the folder in the open folder and steps into it, so the next one can be made in it. */
@@ -838,7 +838,7 @@ export function initProjectPanel() {
   host.addEventListener('keydown', (event) => {
     if (event.target.closest?.('input, textarea, select')) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') { event.preventDefault(); selectedPaths = new Set(items.filter(matches).map((entry) => entry.path)); redraw(); return; }
-    if (event.altKey && event.key === 'ArrowUp' && folder) { event.preventDefault(); folder = parentFolder(folder); saveState(); refreshProjectPanel().catch((error) => toast(error.message)); return; }
+    if (event.altKey && event.key === 'ArrowUp' && folder) { event.preventDefault(); enterFolder(parentFolder(folder)).catch((error) => toast(error.message)); return; }
     if (event.key === 'Escape' && selectedPaths.size) { selectedPaths = new Set(); anchor = ''; redraw(); return; }
     if (event.key === 'Delete' && selectedPaths.size > 1) { event.preventDefault(); deleteGroup(selectedItems()); }
   });

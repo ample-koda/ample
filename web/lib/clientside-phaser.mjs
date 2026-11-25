@@ -1,8 +1,7 @@
 import { pause } from './yield-slice.mjs';
-const number = (value, fallback) => {
-  const parsed = Number.parseFloat(String(value ?? '').replace(/ms|%/gi, '').trim());
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+import { serverInt } from './server-int.mjs';
+// a whole number as the server reads it (Effects.cs Read): "187.5 ms" is 187 and "37.5%" is 37 there, so the preview reads them the same way
+const number = (text, fallback) => serverInt(text, fallback);
 
 /** AMPLE phaser: cascaded first-order all-pass stages driven by its triangle sweep. */
 export async function phaserAudio(audio, params, signal) {

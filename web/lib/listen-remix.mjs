@@ -1,3 +1,4 @@
+import { meterBeats as meterBeatsOf } from './meter.mjs';
 // Live Preview in Remix (the public Lite page): what the page needs that Studio takes from its store, from the text of the song alone, and the arithmetic of
 // the loop of a whole song or of a range of bars cut from the render of the whole song (exact: the bars are the same samples as in the whole song). @ample:listen-preview
 
@@ -61,6 +62,5 @@ export function statusText(state, extra = {}) {
 /** The beats of a bar in quarter notes for the meter on the composition line of a song text (3/4 and 6/8: 3; none: 4). Nothing is set anywhere. */
 export function meterBeats(songText) {
   const m = /^\s*(?:composition|project)\s+"(?:[^"\\]|\\.)*"\s*\{[^}\n]*?\bmeter\s+(\d+)\/(\d+)\b/m.exec(String(songText ?? ''));
-  const beats = m ? (4 * Number(m[1])) / Number(m[2]) : 4;
-  return Number.isFinite(beats) && beats > 0 && beats <= 16 ? beats : 4;
+  return m ? meterBeatsOf(m[1], m[2]) : 4;   // the rule of the server (meter.mjs): half-note meters up to 16/2, a meter it refuses is 4/4
 }

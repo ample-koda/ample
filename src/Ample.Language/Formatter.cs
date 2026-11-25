@@ -243,10 +243,10 @@ public static partial class Formatter
 
     private static string FormatTopLine(string line)
     {
-        Match p = ProjectLoose().Match(line);
-        if (p.Success)
+        // the settings may come in any order; the formatter writes the usual one (CompositionLine)
+        if (CompositionLine.Read(line, requireSpace: false) is { } composition)
         {
-            return $"{p.Groups[1].Value} {p.Groups[2].Value} {{ {(p.Groups["ample"].Success ? "ample " + p.Groups["ample"].Value + "  " : string.Empty)}tempo {p.Groups[3].Value}  {(p.Groups["mn"].Success ? "meter " + p.Groups["mn"].Value + "/" + p.Groups["md"].Value + "  " : string.Empty)}master-seed {p.Groups[4].Value} }}";
+            return CompositionLine.Format(composition);
         }
 
         Match f = BraceLine().Match(line);
@@ -305,9 +305,6 @@ public static partial class Formatter
 
     [GeneratedRegex("^(features|lint|settings)\\s*\\{(.*)\\}$", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex BraceLine();
-
-    [GeneratedRegex("^(project|composition)\\s*(\"(?:[^\"\\\\]|\\\\.)*\")\\s*\\{\\s*(?:ample\\s+(?<ample>\\d+)\\s+)?tempo\\s+(\\d+(?:\\.\\d+)?)\\s+(?:meter\\s+(?<mn>\\d+)/(?<md>\\d+)\\s+)?master-seed\\s+(\\d+)\\s*\\}$", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
-    private static partial Regex ProjectLoose();
 
     [GeneratedRegex("^layout\\s+(\"(?:[^\"\\\\]|\\\\.)*\"|\\S+)\\s+(-?\\d+)\\s+(-?\\d+)$", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex LayoutLoose();

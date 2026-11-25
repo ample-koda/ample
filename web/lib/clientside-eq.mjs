@@ -1,16 +1,16 @@
 import { pause } from './yield-slice.mjs';
 import { cutoffAlpha } from './one-pole.mjs';
-const number = (value, fallback, min, max) => {
-  const parsed = Number.parseFloat(String(value ?? '').replace(/dBFS|dB|%|Hz/gi, '').trim());
-  return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
-};
-
+import { serverInt, serverRoundedDb } from './server-int.mjs';
 /** Splits the signal into AMPLE's two low-pass-derived bands and applies float dB gains. */
 export async function eqAudio(audio, params, signal) {
   if (params.enabled === 'off') return audio;
   const rate = audio.sampleRate;
-  const lowGain = 10 ** (number(params.low, 0, -12, 12) / 20), midGain = 10 ** (number(params.mid, 0, -12, 12) / 20), highGain = 10 ** (number(params.high, 0, -12, 12) / 20);
-  const lowHz = number(params.low_hz, 250, 40, 2000), highHz = number(params.high_hz, 3000, 1000, 12000);
+  // the bands are whole decibels on the server, a decimal part rounded (eq 3, Ample.Language.WholeDecibels)
+  const band = (value) => 10 ** (Math.max(-12, Math.min(12, serverRoundedDb(value, 0))) / 20);
+  const lowGain = band(params.low), midGain = band(params.mid), highGain = band(params.high);
+  // corners written the wrong way round are put in order, as the server does (eq 3)
+  const corner = (text, fallback, min, max) => Math.max(min, Math.min(max, serverInt(text, fallback)));   // whole hertz, as the server reads them
+  const [lowHz, highHz] = [corner(params.low_hz, 250, 40, 2000), corner(params.high_hz, 3000, 1000, 12000)].sort((x, y) => x - y);
   const coeff = (hz) => cutoffAlpha(hz, rate);   // the -3 dB point where it is asked, as on the server (eq version 2)
   const lowAlpha = coeff(lowHz), highAlpha = coeff(highHz), channels = [];
   for (const source of audio.channels) {

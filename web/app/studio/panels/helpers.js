@@ -1,7 +1,7 @@
 // Small building blocks shared by the studio panels of the newer effects (limiter, pan, width, gate, de-esser, modulation, bit crusher).
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
-import { knobPrecision } from '../../../lib/studio-math.js';
+import { knobPrecision, wholeDb } from '../../../lib/studio-math.js';
 import { knobStart } from '../../../lib/knob-start.mjs';
 
 const ns = 'http://www.w3.org/2000/svg';
@@ -33,7 +33,8 @@ export function control(context, params, name, label, min, max, unit, scale = 'l
     return el('label', { className: 'studio-panel-control' }, [el('span', { textContent: `${label} (automated)` }), input]);
   }
 
-  const precision = knobPrecision(unit, min);
+  const templateStep = context.definitions?.find?.((definition) => definition.name === name)?.step;
+  const precision = knobPrecision(unit, min, wholeDb(context.type, name), templateStep);
   return el('div', { className: 'studio-panel-control' }, [knob({   // the knob draws its own name: no second label outside it (issue 188)
     label, value: knobStart(params, name, context.definitions, min), min, max, unit, scale, size,
     step: precision.step, decimals: precision.display, disabled: context.readOnly, learn: learnOf(context, name),

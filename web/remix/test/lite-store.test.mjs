@@ -205,3 +205,12 @@ test('renaming keeps the kind of the content and the extension consistent, in bo
   await store.renameFile(id, 'k.wav', 'k2.wav');
   assert.deepEqual((await store.listFiles(id)).map((f) => `${f.path}:${f.kind}`).sort(), ['b.amplet:text', 'k2.wav:binary']);
 });
+
+test('a rename to the name of another file with other capitals is refused; a rename of the file itself to other capitals is not (bug 14)', async () => {
+  const { store } = make();
+  const { id } = await store.createProject({ name: 'p', files: [{ path: 'components/drums.amplec', text: 'a' }, { path: 'components/new.amplec', text: 'b' }] });
+  await assert.rejects(() => store.renameFile(id, 'components/new.amplec', 'components/Drums.amplec'), (error) => error instanceof LiteStoreError && error.code === 'exists');
+  assert.equal((await store.listFiles(id)).map((f) => f.path).join(), 'components/drums.amplec,components/new.amplec');
+  await store.renameFile(id, 'components/drums.amplec', 'components/Drums.amplec');
+  assert.equal((await store.listFiles(id)).map((f) => f.path).join(), 'components/Drums.amplec,components/new.amplec');
+});

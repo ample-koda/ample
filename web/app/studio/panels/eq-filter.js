@@ -1,5 +1,5 @@
 import { infoNote } from './info.js';
-import { biquadMagnitude, filterPasses, clamp, equalizerResponse, normalize, denormalize, spectrumBins } from '../../../lib/studio-math.js';
+import { biquadMagnitude, filterPasses, clamp, equalizerResponse, normalize, denormalize, spectrumBins, wholeDb } from '../../../lib/studio-math.js';
 import { el } from '../../ui.js';
 import { knob } from '../knob.js';
 import { selector } from '../selector.js';
@@ -12,9 +12,11 @@ const number = (params, name, fallback) => { const value = Number.parseFloat(Str
 const line = (label, control) => (control.classList?.contains('studio-knob')
   ? el('div', { className: 'studio-panel-control' }, [control])   // a knob draws its own name and its value is a button: not inside a label (issue 188)
   : el('label', { className: 'studio-panel-control' }, [el('span', { textContent: label }), control]));
-const commit = (context, name, value, unit) => context.commit(name, `${Number(value.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}`);
+// a level the effect uses in whole decibels is written rounded, as the knob shows it (wholeDb); other decibels keep a tenth
+const places = (context, name, unit) => (unit === 'dB' && !wholeDb(context.type, name) ? 1 : 0);
+const commit = (context, name, value, unit) => context.commit(name, `${Number(value.toFixed(places(context, name, unit)))}${unit ? ` ${unit}` : ''}`);
 const commitBatch = (context, values) => {
-  const changes = values.map(([name, value, unit]) => ({ name, value: `${Number(value.toFixed(unit === 'dB' ? 1 : 0))}${unit ? ` ${unit}` : ''}` }));
+  const changes = values.map(([name, value, unit]) => ({ name, value: `${Number(value.toFixed(places(context, name, unit)))}${unit ? ` ${unit}` : ''}` }));
   if (context.commitMany) context.commitMany(changes);
   else changes.forEach(({ name, value }) => context.commit(name, value));
 };

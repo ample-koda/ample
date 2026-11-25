@@ -36,6 +36,8 @@ async function load() {
   LB.data = await api.get('/api/library');
   try { LB.lock = await api.get('/api/lock'); } catch { LB.lock = { exists: false, checks: [] }; }
   try { LB.uses = S.path ? await api.get(`/api/library/uses?path=${encodeURIComponent(S.path)}`) : []; } catch { LB.uses = []; }
+  // the details show the asset as it is now (after Save notes, Scan, Relocate or Copy), not the object of the list before; a removed asset is no longer shown
+  if (LB.asset) LB.asset = (LB.data?.assets || []).find((x) => x.uuid === LB.asset.uuid) ?? null;
 }
 
 export async function refreshLibrary() { await load(); if ($('#lb').style.display !== 'none') render(); }

@@ -1,4 +1,5 @@
 import { pause } from './yield-slice.mjs';
+import { serverRoundedDb } from './server-int.mjs';
 import { barBeats, stepsPerBar } from './meter.mjs';
 const number = (value, fallback, min, max) => {
   const parsed = Number.parseFloat(String(value ?? '').replace(/dBFS|dB|%|ms/gi, '').trim());
@@ -8,7 +9,7 @@ const number = (value, fallback, min, max) => {
 /** Applies AMPLE's pattern-triggered duck envelope using the project tempo. */
 export async function duckAudio(audio, params, tempo, signal) {
   if (params.enabled === 'off') return audio;
-  const rate = audio.sampleRate, depth = number(params.depth, 10, 0, 40), release = Math.max(1, Math.floor(number(params.release, 160, 10, 2000) * rate / 1000));
+  const rate = audio.sampleRate, depth = Math.max(0, Math.min(40, serverRoundedDb(params.depth, 10))), release = Math.max(1, Math.floor(number(params.release, 160, 10, 2000) * rate / 1000));
   const pattern = String(params.pattern || 'x...x...x...x...').replace(/[|\s]/g, '') || 'x...x...x...x...';
   const samplesPerBar = Math.floor(barBeats() * 60 * rate / Math.max(1, Number(tempo) || 120)), stepLength = Math.max(1, Math.floor(samplesPerBar / stepsPerBar()));
   const attack = Math.max(1, Math.floor(rate * 4 / 1000)), tail = Math.max(release, attack + 1), floor = 10 ** (-depth / 20);

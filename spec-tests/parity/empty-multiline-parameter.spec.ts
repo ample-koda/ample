@@ -8,10 +8,11 @@ test('BUG-01 (fixed by 0381c83): clearing a multiline text parameter must remove
   await page.locator('.node[data-id="drums"] .nh .t').click();
   await page.locator('#props [role="tab"][data-key="parameters"]').click();
   const field = page.locator('#props .prop-tabpanel.active .prop').filter({ has: page.locator('label', { hasText: /(^|\s)pattern\s*♪$/ }) });
-  await expect(field.locator('input')).toHaveValue('beat-A');
+  // a multiline parameter is a text area in the panel (an input dropped its line breaks)
+  await expect(field.locator('input, textarea')).toHaveValue('beat-A');
 
-  await field.locator('input').fill('new transcript');
-  await field.locator('input').press('Tab');
+  await field.locator('input, textarea').fill('new transcript');
+  await field.locator('input, textarea').press('Tab');
   await expect.poll(async () => (await state(page)).text).toContain('pattern new transcript');
   await field.locator('button', { hasText: '…' }).click();
   await expect(page.locator('#dlg')).toHaveJSProperty('open', true);
@@ -19,7 +20,7 @@ test('BUG-01 (fixed by 0381c83): clearing a multiline text parameter must remove
   await page.locator('#dlg-btns button', { hasText: 'Apply' }).click();
 
   await expect.poll(async () => (await state(page)).text).not.toContain('pattern');
-  await expect(field.locator('input')).toBeEditable();
+  await expect(field.locator('input, textarea')).toBeEditable();
   const doc = await page.evaluate(async () => (await (await fetch('/api/doc?path=song.amplet')).json()));
   expect(doc.diagnostics.filter((d) => d.severity === 'error' || d.severity === 1)).toEqual([]);
 });

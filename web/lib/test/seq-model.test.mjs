@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addChannel, addClip, addPattern, addSection, barsOfRow, check, deletePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseSeq, removeChannel, removeClip, removeSection, renameChannel, renamePattern, setChannel, setPattern, setRow, songBars, toggleStep, trackCount, uniqueName, updateClip, updateSection } from '../seq-model.mjs';
+import { addChannel, addClip, addPattern, addSection, barsOfRow, check, deletePattern, duplicatePattern, formatLanes, formatSeq, lanesRenamed, lanesWithout, parseLanes, parseSeq, removeChannel, removeClip, removeSection, renameChannel, renamePattern, setChannel, setPattern, setRow, songBars, stepClass, stepsOfBar, toggleStep, trackCount, uniqueName, updateClip, updateSection } from '../seq-model.mjs';
 
 const TEXT = 'sequencer 1\nchannel kick drum sample=samples/kick.wav vol=-3\nchannel lead notes wave=square\npattern verse bars=2 color=#4a90d9\n  kick x...x...|x.......\n  lead 1:0:1:60:96 2:0:2:67:96\nplaylist\n  clip verse track=1 at=1 for=4\n  section Intro at=1 for=2 color=#4a90d9\n';
 
@@ -26,7 +26,7 @@ test('the lanes are read and written like the engine does', () => {
   assert.deepEqual(lanesRenamed({ 1: ['kick'] }, 'kick', 'bd'), { 1: ['bd'] });
 });
 
-test('drum steps: a row is one group of sixteen steps a bar, a click cycles the step and writes every bar', () => {
+test('drum steps: a row is one group of sixteen steps a bar, a click cycles the step of the clicked bar', () => {
   assert.deepEqual(barsOfRow('x...', 2), ['x...x...x...x...', 'x...x...x...x...']);
   assert.deepEqual(barsOfRow('x...x...x...x...|....x...', 2), ['x...x...x...x...', '....x.......x...']);
   const { seq } = parseSeq(TEXT);
@@ -196,4 +196,30 @@ test('a pattern can be isolated: one clip at bar 1 for its own length, whether o
   const unplaced = isolatePattern(addVariation(parseSeq(TEXT).seq, 'verse').seq, 'verse-b') ?? isolatePattern(made.seq, made.name);
   assert.equal(unplaced.clips[0].at, 1);
   assert.equal(isolatePattern(seq, 'nothing'), null);
+});
+
+test('a triplet or thirty-second row keeps its steps: a click writes only the clicked bar, the other bars keep their text (bug 4)', () => {
+  const triplets = 'sequencer 1\nchannel hat drum sample=samples/hat.wav\npattern verse bars=2\n  hat x..x..x..x..|x..x..x..x..\n';
+  const { seq } = parseSeq(triplets);
+  assert.deepEqual(barsOfRow(seq.patterns[0].rows.hat, 2), ['x..x..x..x..', 'x..x..x..x..']);   // 12 cells, as the server plays them
+  const next = toggleStep(seq, 'verse', 'hat', 0, 1);
+  assert.equal(next.patterns[0].rows.hat, 'xx.x..x..x..|x..x..x..x..');
+  const thirtyTwo = 'x'.padEnd(32, '.');
+  assert.equal(barsOfRow(thirtyTwo, 1)[0].length, 32);
+  assert.equal(stepsOfBar('x...', 16), 16);
+  assert.equal(stepsOfBar('x'.padEnd(24, '.'), 16), 24);
+});
+
+test('in 3/4 a bar has twelve sixteenths: the cells and a click follow the meter (bug 4)', () => {
+  assert.deepEqual(barsOfRow('x...', 1, 12), ['x...x...x...']);
+  const { seq } = parseSeq('sequencer 1\nchannel kick drum sample=samples/kick.wav\npattern verse bars=2\n  kick x...|x.x.\n');
+  const next = toggleStep(seq, 'verse', 'kick', 1, 11, 12);
+  assert.equal(next.patterns[0].rows.kick, 'x...|x.x.x.x.x.xx');
+  assert.equal(toggleStep(seq, 'verse', 'kick', 0, 12, 12), seq);   // a step past the bar changes nothing
+});
+
+test('the look of a step cell follows the steps of the bar', () => {
+  assert.deepEqual([0, 1, 2, 3, 4].map((s) => stepClass(s, 16, 4)), ['beat', 'sixteenth', 'eighth', 'sixteenth', 'beat']);
+  assert.deepEqual([0, 1, 2, 3].map((s) => stepClass(s, 12, 4)), ['beat', 'sixteenth', 'sixteenth', 'beat']);
+  assert.equal(stepClass(4, 12, 3), 'beat');
 });

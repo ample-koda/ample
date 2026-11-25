@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { biquadMagnitude, clamp, compressorOutput, delayTapGain, denormalize, distortionSample, duckGain, equalizerResponse, estimatedRt60, formatValue, interpolateCurve, knobDragValue, normalize, snap, spectrumBins, knobPrecision, releaseInSteps } from '../studio-math.js';
+import { biquadMagnitude, clamp, compressorOutput, delayTapGain, denormalize, distortionSample, duckGain, equalizerResponse, estimatedRt60, formatValue, interpolateCurve, knobDragValue, normalize, snap, spectrumBins, knobPrecision, releaseInSteps, wholeDb } from '../studio-math.js';
 
 test('linear and logarithmic scales round trip', () => {
   for (const scale of ['linear', 'log']) {
@@ -114,4 +114,17 @@ test('a knob that starts at a sixteenth can say 0.0625 (issue 163)', () => {
 test('an octave knob moves in tenths (issue 172)', () => {
   assert.deepEqual(knobPrecision('oct', 0), { step: undefined, commit: 1, display: 1 });
   assert.equal(Number((1.5).toFixed(knobPrecision('oct', 0).commit)), 1.5);
+});
+
+test('a level the effects use in whole decibels is written by its knob as a whole number (bug 23)', () => {
+  assert.deepEqual(knobPrecision('dB', -24, wholeDb('limiter', 'ceiling')), { step: undefined, commit: 0, display: 0 });
+  assert.deepEqual(knobPrecision('dB', -60, wholeDb('volume', 'gain')), { step: undefined, commit: 1, display: 0 });   // a volume keeps its tenth
+  assert.equal(Number((-2.8).toFixed(knobPrecision('dB', -12, wholeDb('eq', 'low')).commit)), -3);
+  const levels = [['eq', 'low'], ['eq', 'mid'], ['eq', 'high'], ['compressor', 'threshold'], ['compressor', 'makeup'], ['limiter', 'ceiling'],
+    ['gate', 'threshold'], ['deesser', 'threshold'], ['duck', 'depth'], ['master', 'limiter']];
+  for (const [type, name] of levels) {
+    assert.equal(wholeDb(type, name), true, `${type} ${name}`);
+  }
+  assert.equal(wholeDb('eq', 'low_hz'), false);
+  assert.equal(wholeDb('peq', 'band1_gain'), false);
 });

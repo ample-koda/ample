@@ -188,6 +188,7 @@ export function editAll(ops) {
 }
 
 async function runAll(ops) {
+  otherEdits++;
   if (!S.doc || readOnly()) { toast('The song has errors: it is read-only until they are fixed.'); return false; }
   if (S.moduleStack.length) return run(ops);
   stopBuild();
@@ -285,6 +286,7 @@ export async function enterModule(node) {
   persistModuleNavigation();
   S.sel = null;
   S.selSet.clear();
+  S.selLink = null;   // a link of the level before is not chosen on this one
   notify();
 }
 
@@ -299,6 +301,7 @@ export async function enterMidiVariant(node, moduleName) {
   persistModuleNavigation();
   S.sel = null;
   S.selSet.clear();
+  S.selLink = null;   // a link of the level before is not chosen on this one
   notify();
 }
 export async function setModuleLevel(length) {
@@ -312,6 +315,7 @@ export async function setModuleLevel(length) {
   persistModuleNavigation();
   S.sel = null;
   S.selSet.clear();
+  S.selLink = null;   // a link of the level before is not chosen on this one
   notify();
 }
 
@@ -507,6 +511,10 @@ export async function openDoc(path, stillWanted) {
   activateHistory(!keepMine);
   S.selSet.clear();
   S.sel = null;
+  S.selLink = null;   // a link chosen in the song before is not chosen here (a Delete removed a link of the same name, bug 17)
+  // the bars chosen on the ruler belong to the song they were chosen in: another song starts with none
+  // (else its previews, the play-range button and "Master slice = these bars" used the bars of the song before)
+  if (path !== leftPath) S.range = null;
   forgotten.delete(path);
   const stored = readWork(path);   // read before setDoc, which keeps the song as it is now
   workHold = true;
@@ -602,6 +610,7 @@ export function edit(ops) {
 }
 
 async function run(ops, target) {
+  otherEdits++;
   if (target && !sameTarget(target, documentTarget(S))) { toast(staleTargetMessage(target)); return false; }
   if (!S.doc || readOnly()) { toast('The song has errors: it is read-only until they are fixed.'); return false; }
   if (ops.some((op) => op.type !== 'setLayout')) stopBuild();
@@ -668,8 +677,30 @@ async function putText(text) {
   setDoc(await api.put('/api/doc', { path: S.path, text, baseVersion: S.doc.version }));
 }
 
-/** Applies new song text to the working copy (not saved), as one undo step. Returns the new view, or null when it failed. */
-export async function applyText(text) {
+/**
+ * Applies new song text to the working copy (not saved), as one undo step. Returns the new view, or null when it failed.
+ * It goes on the edit chain like `edit`: a knob edit that is still on its way would otherwise send the same base version (the second one is refused,
+ * AMP5280, and the typed text or the knob value is lost), and an Undo taken while the text is on its way would take the step before it.
+ * The text belongs to the document that is open now: when another one is open by its turn, nothing is written. It was made from the text as it is
+ * now: when an edit that was on its way changed the song before its turn, writing it would silently take that edit back, so nothing is written then either.
+ */
+export function applyText(text) {
+  const target = documentTarget(S);
+  const madeFrom = otherEdits;
+  const p = chain.then(() => {
+    if (target && !sameTarget(target, documentTarget(S))) { toast(staleTargetMessage(target)); return null; }
+    if (otherEdits !== madeFrom && text !== activeText()) { toast('The song changed while this change was on its way, so it was not applied. Try again.'); return null; }
+    return applyTextNow(text);
+  });
+  chain = p.catch(() => {});
+  return p;
+}
+
+// counts the edits that are not whole texts (knobs, graph edits, undo and redo): a text made before one of them must not take it back
+let otherEdits = 0;
+const activeText = () => (S.moduleStack.length > 0 && S.modulePath ? S.moduleDoc?.text : S.doc?.text);
+
+async function applyTextNow(text) {
   if (!S.doc || S.peek) { toast('Read-only: nothing can be applied while a state is only being looked at.'); return null; }
   const inModule = S.moduleStack.length > 0 && S.modulePath;
   const active = inModule ? S.moduleDoc : S.doc;
@@ -721,6 +752,7 @@ export async function redo() {
  */
 function queueStep(from, to, nothing) {
   const step = chain.then(async () => {
+    otherEdits++;
     if (!from.length) { toast(nothing); return; }
     const text = from.pop();
     if (text && typeof text === 'object') { swapGroups(text, to); return; }

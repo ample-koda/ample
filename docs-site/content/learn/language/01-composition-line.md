@@ -15,7 +15,7 @@ lead: Every song starts with one line that names the song and fixes its tempo, i
 | `meter 3/4` | The time signature. Optional, 4/4 without it. |
 | `master-seed 20261017` | The seed that every random choice in the song comes from. |
 
-`tempo` and `master-seed` are required, `ample` and `meter` are optional, and the order is the one in the table. A line that starts with `#` is a comment.
+`tempo` and `master-seed` are required, `ample` and `meter` are optional, and each one may be written once. They may come in any order; `ample fmt` writes them in the order of the table. A line that starts with `#` is a comment.
 
 ## Tempo and meter
 

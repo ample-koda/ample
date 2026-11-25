@@ -254,7 +254,12 @@ export function quantizeRows(model, rows, gridTicks, endTick) {
   if (!rows.length || !(gridTicks > 0)) return model;
   const snapped = (row) => Math.round(row.at / gridTicks) * gridTicks;
   const ok = rows.filter((row) => snapped(row) !== row.at && snapped(row) + row.length <= endTick);
-  const single = ok.filter((row) => model.notes[row.index].note.tie === undefined), tied = ok.filter((row) => model.notes[row.index].note.tie !== undefined);
+  // a note whose start snaps into another bar (onto the next bar line) goes through moveRows as a tied note does: quantizeNotes keeps a note inside its own bar,
+  // so it squeezed such a note to one tick at the end of the old bar (bug 5)
+  const barTicks = barBeats() * model.ppq;
+  const crossesBar = (row) => Math.floor(snapped(row) / barTicks) !== Math.floor(row.at / barTicks);
+  const viaMove = (row) => model.notes[row.index].note.tie !== undefined || crossesBar(row);
+  const single = ok.filter((row) => !viaMove(row)), tied = ok.filter(viaMove);
   let next = single.length ? quantizeNotes(model, single.map((r) => r.index), gridTicks) : model;
   for (const row of [...tied].sort((a, b) => b.index - a.index)) {
     const fresh = mergedRows(next).find((r) => r.index === row.index);
