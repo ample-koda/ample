@@ -117,7 +117,7 @@ public sealed record LiteLimits(
         MaxAudioBytes: 8L * 1024 * 1024,
         MaxSoundFontBytes: 16L * 1024 * 1024,
         MaxProjectBytes: 64L * 1024 * 1024,
-        BuildSeconds: 90,
+        BuildSeconds: 120,   // owner 2026-11-25: 90 s was too short for some demos and songs
         MaxOutputSeconds: 240,
         OutputMinutes: 5,
         MaxKeptOutputs: 8,
